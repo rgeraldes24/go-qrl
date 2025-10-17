@@ -79,7 +79,7 @@ func SignTx(tx *Transaction, s Signer, w *walletmldsa87.Wallet) (*Transaction, e
 		return nil, fmt.Errorf("%w: have %d want %d", ErrInvalidChainId, tx.ChainId(), s.ChainID())
 	}
 
-	h, err := s.Hash(tx)
+	h, err := s.Hash(tx, w.GetAddress())
 	if err != nil {
 		return nil, err
 	}
@@ -88,13 +88,14 @@ func SignTx(tx *Transaction, s Signer, w *walletmldsa87.Wallet) (*Transaction, e
 		return nil, err
 	}
 	pk := w.GetPK()
+
 	return tx.WithSignatureAndPublicKey(s, sig[:], pk[:])
 }
 
 // SignNewTx creates a transaction and signs it.
 func SignNewTx(w *walletmldsa87.Wallet, s Signer, txdata TxData) (*Transaction, error) {
 	tx := NewTx(txdata)
-	h, err := s.Hash(tx)
+	h, err := s.Hash(tx, w.GetAddress())
 	if err != nil {
 		return nil, err
 	}
@@ -158,7 +159,7 @@ type Signer interface {
 
 	// Hash returns 'signature hash', i.e. the transaction hash that is signed by the
 	// private key. This hash does not uniquely identify the transaction.
-	Hash(tx *Transaction) (common.Hash, error)
+	Hash(tx *Transaction, sender common.Address) (common.Hash, error)
 
 	// Equal returns true if the given signer is the same as the receiver.
 	Equal(Signer) bool
@@ -211,7 +212,12 @@ func (s ShanghaiSigner) verifyAuth(tx *Transaction) (common.Address, error) {
 		return common.Address{}, ErrBadAuthLengths
 	}
 
-	msg, err := s.Hash(tx)
+	sender, err := deriveSender(tt, tx.RawPublicKeyValue())
+	if err != nil {
+		return common.Address{}, err
+	}
+
+	msg, err := s.Hash(tx, sender)
 	if err != nil {
 		return common.Address{}, err
 	}
@@ -237,11 +243,6 @@ func (s ShanghaiSigner) verifyAuth(tx *Transaction) (common.Address, error) {
 		if !ok {
 			return common.Address{}, ErrBadSignature
 		}
-	}
-
-	sender, err := deriveSender(tt, tx.RawPublicKeyValue())
-	if err != nil {
-		return common.Address{}, err
 	}
 
 	return sender, nil
@@ -274,15 +275,8 @@ func (s ShanghaiSigner) SignatureAndPublicKeyValues(tx *Transaction, sig, pk []b
 // It does not uniquely identify the transaction.
 // Hash returns the hash to be signed by the sender.
 // It does not uniquely identify the transaction.
-func (s ShanghaiSigner) Hash(tx *Transaction) (common.Hash, error) {
-	tt := tx.Type()
-
-	sender, err := deriveSender(tt, tx.RawPublicKeyValue())
-	if err != nil {
-		return common.Hash{}, err
-	}
-
-	switch tt {
+func (s ShanghaiSigner) Hash(tx *Transaction, sender common.Address) (common.Hash, error) {
+	switch tx.Type() {
 	case TxTypeMLDSA87, TxTypeSPHINCS256s:
 		return prefixedRlpHash(
 			tx.Type(),

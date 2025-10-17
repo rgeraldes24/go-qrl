@@ -64,7 +64,7 @@ func NewKeyStoreTransactorWithChainID(keystore *keystore.KeyStore, account accou
 			if address != account.Address {
 				return nil, ErrNotAuthorized
 			}
-			hash, err := signer.Hash(tx)
+			hash, err := signer.Hash(tx, account.Address)
 			if err != nil {
 				return nil, err
 			}
@@ -96,7 +96,7 @@ func NewKeyedTransactorWithChainID(w *walletmldsa87.Wallet, chainID *big.Int) (*
 			if address != keyAddr {
 				return nil, ErrNotAuthorized
 			}
-			hash, err := signer.Hash(tx)
+			hash, err := signer.Hash(tx, address)
 			if err != nil {
 				return nil, err
 			}

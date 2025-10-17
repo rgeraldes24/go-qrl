@@ -54,7 +54,7 @@ func (s *senderFromServer) Sender(tx *types.Transaction) (common.Address, error)
 func (s *senderFromServer) ChainID() *big.Int {
 	panic("can't sign with senderFromServer")
 }
-func (s *senderFromServer) Hash(tx *types.Transaction) (common.Hash, error) {
+func (s *senderFromServer) Hash(tx *types.Transaction, sender common.Address) (common.Hash, error) {
 	panic("can't sign with senderFromServer")
 }
 func (s *senderFromServer) SignatureAndPublicKeyValues(tx *types.Transaction, sig, pk []byte) (Signature, PublicKey []byte, err error) {

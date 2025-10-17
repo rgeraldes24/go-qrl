@@ -66,14 +66,16 @@ func TestDecodeEmptyTypedTx(t *testing.T) {
 func TestEIP2718TransactionSigHash(t *testing.T) {
 	s := NewShanghaiSigner(big.NewInt(1))
 
-	hash, err := s.Hash(emptyEip2718Tx)
+	// TODO(rgeraldes24)
+	hash, err := s.Hash(emptyEip2718Tx, common.Address{})
 	if err != nil {
 		t.Fatalf("signer hash error: %v", err)
 	}
 	if hash != common.HexToHash("cf171c2aadabcb1e36975d0949d3b831188b555b7764342bf7b1b47238c428e4") {
 		t.Errorf("empty EIP-2718 transaction hash mismatch, got %x", hash)
 	}
-	hash, err = s.Hash(signedEip2718Tx)
+	// TODO(rgeraldes24)
+	hash, err = s.Hash(signedEip2718Tx, common.Address{})
 	if err != nil {
 		t.Fatalf("signer hash error: %v", err)
 	}
@@ -202,7 +204,8 @@ func TestEIP2930Signer(t *testing.T) {
 		},
 	}
 	for i, test := range tests {
-		sigHash, err := test.signer.Hash(test.tx)
+		// TODO(rgeraldes24)
+		sigHash, err := test.signer.Hash(test.tx, common.Address{})
 		if err != nil {
 			t.Fatalf("signer hash error: %v", err)
 		}
