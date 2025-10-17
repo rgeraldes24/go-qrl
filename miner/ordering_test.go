@@ -56,7 +56,7 @@ func testTransactionPriceNonceSort(t *testing.T, baseFee *big.Int) {
 		for i := 0; i < 25; i++ {
 			var tx *types.Transaction
 			gasFeeCap := rand.Intn(50)
-			tx = types.NewTx(&types.DynamicFeeTx{
+			tx = types.NewTx(&types.MLDSA87Tx{
 				Nonce:     uint64(start + i),
 				To:        &common.Address{},
 				Value:     big.NewInt(100),
@@ -136,7 +136,7 @@ func TestTransactionTimeSort(t *testing.T) {
 	for start, key := range keys {
 		addr := key.GetAddress()
 
-		tx, _ := types.SignTx(types.NewTx(&types.DynamicFeeTx{Nonce: 0, To: &common.Address{}, Value: big.NewInt(100), Gas: 100, Data: nil}), signer, key)
+		tx, _ := types.SignTx(types.NewTx(&types.MLDSA87Tx{Nonce: 0, To: &common.Address{}, Value: big.NewInt(100), Gas: 100, Data: nil}), signer, key)
 		tx.SetTime(time.Unix(0, int64(len(keys)-start)))
 
 		groups[addr] = append(groups[addr], &txpool.LazyTransaction{

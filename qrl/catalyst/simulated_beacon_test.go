@@ -106,7 +106,7 @@ func TestSimulatedBeaconSendWithdrawals(t *testing.T) {
 	// generate a bunch of transactions
 	signer := types.NewShanghaiSigner(qrlService.BlockChain().Config().ChainID)
 	for i := 0; i < 20; i++ {
-		tx, err := types.SignTx(types.NewTx(&types.DynamicFeeTx{Nonce: uint64(i), To: &common.Address{}, Value: big.NewInt(1000), Gas: params.TxGas, GasFeeCap: big.NewInt(params.InitialBaseFee), Data: nil}), signer, testKey)
+		tx, err := types.SignTx(types.NewTx(&types.MLDSA87Tx{Nonce: uint64(i), To: &common.Address{}, Value: big.NewInt(1000), Gas: params.TxGas, GasFeeCap: big.NewInt(params.InitialBaseFee), Data: nil}), signer, testKey)
 		if err != nil {
 			t.Fatalf("error signing transaction, err=%v", err)
 		}

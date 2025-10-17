@@ -46,7 +46,7 @@ var (
 				Data:    []byte{0x01, 0x00, 0xff},
 			},
 		},
-		Type: DynamicFeeTxType,
+		Type: TxTypeMLDSA87,
 	}
 
 	// Create a few transactions to have receipts for
@@ -55,28 +55,27 @@ var (
 	to4, _ = common.NewAddressFromString("Q0000000000000000000000000000000000000004")
 	to5, _ = common.NewAddressFromString("Q0000000000000000000000000000000000000005")
 	txs    = Transactions{
-		NewTx(&DynamicFeeTx{
+		NewTx(&MLDSA87Tx{
 			Nonce:     1,
 			Value:     big.NewInt(1),
 			Gas:       1,
 			GasFeeCap: big.NewInt(11),
 		}),
-		NewTx(&DynamicFeeTx{
+		NewTx(&MLDSA87Tx{
 			To:        &to2,
 			Nonce:     2,
 			Value:     big.NewInt(2),
 			Gas:       2,
 			GasFeeCap: big.NewInt(22),
 		}),
-		NewTx(&DynamicFeeTx{
+		NewTx(&MLDSA87Tx{
 			To:        &to3,
 			Nonce:     3,
 			Value:     big.NewInt(3),
 			Gas:       3,
 			GasFeeCap: big.NewInt(33),
 		}),
-		// EIP-1559 transactions.
-		NewTx(&DynamicFeeTx{
+		NewTx(&MLDSA87Tx{
 			To:        &to4,
 			Nonce:     4,
 			Value:     big.NewInt(4),
@@ -84,7 +83,7 @@ var (
 			GasTipCap: big.NewInt(44),
 			GasFeeCap: big.NewInt(1044),
 		}),
-		NewTx(&DynamicFeeTx{
+		NewTx(&MLDSA87Tx{
 			To:        &to5,
 			Nonce:     5,
 			Value:     big.NewInt(5),
@@ -102,7 +101,7 @@ var (
 	// Create the corresponding receipts
 	receipts = Receipts{
 		&Receipt{
-			Type:              DynamicFeeTxType,
+			Type:              TxTypeMLDSA87,
 			Status:            ReceiptStatusFailed,
 			CumulativeGasUsed: 1,
 			Logs: []*Log{
@@ -137,7 +136,7 @@ var (
 			TransactionIndex:  0,
 		},
 		&Receipt{
-			Type:              DynamicFeeTxType,
+			Type:              TxTypeMLDSA87,
 			PostState:         common.Hash{2}.Bytes(),
 			CumulativeGasUsed: 3,
 			Logs: []*Log{
@@ -171,7 +170,7 @@ var (
 			TransactionIndex:  1,
 		},
 		&Receipt{
-			Type:              DynamicFeeTxType,
+			Type:              TxTypeMLDSA87,
 			PostState:         common.Hash{3}.Bytes(),
 			CumulativeGasUsed: 6,
 			Logs:              []*Log{},
@@ -184,7 +183,7 @@ var (
 			TransactionIndex:  2,
 		},
 		&Receipt{
-			Type:              DynamicFeeTxType,
+			Type:              TxTypeMLDSA87,
 			PostState:         common.Hash{4}.Bytes(),
 			CumulativeGasUsed: 10,
 			Logs:              []*Log{},
@@ -197,7 +196,7 @@ var (
 			TransactionIndex:  3,
 		},
 		&Receipt{
-			Type:              DynamicFeeTxType,
+			Type:              TxTypeMLDSA87,
 			PostState:         common.Hash{5}.Bytes(),
 			CumulativeGasUsed: 15,
 			Logs:              []*Log{},

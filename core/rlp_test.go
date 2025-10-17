@@ -50,7 +50,7 @@ func getBlock(transactions int, dataSize int) *types.Block {
 			if n == 0 {
 				// Add transactions and stuff on the last block
 				for i := 0; i < transactions; i++ {
-					tx := types.NewTx(&types.DynamicFeeTx{
+					tx := types.NewTx(&types.MLDSA87Tx{
 						Nonce:     uint64(i),
 						To:        &aa,
 						Value:     big.NewInt(0),

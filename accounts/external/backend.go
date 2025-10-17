@@ -205,7 +205,7 @@ func (api *ExternalSigner) SignTx(account accounts.Account, tx *types.Transactio
 		From:  common.NewMixedcaseAddress(account.Address),
 	}
 	switch tx.Type() {
-	case types.DynamicFeeTxType:
+	case types.TxTypeMLDSA87, types.TxTypeSPHINCS256s:
 		args.MaxFeePerGas = (*hexutil.Big)(tx.GasFeeCap())
 		args.MaxPriorityFeePerGas = (*hexutil.Big)(tx.GasTipCap())
 	default:

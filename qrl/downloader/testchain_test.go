@@ -138,7 +138,7 @@ func (tc *testChain) generate(n int, seed byte, parent *types.Block) {
 		if parent == tc.blocks[0] && i%22 == 0 {
 			signer := types.MakeSigner(params.TestChainConfig)
 
-			tx, err := types.SignTx(types.NewTx(&types.DynamicFeeTx{Nonce: block.TxNonce(testAddress), To: &common.Address{seed}, Value: big.NewInt(1000), Gas: params.TxGas, GasFeeCap: block.BaseFee(), Data: nil}), signer, testKey)
+			tx, err := types.SignTx(types.NewTx(&types.MLDSA87Tx{Nonce: block.TxNonce(testAddress), To: &common.Address{seed}, Value: big.NewInt(1000), Gas: params.TxGas, GasFeeCap: block.BaseFee(), Data: nil}), signer, testKey)
 			if err != nil {
 				panic(err)
 			}

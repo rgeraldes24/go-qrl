@@ -165,7 +165,7 @@ func TestMessages(t *testing.T) {
 	{
 		receipts = []*types.Receipt{
 			{
-				Type:              types.DynamicFeeTxType,
+				Type:              types.TxTypeMLDSA87,
 				Status:            types.ReceiptStatusFailed,
 				CumulativeGasUsed: 1,
 				Logs: []*types.Log{

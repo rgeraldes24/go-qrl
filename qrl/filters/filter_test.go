@@ -40,7 +40,7 @@ import (
 
 func makeReceipt(addr common.Address) *types.Receipt {
 	receipt := &types.Receipt{
-		Type:              types.DynamicFeeTxType,
+		Type:              types.TxTypeMLDSA87,
 		PostState:         common.CopyBytes(nil),
 		CumulativeGasUsed: 0,
 		Status:            types.ReceiptStatusSuccessful,
@@ -75,19 +75,19 @@ func BenchmarkFilters(b *testing.B) {
 		case 2403:
 			receipt := makeReceipt(addr1)
 			gen.AddUncheckedReceipt(receipt)
-			gen.AddUncheckedTx(types.NewTx(&types.DynamicFeeTx{Nonce: 999, To: &to, Value: big.NewInt(999), Gas: 999, GasFeeCap: gen.BaseFee(), Data: nil}))
+			gen.AddUncheckedTx(types.NewTx(&types.MLDSA87Tx{Nonce: 999, To: &to, Value: big.NewInt(999), Gas: 999, GasFeeCap: gen.BaseFee(), Data: nil}))
 		case 1034:
 			receipt := makeReceipt(addr2)
 			gen.AddUncheckedReceipt(receipt)
-			gen.AddUncheckedTx(types.NewTx(&types.DynamicFeeTx{Nonce: 999, To: &to, Value: big.NewInt(999), Gas: 999, GasFeeCap: gen.BaseFee(), Data: nil}))
+			gen.AddUncheckedTx(types.NewTx(&types.MLDSA87Tx{Nonce: 999, To: &to, Value: big.NewInt(999), Gas: 999, GasFeeCap: gen.BaseFee(), Data: nil}))
 		case 34:
 			receipt := makeReceipt(addr3)
 			gen.AddUncheckedReceipt(receipt)
-			gen.AddUncheckedTx(types.NewTx(&types.DynamicFeeTx{Nonce: 999, To: &to, Value: big.NewInt(999), Gas: 999, GasFeeCap: gen.BaseFee(), Data: nil}))
+			gen.AddUncheckedTx(types.NewTx(&types.MLDSA87Tx{Nonce: 999, To: &to, Value: big.NewInt(999), Gas: 999, GasFeeCap: gen.BaseFee(), Data: nil}))
 		case 99999:
 			receipt := makeReceipt(addr4)
 			gen.AddUncheckedReceipt(receipt)
-			gen.AddUncheckedTx(types.NewTx(&types.DynamicFeeTx{Nonce: 999, To: &to, Value: big.NewInt(999), Gas: 999, GasFeeCap: gen.BaseFee(), Data: nil}))
+			gen.AddUncheckedTx(types.NewTx(&types.MLDSA87Tx{Nonce: 999, To: &to, Value: big.NewInt(999), Gas: 999, GasFeeCap: gen.BaseFee(), Data: nil}))
 		}
 	})
 	// The test txs are not properly signed, can't simply create a chain
@@ -201,7 +201,7 @@ func TestFilters(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			tx, _ := types.SignTx(types.NewTx(&types.DynamicFeeTx{
+			tx, _ := types.SignTx(types.NewTx(&types.MLDSA87Tx{
 				Nonce:     0,
 				GasFeeCap: gen.BaseFee(),
 				Gas:       30000,
@@ -209,7 +209,7 @@ func TestFilters(t *testing.T) {
 				Data:      data,
 			}), signer, key1)
 			gen.AddTx(tx)
-			tx2, _ := types.SignTx(types.NewTx(&types.DynamicFeeTx{
+			tx2, _ := types.SignTx(types.NewTx(&types.MLDSA87Tx{
 				Nonce:     1,
 				GasFeeCap: gen.BaseFee(),
 				Gas:       30000,
@@ -222,7 +222,7 @@ func TestFilters(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			tx, _ := types.SignTx(types.NewTx(&types.DynamicFeeTx{
+			tx, _ := types.SignTx(types.NewTx(&types.MLDSA87Tx{
 				Nonce:     2,
 				GasFeeCap: gen.BaseFee(),
 				Gas:       30000,
@@ -235,7 +235,7 @@ func TestFilters(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			tx, _ := types.SignTx(types.NewTx(&types.DynamicFeeTx{
+			tx, _ := types.SignTx(types.NewTx(&types.MLDSA87Tx{
 				Nonce:     3,
 				GasFeeCap: gen.BaseFee(),
 				Gas:       30000,
@@ -248,7 +248,7 @@ func TestFilters(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			tx, _ := types.SignTx(types.NewTx(&types.DynamicFeeTx{
+			tx, _ := types.SignTx(types.NewTx(&types.MLDSA87Tx{
 				Nonce:     4,
 				GasFeeCap: gen.BaseFee(),
 				Gas:       30000,
@@ -277,7 +277,7 @@ func TestFilters(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		tx, err := types.SignTx(types.NewTx(&types.DynamicFeeTx{
+		tx, err := types.SignTx(types.NewTx(&types.MLDSA87Tx{
 			Nonce:     5,
 			GasFeeCap: gen.BaseFee(),
 			Gas:       30000,

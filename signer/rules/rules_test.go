@@ -451,7 +451,7 @@ func dummySigned(value *big.Int) *types.Transaction {
 	gas := uint64(21000)
 	gasFeeCap := big.NewInt(2000000)
 	data := make([]byte, 0)
-	return types.NewTx(&types.DynamicFeeTx{
+	return types.NewTx(&types.MLDSA87Tx{
 		Nonce:     3,
 		To:        &to,
 		Value:     value,

@@ -49,11 +49,11 @@ func TestLookupStorage(t *testing.T) {
 			db := NewMemoryDatabase()
 
 			to1 := common.BytesToAddress([]byte{0x11})
-			tx1 := types.NewTx(&types.DynamicFeeTx{Nonce: 1, To: &to1, Value: big.NewInt(111), Gas: 1111, GasFeeCap: big.NewInt(11111), Data: []byte{0x11, 0x11, 0x11}})
+			tx1 := types.NewTx(&types.MLDSA87Tx{Nonce: 1, To: &to1, Value: big.NewInt(111), Gas: 1111, GasFeeCap: big.NewInt(11111), Data: []byte{0x11, 0x11, 0x11}})
 			to2 := common.BytesToAddress([]byte{0x22})
-			tx2 := types.NewTx(&types.DynamicFeeTx{Nonce: 2, To: &to2, Value: big.NewInt(222), Gas: 2222, GasFeeCap: big.NewInt(22222), Data: []byte{0x22, 0x22, 0x22}})
+			tx2 := types.NewTx(&types.MLDSA87Tx{Nonce: 2, To: &to2, Value: big.NewInt(222), Gas: 2222, GasFeeCap: big.NewInt(22222), Data: []byte{0x22, 0x22, 0x22}})
 			to3 := common.BytesToAddress([]byte{0x33})
-			tx3 := types.NewTx(&types.DynamicFeeTx{Nonce: 3, To: &to3, Value: big.NewInt(333), Gas: 3333, GasFeeCap: big.NewInt(33333), Data: []byte{0x33, 0x33, 0x33}})
+			tx3 := types.NewTx(&types.MLDSA87Tx{Nonce: 3, To: &to3, Value: big.NewInt(333), Gas: 3333, GasFeeCap: big.NewInt(33333), Data: []byte{0x33, 0x33, 0x33}})
 			txs := []*types.Transaction{tx1, tx2, tx3}
 
 			block := types.NewBlock(&types.Header{Number: big.NewInt(314)}, &types.Body{Transactions: txs}, nil, newTestHasher())

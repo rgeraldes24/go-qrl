@@ -21,14 +21,19 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/theQRL/go-qrllib/wallet/common/descriptor"
+	mldsa "github.com/theQRL/go-qrllib/wallet/ml_dsa_87"
 	walletmldsa87 "github.com/theQRL/go-qrllib/wallet/ml_dsa_87"
+	sphincs "github.com/theQRL/go-qrllib/wallet/sphincsplus_256s"
 	"github.com/theQRL/go-zond/common"
 	"github.com/theQRL/go-zond/crypto/pqcrypto"
 	"github.com/theQRL/go-zond/params"
 )
 
-var ErrInvalidChainId = errors.New("invalid chain id for signer")
+var (
+	ErrInvalidChainId = errors.New("invalid chain id for signer")
+	ErrBadAuthLengths = errors.New("invalid pubkey/signature length for type")
+	ErrBadSignature   = errors.New("invalid PQ signature")
+)
 
 // sigCache is used to cache the derived sender and contains
 // the signer used to derive it.
@@ -74,25 +79,31 @@ func SignTx(tx *Transaction, s Signer, w *walletmldsa87.Wallet) (*Transaction, e
 		return nil, fmt.Errorf("%w: have %d want %d", ErrInvalidChainId, tx.ChainId(), s.ChainID())
 	}
 
-	h := s.Hash(tx)
+	h, err := s.Hash(tx)
+	if err != nil {
+		return nil, err
+	}
 	sig, err := pqcrypto.Sign(h[:], w)
 	if err != nil {
 		return nil, err
 	}
 	pk := w.GetPK()
-	return tx.WithSignaturePublicKeyAndDescriptor(s, sig[:], pk[:], w.GetDescriptor().ToDescriptor().ToBytes())
+	return tx.WithSignatureAndPublicKey(s, sig[:], pk[:])
 }
 
 // SignNewTx creates a transaction and signs it.
 func SignNewTx(w *walletmldsa87.Wallet, s Signer, txdata TxData) (*Transaction, error) {
 	tx := NewTx(txdata)
-	h := s.Hash(tx)
+	h, err := s.Hash(tx)
+	if err != nil {
+		return nil, err
+	}
 	sig, err := pqcrypto.Sign(h[:], w)
 	if err != nil {
 		return nil, err
 	}
 	pk := w.GetPK()
-	return tx.WithSignaturePublicKeyAndDescriptor(s, sig, pk[:], w.GetDescriptor().ToDescriptor().ToBytes())
+	return tx.WithSignatureAndPublicKey(s, sig, pk[:])
 }
 
 // MustSignNewTx creates a transaction and signs it.
@@ -140,14 +151,14 @@ type Signer interface {
 	// Sender returns the sender address of the transaction.
 	Sender(tx *Transaction) (common.Address, error)
 
-	// SignaturePublicKeyAndDescriptorValues returns the raw signature, publicKey, descriptor values
-	// corresponding to the given signature.
-	SignaturePublicKeyAndDescriptorValues(tx *Transaction, sig, pk, desc []byte) (signature, publicKey, descriptor []byte, err error)
+	// SignatureAndPublicKeyValues returns the raw signature, publicKey values corresponding
+	// to the given signature.
+	SignatureAndPublicKeyValues(tx *Transaction, sig, pk []byte) (signature, publicKey []byte, err error)
 	ChainID() *big.Int
 
 	// Hash returns 'signature hash', i.e. the transaction hash that is signed by the
 	// private key. This hash does not uniquely identify the transaction.
-	Hash(tx *Transaction) common.Hash
+	Hash(tx *Transaction) (common.Hash, error)
 
 	// Equal returns true if the given signer is the same as the receiver.
 	Equal(Signer) bool
@@ -158,9 +169,8 @@ type ShanghaiSigner struct {
 }
 
 // NewShangaiSigner returns a signer that accepts
-// - EIP-1559 dynamic fee transactions
-// - EIP-2930 access list transactions,
-// - EIP-155 replay protected transactions
+// - ML-DSA-87 dynamic fee transactions
+// - SPHINCS+256s dynamic fee transactions
 func NewShanghaiSigner(chainId *big.Int) Signer {
 	return ShanghaiSigner{chainId}
 }
@@ -169,16 +179,72 @@ func (s ShanghaiSigner) ChainID() *big.Int {
 	return s.ChainId
 }
 
+func validLengths(tt byte, sig, pk []byte) bool {
+	switch tt {
+	case TxTypeMLDSA87:
+		return len(pk) == mldsa.PKSize && len(sig) == mldsa.SigSize
+	case TxTypeSPHINCS256s:
+		return len(pk) == sphincs.PKSize && len(sig) == sphincs.SigSize
+	default:
+		return false
+	}
+}
+
 func (s ShanghaiSigner) Sender(tx *Transaction) (common.Address, error) {
 	if tx.ChainId().Cmp(s.ChainId) != 0 {
 		return common.Address{}, fmt.Errorf("%w: have %d want %d", ErrInvalidChainId, tx.ChainId(), s.ChainId)
 	}
 
-	d, err := descriptor.FromBytes(tx.RawDescriptorValue())
+	switch tx.Type() {
+	case TxTypeMLDSA87, TxTypeSPHINCS256s:
+		return s.verifyAuth(tx)
+	default:
+		return common.Address{}, ErrTxTypeNotSupported
+	}
+}
+
+func (s ShanghaiSigner) verifyAuth(tx *Transaction) (common.Address, error) {
+	tt := tx.Type()
+
+	sig, pk := tx.RawSignatureValue(), tx.RawPublicKeyValue()
+	if !validLengths(tt, sig, pk) {
+		return common.Address{}, ErrBadAuthLengths
+	}
+
+	msg, err := s.Hash(tx)
 	if err != nil {
 		return common.Address{}, err
 	}
-	return pqcrypto.PKToAddress(tx.RawPublicKeyValue(), d)
+
+	switch tt {
+	case TxTypeSPHINCS256s:
+		pk, err := sphincs.BytesToPK(pk)
+		if err != nil {
+			return common.Address{}, err
+		}
+		desc := sphincs.NewSphincsPlus256sDescriptor()
+		ok := sphincs.Verify(msg.Bytes(), sig, &pk, desc)
+		if !ok {
+			return common.Address{}, ErrBadSignature
+		}
+	default:
+		pk, err := mldsa.BytesToPK(pk)
+		if err != nil {
+			return common.Address{}, err
+		}
+		desc := mldsa.NewMLDSA87Descriptor()
+		ok := mldsa.Verify(msg.Bytes(), sig, &pk, desc)
+		if !ok {
+			return common.Address{}, ErrBadSignature
+		}
+	}
+
+	sender, err := deriveSender(tt, tx.RawPublicKeyValue())
+	if err != nil {
+		return common.Address{}, err
+	}
+
+	return sender, nil
 }
 
 func (s ShanghaiSigner) Equal(s2 Signer) bool {
@@ -186,26 +252,38 @@ func (s ShanghaiSigner) Equal(s2 Signer) bool {
 	return ok && x.ChainId.Cmp(s.ChainId) == 0
 }
 
-func (s ShanghaiSigner) SignaturePublicKeyAndDescriptorValues(tx *Transaction, sig, pk, desc []byte) (Signature, PublicKey, Descriptor []byte, err error) {
+func (s ShanghaiSigner) SignatureAndPublicKeyValues(tx *Transaction, sig, pk []byte) (Signature, PublicKey []byte, err error) {
 	// Check that chain ID of tx matches the signer. We also accept ID zero here,
 	// because it indicates that the chain ID was not specified in the tx.
 	chainID := tx.inner.chainID()
 	if chainID.Sign() != 0 && chainID.Cmp(s.ChainId) != 0 {
-		return nil, nil, nil, fmt.Errorf("%w: have %d want %d", ErrInvalidChainId, chainID, s.ChainId)
+		return nil, nil, fmt.Errorf("%w: have %d want %d", ErrInvalidChainId, chainID, s.ChainId)
 	}
-	Signature = decodeSignature(sig)
-	PublicKey = decodePublicKey(pk)
-	Descriptor = decodeDescriptor(desc)
-	return Signature, PublicKey, Descriptor, nil
+	Signature, err = decodeSignature(tx.Type(), sig)
+	if err != nil {
+		return nil, nil, err
+	}
+	PublicKey, err = decodePublicKey(tx.Type(), pk)
+	if err != nil {
+		return nil, nil, err
+	}
+	return Signature, PublicKey, nil
 }
 
 // Hash returns the hash to be signed by the sender.
 // It does not uniquely identify the transaction.
 // Hash returns the hash to be signed by the sender.
 // It does not uniquely identify the transaction.
-func (s ShanghaiSigner) Hash(tx *Transaction) common.Hash {
-	switch tx.Type() {
-	case DynamicFeeTxType:
+func (s ShanghaiSigner) Hash(tx *Transaction) (common.Hash, error) {
+	tt := tx.Type()
+
+	sender, err := deriveSender(tt, tx.RawPublicKeyValue())
+	if err != nil {
+		return common.Hash{}, err
+	}
+
+	switch tt {
+	case TxTypeMLDSA87, TxTypeSPHINCS256s:
 		return prefixedRlpHash(
 			tx.Type(),
 			[]interface{}{
@@ -218,39 +296,85 @@ func (s ShanghaiSigner) Hash(tx *Transaction) common.Hash {
 				tx.Value(),
 				tx.Data(),
 				tx.AccessList(),
-			})
+				sender,
+			}), nil
 	default:
 		// This _should_ not happen, but in case someone sends in a bad
 		// json struct via RPC, it's probably more prudent to return an
 		// empty hash instead of killing the node with a panic
 		//panic("Unsupported transaction type: %d", tx.typ)
-		return common.Hash{}
+		return common.Hash{}, nil
 	}
 }
 
-func decodeSignature(sig []byte) (signature []byte) {
-	if len(sig) != pqcrypto.MLDSA87SignatureLength {
-		panic(fmt.Sprintf("wrong size for ml-dsa-87 signature: got %d, want %d", len(sig), pqcrypto.MLDSA87SignatureLength))
+func decodePublicKey(txType byte, pk []byte) ([]byte, error) {
+	switch txType {
+	case TxTypeMLDSA87:
+		if len(pk) != pqcrypto.PublicKeyLengthMLDSA87 {
+			return nil, fmt.Errorf("wrong size for ml-dsa-87 publickey: got %d, want %d", len(pk), pqcrypto.PublicKeyLengthMLDSA87)
+		}
+		publicKey := make([]byte, pqcrypto.PublicKeyLengthMLDSA87)
+		copy(publicKey, pk)
+		return publicKey, nil
+	case TxTypeSPHINCS256s:
+		if len(pk) != pqcrypto.PublicKeyLengthSPHINCS256s {
+			return nil, fmt.Errorf("wrong size for sphincs+256s publickey: got %d, want %d", len(pk), pqcrypto.PublicKeyLengthSPHINCS256s)
+		}
+		publicKey := make([]byte, pqcrypto.PublicKeyLengthSPHINCS256s)
+		copy(publicKey, pk)
+		return publicKey, nil
+	default:
+		return nil, ErrTxTypeNotSupported
 	}
-	signature = make([]byte, pqcrypto.MLDSA87SignatureLength)
-	copy(signature, sig)
-	return signature
+
 }
 
-func decodePublicKey(pk []byte) (publicKey []byte) {
-	if len(pk) != pqcrypto.MLDSA87PublicKeyLength {
-		panic(fmt.Sprintf("wrong size for ml-dsa-87 publickey: got %d, want %d", len(pk), pqcrypto.MLDSA87PublicKeyLength))
+func decodeSignature(txType byte, sig []byte) ([]byte, error) {
+	switch txType {
+	case TxTypeMLDSA87:
+		if len(sig) != pqcrypto.SignatureLengthMLDSA87 {
+			return nil, fmt.Errorf("wrong size for ml-dsa-87 signature: got %d, want %d", len(sig), pqcrypto.SignatureLengthMLDSA87)
+		}
+		signature := make([]byte, pqcrypto.SignatureLengthMLDSA87)
+		copy(signature, sig)
+		return signature, nil
+	case TxTypeSPHINCS256s:
+		if len(sig) != pqcrypto.SignatureLengthSPHINCS256s {
+			return nil, fmt.Errorf("wrong size for sphincs+256s signature: got %d, want %d", len(sig), pqcrypto.SignatureLengthSPHINCS256s)
+		}
+		signature := make([]byte, pqcrypto.SignatureLengthSPHINCS256s)
+		copy(signature, sig)
+		return signature, nil
+	default:
+		return nil, ErrTxTypeNotSupported
 	}
-	publicKey = make([]byte, pqcrypto.MLDSA87PublicKeyLength)
-	copy(publicKey, pk)
-	return publicKey
 }
 
-func decodeDescriptor(d []byte) (descriptor []byte) {
-	if len(d) != pqcrypto.DescriptorSize {
-		panic(fmt.Sprintf("wrong size for descriptor: got %d, want %d", len(d), pqcrypto.DescriptorSize))
+func deriveSender(txType byte, pk []byte) (common.Address, error) {
+	switch txType {
+	case TxTypeMLDSA87:
+		pk, err := mldsa.BytesToPK(pk)
+		if err != nil {
+			return common.Address{}, err
+		}
+		desc := mldsa.NewMLDSA87Descriptor()
+		addrBytes, err := mldsa.GetMLDSA87Address(pk, desc)
+		if err != nil {
+			return common.Address{}, err
+		}
+		return addrBytes, nil
+	case TxTypeSPHINCS256s:
+		pk, err := sphincs.BytesToPK(pk)
+		if err != nil {
+			return common.Address{}, err
+		}
+		desc := sphincs.NewSphincsPlus256sDescriptor()
+		addrBytes, err := sphincs.GetSphincsPlus256sAddress(pk, desc)
+		if err != nil {
+			return common.Address{}, err
+		}
+		return addrBytes, nil
+	default:
+		return common.Address{}, ErrTxTypeNotSupported
 	}
-	descriptor = make([]byte, pqcrypto.DescriptorSize)
-	copy(descriptor, d)
-	return descriptor
 }

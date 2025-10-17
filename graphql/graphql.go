@@ -307,7 +307,7 @@ func (t *Transaction) MaxFeePerGas(ctx context.Context) *hexutil.Big {
 		return nil
 	}
 	switch tx.Type() {
-	case types.DynamicFeeTxType:
+	case types.TxTypeMLDSA87, types.TxTypeSPHINCS256s:
 		return (*hexutil.Big)(tx.GasFeeCap())
 	default:
 		return nil
@@ -320,7 +320,7 @@ func (t *Transaction) MaxPriorityFeePerGas(ctx context.Context) *hexutil.Big {
 		return nil
 	}
 	switch tx.Type() {
-	case types.DynamicFeeTxType:
+	case types.TxTypeMLDSA87, types.TxTypeSPHINCS256s:
 		return (*hexutil.Big)(tx.GasTipCap())
 	default:
 		return nil
@@ -543,14 +543,6 @@ func (t *Transaction) Signature(ctx context.Context) (hexutil.Bytes, error) {
 		return hexutil.Bytes{}, nil
 	}
 	return tx.RawSignatureValue(), nil
-}
-
-func (t *Transaction) Descriptor(ctx context.Context) (hexutil.Bytes, error) {
-	tx, err := t.resolve(ctx)
-	if err != nil || tx == nil {
-		return hexutil.Bytes{}, nil
-	}
-	return tx.RawDescriptorValue(), nil
 }
 
 func (t *Transaction) Raw(ctx context.Context) (hexutil.Bytes, error) {

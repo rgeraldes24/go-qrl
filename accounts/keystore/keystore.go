@@ -279,21 +279,6 @@ func (ks *KeyStore) GetPublicKey(a accounts.Account) ([]byte, error) {
 	return pk[:], nil
 }
 
-func (ks *KeyStore) GetDescriptor(a accounts.Account) ([]byte, error) {
-	// Look up the key to sign with and abort if it cannot be found
-	ks.mu.RLock()
-	defer ks.mu.RUnlock()
-
-	unlockedKey, found := ks.unlocked[a.Address]
-	if !found {
-		return nil, ErrLocked
-	}
-
-	desc := unlockedKey.Wallet.GetDescriptor()
-
-	return desc[:], nil
-}
-
 // SignTx signs the given transaction with the requested account.
 func (ks *KeyStore) SignTx(a accounts.Account, tx *types.Transaction, chainID *big.Int) (*types.Transaction, error) {
 	// Look up the key to sign with and abort if it cannot be found

@@ -332,7 +332,7 @@ func TestBlockReceiptStorage(t *testing.T) {
 
 	// Create a live block since we need metadata to reconstruct the receipt
 	to1, _ := common.NewAddressFromString("Q0000000000000000000000000000000000000001")
-	tx1 := types.NewTx(&types.DynamicFeeTx{
+	tx1 := types.NewTx(&types.MLDSA87Tx{
 		Nonce:     1,
 		To:        &to1,
 		Value:     big.NewInt(1),
@@ -341,7 +341,7 @@ func TestBlockReceiptStorage(t *testing.T) {
 		Data:      nil,
 	})
 	to2, _ := common.NewAddressFromString("Q0000000000000000000000000000000000000002")
-	tx2 := types.NewTx(&types.DynamicFeeTx{
+	tx2 := types.NewTx(&types.MLDSA87Tx{
 		Nonce:     2,
 		To:        &to2,
 		Value:     big.NewInt(2),
@@ -617,7 +617,7 @@ func makeTestBlocks(nblock int, txsPerBlock int) []*types.Block {
 	for i := 0; i < len(txs); i++ {
 		var err error
 		to := common.Address{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}
-		txs[i], err = types.SignNewTx(key, signer, &types.DynamicFeeTx{
+		txs[i], err = types.SignNewTx(key, signer, &types.MLDSA87Tx{
 			Nonce:     2,
 			GasFeeCap: big.NewInt(30000),
 			Gas:       0x45454545,
@@ -688,7 +688,7 @@ func TestReadLogs(t *testing.T) {
 
 	// Create a live block since we need metadata to reconstruct the receipt
 	to1, _ := common.NewAddressFromString("Q0000000000000000000000000000000000000001")
-	tx1 := types.NewTx(&types.DynamicFeeTx{
+	tx1 := types.NewTx(&types.MLDSA87Tx{
 		Nonce:     1,
 		To:        &to1,
 		Value:     big.NewInt(1),
@@ -697,7 +697,7 @@ func TestReadLogs(t *testing.T) {
 		Data:      nil,
 	})
 	to2, _ := common.NewAddressFromString("Q0000000000000000000000000000000000000002")
-	tx2 := types.NewTx(&types.DynamicFeeTx{
+	tx2 := types.NewTx(&types.MLDSA87Tx{
 		Nonce:     2,
 		To:        &to2,
 		Value:     big.NewInt(2),
@@ -783,20 +783,20 @@ func TestDeriveLogFields(t *testing.T) {
 	to2, _ := common.NewAddressFromString("Q0000000000000000000000000000000000000002")
 	to3, _ := common.NewAddressFromString("Q0000000000000000000000000000000000000003")
 	txs := types.Transactions{
-		types.NewTx(&types.DynamicFeeTx{
+		types.NewTx(&types.MLDSA87Tx{
 			Nonce:     1,
 			Value:     big.NewInt(1),
 			Gas:       1,
 			GasFeeCap: big.NewInt(1),
 		}),
-		types.NewTx(&types.DynamicFeeTx{
+		types.NewTx(&types.MLDSA87Tx{
 			To:        &to2,
 			Nonce:     2,
 			Value:     big.NewInt(2),
 			Gas:       2,
 			GasFeeCap: big.NewInt(2),
 		}),
-		types.NewTx(&types.DynamicFeeTx{
+		types.NewTx(&types.MLDSA87Tx{
 			To:        &to3,
 			Nonce:     3,
 			Value:     big.NewInt(3),

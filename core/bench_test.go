@@ -77,13 +77,14 @@ func genValueTx(nbytes int) func(int, *BlockGen) {
 	return func(i int, gen *BlockGen) {
 		toaddr := common.Address{}
 		data := make([]byte, nbytes)
-		gas, _ := IntrinsicGas(data, nil, false)
+		txType := uint8(types.TxTypeMLDSA87)
+		gas, _ := IntrinsicGas(txType, data, nil, false)
 		signer := types.MakeSigner(gen.config)
 		baseFee := big.NewInt(0)
 		if gen.header.BaseFee != nil {
 			baseFee = gen.header.BaseFee
 		}
-		tx, _ := types.SignNewTx(benchRootKey, signer, &types.DynamicFeeTx{
+		tx, _ := types.SignNewTx(benchRootKey, signer, &types.MLDSA87Tx{
 			Nonce:     gen.TxNonce(benchRootAddr),
 			To:        &toaddr,
 			Value:     big.NewInt(1),
@@ -136,7 +137,7 @@ func genTxRing(naccounts int) func(int, *BlockGen) {
 				panic("not enough funds")
 			}
 			tx, err := types.SignNewTx(ringKeys[from], signer,
-				&types.DynamicFeeTx{
+				&types.MLDSA87Tx{
 					Nonce:     gen.TxNonce(ringAddrs[from]),
 					To:        &ringAddrs[to],
 					Value:     availableFunds,

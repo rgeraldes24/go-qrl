@@ -193,7 +193,7 @@ func TestGraphQLBlockSerializationEIP2718(t *testing.T) {
 	signer := types.LatestSigner(genesis.Config)
 	newGQLService(t, stack, genesis, 1, func(i int, gen *core.BlockGen) {
 		gen.SetCoinbase(common.Address{1})
-		tx, _ := types.SignNewTx(key, signer, &types.DynamicFeeTx{
+		tx, _ := types.SignNewTx(key, signer, &types.MLDSA87Tx{
 			Nonce:     uint64(0),
 			To:        &dad,
 			Value:     big.NewInt(100),
@@ -201,7 +201,7 @@ func TestGraphQLBlockSerializationEIP2718(t *testing.T) {
 			GasFeeCap: big.NewInt(params.InitialBaseFee),
 		})
 		gen.AddTx(tx)
-		tx, _ = types.SignNewTx(key, signer, &types.DynamicFeeTx{
+		tx, _ = types.SignNewTx(key, signer, &types.MLDSA87Tx{
 			ChainID:   genesis.Config.ChainID,
 			Nonce:     uint64(1),
 			To:        &dad,
@@ -292,11 +292,11 @@ func TestGraphQLConcurrentResolvers(t *testing.T) {
 
 	var tx *types.Transaction
 	handler, chain := newGQLService(t, stack, genesis, 1, func(i int, gen *core.BlockGen) {
-		tx, _ = types.SignNewTx(key, signer, &types.DynamicFeeTx{To: &dad, Gas: 100000, GasFeeCap: big.NewInt(params.InitialBaseFee)})
+		tx, _ = types.SignNewTx(key, signer, &types.MLDSA87Tx{To: &dad, Gas: 100000, GasFeeCap: big.NewInt(params.InitialBaseFee)})
 		gen.AddTx(tx)
-		tx, _ = types.SignNewTx(key, signer, &types.DynamicFeeTx{To: &dad, Nonce: 1, Gas: 100000, GasFeeCap: big.NewInt(params.InitialBaseFee)})
+		tx, _ = types.SignNewTx(key, signer, &types.MLDSA87Tx{To: &dad, Nonce: 1, Gas: 100000, GasFeeCap: big.NewInt(params.InitialBaseFee)})
 		gen.AddTx(tx)
-		tx, _ = types.SignNewTx(key, signer, &types.DynamicFeeTx{To: &dad, Nonce: 2, Gas: 100000, GasFeeCap: big.NewInt(params.InitialBaseFee)})
+		tx, _ = types.SignNewTx(key, signer, &types.MLDSA87Tx{To: &dad, Nonce: 2, Gas: 100000, GasFeeCap: big.NewInt(params.InitialBaseFee)})
 		gen.AddTx(tx)
 	})
 	// start node
@@ -377,7 +377,7 @@ func TestWithdrawals(t *testing.T) {
 	defer stack.Close()
 
 	handler, _ := newGQLService(t, stack, genesis, 1, func(i int, gen *core.BlockGen) {
-		tx, _ := types.SignNewTx(key, signer, &types.DynamicFeeTx{To: &common.Address{}, Gas: 100000, GasFeeCap: big.NewInt(params.InitialBaseFee)})
+		tx, _ := types.SignNewTx(key, signer, &types.MLDSA87Tx{To: &common.Address{}, Gas: 100000, GasFeeCap: big.NewInt(params.InitialBaseFee)})
 		gen.AddTx(tx)
 		gen.AddWithdrawal(&types.Withdrawal{
 			Validator: 5,

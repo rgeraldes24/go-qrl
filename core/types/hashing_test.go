@@ -151,7 +151,7 @@ func genTxs(num uint64) (types.Transactions, error) {
 	var addr = common.Address(key.GetAddress())
 	newTx := func(i uint64) (*types.Transaction, error) {
 		signer := types.NewShanghaiSigner(big.NewInt(18))
-		utx := types.NewTx(&types.DynamicFeeTx{
+		utx := types.NewTx(&types.MLDSA87Tx{
 			Nonce:     i,
 			To:        &addr,
 			Value:     new(big.Int),

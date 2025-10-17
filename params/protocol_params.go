@@ -17,10 +17,10 @@
 package params
 
 const (
-	GasLimitBoundDivisor uint64 = 1024               // The bound divisor of the gas limit, used in update calculations.
-	MinGasLimit          uint64 = 5000               // Minimum the gas limit may ever be.
-	MaxGasLimit          uint64 = 20000000           // Maximum the gas limit
-	GenesisGasLimit      uint64 = 4712388            // Gas limit of the Genesis block.
+	GasLimitBoundDivisor uint64 = 1024     // The bound divisor of the gas limit, used in update calculations.
+	MinGasLimit          uint64 = 5000     // Minimum the gas limit may ever be.
+	MaxGasLimit          uint64 = 20000000 // Maximum the gas limit
+	GenesisGasLimit      uint64 = 4712388  // Gas limit of the Genesis block.
 
 	MaximumExtraDataSize  uint64 = 32    // Maximum size extra data may be after Genesis.
 	SloadGas              uint64 = 50    // Multiplied by the number of 32-byte words that are copied (round up) for any *COPY operation and added.
@@ -68,6 +68,7 @@ const (
 	TxDataNonZeroGasEIP2028   uint64 = 16   // Per byte of non zero data attached to a transaction after EIP 2028
 	TxAccessListAddressGas    uint64 = 2400 // Per address specified in EIP 2930 access list
 	TxAccessListStorageKeyGas uint64 = 1900 // Per storage key specified in EIP 2930 access list
+	TxAuthByteGas             uint64 = 16   // Per byte of non zero auth bytes attached to a transaction
 
 	// These have been changed during the course of the chain
 	SloadGasEIP2200 uint64 = 800 // Cost of SLOAD

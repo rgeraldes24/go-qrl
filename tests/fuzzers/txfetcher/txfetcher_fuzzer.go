@@ -44,7 +44,7 @@ func init() {
 	}
 	txs = make([]*types.Transaction, 65536) // We need to bump enough to hit all the limits
 	for i := 0; i < len(txs); i++ {
-		txs[i] = types.NewTx(&types.DynamicFeeTx{
+		txs[i] = types.NewTx(&types.MLDSA87Tx{
 			Nonce:     rand.Uint64(),
 			To:        &common.Address{byte(rand.Intn(256))},
 			Value:     new(big.Int),

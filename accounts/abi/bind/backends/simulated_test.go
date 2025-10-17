@@ -65,7 +65,7 @@ func TestSimulatedBackend(t *testing.T) {
 
 	code := `6060604052600a8060106000396000f360606040526008565b00`
 	var gas uint64 = 3000000
-	tx := types.NewTx(&types.DynamicFeeTx{
+	tx := types.NewTx(&types.MLDSA87Tx{
 		Nonce:     0,
 		Value:     big.NewInt(0),
 		Gas:       gas,
@@ -174,7 +174,7 @@ func TestNewAdjustTimeFail(t *testing.T) {
 	head, _ := sim.HeaderByNumber(context.Background(), nil) // Should be child's, good enough
 	gasFeeCap := new(big.Int).Add(head.BaseFee, big.NewInt(1))
 
-	tx := types.NewTx(&types.DynamicFeeTx{
+	tx := types.NewTx(&types.MLDSA87Tx{
 		Nonce:     0,
 		To:        &testAddr,
 		Value:     big.NewInt(1000),
@@ -204,7 +204,7 @@ func TestNewAdjustTimeFail(t *testing.T) {
 		t.Errorf("adjusted time not equal to a minute. prev: %v, new: %v", prevTime, newTime)
 	}
 	// Put a transaction after adjusting time
-	tx2 := types.NewTx(&types.DynamicFeeTx{
+	tx2 := types.NewTx(&types.MLDSA87Tx{
 		Nonce:     1,
 		To:        &testAddr,
 		Value:     big.NewInt(1000),
@@ -319,7 +319,7 @@ func TestNonceAt(t *testing.T) {
 	head, _ := sim.HeaderByNumber(context.Background(), nil) // Should be child's, good enough
 	gasFeeCap := new(big.Int).Add(head.BaseFee, big.NewInt(1))
 
-	tx := types.NewTx(&types.DynamicFeeTx{
+	tx := types.NewTx(&types.MLDSA87Tx{
 		Nonce:     nonce,
 		To:        &testAddr,
 		Value:     big.NewInt(1000),
@@ -370,7 +370,7 @@ func TestSendTransaction(t *testing.T) {
 	head, _ := sim.HeaderByNumber(context.Background(), nil) // Should be child's, good enough
 	gasFeeCap := new(big.Int).Add(head.BaseFee, big.NewInt(1))
 
-	tx := types.NewTx(&types.DynamicFeeTx{
+	tx := types.NewTx(&types.MLDSA87Tx{
 		Nonce:     uint64(0),
 		To:        &testAddr,
 		Value:     big.NewInt(1000),
@@ -415,7 +415,7 @@ func TestTransactionByHash(t *testing.T) {
 	head, _ := sim.HeaderByNumber(context.Background(), nil) // Should be child's, good enough
 	gasFeeCap := new(big.Int).Add(head.BaseFee, big.NewInt(1))
 
-	tx := types.NewTx(&types.DynamicFeeTx{
+	tx := types.NewTx(&types.MLDSA87Tx{
 		Nonce:     uint64(0),
 		To:        &testAddr,
 		Value:     big.NewInt(1000),
@@ -761,7 +761,7 @@ func TestTransactionCount(t *testing.T) {
 	head, _ := sim.HeaderByNumber(context.Background(), nil) // Should be child's, good enough
 	gasFeeCap := new(big.Int).Add(head.BaseFee, big.NewInt(1))
 
-	tx := types.NewTx(&types.DynamicFeeTx{
+	tx := types.NewTx(&types.MLDSA87Tx{
 		Nonce:     uint64(0),
 		To:        &testAddr,
 		Value:     big.NewInt(1000),
@@ -825,7 +825,7 @@ func TestTransactionInBlock(t *testing.T) {
 	head, _ := sim.HeaderByNumber(context.Background(), nil) // Should be child's, good enough
 	gasFeeCap := new(big.Int).Add(head.BaseFee, big.NewInt(1))
 
-	tx := types.NewTx(&types.DynamicFeeTx{
+	tx := types.NewTx(&types.MLDSA87Tx{
 		Nonce:     uint64(0),
 		To:        &testAddr,
 		Value:     big.NewInt(1000),
@@ -890,7 +890,7 @@ func TestPendingNonceAt(t *testing.T) {
 	head, _ := sim.HeaderByNumber(context.Background(), nil) // Should be child's, good enough
 	gasFeeCap := new(big.Int).Add(head.BaseFee, big.NewInt(1))
 
-	tx := types.NewTx(&types.DynamicFeeTx{
+	tx := types.NewTx(&types.MLDSA87Tx{
 		Nonce:     uint64(0),
 		To:        &testAddr,
 		Value:     big.NewInt(1000),
@@ -920,7 +920,7 @@ func TestPendingNonceAt(t *testing.T) {
 	}
 
 	// make a new transaction with a nonce of 1
-	tx = types.NewTx(&types.DynamicFeeTx{
+	tx = types.NewTx(&types.MLDSA87Tx{
 		Nonce:     uint64(1),
 		To:        &testAddr,
 		Value:     big.NewInt(1000),
@@ -959,7 +959,7 @@ func TestTransactionReceipt(t *testing.T) {
 	head, _ := sim.HeaderByNumber(context.Background(), nil) // Should be child's, good enough
 	gasFeeCap := new(big.Int).Add(head.BaseFee, big.NewInt(1))
 
-	tx := types.NewTx(&types.DynamicFeeTx{
+	tx := types.NewTx(&types.MLDSA87Tx{
 		Nonce:     uint64(0),
 		To:        &testAddr,
 		Value:     big.NewInt(1000),
@@ -1397,7 +1397,7 @@ func TestForkResendTx(t *testing.T) {
 	head, _ := sim.HeaderByNumber(context.Background(), nil) // Should be child's, good enough
 	gasFeeCap := new(big.Int).Add(head.BaseFee, big.NewInt(1))
 
-	_tx := types.NewTx(&types.DynamicFeeTx{
+	_tx := types.NewTx(&types.MLDSA87Tx{
 		Nonce:     0,
 		To:        &testAddr,
 		Value:     big.NewInt(1000),
@@ -1446,7 +1446,7 @@ func TestCommitReturnValue(t *testing.T) {
 	// Create a block in the original chain (containing a transaction to force different block hashes)
 	head, _ := sim.HeaderByNumber(context.Background(), nil) // Should be child's, good enough
 	gasFeeCap := new(big.Int).Add(head.BaseFee, big.NewInt(1))
-	_tx := types.NewTx(&types.DynamicFeeTx{
+	_tx := types.NewTx(&types.MLDSA87Tx{
 		Nonce:     uint64(0),
 		To:        &testAddr,
 		Value:     big.NewInt(1000),

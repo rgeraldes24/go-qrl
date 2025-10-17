@@ -330,7 +330,7 @@ func unknownTx(s *Suite) *types.Transaction {
 	if tx.To() != nil {
 		to = *tx.To()
 	}
-	txNew := types.NewTx(&types.DynamicFeeTx{
+	txNew := types.NewTx(&types.MLDSA87Tx{
 		Nonce: tx.Nonce() + 1,
 		To:    &to,
 		Value: tx.Value(),
@@ -378,7 +378,7 @@ func generateTxs(s *Suite, numTxs int) (map[common.Hash]common.Hash, []*types.Tr
 
 func generateTx(chainConfig *params.ChainConfig, nonce uint64, gas uint64) *types.Transaction {
 	var to common.Address
-	tx := types.NewTx(&types.DynamicFeeTx{
+	tx := types.NewTx(&types.MLDSA87Tx{
 		Nonce: nonce,
 		To:    &to,
 		Value: big.NewInt(1),
@@ -408,7 +408,7 @@ func invalidNonceTx(s *Suite) *types.Transaction {
 	if tx.To() != nil {
 		to = *tx.To()
 	}
-	txNew := types.NewTx(&types.DynamicFeeTx{
+	txNew := types.NewTx(&types.MLDSA87Tx{
 		Nonce: tx.Nonce() - 2,
 		To:    &to,
 		Value: tx.Value(),
@@ -429,7 +429,7 @@ func hugeAmount(s *Suite) *types.Transaction {
 	if tx.To() != nil {
 		to = *tx.To()
 	}
-	txNew := types.NewTx(&types.DynamicFeeTx{
+	txNew := types.NewTx(&types.MLDSA87Tx{
 		Nonce: tx.Nonce(),
 		To:    &to,
 		Value: amount,
@@ -450,7 +450,7 @@ func hugeGasPrice(s *Suite) *types.Transaction {
 	if tx.To() != nil {
 		to = *tx.To()
 	}
-	txNew := types.NewTx(&types.DynamicFeeTx{
+	txNew := types.NewTx(&types.MLDSA87Tx{
 		Nonce:     tx.Nonce(),
 		To:        &to,
 		Value:     tx.Value(),
@@ -470,7 +470,7 @@ func hugeData(s *Suite) *types.Transaction {
 	if tx.To() != nil {
 		to = *tx.To()
 	}
-	txNew := types.NewTx(&types.DynamicFeeTx{
+	txNew := types.NewTx(&types.MLDSA87Tx{
 		Nonce: tx.Nonce(),
 		To:    &to,
 		Value: tx.Value(),

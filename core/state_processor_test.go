@@ -50,7 +50,7 @@ func TestStateProcessorErrors(t *testing.T) {
 	)
 
 	var mkDynamicTx = func(key *walletmldsa87.Wallet, nonce uint64, to common.Address, value *big.Int, gasLimit uint64, gasTipCap, gasFeeCap *big.Int) *types.Transaction {
-		tx, _ := types.SignTx(types.NewTx(&types.DynamicFeeTx{
+		tx, _ := types.SignTx(types.NewTx(&types.MLDSA87Tx{
 			Nonce:     nonce,
 			GasTipCap: gasTipCap,
 			GasFeeCap: gasFeeCap,
@@ -61,7 +61,7 @@ func TestStateProcessorErrors(t *testing.T) {
 		return tx
 	}
 	var mkDynamicCreationTx = func(nonce uint64, gasLimit uint64, gasTipCap, gasFeeCap *big.Int, data []byte) *types.Transaction {
-		tx, _ := types.SignTx(types.NewTx(&types.DynamicFeeTx{
+		tx, _ := types.SignTx(types.NewTx(&types.MLDSA87Tx{
 			Nonce:     nonce,
 			GasTipCap: gasTipCap,
 			GasFeeCap: gasFeeCap,
@@ -329,7 +329,7 @@ func GenerateBadBlock(parent *types.Block, engine consensus.Engine, txs types.Tr
 		txh := tx.Hash()
 		hasher.Write(txh[:])
 		receipt := &types.Receipt{
-			Type:              types.DynamicFeeTxType,
+			Type:              types.TxTypeMLDSA87,
 			PostState:         common.CopyBytes(nil),
 			CumulativeGasUsed: cumulativeGas + tx.Gas(),
 			Status:            types.ReceiptStatusSuccessful,

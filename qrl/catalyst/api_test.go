@@ -74,7 +74,7 @@ func generateChain(n int) (*core.Genesis, []*types.Block) {
 		g.OffsetTime(5)
 		g.SetExtra([]byte("test"))
 		to, _ := common.NewAddressFromString("Q9a9070028361F7AAbeB3f2F2Dc07F82C4a98A02a")
-		tx, _ := types.SignTx(types.NewTx(&types.DynamicFeeTx{
+		tx, _ := types.SignTx(types.NewTx(&types.MLDSA87Tx{
 			Nonce:     testNonce,
 			To:        &to,
 			Value:     big.NewInt(1),
@@ -98,7 +98,7 @@ func TestAssembleBlock(t *testing.T) {
 	api := NewConsensusAPI(qrlservice)
 	signer := types.NewShanghaiSigner(qrlservice.BlockChain().Config().ChainID)
 	to := blocks[9].Coinbase()
-	tx, err := types.SignTx(types.NewTx(&types.DynamicFeeTx{Nonce: uint64(10), To: &to, Value: big.NewInt(1000), Gas: params.TxGas, GasFeeCap: big.NewInt(875000000), Data: nil}), signer, testKey)
+	tx, err := types.SignTx(types.NewTx(&types.MLDSA87Tx{Nonce: uint64(10), To: &to, Value: big.NewInt(1000), Gas: params.TxGas, GasFeeCap: big.NewInt(875000000), Data: nil}), signer, testKey)
 	if err != nil {
 		t.Fatalf("error signing transaction, err=%v", err)
 	}
@@ -280,7 +280,7 @@ func TestNewBlock(t *testing.T) {
 		statedb, _ := qrlservice.BlockChain().StateAt(parent.Root())
 		nonce := statedb.GetNonce(testAddr)
 		signer := types.LatestSigner(qrlservice.BlockChain().Config())
-		tx := types.NewTx(&types.DynamicFeeTx{
+		tx := types.NewTx(&types.MLDSA87Tx{
 			Nonce:     nonce,
 			Value:     new(big.Int),
 			Gas:       1000000,
@@ -458,7 +458,7 @@ func TestFullAPI(t *testing.T) {
 		statedb, _ := qrlservice.BlockChain().StateAt(parent.Root)
 		nonce := statedb.GetNonce(testAddr)
 		signer := types.LatestSigner(qrlservice.BlockChain().Config())
-		tx := types.NewTx(&types.DynamicFeeTx{
+		tx := types.NewTx(&types.MLDSA87Tx{
 			Nonce: nonce,
 			Value: new(big.Int),
 			Gas:   1000000,
@@ -540,7 +540,7 @@ func TestNewPayloadOnInvalidChain(t *testing.T) {
 	)
 	for i := 0; i < 10; i++ {
 		statedb, _ := qrlservice.BlockChain().StateAt(parent.Root)
-		tx := types.MustSignNewTx(testKey, signer, &types.DynamicFeeTx{
+		tx := types.MustSignNewTx(testKey, signer, &types.MLDSA87Tx{
 			Nonce:     statedb.GetNonce(testAddr),
 			Value:     new(big.Int),
 			Gas:       1000000,
@@ -1117,7 +1117,7 @@ func setupBodies(t *testing.T) (*node.Node, *qrl.QRL, []*types.Block) {
 		statedb, _ := qrlservice.BlockChain().StateAt(parent.Root)
 		nonce := statedb.GetNonce(testAddr)
 		signer := types.LatestSigner(qrlservice.BlockChain().Config())
-		tx := types.NewTx(&types.DynamicFeeTx{
+		tx := types.NewTx(&types.MLDSA87Tx{
 			Nonce: nonce,
 			Value: new(big.Int),
 			Gas:   1000000,

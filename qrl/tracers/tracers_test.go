@@ -38,7 +38,7 @@ func BenchmarkTransactionTrace(b *testing.B) {
 	to, _ := common.NewAddressFromString("Q00000000000000000000000000000000deadbeef")
 	signer := types.LatestSignerForChainID(big.NewInt(1337))
 	tx, err := types.SignNewTx(key, signer,
-		&types.DynamicFeeTx{
+		&types.MLDSA87Tx{
 			Nonce:     1,
 			GasFeeCap: big.NewInt(500),
 			Gas:       gas,

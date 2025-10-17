@@ -40,7 +40,6 @@ type txJSON struct {
 	AccessList           *AccessList     `json:"accessList,omitempty"`
 	PublicKey            *hexutil.Bytes  `json:"publicKey"`
 	Signature            *hexutil.Bytes  `json:"signature"`
-	Descriptor           *hexutil.Bytes  `json:"descriptor"`
 
 	// Only used for encoding:
 	Hash common.Hash `json:"hash"`
@@ -55,7 +54,7 @@ func (tx *Transaction) MarshalJSON() ([]byte, error) {
 
 	// Other fields are set conditionally depending on tx type.
 	switch itx := tx.inner.(type) {
-	case *DynamicFeeTx:
+	case *MLDSA87Tx:
 		enc.ChainID = (*hexutil.Big)(itx.ChainID)
 		enc.Nonce = (*hexutil.Uint64)(&itx.Nonce)
 		enc.To = tx.To()
@@ -67,7 +66,6 @@ func (tx *Transaction) MarshalJSON() ([]byte, error) {
 		enc.AccessList = &itx.AccessList
 		enc.PublicKey = (*hexutil.Bytes)(&itx.PublicKey)
 		enc.Signature = (*hexutil.Bytes)(&itx.Signature)
-		enc.Descriptor = (*hexutil.Bytes)(&itx.Descriptor)
 	}
 	return json.Marshal(&enc)
 }
@@ -83,8 +81,8 @@ func (tx *Transaction) UnmarshalJSON(input []byte) error {
 	// Decode / verify fields according to transaction type.
 	var inner TxData
 	switch dec.Type {
-	case DynamicFeeTxType:
-		var itx DynamicFeeTx
+	case TxTypeMLDSA87, TxTypeSPHINCS256s:
+		var itx MLDSA87Tx
 		inner = &itx
 		if dec.ChainID == nil {
 			return errors.New("missing required field 'chainId' in transaction")
@@ -128,10 +126,6 @@ func (tx *Transaction) UnmarshalJSON(input []byte) error {
 			return errors.New("missing required field 'signature' in transaction")
 		}
 		itx.Signature = *dec.Signature
-		if dec.Descriptor == nil {
-			return errors.New("missing required field 'descriptor' in transaction")
-		}
-		itx.Descriptor = *dec.Descriptor
 		// TODO (cyyber): add sanity check later
 		//withSignature := itx.V.Sign() != 0 || itx.R.Sign() != 0 || itx.S.Sign() != 0
 		//if withSignature {

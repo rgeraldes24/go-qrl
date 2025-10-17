@@ -418,7 +418,7 @@ func testGetBlockReceipts(t *testing.T, protocol uint) {
 		switch i {
 		case 0:
 			// In block 1, the test bank sends account #1 some quanta.
-			tx := types.NewTx(&types.DynamicFeeTx{
+			tx := types.NewTx(&types.MLDSA87Tx{
 				Nonce:     block.TxNonce(testAddr),
 				To:        &to1,
 				Value:     big.NewInt(10_000_000_000_000_000),
@@ -431,7 +431,7 @@ func testGetBlockReceipts(t *testing.T, protocol uint) {
 		case 1:
 			// In block 2, the test bank sends some more quanta to account #1.
 			// acc1Addr passes it on to account #2.
-			tx1 := types.NewTx(&types.DynamicFeeTx{
+			tx1 := types.NewTx(&types.MLDSA87Tx{
 				Nonce:     block.TxNonce(testAddr),
 				To:        &to1,
 				Value:     big.NewInt(1_000_000_000_000_000),
@@ -439,7 +439,7 @@ func testGetBlockReceipts(t *testing.T, protocol uint) {
 				GasFeeCap: block.BaseFee(),
 				Data:      nil,
 			})
-			tx2 := types.NewTx(&types.DynamicFeeTx{
+			tx2 := types.NewTx(&types.MLDSA87Tx{
 				Nonce:     block.TxNonce(acc1Addr),
 				To:        &to2,
 				Value:     big.NewInt(1_000_000_000_000_000),

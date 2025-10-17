@@ -692,7 +692,7 @@ func testFastVsFullChains(t *testing.T, scheme string) {
 		// If the block number is multiple of 3, send a few bonus transactions to the miner
 		if i%3 == 2 {
 			for j := 0; j < i%4+1; j++ {
-				tx := types.NewTx(&types.DynamicFeeTx{
+				tx := types.NewTx(&types.MLDSA87Tx{
 					Nonce:     block.TxNonce(address),
 					To:        &common.Address{0x00},
 					Value:     big.NewInt(1000),
@@ -943,8 +943,8 @@ func testChainTxReorgs(t *testing.T, scheme string) {
 	//  - postponed: transaction included at a later block in the forked chain
 	//  - swapped: transaction included at the same block number in the forked chain
 	to := common.Address(addr1)
-	postponed, _ := types.SignTx(types.NewTx(&types.DynamicFeeTx{Nonce: 0, To: &to, Value: big.NewInt(1000), Gas: params.TxGas, GasFeeCap: big.NewInt(params.InitialBaseFee), Data: nil}), signer, key1)
-	swapped, _ := types.SignTx(types.NewTx(&types.DynamicFeeTx{Nonce: 1, To: &to, Value: big.NewInt(1000), Gas: params.TxGas, GasFeeCap: big.NewInt(params.InitialBaseFee), Data: nil}), signer, key1)
+	postponed, _ := types.SignTx(types.NewTx(&types.MLDSA87Tx{Nonce: 0, To: &to, Value: big.NewInt(1000), Gas: params.TxGas, GasFeeCap: big.NewInt(params.InitialBaseFee), Data: nil}), signer, key1)
+	swapped, _ := types.SignTx(types.NewTx(&types.MLDSA87Tx{Nonce: 1, To: &to, Value: big.NewInt(1000), Gas: params.TxGas, GasFeeCap: big.NewInt(params.InitialBaseFee), Data: nil}), signer, key1)
 
 	// Create two transactions that will be dropped by the forked chain:
 	//  - pastDrop: transaction dropped retroactively from a past block
@@ -962,13 +962,13 @@ func testChainTxReorgs(t *testing.T, scheme string) {
 		switch i {
 		case 0:
 
-			pastDrop, _ = types.SignTx(types.NewTx(&types.DynamicFeeTx{Nonce: gen.TxNonce(addr2), To: &to2, Value: big.NewInt(1000), Gas: params.TxGas, GasFeeCap: gen.header.BaseFee, Data: nil}), signer, key2)
+			pastDrop, _ = types.SignTx(types.NewTx(&types.MLDSA87Tx{Nonce: gen.TxNonce(addr2), To: &to2, Value: big.NewInt(1000), Gas: params.TxGas, GasFeeCap: gen.header.BaseFee, Data: nil}), signer, key2)
 
 			gen.AddTx(pastDrop)  // This transaction will be dropped in the fork from below the split point
 			gen.AddTx(postponed) // This transaction will be postponed till block #3 in the fork
 
 		case 2:
-			freshDrop, _ = types.SignTx(types.NewTx(&types.DynamicFeeTx{Nonce: gen.TxNonce(addr2), To: &to2, Value: big.NewInt(1000), Gas: params.TxGas, GasFeeCap: gen.header.BaseFee, Data: nil}), signer, key2)
+			freshDrop, _ = types.SignTx(types.NewTx(&types.MLDSA87Tx{Nonce: gen.TxNonce(addr2), To: &to2, Value: big.NewInt(1000), Gas: params.TxGas, GasFeeCap: gen.header.BaseFee, Data: nil}), signer, key2)
 
 			gen.AddTx(freshDrop) // This transaction will be dropped in the fork from exactly at the split point
 			gen.AddTx(swapped)   // This transaction will be swapped out at the exact height
@@ -989,18 +989,18 @@ func testChainTxReorgs(t *testing.T, scheme string) {
 	_, chain, _ = GenerateChainWithGenesis(gspec, beacon.NewFaker(), 5, func(i int, gen *BlockGen) {
 		switch i {
 		case 0:
-			pastAdd, _ = types.SignTx(types.NewTx(&types.DynamicFeeTx{Nonce: gen.TxNonce(addr3), To: &to3, Value: big.NewInt(1000), Gas: params.TxGas, GasFeeCap: gen.header.BaseFee, Data: nil}), signer, key3)
+			pastAdd, _ = types.SignTx(types.NewTx(&types.MLDSA87Tx{Nonce: gen.TxNonce(addr3), To: &to3, Value: big.NewInt(1000), Gas: params.TxGas, GasFeeCap: gen.header.BaseFee, Data: nil}), signer, key3)
 			gen.AddTx(pastAdd) // This transaction needs to be injected during reorg
 
 		case 2:
 			gen.AddTx(postponed) // This transaction was postponed from block #1 in the original chain
 			gen.AddTx(swapped)   // This transaction was swapped from the exact current spot in the original chain
 
-			freshAdd, _ = types.SignTx(types.NewTx(&types.DynamicFeeTx{Nonce: gen.TxNonce(addr3), To: &to3, Value: big.NewInt(1000), Gas: params.TxGas, GasFeeCap: gen.header.BaseFee, Data: nil}), signer, key3)
+			freshAdd, _ = types.SignTx(types.NewTx(&types.MLDSA87Tx{Nonce: gen.TxNonce(addr3), To: &to3, Value: big.NewInt(1000), Gas: params.TxGas, GasFeeCap: gen.header.BaseFee, Data: nil}), signer, key3)
 			gen.AddTx(freshAdd) // This transaction will be added exactly at reorg time
 
 		case 3:
-			futureAdd, _ = types.SignTx(types.NewTx(&types.DynamicFeeTx{Nonce: gen.TxNonce(addr3), To: &to3, Value: big.NewInt(1000), Gas: params.TxGas, GasFeeCap: gen.header.BaseFee, Data: nil}), signer, key3)
+			futureAdd, _ = types.SignTx(types.NewTx(&types.MLDSA87Tx{Nonce: gen.TxNonce(addr3), To: &to3, Value: big.NewInt(1000), Gas: params.TxGas, GasFeeCap: gen.header.BaseFee, Data: nil}), signer, key3)
 			gen.AddTx(futureAdd) // This transaction will be added after a full reorg
 		}
 	})
@@ -1060,7 +1060,7 @@ func testLogReorgs(t *testing.T, scheme string) {
 	blockchain.SubscribeRemovedLogsEvent(rmLogsCh)
 	_, chain, _ := GenerateChainWithGenesis(gspec, beacon.NewFaker(), 2, func(i int, gen *BlockGen) {
 		if i == 1 {
-			tx := types.NewTx(&types.DynamicFeeTx{
+			tx := types.NewTx(&types.MLDSA87Tx{
 				Nonce:     gen.TxNonce(addr1),
 				Value:     new(big.Int),
 				Gas:       1000000,
@@ -1130,7 +1130,7 @@ func testLogRebirth(t *testing.T, scheme string) {
 	genDb, chain, _ := GenerateChainWithGenesis(gspec, engine, 3, func(i int, gen *BlockGen) {
 		if i < 2 {
 			for ii := 0; ii < 5; ii++ {
-				tx, err := types.SignNewTx(key1, signer, &types.DynamicFeeTx{
+				tx, err := types.SignNewTx(key1, signer, &types.MLDSA87Tx{
 					Nonce:     gen.TxNonce(addr1),
 					GasFeeCap: gen.header.BaseFee,
 					Gas:       uint64(1000001),
@@ -1156,7 +1156,7 @@ func testLogRebirth(t *testing.T, scheme string) {
 			return
 		}
 		for ii := 0; ii < 5; ii++ {
-			tx, err := types.SignNewTx(key1, signer, &types.DynamicFeeTx{
+			tx, err := types.SignNewTx(key1, signer, &types.MLDSA87Tx{
 				Nonce:     gen.TxNonce(addr1),
 				GasFeeCap: gen.header.BaseFee,
 				Gas:       uint64(1000000),
@@ -1250,7 +1250,7 @@ func testReorgSideEvent(t *testing.T, scheme string) {
 	}
 
 	_, replacementBlocks, _ := GenerateChainWithGenesis(gspec, beacon.NewFaker(), 4, func(i int, gen *BlockGen) {
-		tx := types.NewTx(&types.DynamicFeeTx{
+		tx := types.NewTx(&types.MLDSA87Tx{
 			Nonce:     gen.TxNonce(addr1),
 			Value:     new(big.Int),
 			Gas:       1000000,
@@ -1394,7 +1394,7 @@ func testEIP161AccountRemoval(t *testing.T, scheme string) {
 
 		switch i {
 		case 0:
-			tx = types.NewTx(&types.DynamicFeeTx{
+			tx = types.NewTx(&types.MLDSA87Tx{
 				Nonce:     block.TxNonce(address),
 				To:        &theAddr,
 				Value:     new(big.Int),
@@ -1404,7 +1404,7 @@ func testEIP161AccountRemoval(t *testing.T, scheme string) {
 			})
 			tx, err = types.SignTx(tx, signer, key)
 		case 1:
-			tx = types.NewTx(&types.DynamicFeeTx{
+			tx = types.NewTx(&types.MLDSA87Tx{
 				Nonce:     block.TxNonce(address),
 				To:        &theAddr,
 				Value:     new(big.Int),
@@ -2030,7 +2030,7 @@ func TestTransactionIndices(t *testing.T) {
 		signer = types.LatestSigner(gspec.Config)
 	)
 	_, blocks, receipts := GenerateChainWithGenesis(gspec, beacon.NewFaker(), 128, func(i int, block *BlockGen) {
-		tx := types.NewTx(&types.DynamicFeeTx{
+		tx := types.NewTx(&types.MLDSA87Tx{
 			Nonce:     block.TxNonce(address),
 			To:        &common.Address{0x00},
 			Value:     big.NewInt(1000),
@@ -2139,7 +2139,7 @@ func testSkipStaleTxIndicesInSnapSync(t *testing.T, scheme string) {
 		signer  = types.LatestSigner(gspec.Config)
 	)
 	_, blocks, receipts := GenerateChainWithGenesis(gspec, beacon.NewFaker(), 128, func(i int, block *BlockGen) {
-		tx := types.NewTx(&types.DynamicFeeTx{
+		tx := types.NewTx(&types.MLDSA87Tx{
 			Nonce:     block.TxNonce(address),
 			To:        &common.Address{0x00},
 			Value:     big.NewInt(1000),
@@ -2245,7 +2245,7 @@ func benchmarkLargeNumberOfValueToNonexisting(b *testing.B, numTxs, numBlocks in
 		for txi := 0; txi < numTxs; txi++ {
 			uniq := uint64(i*numTxs + txi)
 			recipient := recipientFn(uniq)
-			tx := types.NewTx(&types.DynamicFeeTx{
+			tx := types.NewTx(&types.MLDSA87Tx{
 				Nonce:     uniq,
 				To:        &recipient,
 				Value:     big.NewInt(1),
@@ -2408,7 +2408,7 @@ func testInitThenFailCreateContract(t *testing.T, scheme string) {
 	_, blocks, _ := GenerateChainWithGenesis(gspec, engine, 4, func(i int, b *BlockGen) {
 		b.SetCoinbase(common.Address{1})
 		// One transaction to BB
-		tx := types.NewTx(&types.DynamicFeeTx{
+		tx := types.NewTx(&types.MLDSA87Tx{
 			Nonce:     nonce,
 			To:        &bb,
 			Value:     big.NewInt(0),
@@ -2496,7 +2496,7 @@ func testEIP2718Transition(t *testing.T, scheme string) {
 
 		// One transaction to 0xAAAA
 		signer := types.LatestSigner(gspec.Config)
-		tx, _ := types.SignNewTx(key, signer, &types.DynamicFeeTx{
+		tx, _ := types.SignNewTx(key, signer, &types.MLDSA87Tx{
 			ChainID:   gspec.Config.ChainID,
 			Nonce:     0,
 			To:        &aa,
@@ -2588,7 +2588,7 @@ func testEIP1559Transition(t *testing.T, scheme string) {
 			StorageKeys: []common.Hash{{0}},
 		}}
 
-		txdata := &types.DynamicFeeTx{
+		txdata := &types.MLDSA87Tx{
 			ChainID:    gspec.Config.ChainID,
 			Nonce:      0,
 			To:         &aa,
@@ -2641,7 +2641,7 @@ func testEIP1559Transition(t *testing.T, scheme string) {
 	blocks, _ = GenerateChain(gspec.Config, block, engine, genDb, 1, func(i int, b *BlockGen) {
 		b.SetCoinbase(common.Address{2})
 
-		txdata := &types.DynamicFeeTx{
+		txdata := &types.MLDSA87Tx{
 			Nonce:     0,
 			To:        &aa,
 			Gas:       30000,
@@ -2701,7 +2701,7 @@ func testSetCanonical(t *testing.T, scheme string) {
 	)
 	// Generate and import the canonical chain
 	_, canon, _ := GenerateChainWithGenesis(gspec, engine, 2*TriesInMemory, func(i int, gen *BlockGen) {
-		tx := types.NewTx(&types.DynamicFeeTx{
+		tx := types.NewTx(&types.MLDSA87Tx{
 			Nonce:     gen.TxNonce(address),
 			To:        &common.Address{0x00},
 			Value:     big.NewInt(1000),
@@ -2730,7 +2730,7 @@ func testSetCanonical(t *testing.T, scheme string) {
 
 	// Generate the side chain and import them
 	_, side, _ := GenerateChainWithGenesis(gspec, engine, 2*TriesInMemory, func(i int, gen *BlockGen) {
-		tx := types.NewTx(&types.DynamicFeeTx{
+		tx := types.NewTx(&types.MLDSA87Tx{
 			Nonce:     gen.TxNonce(address),
 			To:        &common.Address{0x00},
 			Value:     big.NewInt(1),
@@ -2908,7 +2908,7 @@ func TestTxIndexer(t *testing.T) {
 	)
 	_, blocks, receipts := GenerateChainWithGenesis(gspec, engine, 128, func(i int, gen *BlockGen) {
 		to, _ := common.NewAddressFromString("Q00000000000000000000000000000000deadbeef")
-		tx := types.NewTx(&types.DynamicFeeTx{
+		tx := types.NewTx(&types.MLDSA87Tx{
 			Nonce:     nonce,
 			To:        &to,
 			Value:     big.NewInt(1000),
@@ -3160,7 +3160,7 @@ func TestEIP3651(t *testing.T) {
 	_, blocks, _ := GenerateChainWithGenesis(gspec, engine, 1, func(i int, b *BlockGen) {
 		b.SetCoinbase(aa)
 		// One transaction to Coinbase
-		txdata := &types.DynamicFeeTx{
+		txdata := &types.MLDSA87Tx{
 			ChainID:    gspec.Config.ChainID,
 			Nonce:      0,
 			To:         &bb,

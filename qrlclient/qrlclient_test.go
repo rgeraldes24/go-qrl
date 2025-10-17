@@ -194,7 +194,7 @@ var genesis = &core.Genesis{
 	BaseFee:   big.NewInt(params.InitialBaseFee),
 }
 
-var testTx1 = types.MustSignNewTx(testKey, types.LatestSigner(genesis.Config), &types.DynamicFeeTx{
+var testTx1 = types.MustSignNewTx(testKey, types.LatestSigner(genesis.Config), &types.MLDSA87Tx{
 	Nonce:     0,
 	Value:     big.NewInt(12),
 	Gas:       params.TxGas,
@@ -203,7 +203,7 @@ var testTx1 = types.MustSignNewTx(testKey, types.LatestSigner(genesis.Config), &
 	To:        &common.Address{2},
 })
 
-var testTx2 = types.MustSignNewTx(testKey, types.LatestSigner(genesis.Config), &types.DynamicFeeTx{
+var testTx2 = types.MustSignNewTx(testKey, types.LatestSigner(genesis.Config), &types.MLDSA87Tx{
 	Nonce:     1,
 	Value:     big.NewInt(8),
 	Gas:       params.TxGas,
@@ -713,7 +713,7 @@ func sendTransaction(zc *Client) error {
 	}
 
 	signer := types.LatestSignerForChainID(chainID)
-	tx, err := types.SignNewTx(testKey, signer, &types.DynamicFeeTx{
+	tx, err := types.SignNewTx(testKey, signer, &types.MLDSA87Tx{
 		Nonce:     nonce,
 		To:        &common.Address{2},
 		Value:     big.NewInt(1),

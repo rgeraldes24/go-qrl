@@ -25,6 +25,7 @@ import (
 	cmath "github.com/theQRL/go-zond/common/math"
 	"github.com/theQRL/go-zond/core/types"
 	"github.com/theQRL/go-zond/core/vm"
+	"github.com/theQRL/go-zond/crypto/pqcrypto"
 	"github.com/theQRL/go-zond/params"
 )
 
@@ -64,7 +65,7 @@ func (result *ExecutionResult) Revert() []byte {
 }
 
 // IntrinsicGas computes the 'intrinsic gas' for a message with the given data.
-func IntrinsicGas(data []byte, accessList types.AccessList, isContractCreation bool) (uint64, error) {
+func IntrinsicGas(txtype uint8, data []byte, accessList types.AccessList, isContractCreation bool) (uint64, error) {
 	// Set the starting gas for the raw transaction
 	var gas uint64
 	if isContractCreation {
@@ -72,6 +73,17 @@ func IntrinsicGas(data []byte, accessList types.AccessList, isContractCreation b
 	} else {
 		gas = params.TxGas
 	}
+
+	// TODO(rgeraldes24): replace with const
+	switch txtype {
+	case types.TxTypeMLDSA87:
+		gas += params.TxAuthByteGas * (pqcrypto.PublicKeyLengthMLDSA87 + pqcrypto.SignatureLengthMLDSA87)
+	case types.TxTypeSPHINCS256s:
+		gas += params.TxAuthByteGas * (pqcrypto.PublicKeyLengthSPHINCS256s + pqcrypto.SignatureLengthSPHINCS256s)
+	default:
+		return 0, types.ErrTxTypeNotSupported
+	}
+
 	dataLen := uint64(len(data))
 	// Bump the required gas by the amount of transactional data
 	if dataLen > 0 {
@@ -122,6 +134,7 @@ func toWordSize(size uint64) uint64 {
 // A Message contains the data derived from a single transaction that is relevant to state
 // processing.
 type Message struct {
+	TxType     uint8
 	To         *common.Address
 	From       common.Address
 	Nonce      uint64
@@ -142,6 +155,7 @@ type Message struct {
 // TransactionToMessage converts a transaction into a Message.
 func TransactionToMessage(tx *types.Transaction, s types.Signer, baseFee *big.Int) (*Message, error) {
 	msg := &Message{
+		TxType:            tx.Type(),
 		Nonce:             tx.Nonce(),
 		GasLimit:          tx.Gas(),
 		GasPrice:          new(big.Int).Set(tx.GasPrice()),
@@ -335,7 +349,7 @@ func (st *StateTransition) TransitionDb() (*ExecutionResult, error) {
 	)
 
 	// Check clauses 4-5, subtract intrinsic gas if everything is correct
-	gas, err := IntrinsicGas(msg.Data, msg.AccessList, contractCreation)
+	gas, err := IntrinsicGas(msg.TxType, msg.Data, msg.AccessList, contractCreation)
 	if err != nil {
 		return nil, err
 	}

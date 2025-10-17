@@ -37,10 +37,10 @@ var (
 	to3 = common.Address{0xac}
 	// testTxs is a set of transactions to use during testing that have meaningful hashes.
 	testTxs = []*types.Transaction{
-		types.NewTx(&types.DynamicFeeTx{Nonce: 5577006791947779410, To: &to0, Value: new(big.Int), Gas: 0, GasFeeCap: new(big.Int), Data: nil}),
-		types.NewTx(&types.DynamicFeeTx{Nonce: 15352856648520921629, To: &to1, Value: new(big.Int), Gas: 0, GasFeeCap: new(big.Int), Data: nil}),
-		types.NewTx(&types.DynamicFeeTx{Nonce: 3916589616287113937, To: &to2, Value: new(big.Int), Gas: 0, GasFeeCap: new(big.Int), Data: nil}),
-		types.NewTx(&types.DynamicFeeTx{Nonce: 9828766684487745566, To: &to3, Value: new(big.Int), Gas: 0, GasFeeCap: new(big.Int), Data: nil}),
+		types.NewTx(&types.MLDSA87Tx{Nonce: 5577006791947779410, To: &to0, Value: new(big.Int), Gas: 0, GasFeeCap: new(big.Int), Data: nil}),
+		types.NewTx(&types.MLDSA87Tx{Nonce: 15352856648520921629, To: &to1, Value: new(big.Int), Gas: 0, GasFeeCap: new(big.Int), Data: nil}),
+		types.NewTx(&types.MLDSA87Tx{Nonce: 3916589616287113937, To: &to2, Value: new(big.Int), Gas: 0, GasFeeCap: new(big.Int), Data: nil}),
+		types.NewTx(&types.MLDSA87Tx{Nonce: 9828766684487745566, To: &to3, Value: new(big.Int), Gas: 0, GasFeeCap: new(big.Int), Data: nil}),
 	}
 	// testTxsHashes is the hashes of the test transactions above
 	testTxsHashes = []common.Hash{testTxs[0].Hash(), testTxs[1].Hash(), testTxs[2].Hash(), testTxs[3].Hash()}
@@ -204,81 +204,81 @@ func TestTransactionFetcherWaitingWithMeta(t *testing.T) {
 		},
 		steps: []interface{}{
 			// Initial announcement to get something into the waitlist
-			doTxNotify{peer: "A", hashes: []common.Hash{{0x01}, {0x02}}, types: []byte{types.DynamicFeeTxType, types.DynamicFeeTxType}, sizes: []uint32{111, 222}},
+			doTxNotify{peer: "A", hashes: []common.Hash{{0x01}, {0x02}}, types: []byte{types.TxTypeMLDSA87, types.TxTypeMLDSA87}, sizes: []uint32{111, 222}},
 			isWaitingWithMeta(map[string][]announce{
 				"A": {
-					{common.Hash{0x01}, typeptr(types.DynamicFeeTxType), sizeptr(111)},
-					{common.Hash{0x02}, typeptr(types.DynamicFeeTxType), sizeptr(222)},
+					{common.Hash{0x01}, typeptr(types.TxTypeMLDSA87), sizeptr(111)},
+					{common.Hash{0x02}, typeptr(types.TxTypeMLDSA87), sizeptr(222)},
 				},
 			}),
 			// Announce from a new peer to check that no overwrite happens
-			doTxNotify{peer: "B", hashes: []common.Hash{{0x03}, {0x04}}, types: []byte{types.DynamicFeeTxType, types.DynamicFeeTxType}, sizes: []uint32{333, 444}},
+			doTxNotify{peer: "B", hashes: []common.Hash{{0x03}, {0x04}}, types: []byte{types.TxTypeMLDSA87, types.TxTypeMLDSA87}, sizes: []uint32{333, 444}},
 			isWaitingWithMeta(map[string][]announce{
 				"A": {
-					{common.Hash{0x01}, typeptr(types.DynamicFeeTxType), sizeptr(111)},
-					{common.Hash{0x02}, typeptr(types.DynamicFeeTxType), sizeptr(222)},
+					{common.Hash{0x01}, typeptr(types.TxTypeMLDSA87), sizeptr(111)},
+					{common.Hash{0x02}, typeptr(types.TxTypeMLDSA87), sizeptr(222)},
 				},
 				"B": {
-					{common.Hash{0x03}, typeptr(types.DynamicFeeTxType), sizeptr(333)},
-					{common.Hash{0x04}, typeptr(types.DynamicFeeTxType), sizeptr(444)},
+					{common.Hash{0x03}, typeptr(types.TxTypeMLDSA87), sizeptr(333)},
+					{common.Hash{0x04}, typeptr(types.TxTypeMLDSA87), sizeptr(444)},
 				},
 			}),
 			// Announce clashing hashes but unique new peer
-			doTxNotify{peer: "C", hashes: []common.Hash{{0x01}, {0x04}}, types: []byte{types.DynamicFeeTxType, types.DynamicFeeTxType}, sizes: []uint32{111, 444}},
+			doTxNotify{peer: "C", hashes: []common.Hash{{0x01}, {0x04}}, types: []byte{types.TxTypeMLDSA87, types.TxTypeMLDSA87}, sizes: []uint32{111, 444}},
 			isWaitingWithMeta(map[string][]announce{
 				"A": {
-					{common.Hash{0x01}, typeptr(types.DynamicFeeTxType), sizeptr(111)},
-					{common.Hash{0x02}, typeptr(types.DynamicFeeTxType), sizeptr(222)},
+					{common.Hash{0x01}, typeptr(types.TxTypeMLDSA87), sizeptr(111)},
+					{common.Hash{0x02}, typeptr(types.TxTypeMLDSA87), sizeptr(222)},
 				},
 				"B": {
-					{common.Hash{0x03}, typeptr(types.DynamicFeeTxType), sizeptr(333)},
-					{common.Hash{0x04}, typeptr(types.DynamicFeeTxType), sizeptr(444)},
+					{common.Hash{0x03}, typeptr(types.TxTypeMLDSA87), sizeptr(333)},
+					{common.Hash{0x04}, typeptr(types.TxTypeMLDSA87), sizeptr(444)},
 				},
 				"C": {
-					{common.Hash{0x01}, typeptr(types.DynamicFeeTxType), sizeptr(111)},
-					{common.Hash{0x04}, typeptr(types.DynamicFeeTxType), sizeptr(444)},
+					{common.Hash{0x01}, typeptr(types.TxTypeMLDSA87), sizeptr(111)},
+					{common.Hash{0x04}, typeptr(types.TxTypeMLDSA87), sizeptr(444)},
 				},
 			}),
 			// Announce existing and clashing hashes from existing peer. Clashes
 			// should not overwrite previous announcements.
-			doTxNotify{peer: "A", hashes: []common.Hash{{0x01}, {0x03}, {0x05}}, types: []byte{types.DynamicFeeTxType, types.DynamicFeeTxType, types.DynamicFeeTxType}, sizes: []uint32{999, 333, 555}},
+			doTxNotify{peer: "A", hashes: []common.Hash{{0x01}, {0x03}, {0x05}}, types: []byte{types.TxTypeMLDSA87, types.TxTypeMLDSA87, types.TxTypeMLDSA87}, sizes: []uint32{999, 333, 555}},
 			isWaitingWithMeta(map[string][]announce{
 				"A": {
-					{common.Hash{0x01}, typeptr(types.DynamicFeeTxType), sizeptr(111)},
-					{common.Hash{0x02}, typeptr(types.DynamicFeeTxType), sizeptr(222)},
-					{common.Hash{0x03}, typeptr(types.DynamicFeeTxType), sizeptr(333)},
-					{common.Hash{0x05}, typeptr(types.DynamicFeeTxType), sizeptr(555)},
+					{common.Hash{0x01}, typeptr(types.TxTypeMLDSA87), sizeptr(111)},
+					{common.Hash{0x02}, typeptr(types.TxTypeMLDSA87), sizeptr(222)},
+					{common.Hash{0x03}, typeptr(types.TxTypeMLDSA87), sizeptr(333)},
+					{common.Hash{0x05}, typeptr(types.TxTypeMLDSA87), sizeptr(555)},
 				},
 				"B": {
-					{common.Hash{0x03}, typeptr(types.DynamicFeeTxType), sizeptr(333)},
-					{common.Hash{0x04}, typeptr(types.DynamicFeeTxType), sizeptr(444)},
+					{common.Hash{0x03}, typeptr(types.TxTypeMLDSA87), sizeptr(333)},
+					{common.Hash{0x04}, typeptr(types.TxTypeMLDSA87), sizeptr(444)},
 				},
 				"C": {
-					{common.Hash{0x01}, typeptr(types.DynamicFeeTxType), sizeptr(111)},
-					{common.Hash{0x04}, typeptr(types.DynamicFeeTxType), sizeptr(444)},
+					{common.Hash{0x01}, typeptr(types.TxTypeMLDSA87), sizeptr(111)},
+					{common.Hash{0x04}, typeptr(types.TxTypeMLDSA87), sizeptr(444)},
 				},
 			}),
 			// Announce clashing hashes with conflicting metadata. Somebody will
 			// be in the wrong, but we don't know yet who.
-			doTxNotify{peer: "D", hashes: []common.Hash{{0x01}, {0x02}}, types: []byte{types.DynamicFeeTxType, types.DynamicFeeTxType}, sizes: []uint32{999, 222}},
+			doTxNotify{peer: "D", hashes: []common.Hash{{0x01}, {0x02}}, types: []byte{types.TxTypeMLDSA87, types.TxTypeMLDSA87}, sizes: []uint32{999, 222}},
 			isWaitingWithMeta(map[string][]announce{
 				"A": {
-					{common.Hash{0x01}, typeptr(types.DynamicFeeTxType), sizeptr(111)},
-					{common.Hash{0x02}, typeptr(types.DynamicFeeTxType), sizeptr(222)},
-					{common.Hash{0x03}, typeptr(types.DynamicFeeTxType), sizeptr(333)},
-					{common.Hash{0x05}, typeptr(types.DynamicFeeTxType), sizeptr(555)},
+					{common.Hash{0x01}, typeptr(types.TxTypeMLDSA87), sizeptr(111)},
+					{common.Hash{0x02}, typeptr(types.TxTypeMLDSA87), sizeptr(222)},
+					{common.Hash{0x03}, typeptr(types.TxTypeMLDSA87), sizeptr(333)},
+					{common.Hash{0x05}, typeptr(types.TxTypeMLDSA87), sizeptr(555)},
 				},
 				"B": {
-					{common.Hash{0x03}, typeptr(types.DynamicFeeTxType), sizeptr(333)},
-					{common.Hash{0x04}, typeptr(types.DynamicFeeTxType), sizeptr(444)},
+					{common.Hash{0x03}, typeptr(types.TxTypeMLDSA87), sizeptr(333)},
+					{common.Hash{0x04}, typeptr(types.TxTypeMLDSA87), sizeptr(444)},
 				},
 				"C": {
-					{common.Hash{0x01}, typeptr(types.DynamicFeeTxType), sizeptr(111)},
-					{common.Hash{0x04}, typeptr(types.DynamicFeeTxType), sizeptr(444)},
+					{common.Hash{0x01}, typeptr(types.TxTypeMLDSA87), sizeptr(111)},
+					{common.Hash{0x04}, typeptr(types.TxTypeMLDSA87), sizeptr(444)},
 				},
 				"D": {
-					{common.Hash{0x01}, typeptr(types.DynamicFeeTxType), sizeptr(999)},
-					{common.Hash{0x02}, typeptr(types.DynamicFeeTxType), sizeptr(222)},
+					{common.Hash{0x01}, typeptr(types.TxTypeMLDSA87), sizeptr(999)},
+					{common.Hash{0x02}, typeptr(types.TxTypeMLDSA87), sizeptr(222)},
 				},
 			}),
 			isScheduled{tracking: nil, fetching: nil},
@@ -290,22 +290,22 @@ func TestTransactionFetcherWaitingWithMeta(t *testing.T) {
 			isScheduledWithMeta{
 				tracking: map[string][]announce{
 					"A": {
-						{common.Hash{0x01}, typeptr(types.DynamicFeeTxType), sizeptr(111)},
-						{common.Hash{0x02}, typeptr(types.DynamicFeeTxType), sizeptr(222)},
-						{common.Hash{0x03}, typeptr(types.DynamicFeeTxType), sizeptr(333)},
-						{common.Hash{0x05}, typeptr(types.DynamicFeeTxType), sizeptr(555)},
+						{common.Hash{0x01}, typeptr(types.TxTypeMLDSA87), sizeptr(111)},
+						{common.Hash{0x02}, typeptr(types.TxTypeMLDSA87), sizeptr(222)},
+						{common.Hash{0x03}, typeptr(types.TxTypeMLDSA87), sizeptr(333)},
+						{common.Hash{0x05}, typeptr(types.TxTypeMLDSA87), sizeptr(555)},
 					},
 					"B": {
-						{common.Hash{0x03}, typeptr(types.DynamicFeeTxType), sizeptr(333)},
-						{common.Hash{0x04}, typeptr(types.DynamicFeeTxType), sizeptr(444)},
+						{common.Hash{0x03}, typeptr(types.TxTypeMLDSA87), sizeptr(333)},
+						{common.Hash{0x04}, typeptr(types.TxTypeMLDSA87), sizeptr(444)},
 					},
 					"C": {
-						{common.Hash{0x01}, typeptr(types.DynamicFeeTxType), sizeptr(111)},
-						{common.Hash{0x04}, typeptr(types.DynamicFeeTxType), sizeptr(444)},
+						{common.Hash{0x01}, typeptr(types.TxTypeMLDSA87), sizeptr(111)},
+						{common.Hash{0x04}, typeptr(types.TxTypeMLDSA87), sizeptr(444)},
 					},
 					"D": {
-						{common.Hash{0x01}, typeptr(types.DynamicFeeTxType), sizeptr(999)},
-						{common.Hash{0x02}, typeptr(types.DynamicFeeTxType), sizeptr(222)},
+						{common.Hash{0x01}, typeptr(types.TxTypeMLDSA87), sizeptr(999)},
+						{common.Hash{0x02}, typeptr(types.TxTypeMLDSA87), sizeptr(222)},
 					},
 				},
 				fetching: map[string][]common.Hash{ // Depends on deterministic test randomizer
@@ -316,35 +316,35 @@ func TestTransactionFetcherWaitingWithMeta(t *testing.T) {
 			},
 			// Queue up a non-fetchable transaction and then trigger it with a new
 			// peer (weird case to test 1 line in the fetcher)
-			doTxNotify{peer: "C", hashes: []common.Hash{{0x06}, {0x07}}, types: []byte{types.DynamicFeeTxType, types.DynamicFeeTxType}, sizes: []uint32{666, 777}},
+			doTxNotify{peer: "C", hashes: []common.Hash{{0x06}, {0x07}}, types: []byte{types.TxTypeMLDSA87, types.TxTypeMLDSA87}, sizes: []uint32{666, 777}},
 			isWaitingWithMeta(map[string][]announce{
 				"C": {
-					{common.Hash{0x06}, typeptr(types.DynamicFeeTxType), sizeptr(666)},
-					{common.Hash{0x07}, typeptr(types.DynamicFeeTxType), sizeptr(777)},
+					{common.Hash{0x06}, typeptr(types.TxTypeMLDSA87), sizeptr(666)},
+					{common.Hash{0x07}, typeptr(types.TxTypeMLDSA87), sizeptr(777)},
 				},
 			}),
 			doWait{time: txArriveTimeout, step: true},
 			isScheduledWithMeta{
 				tracking: map[string][]announce{
 					"A": {
-						{common.Hash{0x01}, typeptr(types.DynamicFeeTxType), sizeptr(111)},
-						{common.Hash{0x02}, typeptr(types.DynamicFeeTxType), sizeptr(222)},
-						{common.Hash{0x03}, typeptr(types.DynamicFeeTxType), sizeptr(333)},
-						{common.Hash{0x05}, typeptr(types.DynamicFeeTxType), sizeptr(555)},
+						{common.Hash{0x01}, typeptr(types.TxTypeMLDSA87), sizeptr(111)},
+						{common.Hash{0x02}, typeptr(types.TxTypeMLDSA87), sizeptr(222)},
+						{common.Hash{0x03}, typeptr(types.TxTypeMLDSA87), sizeptr(333)},
+						{common.Hash{0x05}, typeptr(types.TxTypeMLDSA87), sizeptr(555)},
 					},
 					"B": {
-						{common.Hash{0x03}, typeptr(types.DynamicFeeTxType), sizeptr(333)},
-						{common.Hash{0x04}, typeptr(types.DynamicFeeTxType), sizeptr(444)},
+						{common.Hash{0x03}, typeptr(types.TxTypeMLDSA87), sizeptr(333)},
+						{common.Hash{0x04}, typeptr(types.TxTypeMLDSA87), sizeptr(444)},
 					},
 					"C": {
-						{common.Hash{0x01}, typeptr(types.DynamicFeeTxType), sizeptr(111)},
-						{common.Hash{0x04}, typeptr(types.DynamicFeeTxType), sizeptr(444)},
-						{common.Hash{0x06}, typeptr(types.DynamicFeeTxType), sizeptr(666)},
-						{common.Hash{0x07}, typeptr(types.DynamicFeeTxType), sizeptr(777)},
+						{common.Hash{0x01}, typeptr(types.TxTypeMLDSA87), sizeptr(111)},
+						{common.Hash{0x04}, typeptr(types.TxTypeMLDSA87), sizeptr(444)},
+						{common.Hash{0x06}, typeptr(types.TxTypeMLDSA87), sizeptr(666)},
+						{common.Hash{0x07}, typeptr(types.TxTypeMLDSA87), sizeptr(777)},
 					},
 					"D": {
-						{common.Hash{0x01}, typeptr(types.DynamicFeeTxType), sizeptr(999)},
-						{common.Hash{0x02}, typeptr(types.DynamicFeeTxType), sizeptr(222)},
+						{common.Hash{0x01}, typeptr(types.TxTypeMLDSA87), sizeptr(999)},
+						{common.Hash{0x02}, typeptr(types.TxTypeMLDSA87), sizeptr(222)},
 					},
 				},
 				fetching: map[string][]common.Hash{
@@ -353,32 +353,32 @@ func TestTransactionFetcherWaitingWithMeta(t *testing.T) {
 					"D": {{0x02}},
 				},
 			},
-			doTxNotify{peer: "E", hashes: []common.Hash{{0x06}, {0x07}}, types: []byte{types.DynamicFeeTxType, types.DynamicFeeTxType}, sizes: []uint32{666, 777}},
+			doTxNotify{peer: "E", hashes: []common.Hash{{0x06}, {0x07}}, types: []byte{types.TxTypeMLDSA87, types.TxTypeMLDSA87}, sizes: []uint32{666, 777}},
 			isScheduledWithMeta{
 				tracking: map[string][]announce{
 					"A": {
-						{common.Hash{0x01}, typeptr(types.DynamicFeeTxType), sizeptr(111)},
-						{common.Hash{0x02}, typeptr(types.DynamicFeeTxType), sizeptr(222)},
-						{common.Hash{0x03}, typeptr(types.DynamicFeeTxType), sizeptr(333)},
-						{common.Hash{0x05}, typeptr(types.DynamicFeeTxType), sizeptr(555)},
+						{common.Hash{0x01}, typeptr(types.TxTypeMLDSA87), sizeptr(111)},
+						{common.Hash{0x02}, typeptr(types.TxTypeMLDSA87), sizeptr(222)},
+						{common.Hash{0x03}, typeptr(types.TxTypeMLDSA87), sizeptr(333)},
+						{common.Hash{0x05}, typeptr(types.TxTypeMLDSA87), sizeptr(555)},
 					},
 					"B": {
-						{common.Hash{0x03}, typeptr(types.DynamicFeeTxType), sizeptr(333)},
-						{common.Hash{0x04}, typeptr(types.DynamicFeeTxType), sizeptr(444)},
+						{common.Hash{0x03}, typeptr(types.TxTypeMLDSA87), sizeptr(333)},
+						{common.Hash{0x04}, typeptr(types.TxTypeMLDSA87), sizeptr(444)},
 					},
 					"C": {
-						{common.Hash{0x01}, typeptr(types.DynamicFeeTxType), sizeptr(111)},
-						{common.Hash{0x04}, typeptr(types.DynamicFeeTxType), sizeptr(444)},
-						{common.Hash{0x06}, typeptr(types.DynamicFeeTxType), sizeptr(666)},
-						{common.Hash{0x07}, typeptr(types.DynamicFeeTxType), sizeptr(777)},
+						{common.Hash{0x01}, typeptr(types.TxTypeMLDSA87), sizeptr(111)},
+						{common.Hash{0x04}, typeptr(types.TxTypeMLDSA87), sizeptr(444)},
+						{common.Hash{0x06}, typeptr(types.TxTypeMLDSA87), sizeptr(666)},
+						{common.Hash{0x07}, typeptr(types.TxTypeMLDSA87), sizeptr(777)},
 					},
 					"D": {
-						{common.Hash{0x01}, typeptr(types.DynamicFeeTxType), sizeptr(999)},
-						{common.Hash{0x02}, typeptr(types.DynamicFeeTxType), sizeptr(222)},
+						{common.Hash{0x01}, typeptr(types.TxTypeMLDSA87), sizeptr(999)},
+						{common.Hash{0x02}, typeptr(types.TxTypeMLDSA87), sizeptr(222)},
 					},
 					"E": {
-						{common.Hash{0x06}, typeptr(types.DynamicFeeTxType), sizeptr(666)},
-						{common.Hash{0x07}, typeptr(types.DynamicFeeTxType), sizeptr(777)},
+						{common.Hash{0x06}, typeptr(types.TxTypeMLDSA87), sizeptr(666)},
+						{common.Hash{0x07}, typeptr(types.TxTypeMLDSA87), sizeptr(777)},
 					},
 				},
 				fetching: map[string][]common.Hash{
@@ -1054,20 +1054,20 @@ func TestTransactionFetcherBandwidthLimiting(t *testing.T) {
 			// ones can be piled into a single request.
 			doTxNotify{peer: "A",
 				hashes: []common.Hash{{0x01}, {0x02}, {0x03}, {0x04}},
-				types:  []byte{types.DynamicFeeTxType, types.DynamicFeeTxType, types.DynamicFeeTxType, types.DynamicFeeTxType},
+				types:  []byte{types.TxTypeMLDSA87, types.TxTypeMLDSA87, types.TxTypeMLDSA87, types.TxTypeMLDSA87},
 				sizes:  []uint32{48 * 1024, 48 * 1024, 48 * 1024, 48 * 1024},
 			},
 			// Announce exactly on the limit transactions to see that only one
 			// gets requested
 			doTxNotify{peer: "B",
 				hashes: []common.Hash{{0x05}, {0x06}},
-				types:  []byte{types.DynamicFeeTxType, types.DynamicFeeTxType},
+				types:  []byte{types.TxTypeMLDSA87, types.TxTypeMLDSA87},
 				sizes:  []uint32{maxTxRetrievalSize, maxTxRetrievalSize},
 			},
 			// Announce oversized transactions to see that overflows are ok
 			doTxNotify{peer: "C",
 				hashes: []common.Hash{{0x07}, {0x08}},
-				types:  []byte{types.DynamicFeeTxType, types.DynamicFeeTxType},
+				types:  []byte{types.TxTypeMLDSA87, types.TxTypeMLDSA87},
 				sizes:  []uint32{6 * (1 << 17), 6 * (1 << 17)},
 			},
 			doWait{time: txArriveTimeout, step: true},
@@ -1075,18 +1075,18 @@ func TestTransactionFetcherBandwidthLimiting(t *testing.T) {
 			isScheduledWithMeta{
 				tracking: map[string][]announce{
 					"A": {
-						{common.Hash{0x01}, typeptr(types.DynamicFeeTxType), sizeptr(48 * 1024)},
-						{common.Hash{0x02}, typeptr(types.DynamicFeeTxType), sizeptr(48 * 1024)},
-						{common.Hash{0x03}, typeptr(types.DynamicFeeTxType), sizeptr(48 * 1024)},
-						{common.Hash{0x04}, typeptr(types.DynamicFeeTxType), sizeptr(48 * 1024)},
+						{common.Hash{0x01}, typeptr(types.TxTypeMLDSA87), sizeptr(48 * 1024)},
+						{common.Hash{0x02}, typeptr(types.TxTypeMLDSA87), sizeptr(48 * 1024)},
+						{common.Hash{0x03}, typeptr(types.TxTypeMLDSA87), sizeptr(48 * 1024)},
+						{common.Hash{0x04}, typeptr(types.TxTypeMLDSA87), sizeptr(48 * 1024)},
 					},
 					"B": {
-						{common.Hash{0x05}, typeptr(types.DynamicFeeTxType), sizeptr(maxTxRetrievalSize)},
-						{common.Hash{0x06}, typeptr(types.DynamicFeeTxType), sizeptr(maxTxRetrievalSize)},
+						{common.Hash{0x05}, typeptr(types.TxTypeMLDSA87), sizeptr(maxTxRetrievalSize)},
+						{common.Hash{0x06}, typeptr(types.TxTypeMLDSA87), sizeptr(maxTxRetrievalSize)},
 					},
 					"C": {
-						{common.Hash{0x07}, typeptr(types.DynamicFeeTxType), sizeptr(6 * (1 << 17))},
-						{common.Hash{0x08}, typeptr(types.DynamicFeeTxType), sizeptr(6 * (1 << 17))},
+						{common.Hash{0x07}, typeptr(types.TxTypeMLDSA87), sizeptr(6 * (1 << 17))},
+						{common.Hash{0x08}, typeptr(types.TxTypeMLDSA87), sizeptr(6 * (1 << 17))},
 					},
 				},
 				fetching: map[string][]common.Hash{
@@ -1217,7 +1217,7 @@ func TestTransactionFetcherUnderpricedDoSProtection(t *testing.T) {
 	var txs []*types.Transaction
 	for i := 0; i < maxTxUnderpricedSetSize+1; i++ {
 		to := common.Address{byte(rand.Intn(256))}
-		txs = append(txs, types.NewTx(&types.DynamicFeeTx{Nonce: rand.Uint64(), To: &to, Value: new(big.Int), Gas: 0, GasFeeCap: new(big.Int), Data: nil}))
+		txs = append(txs, types.NewTx(&types.MLDSA87Tx{Nonce: rand.Uint64(), To: &to, Value: new(big.Int), Gas: 0, GasFeeCap: new(big.Int), Data: nil}))
 	}
 	hashes := make([]common.Hash, len(txs))
 	for i, tx := range txs {
@@ -2010,9 +2010,9 @@ func TestTransactionForgotten(t *testing.T) {
 	fetcher.Start()
 	defer fetcher.Stop()
 	// Create one TX which is 5 minutes old, and one which is recent
-	tx1 := types.NewTx(&types.DynamicFeeTx{Nonce: 0})
+	tx1 := types.NewTx(&types.MLDSA87Tx{Nonce: 0})
 	tx1.SetTime(time.Now().Add(-maxTxUnderpricedTimeout - 1*time.Second))
-	tx2 := types.NewTx(&types.DynamicFeeTx{Nonce: 1})
+	tx2 := types.NewTx(&types.MLDSA87Tx{Nonce: 1})
 
 	// Enqueue both in the fetcher. They will be immediately tagged as underpriced
 	if err := fetcher.Enqueue("asdf", []*types.Transaction{tx1, tx2}, false); err != nil {

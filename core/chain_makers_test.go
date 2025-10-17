@@ -73,7 +73,7 @@ func TestGenerateWithdrawalChain(t *testing.T) {
 
 	chain, _ := GenerateChain(gspec.Config, genesis, beacon.NewFaker(), gendb, 4, func(i int, gen *BlockGen) {
 		to := common.Address(address)
-		tx := types.NewTx(&types.DynamicFeeTx{
+		tx := types.NewTx(&types.MLDSA87Tx{
 			Nonce:     gen.TxNonce(address),
 			To:        &to,
 			Value:     big.NewInt(1000),
@@ -170,7 +170,7 @@ func ExampleGenerateChain() {
 		case 0:
 			// In block 1, addr1 sends addr2 some quanta.
 			to := common.Address(addr2)
-			tx := types.NewTx(&types.DynamicFeeTx{
+			tx := types.NewTx(&types.MLDSA87Tx{
 				Nonce:     gen.TxNonce(addr1),
 				To:        &to,
 				Value:     big.NewInt(10000000000000),
@@ -186,7 +186,7 @@ func ExampleGenerateChain() {
 			// addr2 passes it on to addr3.
 			to2 := common.Address(addr2)
 			to3 := common.Address(addr3)
-			tx1 := types.NewTx(&types.DynamicFeeTx{
+			tx1 := types.NewTx(&types.MLDSA87Tx{
 				Nonce:     gen.TxNonce(addr1),
 				To:        &to2,
 				Value:     big.NewInt(10000000000000),
@@ -194,7 +194,7 @@ func ExampleGenerateChain() {
 				GasFeeCap: gen.header.BaseFee,
 				Data:      nil,
 			})
-			tx2 := types.NewTx(&types.DynamicFeeTx{
+			tx2 := types.NewTx(&types.MLDSA87Tx{
 				Nonce:     gen.TxNonce(addr2),
 				To:        &to3,
 				Value:     big.NewInt(10000000),

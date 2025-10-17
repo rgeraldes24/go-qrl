@@ -10,7 +10,6 @@
     "nonce": "0x0",
     "signature": "0x",
     "publicKey": "0x",
-    "descriptor": "0x",
     "seed" : "0x41f6e321b31e72173f8ff2e292359e1862f24fba42fe6f97efaf641980eff29862f24fba42fe6f97efaf641980eff298",
     "to": "Q23b66A9C42ab8fF57b2A7216470f682D7A9a0d94",
     "value": "0x1"
@@ -26,7 +25,6 @@
     "nonce": "0x0",
     "signature": "0x",
     "publicKey": "0x",
-    "descriptor": "0x",
     "seed" : "0x41f6e321b31e72173f8ff2e292359e1862f24fba42fe6f97efaf641980eff29862f24fba42fe6f97efaf641980eff298",
     "to": "Q23b66A9C42ab8fF57b2A7216470f682D7A9a0d94",
     "value": "0x1"

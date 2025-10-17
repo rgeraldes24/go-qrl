@@ -67,7 +67,7 @@ func TestWaitDeployed(t *testing.T) {
 		head, _ := backend.HeaderByNumber(context.Background(), nil) // Should be child's, good enough
 		gasFeeCap := new(big.Int).Add(head.BaseFee, big.NewInt(1))
 
-		tx := types.NewTx(&types.DynamicFeeTx{
+		tx := types.NewTx(&types.MLDSA87Tx{
 			Nonce:     0,
 			Value:     big.NewInt(0),
 			Gas:       test.gas,
@@ -121,7 +121,7 @@ func TestWaitDeployedCornerCases(t *testing.T) {
 	// Create a transaction to an account.
 	code := "6060604052600a8060106000396000f360606040526008565b00"
 	to, _ := common.NewAddressFromString("Q0000000000000000000000000000000000000001")
-	tx := types.NewTx(&types.DynamicFeeTx{
+	tx := types.NewTx(&types.MLDSA87Tx{
 		Nonce:     0,
 		To:        &to,
 		Value:     big.NewInt(0),
@@ -140,7 +140,7 @@ func TestWaitDeployedCornerCases(t *testing.T) {
 	}
 
 	// Create a transaction that is not mined.
-	tx = types.NewTx(&types.DynamicFeeTx{
+	tx = types.NewTx(&types.MLDSA87Tx{
 		Nonce:     1,
 		Value:     big.NewInt(0),
 		Gas:       3000000,

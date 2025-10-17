@@ -204,7 +204,7 @@ func TestTraceCall(t *testing.T) {
 		// Transfer from account[0] to account[1]
 		//    value: 1000 planck
 		//    fee:   0 planck
-		tx := types.NewTx(&types.DynamicFeeTx{
+		tx := types.NewTx(&types.MLDSA87Tx{
 			Nonce:     uint64(i),
 			To:        &accounts[1].addr,
 			Value:     big.NewInt(1000),
@@ -346,7 +346,7 @@ func TestTraceTransaction(t *testing.T) {
 		// Transfer from account[0] to account[1]
 		//    value: 1000 planck
 		//    fee:   0 planck
-		tx := types.NewTx(&types.DynamicFeeTx{
+		tx := types.NewTx(&types.MLDSA87Tx{
 			Nonce:     uint64(i),
 			To:        &accounts[1].addr,
 			Value:     big.NewInt(1000),
@@ -404,7 +404,7 @@ func TestTraceBlock(t *testing.T) {
 		// Transfer from account[0] to account[1]
 		//    value: 1000 planck
 		//    fee:   0 planck
-		tx := types.NewTx(&types.DynamicFeeTx{
+		tx := types.NewTx(&types.MLDSA87Tx{
 			Nonce:     uint64(i),
 			To:        &accounts[1].addr,
 			Value:     big.NewInt(1000),
@@ -502,7 +502,7 @@ func TestTracingWithOverrides(t *testing.T) {
 		// Transfer from account[0] to account[1]
 		//    value: 1000 planck
 		//    fee:   0 planck
-		tx := types.NewTx(&types.DynamicFeeTx{
+		tx := types.NewTx(&types.MLDSA87Tx{
 			Nonce:     uint64(i),
 			To:        &accounts[1].addr,
 			Value:     big.NewInt(1000),
@@ -871,7 +871,7 @@ func TestTraceChain(t *testing.T) {
 		//    value: 1000 planck
 		//    fee:   0 planck
 		for j := 0; j < i+1; j++ {
-			tx := types.NewTx(&types.DynamicFeeTx{
+			tx := types.NewTx(&types.MLDSA87Tx{
 				Nonce:     nonce,
 				To:        &accounts[1].addr,
 				Value:     big.NewInt(1000),

@@ -280,7 +280,7 @@ func (c *BoundContract) createDynamicTx(opts *TransactOpts, contract *common.Add
 	if err != nil {
 		return nil, err
 	}
-	baseTx := &types.DynamicFeeTx{
+	baseTx := &types.MLDSA87Tx{
 		To:        contract,
 		Nonce:     nonce,
 		GasFeeCap: gasFeeCap,

@@ -138,7 +138,7 @@ func newTestBackend(t *testing.T, pending bool) *testBackend {
 	db, blocks, _ := core.GenerateChainWithGenesis(gspec, engine, testHead+1, func(i int, b *core.BlockGen) {
 		b.SetCoinbase(common.Address{1})
 
-		txdata := &types.DynamicFeeTx{
+		txdata := &types.MLDSA87Tx{
 			ChainID:   gspec.Config.ChainID,
 			Nonce:     b.TxNonce(addr),
 			To:        &common.Address{},

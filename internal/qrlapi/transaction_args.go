@@ -254,7 +254,7 @@ func (args *TransactionArgs) toTransaction() *types.Transaction {
 		al = *args.AccessList
 	}
 
-	data = &types.DynamicFeeTx{
+	data = &types.MLDSA87Tx{
 		To:         args.To,
 		ChainID:    (*big.Int)(args.ChainID),
 		Nonce:      uint64(*args.Nonce),

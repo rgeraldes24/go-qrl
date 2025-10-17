@@ -29,7 +29,7 @@ import (
 )
 
 func dynamicFeeValuedTransaction(nonce uint64, value int64, gasLimit uint64, gasFeeCap *big.Int, key *walletmldsa87.Wallet) *types.Transaction {
-	tx := types.NewTx(&types.DynamicFeeTx{
+	tx := types.NewTx(&types.MLDSA87Tx{
 		Nonce:     nonce,
 		To:        &common.Address{},
 		Value:     big.NewInt(value),
@@ -60,7 +60,7 @@ func fillPool(t testing.TB, pool *LegacyPool) {
 		pool.currentState.AddBalance(key.GetAddress(), big.NewInt(10000000000))
 		// Add executable ones
 		for j := 0; j < int(pool.config.AccountSlots); j++ {
-			executableTxs = append(executableTxs, dynamicFeeTx(uint64(j), 100000, big.NewInt(300), big.NewInt(0), key))
+			executableTxs = append(executableTxs, mldsa87Tx(uint64(j), 100000, big.NewInt(300), big.NewInt(0), key))
 		}
 	}
 	// Import the batch and verify that limits have been enforced
@@ -102,7 +102,7 @@ func TestTransactionFutureAttack(t *testing.T) {
 		pool.currentState.AddBalance(key.GetAddress(), big.NewInt(100000000000))
 		futureTxs := types.Transactions{}
 		for j := 0; j < int(pool.config.GlobalSlots+pool.config.GlobalQueue); j++ {
-			futureTxs = append(futureTxs, dynamicFeeTx(1000+uint64(j), 100000, big.NewInt(500), big.NewInt(0), key))
+			futureTxs = append(futureTxs, mldsa87Tx(1000+uint64(j), 100000, big.NewInt(500), big.NewInt(0), key))
 		}
 		for i := 0; i < 5; i++ {
 			pool.addRemotesSync(futureTxs)
@@ -139,7 +139,7 @@ func TestTransactionFuture1559(t *testing.T) {
 		pool.currentState.AddBalance(key.GetAddress(), big.NewInt(100000000000))
 		futureTxs := types.Transactions{}
 		for j := 0; j < int(pool.config.GlobalSlots+pool.config.GlobalQueue); j++ {
-			futureTxs = append(futureTxs, dynamicFeeTx(1000+uint64(j), 100000, big.NewInt(200), big.NewInt(101), key))
+			futureTxs = append(futureTxs, mldsa87Tx(1000+uint64(j), 100000, big.NewInt(200), big.NewInt(101), key))
 		}
 		pool.addRemotesSync(futureTxs)
 	}
@@ -191,7 +191,7 @@ func TestTransactionZAttack(t *testing.T) {
 		futureTxs := types.Transactions{}
 		key, _ := crypto.GenerateMLDSA87Key()
 		pool.currentState.AddBalance(key.GetAddress(), big.NewInt(100000000000))
-		futureTxs = append(futureTxs, dynamicFeeTx(1000+uint64(j), 21000, big.NewInt(500), big.NewInt(0), key))
+		futureTxs = append(futureTxs, mldsa87Tx(1000+uint64(j), 21000, big.NewInt(500), big.NewInt(0), key))
 		pool.addRemotesSync(futureTxs)
 	}
 
@@ -239,7 +239,7 @@ func BenchmarkFutureAttack(b *testing.B) {
 	futureTxs := types.Transactions{}
 
 	for n := 0; n < b.N; n++ {
-		futureTxs = append(futureTxs, dynamicFeeTx(1000+uint64(n), 100000, big.NewInt(500), big.NewInt(0), key))
+		futureTxs = append(futureTxs, mldsa87Tx(1000+uint64(n), 100000, big.NewInt(500), big.NewInt(0), key))
 	}
 	b.ResetTimer()
 	for i := 0; i < 5; i++ {

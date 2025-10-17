@@ -40,7 +40,7 @@ func TestChainIterator(t *testing.T) {
 	for i := uint64(1); i <= 10; i++ {
 		var tx *types.Transaction
 		if i%2 == 0 {
-			tx = types.NewTx(&types.DynamicFeeTx{
+			tx = types.NewTx(&types.MLDSA87Tx{
 				Nonce:     i,
 				GasFeeCap: big.NewInt(11111),
 				Gas:       1111,
@@ -49,7 +49,7 @@ func TestChainIterator(t *testing.T) {
 				Data:      []byte{0x11, 0x11, 0x11},
 			})
 		} else {
-			tx = types.NewTx(&types.DynamicFeeTx{
+			tx = types.NewTx(&types.MLDSA87Tx{
 				ChainID:   big.NewInt(1337),
 				Nonce:     i,
 				GasFeeCap: big.NewInt(11111),
@@ -118,7 +118,7 @@ func TestIndexTransactions(t *testing.T) {
 	for i := uint64(1); i <= 10; i++ {
 		var tx *types.Transaction
 		if i%2 == 0 {
-			tx = types.NewTx(&types.DynamicFeeTx{
+			tx = types.NewTx(&types.MLDSA87Tx{
 				Nonce:     i,
 				GasFeeCap: big.NewInt(11111),
 				Gas:       1111,
@@ -127,7 +127,7 @@ func TestIndexTransactions(t *testing.T) {
 				Data:      []byte{0x11, 0x11, 0x11},
 			})
 		} else {
-			tx = types.NewTx(&types.DynamicFeeTx{
+			tx = types.NewTx(&types.MLDSA87Tx{
 				ChainID:   big.NewInt(1337),
 				Nonce:     i,
 				GasFeeCap: big.NewInt(11111),

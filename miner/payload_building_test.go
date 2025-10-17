@@ -68,7 +68,7 @@ func init() {
 	*beaconChainConfig = *params.TestChainConfig
 
 	signer := types.LatestSigner(params.TestChainConfig)
-	tx1 := types.MustSignNewTx(testBankKey, signer, &types.DynamicFeeTx{
+	tx1 := types.MustSignNewTx(testBankKey, signer, &types.MLDSA87Tx{
 		ChainID:   params.TestChainConfig.ChainID,
 		Nonce:     0,
 		To:        &testUserAddress,
@@ -78,7 +78,7 @@ func init() {
 	})
 	pendingTxs = append(pendingTxs, tx1)
 
-	tx2 := types.MustSignNewTx(testBankKey, signer, &types.DynamicFeeTx{
+	tx2 := types.MustSignNewTx(testBankKey, signer, &types.MLDSA87Tx{
 		Nonce:     1,
 		To:        &testUserAddress,
 		Value:     big.NewInt(1000),

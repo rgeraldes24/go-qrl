@@ -78,7 +78,7 @@ func benchRLP(b *testing.B, encode bool) {
 		{
 			"1559-transaction",
 			MustSignNewTx(key, signer,
-				&DynamicFeeTx{
+				&MLDSA87Tx{
 					Nonce:     1,
 					Gas:       1000000,
 					To:        &to,

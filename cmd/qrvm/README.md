@@ -103,7 +103,7 @@ type Withdrawal struct {
 }
 ```
 
-##### `txs`
+##### `txs` // TODO(rgeraldes24)
 
 The `txs` object is an array of any of the transaction types: `DynamicFeeTx`.
 

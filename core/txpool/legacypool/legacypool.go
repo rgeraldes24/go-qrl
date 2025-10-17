@@ -277,7 +277,9 @@ func New(config Config, chain BlockChain) *LegacyPool {
 // pool.
 func (pool *LegacyPool) Filter(tx *types.Transaction) bool {
 	switch tx.Type() {
-	case types.DynamicFeeTxType:
+	case types.TxTypeMLDSA87:
+		return true
+	case types.TxTypeSPHINCS256s:
 		return true
 	default:
 		return false
@@ -598,7 +600,9 @@ func (pool *LegacyPool) validateTxBasics(tx *types.Transaction, local bool) erro
 	opts := &txpool.ValidationOptions{
 		Config: pool.chainconfig,
 		Accept: 0 |
-			1<<types.DynamicFeeTxType,
+			1<<types.TxTypeMLDSA87,
+		// 1<<types.TxTypeMLDSA87 |
+		// 1<<types.TxTypeSPHINCS256s, // Enable
 		MaxSize: txMaxSize,
 		MinTip:  pool.gasTip.Load(),
 	}

@@ -8,7 +8,8 @@ import (
 	"io"
 	"os"
 
-	cryptomldsa87 "github.com/theQRL/go-qrllib/crypto/ml_dsa_87"
+	mldsa "github.com/theQRL/go-qrllib/crypto/ml_dsa_87"
+	sphincs "github.com/theQRL/go-qrllib/crypto/sphincsplus_256s"
 	"github.com/theQRL/go-qrllib/wallet"
 	walletcommon "github.com/theQRL/go-qrllib/wallet/common"
 	"github.com/theQRL/go-qrllib/wallet/common/descriptor"
@@ -16,14 +17,15 @@ import (
 	"github.com/theQRL/go-zond/common"
 )
 
-const MLDSA87SignatureLength = cryptomldsa87.CryptoBytes
+const (
+	SignatureLengthMLDSA87     = mldsa.CryptoBytes
+	PublicKeyLengthMLDSA87     = mldsa.CryptoPublicKeyBytes
+	SignatureLengthSPHINCS256s = sphincs.CRYPTO_BYTES
+	PublicKeyLengthSPHINCS256s = sphincs.CRYPTO_PUBLICKEYBYTES
 
-const MLDSA87PublicKeyLength = cryptomldsa87.CryptoPublicKeyBytes
-
-const DescriptorSize = descriptor.DescriptorSize
-
-// DigestLength sets the signature digest exact length
-const DigestLength = 32
+	// DigestLength sets the signature digest exact length
+	DigestLength = 32
+)
 
 // LoadWallet loads ML-DSA-87 or SPHINCS+-256s Wallet from the given file having hex seed (not extended hex seed).
 func LoadWallet(file string) (*walletmldsa87.Wallet, error) {

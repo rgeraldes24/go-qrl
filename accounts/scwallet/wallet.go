@@ -35,7 +35,6 @@ import (
 
 	pcsc "github.com/gballet/go-libpcsclite"
 	"github.com/status-im/keycard-go/derivationpath"
-	"github.com/theQRL/go-qrllib/wallet/ml_dsa_87"
 	qrl "github.com/theQRL/go-zond"
 	"github.com/theQRL/go-zond/accounts"
 	"github.com/theQRL/go-zond/common"
@@ -701,12 +700,15 @@ func (w *Wallet) signHash(account accounts.Account, hash []byte) ([]byte, error)
 // the account in a keystore).
 func (w *Wallet) SignTx(account accounts.Account, tx *types.Transaction, chainID *big.Int) (*types.Transaction, error) {
 	signer := types.LatestSignerForChainID(chainID)
-	hash := signer.Hash(tx)
+	hash, err := signer.Hash(tx)
+	if err != nil {
+		return nil, err
+	}
 	sig, err := w.signHash(account, hash[:])
 	if err != nil {
 		return nil, err
 	}
-	return tx.WithSignaturePublicKeyAndDescriptor(signer, sig, w.PublicKey, ml_dsa_87.NewMLDSA87Descriptor().ToDescriptor().ToBytes())
+	return tx.WithSignatureAndPublicKey(signer, sig, w.PublicKey)
 }
 
 // SignDataWithPassphrase requests the wallet to sign the given hash with the
