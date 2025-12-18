@@ -19,9 +19,9 @@ package rpc
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math"
-	"strconv"
 	"strings"
 
 	"github.com/theQRL/go-zond/common"
@@ -61,11 +61,11 @@ type jsonWriter interface {
 type BlockNumber int64
 
 const (
+	EarliestBlockNumber  = BlockNumber(-5)
 	SafeBlockNumber      = BlockNumber(-4)
 	FinalizedBlockNumber = BlockNumber(-3)
 	LatestBlockNumber    = BlockNumber(-2)
 	PendingBlockNumber   = BlockNumber(-1)
-	EarliestBlockNumber  = BlockNumber(0)
 )
 
 // UnmarshalJSON parses the given JSON fragment into a BlockNumber. It supports:
@@ -103,7 +103,7 @@ func (bn *BlockNumber) UnmarshalJSON(data []byte) error {
 		return err
 	}
 	if blckNum > math.MaxInt64 {
-		return fmt.Errorf("block number larger than int64")
+		return errors.New("block number larger than int64")
 	}
 	*bn = BlockNumber(blckNum)
 	return nil
@@ -153,7 +153,7 @@ func (bnh *BlockNumberOrHash) UnmarshalJSON(data []byte) error {
 	err := json.Unmarshal(data, &e)
 	if err == nil {
 		if e.BlockNumber != nil && e.BlockHash != nil {
-			return fmt.Errorf("cannot specify both BlockHash and BlockNumber, choose one or the other")
+			return errors.New("cannot specify both BlockHash and BlockNumber, choose one or the other")
 		}
 		bnh.BlockNumber = e.BlockNumber
 		bnh.BlockHash = e.BlockHash
@@ -201,7 +201,7 @@ func (bnh *BlockNumberOrHash) UnmarshalJSON(data []byte) error {
 				return err
 			}
 			if blckNum > math.MaxInt64 {
-				return fmt.Errorf("blocknumber too high")
+				return errors.New("blocknumber too high")
 			}
 			bn := BlockNumber(blckNum)
 			bnh.BlockNumber = &bn
@@ -219,7 +219,7 @@ func (bnh *BlockNumberOrHash) Number() (BlockNumber, bool) {
 
 func (bnh *BlockNumberOrHash) String() string {
 	if bnh.BlockNumber != nil {
-		return strconv.Itoa(int(*bnh.BlockNumber))
+		return bnh.BlockNumber.String()
 	}
 	if bnh.BlockHash != nil {
 		return bnh.BlockHash.String()

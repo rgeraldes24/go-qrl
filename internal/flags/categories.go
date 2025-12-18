@@ -20,6 +20,7 @@ import "github.com/urfave/cli/v2"
 
 const (
 	QRLCategory        = "QRL"
+	BeaconCategory     = "BEACON CHAIN"
 	DevCategory        = "DEVELOPER CHAIN"
 	StateCategory      = "STATE HISTORY MANAGEMENT"
 	TxPoolCategory     = "TRANSACTION POOL (QRVM)"
@@ -33,6 +34,7 @@ const (
 	LoggingCategory    = "LOGGING AND DEBUGGING"
 	MetricsCategory    = "METRICS AND STATS"
 	MiscCategory       = "MISC"
+	TestingCategory    = "TESTING"
 	DeprecatedCategory = "ALIASED (deprecated)"
 )
 

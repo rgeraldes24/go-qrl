@@ -167,7 +167,7 @@ func (w *ledgerDriver) SignTx(path accounts.DerivationPath, tx *types.Transactio
 		return common.Address{}, nil, accounts.ErrWalletClosed
 	}
 	// Ensure the wallet is capable of signing the given transaction
-	if chainID != nil && w.version[0] <= 1 && w.version[1] <= 0 && w.version[2] <= 2 {
+	if chainID != nil && (w.version[0] < 1 || (w.version[0] == 1 && w.version[1] == 0 && w.version[2] < 3)) {
 		//lint:ignore ST1005 brand name displayed on the console
 		return common.Address{}, nil, fmt.Errorf("Ledger v%d.%d.%d doesn't support signing this transaction, please update to v1.0.3 at least", w.version[0], w.version[1], w.version[2])
 	}
@@ -185,7 +185,7 @@ func (w *ledgerDriver) SignTypedMessage(path accounts.DerivationPath, domainHash
 		return nil, accounts.ErrWalletClosed
 	}
 	// Ensure the wallet is capable of signing the given transaction
-	if w.version[0] < 1 && w.version[1] < 5 {
+	if w.version[0] < 1 || (w.version[0] == 1 && w.version[1] < 5) {
 		//lint:ignore ST1005 brand name displayed on the console
 		return nil, fmt.Errorf("Ledger version >= 1.5.0 required for EIP-712 signing (found version v%d.%d.%d)", w.version[0], w.version[1], w.version[2])
 	}
@@ -280,7 +280,7 @@ func (w *ledgerDriver) ledgerDerive(derivationPath []uint32) (common.Address, er
 	}
 	hexstr := reply[1 : 1+int(reply[0])]
 
-	// Decode the hex sting into an Ethereum address and return
+	// Decode the hex string into a QRL address and return
 	var address common.Address
 	if _, err = hex.Decode(address[:], hexstr); err != nil {
 		return common.Address{}, err

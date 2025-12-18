@@ -19,20 +19,28 @@ package rpc
 import (
 	"bufio"
 	"bytes"
+	"context"
+	"errors"
 	"io"
 	"net"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/gorilla/websocket"
 )
 
 func TestServerRegisterName(t *testing.T) {
+	t.Parallel()
+
 	server := NewServer()
 	service := new(testService)
 
-	if err := server.RegisterName("test", service); err != nil {
+	svcName := "test"
+	if err := server.RegisterName(svcName, service); err != nil {
 		t.Fatalf("%v", err)
 	}
 
@@ -40,18 +48,20 @@ func TestServerRegisterName(t *testing.T) {
 		t.Fatalf("Expected 2 service entries, got %d", len(server.services.services))
 	}
 
-	svc, ok := server.services.services["test"]
+	svc, ok := server.services.services[svcName]
 	if !ok {
-		t.Fatalf("Expected service calc to be registered")
+		t.Fatalf("Expected service %s to be registered", svcName)
 	}
 
-	wantCallbacks := 13
+	wantCallbacks := 14
 	if len(svc.callbacks) != wantCallbacks {
 		t.Errorf("Expected %d callbacks for service 'service', got %d", wantCallbacks, len(svc.callbacks))
 	}
 }
 
 func TestServer(t *testing.T) {
+	t.Parallel()
+
 	files, err := os.ReadDir("testdata")
 	if err != nil {
 		t.Fatal("where'd my testdata go?")
@@ -63,6 +73,8 @@ func TestServer(t *testing.T) {
 		path := filepath.Join("testdata", f.Name())
 		name := strings.TrimSuffix(f.Name(), filepath.Ext(f.Name()))
 		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
 			runTestScript(t, path)
 		})
 	}
@@ -78,7 +90,7 @@ func runTestScript(t *testing.T, file string) {
 
 	clientConn, serverConn := net.Pipe()
 	defer clientConn.Close()
-	go server.ServeCodec(NewCodec(serverConn))
+	go server.ServeCodec(NewCodec(serverConn), 0)
 	readbuf := bufio.NewReader(clientConn)
 	for _, line := range strings.Split(string(content), "\n") {
 		line = strings.TrimSpace(line)
@@ -115,6 +127,8 @@ func runTestScript(t *testing.T, file string) {
 // This test checks that responses are delivered for very short-lived connections that
 // only carry a single request.
 func TestServerShortLivedConn(t *testing.T) {
+	t.Parallel()
+
 	server := newTestServer()
 	defer server.Stop()
 
@@ -155,6 +169,8 @@ func TestServerShortLivedConn(t *testing.T) {
 }
 
 func TestServerBatchResponseSizeLimit(t *testing.T) {
+	t.Parallel()
+
 	server := newTestServer()
 	defer server.Stop()
 	server.SetBatchLimits(100, 60)
@@ -189,5 +205,89 @@ func TestServerBatchResponseSizeLimit(t *testing.T) {
 		if re.ErrorCode() != wantedCode {
 			t.Errorf("batch elem %d wrong error code, have %d want %d", i, re.ErrorCode(), wantedCode)
 		}
+	}
+}
+
+func TestServerWebsocketReadLimit(t *testing.T) {
+	t.Parallel()
+
+	// Test different read limits
+	testCases := []struct {
+		name       string
+		readLimit  int64
+		testSize   int
+		shouldFail bool
+	}{
+		{
+			name:       "limit with small request - should succeed",
+			readLimit:  4096, // generous limit to comfortably allow JSON overhead
+			testSize:   256,  // reasonably small payload
+			shouldFail: false,
+		},
+		{
+			name:       "limit with large request - should fail",
+			readLimit:  256,  // tight limit to trigger server-side read limit
+			testSize:   1024, // payload that will exceed the limit including JSON overhead
+			shouldFail: true,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			// Create server and set read limits
+			srv := newTestServer()
+			srv.SetWebsocketReadLimit(tc.readLimit)
+			defer srv.Stop()
+
+			// Start HTTP server with WebSocket handler
+			httpsrv := httptest.NewServer(srv.WebsocketHandler([]string{"*"}))
+			defer httpsrv.Close()
+
+			wsURL := "ws:" + strings.TrimPrefix(httpsrv.URL, "http:")
+
+			// Connect WebSocket client
+			client, err := DialOptions(context.Background(), wsURL)
+			if err != nil {
+				t.Fatalf("can't dial: %v", err)
+			}
+			defer client.Close()
+
+			// Create large request data - this is what will be limited
+			largeString := strings.Repeat("A", tc.testSize)
+
+			// Send the large string as a parameter in the request
+			var result echoResult
+			err = client.Call(&result, "test_echo", largeString, 42, &echoArgs{S: "test"})
+
+			if tc.shouldFail {
+				// Expecting an error due to read limit exceeded
+				if err == nil {
+					t.Fatalf("expected error for request size %d with limit %d, but got none", tc.testSize, tc.readLimit)
+				}
+				// Be tolerant about the exact error surfaced by gorilla/websocket.
+				// Prefer a CloseError with code 1009, but accept ErrReadLimit or an error string containing 1009/message too big.
+				var cerr *websocket.CloseError
+				if errors.As(err, &cerr) {
+					if cerr.Code != websocket.CloseMessageTooBig {
+						t.Fatalf("unexpected websocket close code: have %d want %d (err=%v)", cerr.Code, websocket.CloseMessageTooBig, err)
+					}
+				} else if !errors.Is(err, websocket.ErrReadLimit) &&
+					!strings.Contains(strings.ToLower(err.Error()), "1009") &&
+					!strings.Contains(strings.ToLower(err.Error()), "message too big") &&
+					!strings.Contains(strings.ToLower(err.Error()), "connection reset by peer") {
+					// Not the error we expect from exceeding the message size limit.
+					t.Fatalf("unexpected error for read limit violation: %v", err)
+				}
+			} else {
+				// Expecting success
+				if err != nil {
+					t.Fatalf("unexpected error for request size %d with limit %d: %v", tc.testSize, tc.readLimit, err)
+				}
+				// Verify the response is correct - the echo should return our string
+				if result.String != largeString {
+					t.Fatalf("expected echo result to match input")
+				}
+			}
+		})
 	}
 }

@@ -454,26 +454,3 @@ func bytesPrefixRange(prefix, start []byte) *util.Range {
 	r.Start = append(r.Start, start...)
 	return r
 }
-
-// snapshot wraps a leveldb snapshot for implementing the Snapshot interface.
-type snapshot struct {
-	db *leveldb.Snapshot
-}
-
-// Has retrieves if a key is present in the snapshot backing by a key-value
-// data store.
-func (snap *snapshot) Has(key []byte) (bool, error) {
-	return snap.db.Has(key, nil)
-}
-
-// Get retrieves the given key if it's present in the snapshot backing by
-// key-value data store.
-func (snap *snapshot) Get(key []byte) ([]byte, error) {
-	return snap.db.Get(key, nil)
-}
-
-// Release releases associated resources. Release should always succeed and can
-// be called multiple times without causing error.
-func (snap *snapshot) Release() {
-	snap.db.Release()
-}

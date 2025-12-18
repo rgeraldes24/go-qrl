@@ -46,7 +46,7 @@ const RecoveryIDOffset = 64
 const DigestLength = 32
 
 var (
-	secp256k1N, _  = new(big.Int).SetString("fffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141", 16)
+	secp256k1N     = S256().Params().N
 	secp256k1halfN = new(big.Int).Div(secp256k1N, big.NewInt(2))
 )
 
@@ -69,48 +69,12 @@ type KeccakState interface {
 	Read([]byte) (int, error)
 }
 
-// NewKeccakState creates a new KeccakState
-func NewKeccakState() KeccakState {
-	return sha3.NewLegacyKeccak256().(KeccakState)
-}
-
 // HashData hashes the provided data using the KeccakState and returns a 32 byte hash
 func HashData(kh KeccakState, data []byte) (h common.Hash) {
 	kh.Reset()
 	kh.Write(data)
 	kh.Read(h[:])
 	return h
-}
-
-// Keccak256 calculates and returns the Keccak256 hash of the input data.
-func Keccak256(data ...[]byte) []byte {
-	b := make([]byte, 32)
-	d := NewKeccakState()
-	for _, b := range data {
-		d.Write(b)
-	}
-	d.Read(b)
-	return b
-}
-
-// Keccak256Hash calculates and returns the Keccak256 hash of the input data,
-// converting it to an internal Hash data structure.
-func Keccak256Hash(data ...[]byte) (h common.Hash) {
-	d := NewKeccakState()
-	for _, b := range data {
-		d.Write(b)
-	}
-	d.Read(h[:])
-	return h
-}
-
-// Keccak512 calculates and returns the Keccak512 hash of the input data.
-func Keccak512(data ...[]byte) []byte {
-	d := sha3.NewLegacyKeccak512()
-	for _, b := range data {
-		d.Write(b)
-	}
-	return d.Sum(nil)
 }
 
 // CreateAddress creates a qrl address given the bytes and the nonce

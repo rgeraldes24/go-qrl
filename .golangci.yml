@@ -41,10 +41,6 @@ issues:
   exclude-files:
     - core/genesis_alloc.go
   exclude-rules:
-    - path: crypto/bn256/cloudflare/optate.go
-      linters:
-        - deadcode
-        - staticcheck
     - path: internal/build/pgp.go
       text: 'SA1019: "golang.org/x/crypto/openpgp" is deprecated: this package is unmaintained except for security fixes.'
   exclude:

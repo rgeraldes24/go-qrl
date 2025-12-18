@@ -484,6 +484,10 @@ func (w *wallet) Derive(path accounts.DerivationPath, pin bool) (accounts.Accoun
 	w.stateLock.Lock()
 	defer w.stateLock.Unlock()
 
+	if w.device == nil {
+		return accounts.Account{}, accounts.ErrWalletClosed
+	}
+
 	if _, ok := w.paths[address]; !ok {
 		w.accounts = append(w.accounts, account)
 		w.paths[address] = make(accounts.DerivationPath, len(path))
@@ -633,7 +637,7 @@ func (w *wallet) SignTx(account accounts.Account, tx *types.Transaction, chainID
 // data is not supported for Ledger wallets, so this method will always return
 // an error.
 func (w *wallet) SignTextWithPassphrase(account accounts.Account, passphrase string, text []byte) ([]byte, error) {
-	return w.SignText(account, accounts.TextHash(text))
+	return w.SignText(account, text)
 }
 
 // SignTxWithPassphrase implements accounts.Wallet, attempting to sign the given

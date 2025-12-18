@@ -24,6 +24,7 @@ import (
 	"crypto/ecdsa"
 	"crypto/hmac"
 	"crypto/rand"
+	"crypto/subtle"
 	"encoding/binary"
 	"errors"
 	"fmt"
@@ -604,6 +605,11 @@ func (h *handshakeState) readMsg(msg interface{}, prv *ecdsa.PrivateKey, r io.Re
 	}
 	size := binary.BigEndian.Uint16(prefix)
 
+	// baseProtocolMaxMsgSize = 2 * 1024
+	if size > 2048 {
+		return nil, errors.New("message too big")
+	}
+
 	// Read the handshake packet.
 	packet, err := h.rbuf.read(r, int(size))
 	if err != nil {
@@ -671,8 +677,6 @@ func exportPubkey(pub *ecies.PublicKey) []byte {
 
 func xor(one, other []byte) (xor []byte) {
 	xor = make([]byte, len(one))
-	for i := 0; i < len(one); i++ {
-		xor[i] = one[i] ^ other[i]
-	}
+	subtle.XORBytes(xor, one, other)
 	return xor
 }

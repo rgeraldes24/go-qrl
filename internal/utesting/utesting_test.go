@@ -24,6 +24,8 @@ import (
 )
 
 func TestTest(t *testing.T) {
+	t.Parallel()
+
 	tests := []Test{
 		{
 			Name: "successful test",

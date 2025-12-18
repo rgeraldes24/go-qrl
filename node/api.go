@@ -39,6 +39,9 @@ func (n *Node) apis() []rpc.API {
 			Namespace: "debug",
 			Service:   debug.Handler,
 		}, {
+			Namespace: "debug",
+			Service:   &p2pDebugAPI{n},
+		}, {
 			Namespace: "web3",
 			Service:   &web3API{n},
 		},
@@ -186,7 +189,7 @@ func (api *adminAPI) StartHTTP(host *string, port *int, cors *string, apis *stri
 	}
 	if vhosts != nil {
 		config.Vhosts = nil
-		for _, vhost := range strings.Split(*host, ",") {
+		for _, vhost := range strings.Split(*vhosts, ",") {
 			config.Vhosts = append(config.Vhosts, strings.TrimSpace(vhost))
 		}
 	}
@@ -317,4 +320,17 @@ func (s *web3API) ClientVersion() string {
 // It assumes the input is hex encoded.
 func (s *web3API) Sha3(input hexutil.Bytes) hexutil.Bytes {
 	return crypto.Keccak256(input)
+}
+
+// p2pDebugAPI provides access to p2p internals for debugging.
+type p2pDebugAPI struct {
+	stack *Node
+}
+
+func (s *p2pDebugAPI) DiscoveryV4Table() [][]discover.BucketNode {
+	disc := s.stack.server.DiscoveryV4()
+	if disc != nil {
+		return disc.TableBuckets()
+	}
+	return nil
 }

@@ -95,7 +95,7 @@ func newTester(t *testing.T, confOverride func(*qrlconfig.Config)) *tester {
 	}
 	feeRecipient, _ := common.NewAddressFromString(testAddress)
 	qrlConf := &qrlconfig.Config{
-		Genesis: core.DeveloperGenesisBlock(11_500_000, common.Address{}),
+		Genesis: core.DeveloperGenesisBlock(11_500_000, nil),
 		Miner: miner.Config{
 			PendingFeeRecipient: feeRecipient,
 		},
@@ -153,8 +153,7 @@ func (env *tester) Close(t *testing.T) {
 }
 
 // Tests that the node lists the correct welcome message, notably that it contains
-// the instance name, coinbase account, block number, data directory and supported
-// console modules.
+// the instance name, block number, data directory and supported console modules.
 func TestWelcome(t *testing.T) {
 	tester := newTester(t, nil)
 	defer tester.Close(t)
@@ -173,6 +172,9 @@ func TestWelcome(t *testing.T) {
 	}
 	if want := fmt.Sprintf("datadir: %s", tester.workspace); !strings.Contains(output, want) {
 		t.Fatalf("console output missing datadir: have\n%s\nwant also %s", output, want)
+	}
+	if want := "modules: "; !strings.Contains(output, want) {
+		t.Fatalf("console output missing modules: have\n%s\nwant also %s", output, want)
 	}
 }
 

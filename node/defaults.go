@@ -112,16 +112,6 @@ func windowsAppData() string {
 	return v
 }
 
-func isNonEmptyDir(dir string) bool {
-	f, err := os.Open(dir)
-	if err != nil {
-		return false
-	}
-	names, _ := f.Readdir(1)
-	f.Close()
-	return len(names) > 0
-}
-
 func homeDir() string {
 	if home := os.Getenv("HOME"); home != "" {
 		return home

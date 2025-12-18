@@ -20,7 +20,6 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"math/big"
 
 	"github.com/theQRL/go-zond/common"
 	"github.com/theQRL/go-zond/signer/core/apitypes"

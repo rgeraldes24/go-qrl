@@ -147,7 +147,6 @@ var (
 		utils.WSPathPrefixFlag,
 		utils.IPCDisabledFlag,
 		utils.IPCPathFlag,
-		utils.InsecureUnlockAllowedFlag,
 		utils.RPCGlobalGasCapFlag,
 		utils.RPCGlobalQRVMTimeoutFlag,
 		utils.RPCGlobalTxFeeCapFlag,
@@ -393,11 +392,6 @@ func unlockAccounts(ctx *cli.Context, stack *node.Node) {
 	// Short circuit if there is no account to unlock.
 	if len(unlocks) == 0 {
 		return
-	}
-	// If insecure account unlocking is not allowed if node's APIs are exposed to external.
-	// Print warning log to user and skip unlocking.
-	if !stack.Config().InsecureUnlockAllowed && stack.Config().ExtRPCEnabled() {
-		utils.Fatalf("Account unlock with HTTP access is forbidden!")
 	}
 	backends := stack.AccountManager().Backends(keystore.KeyStoreType)
 	if len(backends) == 0 {

@@ -19,6 +19,7 @@ package debug
 import (
 	"fmt"
 	"io"
+	"log/slog"
 	"net"
 	"net/http"
 	_ "net/http/pprof"
@@ -54,13 +55,13 @@ var (
 		Usage:    "Per-module verbosity: comma-separated list of <pattern>=<level> (e.g. qrl/*=5,p2p=4)",
 		Value:    "",
 		Hidden:   true,
-		Category: flags.LoggingCategory,
+		Category: flags.DeprecatedCategory,
 	}
 	logjsonFlag = &cli.BoolFlag{
 		Name:     "log.json",
 		Usage:    "Format logs with JSON",
 		Hidden:   true,
-		Category: flags.LoggingCategory,
+		Category: flags.DeprecatedCategory,
 	}
 	logFormatFlag = &cli.StringFlag{
 		Name:     "log.format",
@@ -72,20 +73,10 @@ var (
 		Usage:    "Write logs to a file",
 		Category: flags.LoggingCategory,
 	}
-	backtraceAtFlag = &cli.StringFlag{
-		Name:     "log.backtrace",
-		Usage:    "Request a stack trace at a specific logging statement (e.g. \"block.go:271\")",
-		Value:    "",
-		Category: flags.LoggingCategory,
-	}
-	debugFlag = &cli.BoolFlag{
-		Name:     "log.debug",
-		Usage:    "Prepends log messages with call-site location (file and line number)",
-		Category: flags.LoggingCategory,
-	}
 	logRotateFlag = &cli.BoolFlag{
-		Name:  "log.rotate",
-		Usage: "Enables log file rotation",
+		Name:     "log.rotate",
+		Usage:    "Enables log file rotation",
+		Category: flags.LoggingCategory,
 	}
 	logMaxSizeMBsFlag = &cli.IntFlag{
 		Name:     "log.maxsize",
@@ -145,8 +136,8 @@ var (
 		Category: flags.LoggingCategory,
 	}
 	traceFlag = &cli.StringFlag{
-		Name:     "trace",
-		Usage:    "Write execution trace to the given file",
+		Name:     "go-execution-trace",
+		Usage:    "Write Go execution trace to the given file",
 		Category: flags.LoggingCategory,
 	}
 )
@@ -156,8 +147,6 @@ var Flags = []cli.Flag{
 	verbosityFlag,
 	logVmoduleFlag,
 	vmoduleFlag,
-	backtraceAtFlag,
-	debugFlag,
 	logjsonFlag,
 	logFormatFlag,
 	logFileFlag,

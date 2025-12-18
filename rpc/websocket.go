@@ -38,7 +38,7 @@ const (
 	wsPingInterval     = 30 * time.Second
 	wsPingWriteTimeout = 5 * time.Second
 	wsPongTimeout      = 30 * time.Second
-	wsMessageSizeLimit = 32 * 1024 * 1024
+	wsDefaultReadLimit = 32 * 1024 * 1024
 )
 
 var wsBufferPool = new(sync.Pool)
@@ -60,8 +60,8 @@ func (s *Server) WebsocketHandler(allowedOrigins []string) http.Handler {
 			log.Debug("WebSocket upgrade failed", "err", err)
 			return
 		}
-		codec := newWebsocketCodec(conn, r.Host, r.Header)
-		s.ServeCodec(codec)
+		codec := newWebsocketCodec(conn, r.Host, r.Header, s.wsReadLimit)
+		s.ServeCodec(codec, 0)
 	})
 }
 
@@ -120,6 +120,10 @@ func (e wsHandshakeError) Error() string {
 		s += " (HTTP status " + e.status + ")"
 	}
 	return s
+}
+
+func (e wsHandshakeError) Unwrap() error {
+	return e.err
 }
 
 func originIsAllowed(allowedOrigins mapset.Set[string], browserOrigin string) bool {
@@ -232,7 +236,11 @@ func newClientTransportWS(endpoint string, cfg *clientConfig) (reconnectFunc, er
 			}
 			return nil, hErr
 		}
-		return newWebsocketCodec(conn, dialURL, header), nil
+		messageSizeLimit := int64(wsDefaultReadLimit)
+		if cfg.wsMessageSizeLimit != nil && *cfg.wsMessageSizeLimit >= 0 {
+			messageSizeLimit = *cfg.wsMessageSizeLimit
+		}
+		return newWebsocketCodec(conn, dialURL, header, messageSizeLimit), nil
 	}
 	return connect, nil
 }
@@ -264,8 +272,8 @@ type websocketCodec struct {
 	pongReceived chan struct{}
 }
 
-func newWebsocketCodec(conn *websocket.Conn, host string, req http.Header) ServerCodec {
-	conn.SetReadLimit(wsMessageSizeLimit)
+func newWebsocketCodec(conn *websocket.Conn, host string, req http.Header, readLimit int64) ServerCodec {
+	conn.SetReadLimit(readLimit)
 	encode := func(v interface{}, isErrorResponse bool) error {
 		return conn.WriteJSON(v)
 	}
