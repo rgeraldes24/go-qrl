@@ -1026,6 +1026,7 @@ func newRPCTransaction(tx *types.Transaction, blockHash common.Hash, blockNumber
 	publicKey := tx.RawPublicKeyValue()
 	signature := tx.RawSignatureValue()
 	descriptor := tx.Descriptor()
+	extraParams := tx.ExtraParams()
 	result := &RPCTransaction{
 		Type:       hexutil.Uint64(tx.Type()),
 		From:       from,
@@ -1039,9 +1040,10 @@ func newRPCTransaction(tx *types.Transaction, blockHash common.Hash, blockNumber
 		PublicKey:  hexutil.Bytes(publicKey),
 		Signature:  hexutil.Bytes(signature),
 		Descriptor: hexutil.Bytes(descriptor),
-		// ExtraParams is intentionally not populated here — it is reserved for
-		// future signer types and is always empty today. The field is included
-		// in the signature hash, so it cannot be tampered with.
+		// Preserve ExtraParams in RPC JSON even though current signer types require
+		// it to be empty. Future schemes may need it, and clients rely on RPC
+		// round-tripping to keep signed transaction payloads intact.
+		ExtraParams: hexutil.Bytes(extraParams),
 	}
 	if blockHash != (common.Hash{}) {
 		result.BlockHash = &blockHash

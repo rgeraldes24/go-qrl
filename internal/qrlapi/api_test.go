@@ -98,6 +98,61 @@ func TestTransaction_RoundTripRpcJSON(t *testing.T) {
 	testTransactionMarshal(t, tests, config)
 }
 
+func TestRPCTransactionPreservesExtraParams(t *testing.T) {
+	t.Parallel()
+
+	var (
+		config  = params.AllBeaconProtocolChanges
+		signer  = types.LatestSigner(config)
+		to      = common.Address{0xaa}
+		paramsB = []byte{0x01, 0x02}
+	)
+	wallet, err := wallet.Generate(wallet.ML_DSA_87)
+	if err != nil {
+		t.Fatalf("wallet: %v", err)
+	}
+	signed, err := types.SignNewTx(wallet, signer, &types.DynamicFeeTx{
+		ChainID:   config.ChainID,
+		Nonce:     1,
+		GasTipCap: big.NewInt(1),
+		GasFeeCap: big.NewInt(2),
+		Gas:       params.TxGas,
+		To:        &to,
+		Value:     big.NewInt(3),
+	})
+	if err != nil {
+		t.Fatalf("sign tx: %v", err)
+	}
+	tampered, err := signed.WithAuthValues(signer, signed.RawSignatureValue(), signed.RawPublicKeyValue(), signed.Descriptor(), paramsB)
+	if err != nil {
+		t.Fatalf("re-wrap with extra params: %v", err)
+	}
+
+	rpcTx := newRPCTransaction(tampered, common.Hash{}, 0, 0, nil, config)
+	if got := []byte(rpcTx.ExtraParams); !reflect.DeepEqual(got, paramsB) {
+		t.Fatalf("extraParams mismatch: got %x want %x", got, paramsB)
+	}
+
+	data, err := json.Marshal(rpcTx)
+	if err != nil {
+		t.Fatalf("marshal rpc tx: %v", err)
+	}
+	if !strings.Contains(string(data), `"extraParams":"0x0102"`) {
+		t.Fatalf("rpc json missing extraParams: %s", data)
+	}
+
+	var roundTripped types.Transaction
+	if err := roundTripped.UnmarshalJSON(data); err != nil {
+		t.Fatalf("unmarshal tx: %v", err)
+	}
+	if got := roundTripped.ExtraParams(); !reflect.DeepEqual(got, paramsB) {
+		t.Fatalf("round-trip extraParams mismatch: got %x want %x", got, paramsB)
+	}
+	if got, want := roundTripped.Hash(), tampered.Hash(); got != want {
+		t.Fatalf("round-trip tx hash mismatch: got %x want %x", got, want)
+	}
+}
+
 type txData struct {
 	Tx   types.TxData
 	Want string
