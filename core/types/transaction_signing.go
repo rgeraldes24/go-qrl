@@ -180,6 +180,11 @@ func (s ZondSigner) Sender(tx *Transaction) (common.Address, error) {
 
 	sig, pk, desc, params := tx.RawSignatureValue(), tx.RawPublicKeyValue(), tx.Descriptor(), tx.ExtraParams()
 
+	// ExtraParams is reserved for future use and must be empty for now.
+	if len(params) != 0 {
+		return common.Address{}, fmt.Errorf("non-empty extraParams not supported")
+	}
+
 	msg := s.Hash(tx, desc, params)
 
 	pqcryptodesc, err := pqcrypto.BytesToDescriptor(desc)

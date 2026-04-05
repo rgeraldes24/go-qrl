@@ -1039,6 +1039,9 @@ func newRPCTransaction(tx *types.Transaction, blockHash common.Hash, blockNumber
 		PublicKey:  hexutil.Bytes(publicKey),
 		Signature:  hexutil.Bytes(signature),
 		Descriptor: hexutil.Bytes(descriptor),
+		// ExtraParams is intentionally not populated here — it is reserved for
+		// future signer types and is always empty today. The field is included
+		// in the signature hash, so it cannot be tampered with.
 	}
 	if blockHash != (common.Hash{}) {
 		result.BlockHash = &blockHash

@@ -26,6 +26,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"slices"
+	"strings"
 	"testing"
 	"time"
 
@@ -40,6 +41,8 @@ import (
 	"github.com/theQRL/go-qrl/core/bloombits"
 	"github.com/theQRL/go-qrl/core/rawdb"
 	"github.com/theQRL/go-qrl/core/state"
+	"github.com/theQRL/go-qrl/core/txpool"
+	"github.com/theQRL/go-qrl/core/txpool/legacypool"
 	"github.com/theQRL/go-qrl/core/types"
 	"github.com/theQRL/go-qrl/core/vm"
 	"github.com/theQRL/go-qrl/crypto/pqcrypto/wallet"
@@ -199,6 +202,7 @@ type testBackend struct {
 	db      qrldb.Database
 	chain   *core.BlockChain
 	pending *types.Block
+	txpool  *txpool.TxPool
 }
 
 func newTestBackend(t *testing.T, n int, gspec *core.Genesis, engine consensus.Engine, generator func(i int, b *core.BlockGen)) *testBackend {
@@ -222,7 +226,21 @@ func newTestBackend(t *testing.T, n int, gspec *core.Genesis, engine consensus.E
 		t.Fatalf("block %d: failed to insert into chain: %v", n, err)
 	}
 
-	backend := &testBackend{db: db, chain: chain}
+	txconfig := legacypool.DefaultConfig
+	txconfig.Journal = ""
+	legacyPool := legacypool.New(txconfig, chain)
+	txPool, err := txpool.New(new(big.Int).SetUint64(txconfig.PriceLimit), chain, []txpool.SubPool{legacyPool})
+	if err != nil {
+		t.Fatalf("failed to create txpool: %v", err)
+	}
+
+	backend := &testBackend{db: db, chain: chain, txpool: txPool}
+	t.Cleanup(func() {
+		if backend.txpool != nil {
+			backend.txpool.Close()
+		}
+		backend.chain.Stop()
+	})
 	return backend
 }
 
@@ -343,26 +361,39 @@ func (b testBackend) SubscribeChainSideEvent(ch chan<- core.ChainSideEvent) even
 	panic("implement me")
 }
 func (b testBackend) SendTx(ctx context.Context, signedTx *types.Transaction) error {
-	panic("implement me")
+	return b.txpool.Add([]*types.Transaction{signedTx}, true, false)[0]
 }
 func (b testBackend) GetTransaction(ctx context.Context, txHash common.Hash) (*types.Transaction, common.Hash, uint64, uint64, error) {
 	tx, blockHash, blockNumber, index := rawdb.ReadTransaction(b.db, txHash)
 	return tx, blockHash, blockNumber, index, nil
 }
-func (b testBackend) GetPoolTransactions() (types.Transactions, error)         { panic("implement me") }
-func (b testBackend) GetPoolTransaction(txHash common.Hash) *types.Transaction { panic("implement me") }
-func (b testBackend) GetPoolNonce(ctx context.Context, addr common.Address) (uint64, error) {
-	panic("implement me")
+func (b testBackend) GetPoolTransactions() (types.Transactions, error) {
+	pending := b.txpool.Pending(txpool.PendingFilter{})
+	var txs types.Transactions
+	for _, batch := range pending {
+		for _, lazy := range batch {
+			if tx := lazy.Resolve(); tx != nil {
+				txs = append(txs, tx)
+			}
+		}
+	}
+	return txs, nil
 }
-func (b testBackend) Stats() (pending int, queued int) { panic("implement me") }
+func (b testBackend) GetPoolTransaction(txHash common.Hash) *types.Transaction {
+	return b.txpool.Get(txHash)
+}
+func (b testBackend) GetPoolNonce(ctx context.Context, addr common.Address) (uint64, error) {
+	return b.txpool.Nonce(addr), nil
+}
+func (b testBackend) Stats() (pending int, queued int) { return b.txpool.Stats() }
 func (b testBackend) TxPoolContent() (map[common.Address][]*types.Transaction, map[common.Address][]*types.Transaction) {
-	panic("implement me")
+	return b.txpool.Content()
 }
 func (b testBackend) TxPoolContentFrom(addr common.Address) ([]*types.Transaction, []*types.Transaction) {
-	panic("implement me")
+	return b.txpool.ContentFrom(addr)
 }
 func (b testBackend) SubscribeNewTxsEvent(events chan<- core.NewTxsEvent) event.Subscription {
-	panic("implement me")
+	return b.txpool.SubscribeTransactions(events)
 }
 func (b testBackend) ChainConfig() *params.ChainConfig { return b.chain.Config() }
 func (b testBackend) Engine() consensus.Engine         { return b.chain.Engine() }
@@ -1285,6 +1316,53 @@ func TestRPCGetTransactionReceipt(t *testing.T) {
 			continue
 		}
 		testRPCResponseWithFile(t, i, result, "qrl_getTransactionReceipt", tt.file)
+	}
+}
+
+func TestSendRawTransactionRejectsNonEmptyExtraParams(t *testing.T) {
+	t.Parallel()
+
+	wallet, err := wallet.Generate(wallet.ML_DSA_87)
+	if err != nil {
+		t.Fatalf("wallet: %v", err)
+	}
+	addr := common.Address(wallet.GetAddress())
+	genesis := &core.Genesis{
+		Config: params.TestChainConfig,
+		Alloc: core.GenesisAlloc{
+			addr: {Balance: big.NewInt(params.Quanta)},
+		},
+	}
+	backend := newTestBackend(t, 0, genesis, beacon.NewFaker(), nil)
+	api := NewTransactionAPI(backend, new(AddrLocker))
+	signer := types.LatestSignerForChainID(params.TestChainConfig.ChainID)
+
+	tx, err := types.SignTx(types.NewTx(&types.DynamicFeeTx{
+		Nonce:     0,
+		GasTipCap: big.NewInt(0),
+		GasFeeCap: big.NewInt(params.InitialBaseFee),
+		Gas:       params.TxGas,
+		To:        &common.Address{},
+		Value:     big.NewInt(0),
+	}), signer, wallet)
+	if err != nil {
+		t.Fatalf("sign tx: %v", err)
+	}
+	tampered, err := tx.WithAuthValues(signer, tx.RawSignatureValue(), tx.RawPublicKeyValue(), tx.Descriptor(), []byte{0x01})
+	if err != nil {
+		t.Fatalf("re-wrap with extra params: %v", err)
+	}
+	raw, err := tampered.MarshalBinary()
+	if err != nil {
+		t.Fatalf("marshal tx: %v", err)
+	}
+
+	_, err = api.SendRawTransaction(t.Context(), raw)
+	if !errors.Is(err, txpool.ErrInvalidSender) {
+		t.Fatalf("expected invalid sender, got %v", err)
+	}
+	if err == nil || !strings.Contains(err.Error(), "non-empty extraParams not supported") {
+		t.Fatalf("unexpected error: %v", err)
 	}
 }
 

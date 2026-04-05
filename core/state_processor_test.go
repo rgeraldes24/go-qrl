@@ -19,6 +19,7 @@ package core
 import (
 	"math"
 	"math/big"
+	"strings"
 	"testing"
 
 	"github.com/theQRL/go-qrl/common"
@@ -301,6 +302,54 @@ func TestStateProcessorErrors(t *testing.T) {
 				t.Errorf("test %d:\nhave \"%v\"\nwant \"%v\"\n", i, have, want)
 			}
 		}
+	}
+}
+
+func TestStateProcessorRejectsNonEmptyExtraParams(t *testing.T) {
+	var (
+		config = &params.ChainConfig{
+			ChainID: big.NewInt(1),
+		}
+		signer     = types.LatestSigner(config)
+		wallet1, _ = wallet.RestoreFromSeedHex("0x010000f29f58aff0b00de2844f7e20bd9eeaacc379150043beeb328335817512b29fbb7184da84a092f842b2a06d72a24a5d28")
+		from       = common.Address(wallet1.GetAddress())
+		db         = rawdb.NewMemoryDatabase()
+		gspec      = &Genesis{
+			Config: config,
+			Alloc: GenesisAlloc{
+				from: GenesisAccount{
+					Balance: new(big.Int).Mul(big.NewInt(10), big.NewInt(params.Quanta)),
+					Nonce:   0,
+				},
+			},
+		}
+		blockchain, _ = NewBlockChain(db, nil, gspec, beacon.New(), vm.Config{}, nil)
+	)
+	defer blockchain.Stop()
+
+	tx, err := types.SignTx(types.NewTx(&types.DynamicFeeTx{
+		Nonce:     0,
+		GasTipCap: big.NewInt(0),
+		GasFeeCap: big.NewInt(params.InitialBaseFee),
+		Gas:       params.TxGas,
+		To:        &common.Address{},
+		Value:     big.NewInt(0),
+	}), signer, wallet1)
+	if err != nil {
+		t.Fatalf("sign tx: %v", err)
+	}
+	tampered, err := tx.WithAuthValues(signer, tx.RawSignatureValue(), tx.RawPublicKeyValue(), tx.Descriptor(), []byte{0x01})
+	if err != nil {
+		t.Fatalf("re-wrap with extra params: %v", err)
+	}
+
+	block := GenerateBadBlock(gspec.ToBlock(), beacon.New(), types.Transactions{tampered}, gspec.Config)
+	_, err = blockchain.InsertChain(types.Blocks{block})
+	if err == nil {
+		t.Fatal("block imported without errors")
+	}
+	if got := err.Error(); !strings.Contains(got, "non-empty extraParams not supported") {
+		t.Fatalf("unexpected error: %v", got)
 	}
 }
 

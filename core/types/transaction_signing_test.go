@@ -161,6 +161,29 @@ func TestZondSigner_Sender(t *testing.T) {
 			t.Fatalf("expected bad signature error; got %v", err)
 		}
 	})
+	t.Run("error/non-empty-extra-params", func(t *testing.T) {
+		t.Parallel()
+
+		wallet, err := wallet.Generate(wallet.ML_DSA_87)
+		if err != nil {
+			t.Fatalf("wallet: %v", err)
+		}
+		signer := NewZondSigner(big.NewInt(7))
+		tx := mkTx(big.NewInt(7))
+		signed, sig, pk, desc := signTx(t, signer, tx, wallet)
+
+		tampered, err := signed.WithAuthValues(signer, sig, pk, desc, []byte{0x01})
+		if err != nil {
+			t.Fatalf("re-wrap with extra params: %v", err)
+		}
+		_, err = signer.Sender(tampered)
+		if err == nil {
+			t.Fatal("expected non-empty extraParams error, got nil")
+		}
+		if got := err.Error(); got != "non-empty extraParams not supported" {
+			t.Fatalf("unexpected error: got %q", got)
+		}
+	})
 	t.Run("error/rejects-malformed-auth-lengths", func(t *testing.T) {
 		t.Parallel()
 
