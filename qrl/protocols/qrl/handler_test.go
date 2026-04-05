@@ -259,6 +259,27 @@ func testGetBlockHeaders(t *testing.T, protocol uint) {
 				backend.chain.GetBlockByNumber(1).Hash(),
 			},
 		},
+		// Check number-based traversal stops on forward overflow instead of wrapping
+		{
+			&GetBlockHeadersRequest{Origin: HashOrNumber{Number: 3}, Amount: 2, Reverse: false, Skip: math.MaxUint64 - 1},
+			[]common.Hash{
+				backend.chain.GetBlockByNumber(3).Hash(),
+			},
+		},
+		// Check number-based traversal stops on forward zero-progress instead of repeating
+		{
+			&GetBlockHeadersRequest{Origin: HashOrNumber{Number: 3}, Amount: 2, Reverse: false, Skip: math.MaxUint64},
+			[]common.Hash{
+				backend.chain.GetBlockByNumber(3).Hash(),
+			},
+		},
+		// Check number-based traversal stops on reverse zero-progress instead of repeating
+		{
+			&GetBlockHeadersRequest{Origin: HashOrNumber{Number: 3}, Amount: 2, Reverse: true, Skip: math.MaxUint64},
+			[]common.Hash{
+				backend.chain.GetBlockByNumber(3).Hash(),
+			},
+		},
 		// Check that non existing headers aren't returned
 		{
 			&GetBlockHeadersRequest{Origin: HashOrNumber{Hash: unknown}, Amount: 1},
