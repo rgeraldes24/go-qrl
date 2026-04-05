@@ -216,7 +216,19 @@ func (s ZondSigner) AuthValues(tx *Transaction, sig, pk, desc, extraParams []byt
 	if chainID.Sign() != 0 && chainID.Cmp(s.ChainId) != 0 {
 		return nil, nil, nil, nil, fmt.Errorf("%w: have %d want %d", ErrInvalidChainId, chainID, s.ChainId)
 	}
-	return decodeSignature(sig), decodePublicKey(pk), decodeDescriptor(desc), decodeExtraParams(extraParams), nil
+	signature, err := decodeSignature(sig)
+	if err != nil {
+		return nil, nil, nil, nil, err
+	}
+	publicKey, err := decodePublicKey(pk)
+	if err != nil {
+		return nil, nil, nil, nil, err
+	}
+	descriptor, err := decodeDescriptor(desc)
+	if err != nil {
+		return nil, nil, nil, nil, err
+	}
+	return signature, publicKey, descriptor, decodeExtraParams(extraParams), nil
 }
 
 // Hash returns the hash to be signed by the sender.
@@ -250,31 +262,31 @@ func (s ZondSigner) Hash(tx *Transaction, descriptor []byte, extraParams []byte)
 	}
 }
 
-func decodeSignature(sig []byte) (signature []byte) {
+func decodeSignature(sig []byte) ([]byte, error) {
 	if len(sig) != pqcrypto.MLDSA87SignatureLength {
-		panic(fmt.Sprintf("wrong size for ml-dsa-87 signature: got %d, want %d", len(sig), pqcrypto.MLDSA87SignatureLength))
+		return nil, fmt.Errorf("wrong size for ml-dsa-87 signature: got %d, want %d", len(sig), pqcrypto.MLDSA87SignatureLength)
 	}
-	signature = make([]byte, pqcrypto.MLDSA87SignatureLength)
+	signature := make([]byte, pqcrypto.MLDSA87SignatureLength)
 	copy(signature, sig)
-	return signature
+	return signature, nil
 }
 
-func decodePublicKey(pk []byte) (publicKey []byte) {
+func decodePublicKey(pk []byte) ([]byte, error) {
 	if len(pk) != pqcrypto.MLDSA87PublicKeyLength {
-		panic(fmt.Sprintf("wrong size for ml-dsa-87 publickey: got %d, want %d", len(pk), pqcrypto.MLDSA87PublicKeyLength))
+		return nil, fmt.Errorf("wrong size for ml-dsa-87 publickey: got %d, want %d", len(pk), pqcrypto.MLDSA87PublicKeyLength)
 	}
-	publicKey = make([]byte, pqcrypto.MLDSA87PublicKeyLength)
+	publicKey := make([]byte, pqcrypto.MLDSA87PublicKeyLength)
 	copy(publicKey, pk)
-	return publicKey
+	return publicKey, nil
 }
 
-func decodeDescriptor(d []byte) (descriptor []byte) {
+func decodeDescriptor(d []byte) ([]byte, error) {
 	if len(d) != pqcrypto.DescriptorSize {
-		panic(fmt.Sprintf("wrong size for descriptor: got %d, want %d", len(d), pqcrypto.DescriptorSize))
+		return nil, fmt.Errorf("wrong size for descriptor: got %d, want %d", len(d), pqcrypto.DescriptorSize)
 	}
-	descriptor = make([]byte, pqcrypto.DescriptorSize)
+	descriptor := make([]byte, pqcrypto.DescriptorSize)
 	copy(descriptor, d)
-	return descriptor
+	return descriptor, nil
 }
 
 func decodeExtraParams(d []byte) []byte {
