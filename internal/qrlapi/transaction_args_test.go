@@ -47,6 +47,7 @@ func TestSetFeeDefaults(t *testing.T) {
 		in   *TransactionArgs
 		want *TransactionArgs
 		err  error
+		head *types.Header
 	}
 
 	var (
@@ -62,11 +63,13 @@ func TestSetFeeDefaults(t *testing.T) {
 			&TransactionArgs{AccessList: al},
 			&TransactionArgs{AccessList: al, MaxFeePerGas: maxFee, MaxPriorityFeePerGas: fortytwo},
 			nil,
+			nil,
 		},
 		{
 			"dynamic tx, only max fee",
 			&TransactionArgs{MaxFeePerGas: maxFee},
 			&TransactionArgs{MaxFeePerGas: maxFee, MaxPriorityFeePerGas: fortytwo},
+			nil,
 			nil,
 		},
 		{
@@ -74,33 +77,92 @@ func TestSetFeeDefaults(t *testing.T) {
 			&TransactionArgs{MaxFeePerGas: maxFee},
 			&TransactionArgs{MaxFeePerGas: maxFee, MaxPriorityFeePerGas: fortytwo},
 			nil,
+			nil,
 		},
 		{
 			"dynamic fee tx, maxFee < priorityFee",
 			&TransactionArgs{MaxFeePerGas: maxFee, MaxPriorityFeePerGas: (*hexutil.Big)(big.NewInt(1000))},
 			nil,
 			errors.New("maxFeePerGas (0x3e) < maxPriorityFeePerGas (0x3e8)"),
+			nil,
 		},
 		{
 			"dynamic fee tx, maxFee < priorityFee while setting default",
 			&TransactionArgs{MaxFeePerGas: (*hexutil.Big)(big.NewInt(7))},
 			nil,
 			errors.New("maxFeePerGas (0x7) < maxPriorityFeePerGas (0x2a)"),
+			nil,
+		},
+		{
+			"dynamic fee tx without base fee cannot derive max fee",
+			&TransactionArgs{},
+			nil,
+			errors.New("maxFeePerGas not specified and current block has no base fee"),
+			&types.Header{
+				Number:   big.NewInt(1100),
+				GasLimit: 8_000_000,
+				GasUsed:  8_000_000,
+				Time:     555,
+				Extra:    make([]byte, 32),
+			},
+		},
+		{
+			"dynamic fee tx with explicit max fee can still derive priority fee without base fee",
+			&TransactionArgs{MaxFeePerGas: (*hexutil.Big)(big.NewInt(100))},
+			&TransactionArgs{MaxFeePerGas: (*hexutil.Big)(big.NewInt(100)), MaxPriorityFeePerGas: fortytwo},
+			nil,
+			&types.Header{
+				Number:   big.NewInt(1100),
+				GasLimit: 8_000_000,
+				GasUsed:  8_000_000,
+				Time:     555,
+				Extra:    make([]byte, 32),
+			},
 		},
 	}
 
 	for i, test := range tests {
 		got := test.in
+		if test.head != nil {
+			b.current = test.head
+		} else {
+			b.current = &types.Header{
+				Number:   big.NewInt(1100),
+				GasLimit: 8_000_000,
+				GasUsed:  8_000_000,
+				Time:     555,
+				Extra:    make([]byte, 32),
+				BaseFee:  big.NewInt(10),
+			}
+		}
 		err := got.setFeeDefaults(t.Context(), b)
-		if err != nil && err.Error() == test.err.Error() {
-			// Test threw expected error.
+		if test.err != nil {
+			if err == nil {
+				t.Fatalf("test %d (%s): expected error %q, got nil", i, test.name, test.err)
+			}
+			if err.Error() != test.err.Error() {
+				t.Fatalf("test %d (%s): unexpected error: got %q want %q", i, test.name, err, test.err)
+			}
 			continue
-		} else if err != nil {
+		}
+		if err != nil {
 			t.Fatalf("test %d (%s): unexpected error: %s", i, test.name, err)
 		}
 		if !reflect.DeepEqual(got, test.want) {
 			t.Fatalf("test %d (%s): did not fill defaults as expected: (got: %v, want: %v)", i, test.name, got, test.want)
 		}
+	}
+}
+
+func TestTransactionArgsToMessageNilBaseFee(t *testing.T) {
+	args := &TransactionArgs{
+		MaxFeePerGas:         (*hexutil.Big)(big.NewInt(100)),
+		MaxPriorityFeePerGas: (*hexutil.Big)(big.NewInt(7)),
+	}
+	// go-qrl is post-London only, nil BaseFee must return an error.
+	_, err := args.ToMessage(0, nil)
+	if err == nil {
+		t.Fatal("expected error for nil BaseFee, got nil")
 	}
 }
 

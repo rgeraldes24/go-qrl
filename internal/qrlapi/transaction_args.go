@@ -164,6 +164,9 @@ func (args *TransactionArgs) setLondonFeeDefaults(ctx context.Context, head *typ
 	}
 	// Set maxFeePerGas if it is missing.
 	if args.MaxFeePerGas == nil {
+		if head == nil || head.BaseFee == nil {
+			return errors.New("maxFeePerGas not specified and current block has no base fee")
+		}
 		// Set the max fee to be 2 times larger than the previous block's base fee.
 		// The additional slack allows the tx to not become invalidated if the base
 		// fee is rising.
@@ -205,7 +208,10 @@ func (args *TransactionArgs) ToMessage(globalGasCap uint64, baseFee *big.Int) (*
 		gasTipCap *big.Int
 	)
 
-	// A basefee is provided, necessitating 1559-type execution
+	// BaseFee is always required in go-qrl (post-London only).
+	if baseFee == nil {
+		return nil, errors.New("missing BaseFee")
+	}
 	// User specified 1559 gas fields (or none), use those
 	gasFeeCap = new(big.Int)
 	if args.MaxFeePerGas != nil {
@@ -216,7 +222,7 @@ func (args *TransactionArgs) ToMessage(globalGasCap uint64, baseFee *big.Int) (*
 		gasTipCap = args.MaxPriorityFeePerGas.ToInt()
 	}
 	// Backfill the legacy gasPrice for QRVM execution, unless we're all zeroes
-	gasPrice = new(big.Int)
+	gasPrice = new(big.Int).Set(gasFeeCap)
 	if gasFeeCap.BitLen() > 0 || gasTipCap.BitLen() > 0 {
 		gasPrice = math.BigMin(new(big.Int).Add(gasTipCap, baseFee), gasFeeCap)
 	}

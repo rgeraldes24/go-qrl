@@ -64,9 +64,11 @@ func (s *QRLAPI) GasPrice(ctx context.Context) (*hexutil.Big, error) {
 	if err != nil {
 		return nil, err
 	}
-	if head := s.b.CurrentHeader(); head.BaseFee != nil {
-		tipcap.Add(tipcap, head.BaseFee)
+	head := s.b.CurrentHeader()
+	if head == nil || head.BaseFee == nil {
+		return nil, errors.New("current header missing BaseFee")
 	}
+	tipcap.Add(tipcap, head.BaseFee)
 	return (*hexutil.Big)(tipcap), err
 }
 
