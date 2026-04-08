@@ -45,12 +45,11 @@ Pushing the tag automatically triggers the release workflow.
 The GitHub Actions workflow (`.github/workflows/release.yml`) runs the following jobs:
 
 1. **create-release** - Creates a draft GitHub release with an empty body.
-2. **publish-linux-amd64** - Builds `gqrl` for Linux x86_64 and uploads the binary + sha256 checksum (+ GPG signature if `GPG_KEY` is set).
-3. **publish-linux-arm64** - Cross-compiles `gqrl` for Linux ARM64 and uploads artifacts.
-4. **publish-darwin-amd64** - Cross-compiles `gqrl` for macOS x86_64 and uploads artifacts.
-5. **build-and-deploy-docker-images** - Builds and pushes multi-arch Docker images (`linux/amd64`, `linux/arm64`) to Docker Hub (`qrledger/go-qrl`).
+2. **publish-linux-amd64** / **publish-linux-arm64** / **publish-darwin-amd64** / **publish-darwin-arm64** - Build and upload standalone `gqrl` binaries for each platform, including sha256 checksums (+ GPG signatures if `GPG_KEY` is set).
+3. **publish-alltools-linux-amd64** / **publish-alltools-linux-arm64** / **publish-alltools-darwin-amd64** / **publish-alltools-darwin-arm64** - Build and upload `alltools` archives containing `gqrl`, `abidump`, `abigen`, `clef`, `devp2p`, `qrlkey`, `qrvm`, `rlpdump`, and `COPYING`.
+4. **build-and-deploy-docker-images** - Builds and pushes multi-arch Docker images (`linux/amd64`, `linux/arm64`) to Docker Hub (`qrledger/go-qrl`).
 
-Jobs 2-5 run in parallel after the release is created.
+Jobs 2-4 run in parallel after the release is created.
 
 ### 3. Publish the release
 
@@ -63,7 +62,7 @@ The release is created as a **draft**. After all jobs complete:
 
 ## Release Artifacts
 
-For each platform, the following files are uploaded:
+For each platform, the following standalone `gqrl` files are uploaded:
 
 | File | Description |
 |---|---|
@@ -71,7 +70,15 @@ For each platform, the following files are uploaded:
 | `gqrl-<tag>-<platform>.sha256` | SHA-256 checksum |
 | `gqrl-<tag>-<platform>.sig` | GPG detached signature (only if `GPG_KEY` is configured) |
 
-Platforms: `linux-amd64`, `linux-arm64`, `darwin-amd64`
+For each platform, the following `alltools` archive files are uploaded:
+
+| File | Description |
+|---|---|
+| `gqrl-alltools-<tag>-<platform>.tar.gz` | Archive containing `gqrl`, `abidump`, `abigen`, `clef`, `devp2p`, `qrlkey`, `qrvm`, `rlpdump`, and `COPYING` |
+| `gqrl-alltools-<tag>-<platform>.tar.gz.sha256` | SHA-256 checksum |
+| `gqrl-alltools-<tag>-<platform>.tar.gz.sig` | GPG detached signature (only if `GPG_KEY` is configured) |
+
+Platforms: `linux-amd64`, `linux-arm64`, `darwin-amd64`, `darwin-arm64`
 
 ## Re-running a Failed Release
 
