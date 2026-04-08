@@ -41,7 +41,7 @@ var (
 	}
 	// TestnetChainConfig contains the chain parameters to run a node on the BetaNet test network.
 	TestnetChainConfig = &ChainConfig{
-		ChainID: big.NewInt(32382),
+		ChainID: big.NewInt(1337),
 	}
 	// BetaNetChainConfig contains the chain parameters to run a node on the BetaNet test network.
 	BetaNetChainConfig = &ChainConfig{
