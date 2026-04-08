@@ -22,7 +22,7 @@ Before tagging a release, update the version constants in `version/version.go`:
 const (
     Major = 0
     Minor = 3
-    Patch = 2
+    Patch = 3
     Meta  = "stable"
 )
 ```

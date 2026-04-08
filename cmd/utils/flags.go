@@ -1544,7 +1544,7 @@ func SetQRLConfig(ctx *cli.Context, stack *node.Node, cfg *qrlconfig.Config) {
 		SetDNSDiscoveryDefaults(cfg, params.BetaNetGenesisHash)
 	case ctx.Bool(TestnetFlag.Name):
 		if !ctx.IsSet(NetworkIdFlag.Name) {
-			cfg.NetworkId = 2
+			cfg.NetworkId = 1337
 		}
 		cfg.Genesis = core.DefaultTestnetGenesisBlock()
 		SetDNSDiscoveryDefaults(cfg, params.TestnetGenesisHash)
