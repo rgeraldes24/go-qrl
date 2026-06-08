@@ -54,21 +54,20 @@ func TestMemoryGasCost(t *testing.T) {
 	}
 }
 
-// Gas expectations reflect the 64-byte VM word: the memory/Keccak step count
-// that drives the CREATE / CREATE2 initcode cost collapses to a quarter of
-// the original 32-byte-word values.
+// Gas expectations reflect the 64-byte VM word: CREATE / CREATE2 initcode
+// charges use half as many words as the original 32-byte-word values.
 var createGasTests = []struct {
 	code       string
 	gasUsed    uint64
 	minimumGas uint64
 }{
 	// legacy create(0, 0, 0xc000) _with_ 3860
-	{"0x61C00060006000f0" + "600052" + "60206000F3", 38549, 38549},
+	{"0x61C00060006000f0" + "600052" + "60206000F3", 37013, 37013},
 	// create2(0, 0, 0xc001, 0) (too large), with 3860
 	{"0x600061C00160006000f5" + "600052" + "60206000F3", 32012, 100_000},
 	// create2(0, 0, 0xc000, 0)
 	// This case is trying to deploy code at (within) the limit
-	{"0x600061C00060006000f5" + "600052" + "60206000F3", 47768, 47768},
+	{"0x600061C00060006000f5" + "600052" + "60206000F3", 41624, 41624},
 	// create2(0, 0, 0xc001, 0)
 	// This case is trying to deploy code exceeding the limit
 	{"0x600061C00160006000f5" + "600052" + "60206000F3", 32024, 100000},

@@ -163,7 +163,7 @@ func gasCreateEip3860(qrvm *QRVM, contract *Contract, stack *Stack, mem *Memory,
 		return 0, ErrGasUintOverflow
 	}
 	// Since size <= params.MaxInitCodeSize, these multiplication cannot overflow
-	moreGas := params.InitCodeWordGas * ((size + 31) / 32)
+	moreGas := params.InitCodeWordGas * toWordSize(size)
 	if gas, overflow = math.SafeAdd(gas, moreGas); overflow {
 		return 0, ErrGasUintOverflow
 	}
@@ -179,7 +179,7 @@ func gasCreate2Eip3860(qrvm *QRVM, contract *Contract, stack *Stack, mem *Memory
 		return 0, ErrGasUintOverflow
 	}
 	// Since size <= params.MaxInitCodeSize, these multiplication cannot overflow
-	moreGas := (params.InitCodeWordGas + params.Keccak256WordGas) * ((size + 31) / 32)
+	moreGas := (params.InitCodeWordGas + params.Keccak256WordGas) * toWordSize(size)
 	if gas, overflow = math.SafeAdd(gas, moreGas); overflow {
 		return 0, ErrGasUintOverflow
 	}

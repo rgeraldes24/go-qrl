@@ -115,7 +115,7 @@ func TestTracer(t *testing.T) {
 		}, { //  tests that we don't panic on bad arguments to memory getUint
 			code: "{ depths: [], step: function(log, db) { this.depths.push(log.memory.getUint(-64));}, fault: function() {}, result: function() { return this.depths; }}",
 			want: ``,
-			fail: "tracer accessed out of bound memory: available 0, offset -64, size 32 at step (<eval>:1:58(11))    in server-side tracer function 'step'",
+			fail: "tracer accessed out of bound memory: available 0, offset -64, size 64 at step (<eval>:1:58(11))    in server-side tracer function 'step'",
 		}, { // tests some general counting
 			code: "{count: 0, step: function() { this.count += 1; }, fault: function() {}, result: function() { return this.count; }}",
 			want: `3`,

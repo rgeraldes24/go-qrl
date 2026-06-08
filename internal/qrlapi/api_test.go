@@ -1250,7 +1250,7 @@ func setupReceiptBackend(t *testing.T, genBlocks int) (*testBackend, []common.Ha
 		acc2Wallet                 = testutil.MustLoadAccount("carol").MustWallet()
 		acc1Addr                   = acc1Wallet.GetAddress()
 		acc2Addr    common.Address = acc2Wallet.GetAddress()
-		contract, _                = common.NewAddressFromString("Q000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000031ec7")
+		contract, _                = common.NewAddressFromString("Q00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000031ec7")
 		genesis                    = &core.Genesis{
 			Config: &config,
 			Alloc: core.GenesisAlloc{

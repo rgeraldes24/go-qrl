@@ -84,8 +84,7 @@ func (c *depositroot) RequiredGas(input []byte) uint64 {
 	// NOTE(rgeraldes): number of sha256 ops below does not include the number of zero
 	// hashes done; these are calculated during the prysmaticlabs/fastssz lib init
 	// 238 sha256 ops + 64 bytes input per op
-	// return uint64(64+31)/32*params.Sha256PerWordGas + params.Sha256BaseGas
-	return (2*params.Sha256PerWordGas + params.Sha256BaseGas) * 238
+	return (toWordSize(64)*params.Sha256PerWordGas + params.Sha256BaseGas) * 238
 }
 
 func (c *depositroot) Run(input []byte) ([]byte, error) {
@@ -173,7 +172,7 @@ type sha256hash struct{}
 // This method does not require any overflow checking as the input size gas costs
 // required for anything significant is so high it's impossible to pay for.
 func (c *sha256hash) RequiredGas(input []byte) uint64 {
-	return uint64(len(input)+31)/32*params.Sha256PerWordGas + params.Sha256BaseGas
+	return toWordSize(uint64(len(input)))*params.Sha256PerWordGas + params.Sha256BaseGas
 }
 func (c *sha256hash) Run(input []byte) ([]byte, error) {
 	h := sha256.Sum256(input)
@@ -188,7 +187,7 @@ type dataCopy struct{}
 // This method does not require any overflow checking as the input size gas costs
 // required for anything significant is so high it's impossible to pay for.
 func (c *dataCopy) RequiredGas(input []byte) uint64 {
-	return uint64(len(input)+31)/32*params.IdentityPerWordGas + params.IdentityBaseGas
+	return toWordSize(uint64(len(input)))*params.IdentityPerWordGas + params.IdentityBaseGas
 }
 func (c *dataCopy) Run(in []byte) ([]byte, error) {
 	return common.CopyBytes(in), nil

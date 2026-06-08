@@ -217,9 +217,9 @@ func TestStateProcessorErrors(t *testing.T) {
 			},
 			{ // ErrIntrinsicGas: Not enough gas to cover init code
 				txs: []*types.Transaction{
-					mkDynamicCreationTx(0, 54299, common.Big0, big.NewInt(params.InitialBaseFee), make([]byte, 320)),
+					mkDynamicCreationTx(0, 54289, common.Big0, big.NewInt(params.InitialBaseFee), make([]byte, 320)),
 				},
-				want: "could not apply tx 0 [0xec256e903664f33fed54ebb83437871fb38b38c68770918a71d0f8842bd8809c]: intrinsic gas too low: have 54299, want 54300",
+				want: "could not apply tx 0 [0xec256e903664f33fed54ebb83437871fb38b38c68770918a71d0f8842bd8809c]: intrinsic gas too low: have 54289, want 54290",
 			},
 		} {
 			block := GenerateBadBlock(gspec.ToBlock(), beacon.New(), tt.txs, gspec.Config)
@@ -244,7 +244,7 @@ func TestStateProcessorErrors(t *testing.T) {
 						ChainID: big.NewInt(1),
 					},
 					Alloc: GenesisAlloc{
-						common.HexToAddress("Q0000000000000000000000000000000000000000000000000000000071562b71999873DB5b286dF957af199Ec94617F7"): GenesisAccount{
+						common.HexToAddress("Q000000000000000000000000000000000000000000000000000000000000000000000000000000000000000071562b71999873DB5b286dF957af199Ec94617F7"): GenesisAccount{
 							Balance: big.NewInt(1000000000000000000), // 1 quanta
 							Nonce:   0,
 						},
