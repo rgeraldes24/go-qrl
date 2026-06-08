@@ -24,6 +24,8 @@ import (
 	"testing"
 )
 
+const testAddress = "QBb81a0496aa34a64f96c2bCd28793165e1e6C08af0605b119cc768764901d2E4B48b5b9c049C57469CcA8a0421D2E31DF5C637a9cee8f3DA83964261B6CF9a22"
+
 // TestImportRaw tests clef --importraw
 func TestImportRaw(t *testing.T) {
 	t.Parallel()
@@ -35,8 +37,9 @@ func TestImportRaw(t *testing.T) {
 		// Run clef importraw
 		clef := runClef(t, "--suppress-bootwarn", "--lightkdf", "importraw", keyPath)
 		clef.input("myverylongpassword").input("myverylongpassword")
+		// 64-byte QRL address derived from the test seed above.
 		if out := string(clef.Output()); !strings.Contains(out,
-			"Key imported:\n  Address QBb81a0496aa34a64F96C2BCd28793165E1E6c08a") {
+			"Key imported:\n  Address "+testAddress) {
 			t.Logf("Output\n%v", out)
 			t.Error("Failure")
 		}
@@ -85,7 +88,7 @@ func TestListAccounts(t *testing.T) {
 		clef.input("myverylongpassword").input("myverylongpassword").WaitExit()
 		// Secondly, do a listing, using the same datadir
 		clef = runWithKeystore(t, clef.Datadir, "--suppress-bootwarn", "--lightkdf", "list-accounts")
-		if out := string(clef.Output()); !strings.Contains(out, "QBb81a0496aa34a64F96C2BCd28793165E1E6c08a (keystore:") {
+		if out := string(clef.Output()); !strings.Contains(out, testAddress+" (keystore:") {
 			t.Logf("Output\n%v", out)
 			t.Error("Failure")
 		}
@@ -113,7 +116,7 @@ func TestListWallets(t *testing.T) {
 		clef.input("myverylongpassword").input("myverylongpassword").WaitExit()
 		// Secondly, do a listing, using the same datadir
 		clef = runWithKeystore(t, clef.Datadir, "--suppress-bootwarn", "--lightkdf", "list-wallets")
-		if out := string(clef.Output()); !strings.Contains(out, "Account 0: QBb81a0496aa34a64F96C2BCd28793165E1E6c08a") {
+		if out := string(clef.Output()); !strings.Contains(out, "Account 0: "+testAddress) {
 			t.Logf("Output\n%v", out)
 			t.Error("Failure")
 		}

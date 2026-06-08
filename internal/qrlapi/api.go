@@ -555,11 +555,11 @@ func (api *BlockChainAPI) GetBlockReceipts(ctx context.Context, blockNrOrHash rp
 // if statDiff is set, all diff will be applied first and then execute the call
 // message.
 type OverrideAccount struct {
-	Nonce     *hexutil.Uint64              `json:"nonce"`
-	Code      *hexutil.Bytes               `json:"code"`
-	Balance   **hexutil.Big                `json:"balance"`
-	State     *map[common.Hash]common.Hash `json:"state"`
-	StateDiff *map[common.Hash]common.Hash `json:"stateDiff"`
+	Nonce     *hexutil.Uint64                        `json:"nonce"`
+	Code      *hexutil.Bytes                         `json:"code"`
+	Balance   **hexutil.Big                          `json:"balance"`
+	State     *map[common.Hash]common.StorageValue64 `json:"state"`
+	StateDiff *map[common.Hash]common.StorageValue64 `json:"stateDiff"`
 }
 
 // StateOverride is the collection of overridden accounts.

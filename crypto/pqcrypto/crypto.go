@@ -28,10 +28,16 @@ func BytesToDescriptor(b []byte) (descriptor.Descriptor, error) {
 }
 
 func PublicKeyAndDescriptorToAddress(pk []byte, d descriptor.Descriptor) (common.Address, error) {
-	return libwallet.GetAddressFromPKAndDescriptor(pk, d)
+	addrBytes, err := libwallet.GetAddressFromPKAndDescriptor(pk, d)
+	if err != nil {
+		return common.Address{}, err
+	}
+	var addr common.Address
+	copy(addr[:], addrBytes[:])
+	return addr, nil
 }
 
-func MLDSA87VerifySignature(sig []byte, msg []byte, pk []byte) (bool, error) {
+func MLDSA87VerifySignature(sig []byte, msg []byte, pk []byte, desc descriptor.Descriptor) (bool, error) {
 	// walletmldsa87.Verify would panic on bad length
 	if l := len(sig); l != cryptomldsa87.CRYPTO_BYTES {
 		return false, fmt.Errorf("%w: bad length", ErrBadSignature)
@@ -42,12 +48,20 @@ func MLDSA87VerifySignature(sig []byte, msg []byte, pk []byte) (bool, error) {
 		return false, err
 	}
 
-	desc, err := walletmldsa87.NewMLDSA87Descriptor()
+	mlDesc, err := walletmldsa87.NewMLDSA87DescriptorFromDescriptor(desc)
 	if err != nil {
 		return false, err
 	}
 
-	return walletmldsa87.Verify(msg, sig, &pk87, desc), nil
+	return walletmldsa87.Verify(msg, sig, &pk87, mlDesc), nil
+}
+
+func MLDSA87VerifySignatureWithDefaultDescriptor(sig []byte, msg []byte, pk []byte) (bool, error) {
+	desc, err := walletmldsa87.NewMLDSA87Descriptor()
+	if err != nil {
+		return false, err
+	}
+	return MLDSA87VerifySignature(sig, msg, pk, desc.ToDescriptor())
 }
 
 func Sign(digestHash []byte, w wallet.Wallet) ([]byte, error) {
