@@ -37,6 +37,10 @@
 # VS Code
 .vscode
 
+# local tooling
+.codex
+.claude
+
 # binaries
 cmd/abidump/abidump
 cmd/abigen/abigen

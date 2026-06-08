@@ -37,9 +37,9 @@ func init() {
 }
 
 type callLog struct {
-	Address common.Address `json:"address"`
-	Topics  []common.Hash  `json:"topics"`
-	Data    hexutil.Bytes  `json:"data"`
+	Address common.Address    `json:"address"`
+	Topics  []common.LogTopic `json:"topics"`
+	Data    hexutil.Bytes     `json:"data"`
 }
 
 type callFrame struct {
@@ -175,10 +175,10 @@ func (t *callTracer) CaptureState(pc uint64, op vm.OpCode, gas, cost uint64, sco
 		// Don't modify the stack
 		mStart := stackData[len(stackData)-1]
 		mSize := stackData[len(stackData)-2]
-		topics := make([]common.Hash, size)
+		topics := make([]common.LogTopic, size)
 		for i := range size {
 			topic := stackData[len(stackData)-2-(i+1)]
-			topics[i] = common.Hash(topic.Bytes32())
+			topics[i] = common.LogTopic(topic.Bytes64())
 		}
 
 		data, err := tracers.GetMemoryCopyPadded(scope.Memory, int64(mStart.Uint64()), int64(mSize.Uint64()))

@@ -449,7 +449,19 @@ func (t *jsTracer) setBuiltinFunctions() {
 		}
 		code = common.CopyBytes(code)
 		codeHash := crypto.Keccak256(code)
-		b := crypto.CreateAddress2(addr, common.HexToHash(salt), codeHash).Bytes()
+		// Parse the salt as up to 64 raw bytes, right-aligned into the 64-byte
+		// CREATE2 salt word.
+		var saltBytes [64]byte
+		saltHex := salt
+		if len(saltHex) >= 2 && (saltHex[:2] == "0x" || saltHex[:2] == "0X") {
+			saltHex = saltHex[2:]
+		}
+		saltRaw := common.FromHex(saltHex)
+		if len(saltRaw) > 64 {
+			saltRaw = saltRaw[len(saltRaw)-64:]
+		}
+		copy(saltBytes[64-len(saltRaw):], saltRaw)
+		b := crypto.CreateAddress2(addr, saltBytes, codeHash).Bytes()
 		res, err := t.toBuf(vm, b)
 		if err != nil {
 			vm.Interrupt(err)
@@ -594,12 +606,12 @@ func (mo *memoryObj) GetUint(addr int64) goja.Value {
 	return res
 }
 
-// getUint returns the 32 bytes at the specified address interpreted as a uint.
+// getUint returns the 64-byte VM word at the specified address interpreted as a uint.
 func (mo *memoryObj) getUint(addr int64) (*big.Int, error) {
-	if mo.memory.Len() < int(addr)+32 || addr < 0 {
-		return nil, fmt.Errorf("tracer accessed out of bound memory: available %d, offset %d, size %d", mo.memory.Len(), addr, 32)
+	if mo.memory.Len() < int(addr)+64 || addr < 0 {
+		return nil, fmt.Errorf("tracer accessed out of bound memory: available %d, offset %d, size %d", mo.memory.Len(), addr, 64)
 	}
-	return new(big.Int).SetBytes(mo.memory.GetPtr(addr, 32)), nil
+	return new(big.Int).SetBytes(mo.memory.GetPtr(addr, 64)), nil
 }
 
 func (mo *memoryObj) Length() int {

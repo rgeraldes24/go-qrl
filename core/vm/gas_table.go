@@ -17,7 +17,6 @@
 package vm
 
 import (
-	"github.com/theQRL/go-qrl/common"
 	"github.com/theQRL/go-qrl/common/math"
 	"github.com/theQRL/go-qrl/params"
 )
@@ -37,7 +36,7 @@ func memoryGasCost(mem *Memory, newMemSize uint64) (uint64, error) {
 		return 0, ErrGasUintOverflow
 	}
 	newMemSizeWords := toWordSize(newMemSize)
-	newMemSize = newMemSizeWords * 32
+	newMemSize = newMemSizeWords * 64
 
 	if newMemSize > uint64(mem.Len()) {
 		square := newMemSizeWords * newMemSizeWords
@@ -164,7 +163,7 @@ func gasCreateEip3860(qrvm *QRVM, contract *Contract, stack *Stack, mem *Memory,
 		return 0, ErrGasUintOverflow
 	}
 	// Since size <= params.MaxInitCodeSize, these multiplication cannot overflow
-	moreGas := params.InitCodeWordGas * ((size + 31) / 32)
+	moreGas := params.InitCodeWordGas * toWordSize(size)
 	if gas, overflow = math.SafeAdd(gas, moreGas); overflow {
 		return 0, ErrGasUintOverflow
 	}
@@ -180,7 +179,7 @@ func gasCreate2Eip3860(qrvm *QRVM, contract *Contract, stack *Stack, mem *Memory
 		return 0, ErrGasUintOverflow
 	}
 	// Since size <= params.MaxInitCodeSize, these multiplication cannot overflow
-	moreGas := (params.InitCodeWordGas + params.Keccak256WordGas) * ((size + 31) / 32)
+	moreGas := (params.InitCodeWordGas + params.Keccak256WordGas) * toWordSize(size)
 	if gas, overflow = math.SafeAdd(gas, moreGas); overflow {
 		return 0, ErrGasUintOverflow
 	}
@@ -191,7 +190,7 @@ func gasExpEIP158(qrvm *QRVM, contract *Contract, stack *Stack, mem *Memory, mem
 	expByteLen := uint64((stack.data[stack.len()-2].BitLen() + 7) / 8)
 
 	var (
-		gas      = expByteLen * params.ExpByteEIP158 // no overflow check required. Max is 256 * ExpByte gas
+		gas      = expByteLen * params.ExpByteEIP158 // no overflow check required. Max is 512 * ExpByte gas
 		overflow bool
 	)
 	if gas, overflow = math.SafeAdd(gas, params.ExpGas); overflow {
@@ -204,7 +203,7 @@ func gasCall(qrvm *QRVM, contract *Contract, stack *Stack, mem *Memory, memorySi
 	var (
 		gas            uint64
 		transfersValue = !stack.Back(2).IsZero()
-		address        = common.Address(stack.Back(1).Bytes20())
+		address        = stackToAddress(stack.Back(1))
 	)
 	if transfersValue && qrvm.StateDB.Empty(address) {
 		gas += params.CallNewAccountGas
