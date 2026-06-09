@@ -28,12 +28,13 @@ import (
 	"github.com/theQRL/go-qrl/common"
 	"github.com/theQRL/go-qrl/core"
 	"github.com/theQRL/go-qrl/core/types"
+	"github.com/theQRL/go-qrl/crypto"
 	"github.com/theQRL/go-qrl/crypto/pqcrypto/wallet"
 )
 
 var testWallet, _ = wallet.RestoreFromSeedHex("010000f29f58aff0b00de2844f7e20bd9eeaacc379150043beeb328335817512b29fbb7184da84a092f842b2a06d72a24a5d28")
 
-var wantedAddr, _ = common.NewAddressFromString("QcF39819954C9b2937A802eCff89F4d7aA89b0769")
+var wantedAddr = crypto.CreateAddress(testWallet.GetAddress(), 0)
 var waitDeployedTests = map[string]struct {
 	code        string
 	gas         uint64
@@ -119,7 +120,7 @@ func TestWaitDeployedCornerCases(t *testing.T) {
 
 	// Create a transaction to an account.
 	code := "6060604052600a8060106000396000f360606040526008565b00"
-	to, _ := common.NewAddressFromString("Q0000000000000000000000000000000000000001")
+	to := common.BytesToAddress([]byte{1})
 	tx := types.NewTx(&types.DynamicFeeTx{
 		Nonce:     0,
 		To:        &to,

@@ -20,6 +20,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"math/big"
+	"strings"
 	"testing"
 
 	qrl "github.com/theQRL/go-qrl"
@@ -39,15 +40,23 @@ import (
 )
 
 var (
-	testWallet, _   = wallet.RestoreFromSeedHex("010000b71c71a67e1177ad4e901695e1b4b9ee17ae16c6668d313eac2f96dbcda3f29100000000000000000000000000000000")
-	testAddr        = testWallet.GetAddress()
-	zeroAddr, _     = common.NewAddressFromString("Q0000000000000000000000000000000000000000")
-	testContract, _ = common.NewAddressFromString("Q000000000000000000000000000000000000beef")
-	testEmpty, _    = common.NewAddressFromString("Q000000000000000000000000000000000000eeee")
-	testSlot        = common.HexToHash("0xdeadbeef")
-	testValue       = crypto.Keccak256Hash(testSlot[:])
-	testBalance     = big.NewInt(2e18)
+	testWallet, _ = wallet.RestoreFromSeedHex("010000b71c71a67e1177ad4e901695e1b4b9ee17ae16c6668d313eac2f96dbcda3f29100000000000000000000000000000000")
+	testAddr      = testWallet.GetAddress()
+	zeroAddr      = common.Address{}
+	testContract  = common.BytesToAddress(common.Hex2Bytes("beef"))
+	testEmpty     = common.BytesToAddress(common.Hex2Bytes("eeee"))
+	testSlot      = common.HexToHash("0xdeadbeef")
+	testValue     = crypto.Keccak256Hash(testSlot[:])
+	testBalance   = big.NewInt(2e18)
 )
+
+func repeatedAddress(b byte) common.Address {
+	var a common.Address
+	for i := range a {
+		a[i] = b
+	}
+	return a
+}
 
 func newTestBackend(t *testing.T) (*node.Node, []*types.Block) {
 	// Generate test chain.
@@ -299,7 +308,7 @@ func testGetProofCanonicalizeKeys(t *testing.T, client *rpc.Client) {
 }
 
 func testGetProofNonExistent(t *testing.T, client *rpc.Client) {
-	addr, _ := common.NewAddressFromString("Q0000000000000000000000000000000000000001")
+	addr := common.BytesToAddress([]byte{1})
 	ec := New(client)
 	result, err := ec.GetProof(t.Context(), addr, nil, nil)
 	if err != nil {
@@ -497,17 +506,17 @@ func TestOverrideAccountMarshal(t *testing.T) {
 	}
 
 	expected := `{
-  "Q1100000000000000000000000000000000000000": {},
-  "Qaa00000000000000000000000000000000000000": {
-    "nonce": "0x5"
-  },
-  "Qbb00000000000000000000000000000000000000": {
+  "Q11000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000": {},
+  "QBB000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000": {
     "code": "0x01"
   },
-  "Qcc00000000000000000000000000000000000000": {
+  "QCC000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000": {
     "code": "0x",
     "balance": "0x0",
     "state": {}
+  },
+  "QaA000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000": {
+    "nonce": "0x5"
   }
 }`
 
@@ -518,7 +527,7 @@ func TestOverrideAccountMarshal(t *testing.T) {
 }
 
 func TestBlockOverridesMarshal(t *testing.T) {
-	coinbase, _ := common.NewAddressFromString("Q1111111111111111111111111111111111111111")
+	coinbase := repeatedAddress(0x11)
 
 	for i, tt := range []struct {
 		bo   BlockOverrides
@@ -532,7 +541,7 @@ func TestBlockOverridesMarshal(t *testing.T) {
 			bo: BlockOverrides{
 				Coinbase: coinbase,
 			},
-			want: `{"coinbase":"Q1111111111111111111111111111111111111111"}`,
+			want: `{"coinbase":"Q` + strings.Repeat("11", common.AddressLength) + `"}`,
 		},
 		{
 			bo: BlockOverrides{
@@ -565,7 +574,7 @@ func testCallContractWithBlockOverrides(t *testing.T, client *rpc.Client) {
 	}
 	override := OverrideAccount{
 		// Returns coinbase address.
-		Code: common.FromHex("0x41806000526014600cf3"),
+		Code: common.FromHex("0x4160205260005260406000f3"),
 	}
 	mapAcc := make(map[common.Address]OverrideAccount)
 	mapAcc[common.Address{}] = override
@@ -573,12 +582,12 @@ func testCallContractWithBlockOverrides(t *testing.T, client *rpc.Client) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if !bytes.Equal(res, common.FromHex("0x0000000000000000000000000000000000000000")) {
+	if !bytes.Equal(res, make([]byte, common.AddressLength)) {
 		t.Fatalf("unexpected result: %x", res)
 	}
 
 	// Now test with block overrides
-	coinbase, _ := common.NewAddressFromString("Q1111111111111111111111111111111111111111")
+	coinbase := repeatedAddress(0x11)
 	bo := BlockOverrides{
 		Coinbase: coinbase,
 	}
@@ -586,7 +595,7 @@ func testCallContractWithBlockOverrides(t *testing.T, client *rpc.Client) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if !bytes.Equal(res, common.FromHex("0x1111111111111111111111111111111111111111")) {
+	if !bytes.Equal(res, coinbase.Bytes()) {
 		t.Fatalf("unexpected result: %x", res)
 	}
 }

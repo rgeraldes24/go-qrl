@@ -20,6 +20,7 @@ import (
 	"encoding/json"
 	"errors"
 	"math/big"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -32,6 +33,21 @@ import (
 )
 
 type account struct{}
+
+func indexedZeroBytesJSON(n int) string {
+	var b strings.Builder
+	b.WriteByte('{')
+	for i := 0; i < n; i++ {
+		if i > 0 {
+			b.WriteByte(',')
+		}
+		b.WriteByte('"')
+		b.WriteString(strconv.Itoa(i))
+		b.WriteString(`":0`)
+	}
+	b.WriteByte('}')
+	return b.String()
+}
 
 func (account) SubBalance(amount *big.Int)                          {}
 func (account) AddBalance(amount *big.Int)                          {}
@@ -98,6 +114,7 @@ func TestTracer(t *testing.T) {
 		}
 		return ret, ""
 	}
+	zeroAddressJSON := indexedZeroBytesJSON(common.AddressLength)
 	for i, tt := range []struct {
 		code     string
 		want     string
@@ -136,13 +153,13 @@ func TestTracer(t *testing.T) {
 			want: `{"0":0,"1":0,"2":0,"3":0,"4":0,"5":0,"6":0,"7":0,"8":0,"9":0,"10":0,"11":0,"12":0,"13":0,"14":0,"15":0,"16":0,"17":0,"18":0,"19":0,"20":0,"21":0,"22":0,"23":0,"24":0,"25":0,"26":0,"27":0,"28":0,"29":0,"30":255,"31":170}`,
 		}, { // test feeding a buffer back into go
 			code: "{res: null, step: function(log) { var address = log.contract.getAddress(); this.res = toAddress(address); }, fault: function() {}, result: function() { return this.res }}",
-			want: `{"0":0,"1":0,"2":0,"3":0,"4":0,"5":0,"6":0,"7":0,"8":0,"9":0,"10":0,"11":0,"12":0,"13":0,"14":0,"15":0,"16":0,"17":0,"18":0,"19":0}`,
+			want: zeroAddressJSON,
 		}, {
-			code: "{res: null, step: function(log) { var address = 'Q0000000000000000000000000000000000000000'; this.res = toAddress(address); }, fault: function() {}, result: function() { return this.res }}",
-			want: `{"0":0,"1":0,"2":0,"3":0,"4":0,"5":0,"6":0,"7":0,"8":0,"9":0,"10":0,"11":0,"12":0,"13":0,"14":0,"15":0,"16":0,"17":0,"18":0,"19":0}`,
+			code: "{res: null, step: function(log) { var address = 'Q" + strings.Repeat("0", common.AddressLength*2) + "'; this.res = toAddress(address); }, fault: function() {}, result: function() { return this.res }}",
+			want: zeroAddressJSON,
 		}, {
 			code: "{res: null, step: function(log) { var address = Array.prototype.slice.call(log.contract.getAddress()); this.res = toAddress(address); }, fault: function() {}, result: function() { return this.res }}",
-			want: `{"0":0,"1":0,"2":0,"3":0,"4":0,"5":0,"6":0,"7":0,"8":0,"9":0,"10":0,"11":0,"12":0,"13":0,"14":0,"15":0,"16":0,"17":0,"18":0,"19":0}`,
+			want: zeroAddressJSON,
 		}, {
 			code:     "{res: [], step: function(log) { var op = log.op.toString(); if (op === 'MSTORE8' || op === 'STOP') { this.res.push(log.memory.slice(0, 2)) } }, fault: function() {}, result: function() { return this.res }}",
 			want:     `[{"0":0,"1":0},{"0":255,"1":0}]`,
@@ -231,7 +248,8 @@ func TestNoStepExec(t *testing.T) {
 func TestIsPrecompile(t *testing.T) {
 	chaincfg := &params.ChainConfig{ChainID: big.NewInt(1)}
 	txCtx := vm.TxContext{GasPrice: big.NewInt(100000)}
-	tracer, err := newJsTracer("{addr: toAddress('Q0000000000000000000000000000000000000020'), res: null, step: function() { this.res = isPrecompiled(this.addr); }, fault: function() {}, result: function() { return this.res; }}", nil, nil)
+	unavailable := common.PrecompileAddress(0x20).Hex()
+	tracer, err := newJsTracer("{addr: toAddress('"+unavailable+"'), res: null, step: function() { this.res = isPrecompiled(this.addr); }, fault: function() {}, result: function() { return this.res; }}", nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -245,7 +263,8 @@ func TestIsPrecompile(t *testing.T) {
 		t.Errorf("tracer should not consider unavailable contract as precompile in zond")
 	}
 
-	tracer, _ = newJsTracer("{addr: toAddress('Q0000000000000000000000000000000000000001'), res: null, step: function() { this.res = isPrecompiled(this.addr); }, fault: function() {}, result: function() { return this.res; }}", nil, nil)
+	available := common.PrecompileAddress(1).Hex()
+	tracer, _ = newJsTracer("{addr: toAddress('"+available+"'), res: null, step: function() { this.res = isPrecompiled(this.addr); }, fault: function() {}, result: function() { return this.res; }}", nil, nil)
 	blockCtx = vm.BlockContext{BlockNumber: big.NewInt(250)}
 	res, err = runTrace(tracer, &vmContext{blockCtx, txCtx}, chaincfg, nil)
 	if err != nil {

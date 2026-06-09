@@ -71,6 +71,8 @@ func TestGraphQLBlockSerialization(t *testing.T) {
 	if err := stack.Start(); err != nil {
 		t.Fatalf("could not start node: %v", err)
 	}
+	callFrom := common.BytesToAddress(common.Hex2Bytes("a94f5374fce5edbc8e2a8697c15331677e6ebf0b"))
+	callTo := common.BytesToAddress(common.Hex2Bytes("6295ee1b4f6dd65047762f924ecd367c17eabf8f"))
 
 	for i, tt := range []struct {
 		body string
@@ -141,7 +143,7 @@ func TestGraphQLBlockSerialization(t *testing.T) {
 		},
 		// should return `status` as decimal
 		{
-			body: `{"query": "{block {number call (data : {from : \"Qa94f5374fce5edbc8e2a8697c15331677e6ebf0b\", to: \"Q6295ee1b4f6dd65047762f924ecd367c17eabf8f\", data :\"0x12a7b914\"}){data status}}}"}`,
+			body: fmt.Sprintf(`{"query": "{block {number call (data : {from : \"%s\", to: \"%s\", data :\"0x12a7b914\"}){data status}}}"}`, callFrom, callTo),
 			want: `{"data":{"block":{"number":"0xa","call":{"data":"0x","status":"0x1"}}}}`,
 			code: 200,
 		},
@@ -170,7 +172,10 @@ func TestGraphQLBlockSerializationEIP2718(t *testing.T) {
 		wallet, _ = wallet.RestoreFromSeedHex("0x010000f29f58aff0b00de2844f7e20bd9eeaacc379150043beeb328335817512b29fbb7184da84a092f842b2a06d72a24a5d28")
 		address   = wallet.GetAddress()
 		funds     = big.NewInt(1000000000000000000)
-		dad, _    = common.NewAddressFromString("Q0000000000000000000000000000000000000dad")
+		dad       = common.BytesToAddress(common.Hex2Bytes("dad"))
+		dadStr    = dad.Hex()
+		tx0       *types.Transaction
+		tx1       *types.Transaction
 	)
 	stack := createNode(t)
 	defer stack.Close()
@@ -191,15 +196,15 @@ func TestGraphQLBlockSerializationEIP2718(t *testing.T) {
 	signer := types.LatestSigner(genesis.Config)
 	newGQLService(t, stack, genesis, 1, func(i int, gen *core.BlockGen) {
 		gen.SetCoinbase(common.Address{1})
-		tx, _ := types.SignNewTx(wallet, signer, &types.DynamicFeeTx{
+		tx0, _ = types.SignNewTx(wallet, signer, &types.DynamicFeeTx{
 			Nonce:     uint64(0),
 			To:        &dad,
 			Value:     big.NewInt(100),
 			Gas:       50000,
 			GasFeeCap: big.NewInt(params.InitialBaseFee),
 		})
-		gen.AddTx(tx)
-		tx, _ = types.SignNewTx(wallet, signer, &types.DynamicFeeTx{
+		gen.AddTx(tx0)
+		tx1, _ = types.SignNewTx(wallet, signer, &types.DynamicFeeTx{
 			ChainID:   genesis.Config.ChainID,
 			Nonce:     uint64(1),
 			To:        &dad,
@@ -211,7 +216,7 @@ func TestGraphQLBlockSerializationEIP2718(t *testing.T) {
 				StorageKeys: []common.Hash{{0}},
 			}},
 		})
-		gen.AddTx(tx)
+		gen.AddTx(tx1)
 	})
 	// start node
 	if err := stack.Start(); err != nil {
@@ -225,7 +230,7 @@ func TestGraphQLBlockSerializationEIP2718(t *testing.T) {
 	}{
 		{
 			body: `{"query": "{block {number transactions { from { address } to { address } value hash type accessList { address storageKeys } index}}}"}`,
-			want: `{"data":{"block":{"number":"0x1","transactions":[{"from":{"address":"Qd5812f6cf4a0f645aa620cd57319a0ed649dd8f5"},"to":{"address":"Q0000000000000000000000000000000000000dad"},"value":"0x64","hash":"0x1a5b30c9e2c2e13643e7d47f34cf05dbd2ccbf366a733146db6f190e70711dbd","type":"0x2","accessList":[],"index":"0x0"},{"from":{"address":"Qd5812f6cf4a0f645aa620cd57319a0ed649dd8f5"},"to":{"address":"Q0000000000000000000000000000000000000dad"},"value":"0x32","hash":"0x4f54fca3fdfbeb2ff72287ae4bd7e20a1b206a3cb256ffadec9104758a1f9777","type":"0x2","accessList":[{"address":"Q0000000000000000000000000000000000000dad","storageKeys":["0x0000000000000000000000000000000000000000000000000000000000000000"]}],"index":"0x1"}]}}}`,
+			want: fmt.Sprintf(`{"data":{"block":{"number":"0x1","transactions":[{"from":{"address":"%s"},"to":{"address":"%s"},"value":"0x64","hash":"%s","type":"0x2","accessList":[],"index":"0x0"},{"from":{"address":"%s"},"to":{"address":"%s"},"value":"0x32","hash":"%s","type":"0x2","accessList":[{"address":"%s","storageKeys":["0x0000000000000000000000000000000000000000000000000000000000000000"]}],"index":"0x1"}]}}}`, common.Address(address).Hex(), dadStr, tx0.Hash(), common.Address(address).Hex(), dadStr, tx1.Hash(), dadStr),
 			code: 200,
 		},
 	} {
@@ -267,8 +272,8 @@ func TestGraphQLHTTPOnSamePort_GQLRequest_Unsuccessful(t *testing.T) {
 func TestGraphQLConcurrentResolvers(t *testing.T) {
 	var (
 		wallet, _ = wallet.Generate(wallet.ML_DSA_87)
-		dadStr    = "Q0000000000000000000000000000000000000dad"
-		dad, _    = common.NewAddressFromString(dadStr)
+		dad       = common.BytesToAddress(common.Hex2Bytes("dad"))
+		dadStr    = dad.Hex()
 		genesis   = &core.Genesis{
 			Config:   params.AllBeaconProtocolChanges,
 			GasLimit: 11500000,
@@ -338,7 +343,7 @@ func TestGraphQLConcurrentResolvers(t *testing.T) {
 		},
 		// Test values for a non-existent account.
 		{
-			body: fmt.Sprintf(`{ block { account(address: "%s") { balance transactionCount code } } }`, "Q1111111111111111111111111111111111111111"),
+			body: fmt.Sprintf(`{ block { account(address: "%s") { balance transactionCount code } } }`, common.BytesToAddress(common.Hex2Bytes("1111111111111111111111111111111111111111"))),
 			want: `{"block":{"account":{"balance":"0x0","transactionCount":"0x0","code":"0x"}}}`,
 		},
 	} {
@@ -372,7 +377,7 @@ func TestWithdrawals(t *testing.T) {
 	)
 	defer stack.Close()
 
-	handler, _ := newGQLService(t, stack, genesis, 1, func(i int, gen *core.BlockGen) {
+	handler, chain := newGQLService(t, stack, genesis, 1, func(i int, gen *core.BlockGen) {
 		tx, _ := types.SignNewTx(wallet, signer, &types.DynamicFeeTx{To: &common.Address{}, Gas: 100000, GasFeeCap: big.NewInt(params.InitialBaseFee)})
 		gen.AddTx(tx)
 		gen.AddWithdrawal(&types.Withdrawal{
@@ -396,7 +401,7 @@ func TestWithdrawals(t *testing.T) {
 		},
 		{
 			body: "{block(number: 1) { withdrawalsRoot withdrawals { validator amount } } }",
-			want: `{"block":{"withdrawalsRoot":"0x8418fc1a48818928f6692f148e9b10e99a88edc093b095cb8ca97950284b553d","withdrawals":[{"validator":"0x5","amount":"0xa"}]}}`,
+			want: fmt.Sprintf(`{"block":{"withdrawalsRoot":"%s","withdrawals":[{"validator":"0x5","amount":"0xa"}]}}`, chain[0].Header().WithdrawalsHash),
 		},
 	} {
 		res := handler.Schema.Exec(t.Context(), tt.body, "", map[string]any{})

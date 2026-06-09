@@ -35,8 +35,8 @@ func TestGenerateWithdrawalChain(t *testing.T) {
 	var (
 		wallet, _ = wallet.RestoreFromSeedHex("0x0100009c647b8b7c4e7c3490668fb6c11473619db80c93704c70893d3813af4090c39c00000000000000000000000000000000")
 		address   = wallet.GetAddress()
-		aa        = common.Address{0xaa}
-		bb        = common.Address{0xbb}
+		aa        = common.BytesToAddress([]byte{0xaa, 0})
+		bb        = common.BytesToAddress([]byte{0xbb, 0})
 		funds     = big.NewInt(0).Mul(big.NewInt(1337), big.NewInt(params.Quanta))
 		config    = *params.AllBeaconProtocolChanges
 		gspec     = &Genesis{
@@ -85,24 +85,24 @@ func TestGenerateWithdrawalChain(t *testing.T) {
 		if i == 1 {
 			gen.AddWithdrawal(&types.Withdrawal{
 				Validator: 42,
-				Address:   common.Address{0xee},
+				Address:   common.BytesToAddress([]byte{0xee, 0}),
 				Amount:    1337,
 			})
 			gen.AddWithdrawal(&types.Withdrawal{
 				Validator: 13,
-				Address:   common.Address{0xee},
+				Address:   common.BytesToAddress([]byte{0xee, 0}),
 				Amount:    1,
 			})
 		}
 		if i == 3 {
 			gen.AddWithdrawal(&types.Withdrawal{
 				Validator: 42,
-				Address:   common.Address{0xee},
+				Address:   common.BytesToAddress([]byte{0xee, 0}),
 				Amount:    1337,
 			})
 			gen.AddWithdrawal(&types.Withdrawal{
 				Validator: 13,
-				Address:   common.Address{0xee},
+				Address:   common.BytesToAddress([]byte{0xee, 0}),
 				Amount:    1,
 			})
 		}

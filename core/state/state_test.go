@@ -48,11 +48,11 @@ func TestDump(t *testing.T) {
 	s := &stateEnv{db: db, state: sdb}
 
 	// generate a few entries
-	obj1 := s.state.GetOrNewStateObject(common.BytesToAddress([]byte{0x01}))
+	obj1 := s.state.GetOrNewStateObject(common.BytesToAddress([]byte{0x01, 0}))
 	obj1.AddBalance(big.NewInt(22))
 	obj2 := s.state.GetOrNewStateObject(common.BytesToAddress([]byte{0x01, 0x02}))
 	obj2.SetCode(crypto.Keccak256Hash([]byte{3, 3, 3, 3, 3, 3, 3}), []byte{3, 3, 3, 3, 3, 3, 3})
-	obj3 := s.state.GetOrNewStateObject(common.BytesToAddress([]byte{0x02}))
+	obj3 := s.state.GetOrNewStateObject(common.BytesToAddress([]byte{0x02, 0}))
 	obj3.SetBalance(big.NewInt(44))
 
 	// write some of them to the trie
@@ -64,29 +64,29 @@ func TestDump(t *testing.T) {
 	s.state, _ = New(root, tdb, nil)
 	got := string(s.state.Dump(nil))
 	want := `{
-    "root": "71edff0130dd2385947095001c73d9e28d862fc286fca2b922ca6f6f3cddfdd2",
+    "root": "7c2f4592d05c3ffe9cf58b0193a1e266e838e724c8a48abbc1528dc72a5359fc",
     "accounts": {
-        "Q0000000000000000000000000000000000000001": {
+        "Q00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000100": {
             "balance": "22",
             "nonce": 0,
             "root": "0x56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421",
             "codeHash": "0xc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470",
-            "key": "0x1468288056310c82aa4c01a7e12a10f8111a0560e72b700555479031b86c357d"
+            "key": "0x1c215b54eec9ee6aca29c851c685652f7166e29c4e460f5b894f8abee449ad3b"
         },
-        "Q0000000000000000000000000000000000000002": {
-            "balance": "44",
-            "nonce": 0,
-            "root": "0x56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421",
-            "codeHash": "0xc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470",
-            "key": "0xd52688a8f926c816ca1e079067caba944f158e764817b83fc43594370ca9cf62"
-        },
-        "Q0000000000000000000000000000000000000102": {
+        "Q00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000102": {
             "balance": "0",
             "nonce": 0,
             "root": "0x56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421",
             "codeHash": "0x87874902497a5bb968da31a2998d8f22e949d1ef6214bcdedd8bae24cca4b9e3",
             "code": "0x03030303030303",
-            "key": "0xa17eacbc25cda025e81db9c5c62868822c73ce097cee2a63e33a2e41268358a1"
+            "key": "0x565a22c1af7fcc038f06206699a6bd0ad8c85d23dafe9aebac3e0df68e8fb320"
+        },
+        "Q00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000200": {
+            "balance": "44",
+            "nonce": 0,
+            "root": "0x56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421",
+            "codeHash": "0xc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470",
+            "key": "0xe0a266959b1660a4c10ed88a7c087d7da493cae19cf1cc6ea603236845893f27"
         }
     }
 }`
@@ -102,13 +102,13 @@ func TestIterativeDump(t *testing.T) {
 	s := &stateEnv{db: db, state: sdb}
 
 	// generate a few entries
-	obj1 := s.state.GetOrNewStateObject(common.BytesToAddress([]byte{0x01}))
+	obj1 := s.state.GetOrNewStateObject(common.BytesToAddress([]byte{0x01, 0}))
 	obj1.AddBalance(big.NewInt(22))
 	obj2 := s.state.GetOrNewStateObject(common.BytesToAddress([]byte{0x01, 0x02}))
 	obj2.SetCode(crypto.Keccak256Hash([]byte{3, 3, 3, 3, 3, 3, 3}), []byte{3, 3, 3, 3, 3, 3, 3})
-	obj3 := s.state.GetOrNewStateObject(common.BytesToAddress([]byte{0x02}))
+	obj3 := s.state.GetOrNewStateObject(common.BytesToAddress([]byte{0x02, 0}))
 	obj3.SetBalance(big.NewInt(44))
-	obj4 := s.state.GetOrNewStateObject(common.BytesToAddress([]byte{0x00}))
+	obj4 := s.state.GetOrNewStateObject(common.BytesToAddress([]byte{0x00, 0}))
 	obj4.AddBalance(big.NewInt(1337))
 
 	// write some of them to the trie
@@ -121,11 +121,11 @@ func TestIterativeDump(t *testing.T) {
 	s.state.IterativeDump(nil, json.NewEncoder(b))
 	// check that DumpToCollector contains the state objects that are in trie
 	got := b.String()
-	want := `{"root":"0xd5710ea8166b7b04bc2bfb129d7db12931cee82f75ca8e2d075b4884322bf3de"}
-{"balance":"22","nonce":0,"root":"0x56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421","codeHash":"0xc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470","address":"Q0000000000000000000000000000000000000001","key":"0x1468288056310c82aa4c01a7e12a10f8111a0560e72b700555479031b86c357d"}
-{"balance":"1337","nonce":0,"root":"0x56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421","codeHash":"0xc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470","address":"Q0000000000000000000000000000000000000000","key":"0x5380c7b7ae81a58eb98d9c78de4a1fd7fd9535fc953ed2be602daaa41767312a"}
-{"balance":"0","nonce":0,"root":"0x56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421","codeHash":"0x87874902497a5bb968da31a2998d8f22e949d1ef6214bcdedd8bae24cca4b9e3","code":"0x03030303030303","address":"Q0000000000000000000000000000000000000102","key":"0xa17eacbc25cda025e81db9c5c62868822c73ce097cee2a63e33a2e41268358a1"}
-{"balance":"44","nonce":0,"root":"0x56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421","codeHash":"0xc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470","address":"Q0000000000000000000000000000000000000002","key":"0xd52688a8f926c816ca1e079067caba944f158e764817b83fc43594370ca9cf62"}
+	want := `{"root":"0x4fb91c01fa112fa0d076b59eeec6398a307d37c80a4a01bc0379bbdee6672c5a"}
+{"balance":"22","nonce":0,"root":"0x56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421","codeHash":"0xc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470","address":"Q00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000100","key":"0x1c215b54eec9ee6aca29c851c685652f7166e29c4e460f5b894f8abee449ad3b"}
+{"balance":"0","nonce":0,"root":"0x56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421","codeHash":"0x87874902497a5bb968da31a2998d8f22e949d1ef6214bcdedd8bae24cca4b9e3","code":"0x03030303030303","address":"Q00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000102","key":"0x565a22c1af7fcc038f06206699a6bd0ad8c85d23dafe9aebac3e0df68e8fb320"}
+{"balance":"1337","nonce":0,"root":"0x56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421","codeHash":"0xc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470","address":"Q00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000","key":"0xad3228b676f7d3cd4284a5443f17f1962b36e491b30a40b2405849e597ba5fb5"}
+{"balance":"44","nonce":0,"root":"0x56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421","codeHash":"0xc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470","address":"Q00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000200","key":"0xe0a266959b1660a4c10ed88a7c087d7da493cae19cf1cc6ea603236845893f27"}
 `
 	if got != want {
 		t.Errorf("DumpToCollector mismatch:\ngot: %s\nwant: %s\n", got, want)
@@ -134,7 +134,7 @@ func TestIterativeDump(t *testing.T) {
 
 func TestNull(t *testing.T) {
 	s := newStateEnv()
-	address, _ := common.NewAddressFromString("Q00000000823140710bf13990e4500136726d8b55")
+	address, _ := common.NewAddressFromString("Q000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000823140710bf13990e4500136726d8b55")
 	s.state.CreateAccount(address)
 	//value := common.FromHex("0x823140710bf13990e4500136726d8b55")
 	var value common.Hash

@@ -331,7 +331,7 @@ func TestBlockReceiptStorage(t *testing.T) {
 	db := NewMemoryDatabase()
 
 	// Create a live block since we need metadata to reconstruct the receipt
-	to1, _ := common.NewAddressFromString("Q0000000000000000000000000000000000000001")
+	to1, _ := common.NewAddressFromString("Q00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001")
 	tx1 := types.NewTx(&types.DynamicFeeTx{
 		Nonce:     1,
 		To:        &to1,
@@ -340,7 +340,7 @@ func TestBlockReceiptStorage(t *testing.T) {
 		GasFeeCap: big.NewInt(1),
 		Data:      nil,
 	})
-	to2, _ := common.NewAddressFromString("Q0000000000000000000000000000000000000002")
+	to2, _ := common.NewAddressFromString("Q00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000002")
 	tx2 := types.NewTx(&types.DynamicFeeTx{
 		Nonce:     2,
 		To:        &to2,
@@ -358,7 +358,7 @@ func TestBlockReceiptStorage(t *testing.T) {
 		Status:            types.ReceiptStatusFailed,
 		CumulativeGasUsed: 1,
 		Logs: []*types.Log{
-			{Address: common.BytesToAddress([]byte{0x11})},
+			{Address: common.BytesToAddress([]byte{0x11, 0})},
 			{Address: common.BytesToAddress([]byte{0x01, 0x11})},
 		},
 		TxHash:          tx1.Hash(),
@@ -372,7 +372,7 @@ func TestBlockReceiptStorage(t *testing.T) {
 		PostState:         common.Hash{2}.Bytes(),
 		CumulativeGasUsed: 2,
 		Logs: []*types.Log{
-			{Address: common.BytesToAddress([]byte{0x22})},
+			{Address: common.BytesToAddress([]byte{0x22, 0})},
 			{Address: common.BytesToAddress([]byte{0x02, 0x22})},
 		},
 		TxHash:          tx2.Hash(),
@@ -686,7 +686,7 @@ func TestReadLogs(t *testing.T) {
 	db := NewMemoryDatabase()
 
 	// Create a live block since we need metadata to reconstruct the receipt
-	to1, _ := common.NewAddressFromString("Q0000000000000000000000000000000000000001")
+	to1, _ := common.NewAddressFromString("Q00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001")
 	tx1 := types.NewTx(&types.DynamicFeeTx{
 		Nonce:     1,
 		To:        &to1,
@@ -695,7 +695,7 @@ func TestReadLogs(t *testing.T) {
 		GasFeeCap: big.NewInt(1),
 		Data:      nil,
 	})
-	to2, _ := common.NewAddressFromString("Q0000000000000000000000000000000000000002")
+	to2, _ := common.NewAddressFromString("Q00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000002")
 	tx2 := types.NewTx(&types.DynamicFeeTx{
 		Nonce:     2,
 		To:        &to2,
@@ -712,7 +712,7 @@ func TestReadLogs(t *testing.T) {
 		Status:            types.ReceiptStatusFailed,
 		CumulativeGasUsed: 1,
 		Logs: []*types.Log{
-			{Address: common.BytesToAddress([]byte{0x11})},
+			{Address: common.BytesToAddress([]byte{0x11, 0})},
 			{Address: common.BytesToAddress([]byte{0x01, 0x11})},
 		},
 		TxHash:          tx1.Hash(),
@@ -725,7 +725,7 @@ func TestReadLogs(t *testing.T) {
 		PostState:         common.Hash{2}.Bytes(),
 		CumulativeGasUsed: 2,
 		Logs: []*types.Log{
-			{Address: common.BytesToAddress([]byte{0x22})},
+			{Address: common.BytesToAddress([]byte{0x22, 0})},
 			{Address: common.BytesToAddress([]byte{0x02, 0x22})},
 		},
 		TxHash:          tx2.Hash(),
@@ -779,8 +779,8 @@ func TestReadLogs(t *testing.T) {
 
 func TestDeriveLogFields(t *testing.T) {
 	// Create a few transactions to have receipts for
-	to2, _ := common.NewAddressFromString("Q0000000000000000000000000000000000000002")
-	to3, _ := common.NewAddressFromString("Q0000000000000000000000000000000000000003")
+	to2, _ := common.NewAddressFromString("Q00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000002")
+	to3, _ := common.NewAddressFromString("Q00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000003")
 	txs := types.Transactions{
 		types.NewTx(&types.DynamicFeeTx{
 			Nonce:     1,
@@ -807,19 +807,19 @@ func TestDeriveLogFields(t *testing.T) {
 	receipts := []*receiptLogs{
 		{
 			Logs: []*types.Log{
-				{Address: common.BytesToAddress([]byte{0x11})},
+				{Address: common.BytesToAddress([]byte{0x11, 0})},
 				{Address: common.BytesToAddress([]byte{0x01, 0x11})},
 			},
 		},
 		{
 			Logs: []*types.Log{
-				{Address: common.BytesToAddress([]byte{0x22})},
+				{Address: common.BytesToAddress([]byte{0x22, 0})},
 				{Address: common.BytesToAddress([]byte{0x02, 0x22})},
 			},
 		},
 		{
 			Logs: []*types.Log{
-				{Address: common.BytesToAddress([]byte{0x33})},
+				{Address: common.BytesToAddress([]byte{0x33, 0})},
 				{Address: common.BytesToAddress([]byte{0x03, 0x33})},
 			},
 		},

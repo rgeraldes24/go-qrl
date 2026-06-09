@@ -687,14 +687,14 @@ func testFastVsFullChains(t *testing.T, scheme string) {
 		signer = types.LatestSigner(gspec.Config)
 	)
 	_, blocks, receipts := GenerateChainWithGenesis(gspec, beacon.NewFaker(), 1024, func(i int, block *BlockGen) {
-		block.SetCoinbase(common.Address{0x00})
+		block.SetCoinbase(common.Address{})
 
 		// If the block number is multiple of 3, send a few bonus transactions to the miner
 		if i%3 == 2 {
 			for j := 0; j < i%4+1; j++ {
 				tx := types.NewTx(&types.DynamicFeeTx{
 					Nonce:     block.TxNonce(address),
-					To:        &common.Address{0x00},
+					To:        &common.Address{},
 					Value:     big.NewInt(1000),
 					Gas:       params.TxGas,
 					GasFeeCap: block.header.BaseFee,
@@ -2032,7 +2032,7 @@ func TestTransactionIndices(t *testing.T) {
 	_, blocks, receipts := GenerateChainWithGenesis(gspec, beacon.NewFaker(), 128, func(i int, block *BlockGen) {
 		tx := types.NewTx(&types.DynamicFeeTx{
 			Nonce:     block.TxNonce(address),
-			To:        &common.Address{0x00},
+			To:        &common.Address{},
 			Value:     big.NewInt(1000),
 			Gas:       params.TxGas,
 			GasFeeCap: block.header.BaseFee,
@@ -2139,7 +2139,7 @@ func testSkipStaleTxIndicesInSnapSync(t *testing.T, scheme string) {
 	_, blocks, receipts := GenerateChainWithGenesis(gspec, beacon.NewFaker(), 128, func(i int, block *BlockGen) {
 		tx := types.NewTx(&types.DynamicFeeTx{
 			Nonce:     block.TxNonce(address),
-			To:        &common.Address{0x00},
+			To:        &common.Address{},
 			Value:     big.NewInt(1000),
 			Gas:       params.TxGas,
 			GasFeeCap: block.header.BaseFee,
@@ -2218,7 +2218,7 @@ func testSkipStaleTxIndicesInSnapSync(t *testing.T, scheme string) {
 // Benchmarks large blocks with value transfers to non-existing accounts
 func benchmarkLargeNumberOfValueToNonexisting(b *testing.B, numTxs, numBlocks int, recipientFn func(uint64) common.Address) {
 	var (
-		address, _        = common.NewAddressFromString("Q000000000000000000000000000000000000c0de")
+		address, _        = common.NewAddressFromString("Q0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000c0de")
 		signer            = types.ZondSigner{}
 		testBankWallet, _ = wallet.RestoreFromSeedHex("0x010000b71c71a67e1177ad4e901695e1b4b9ee17ae16c6668d313eac2f96dbcda3f29100000000000000000000000000000000")
 		testBankAddress   = testBankWallet.GetAddress()
@@ -2320,13 +2320,13 @@ func BenchmarkBlockChain_1x1000Executions(b *testing.B) {
 
 // TestInitThenFailCreateContract tests a pretty notorious case that happened
 // on mainnet over blocks 7338108, 7338110 and 7338115.
-//   - Block 7338108: address Qe771789f5cccac282f23bb7add5690e1f6ca467c is initiated
+//   - Block 7338108: address Q0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000e771789f5cccac282f23bb7add5690e1f6ca467c is initiated
 //     with 0.001 quanta (thus created but no code)
 //   - Block 7338110: a CREATE2 is attempted. The CREATE2 would deploy code on
-//     the same address Qe771789f5cccac282f23bb7add5690e1f6ca467c. However, the
+//     the same address Q0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000e771789f5cccac282f23bb7add5690e1f6ca467c. However, the
 //     deployment fails due to OOG during initcode execution
 //   - Block 7338115: another tx checks the balance of
-//     Qe771789f5cccac282f23bb7add5690e1f6ca467c, and the snapshotter returned it as
+//     Q0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000e771789f5cccac282f23bb7add5690e1f6ca467c, and the snapshotter returned it as
 //     zero.
 //
 // The problem being that the snapshotter maintains a destructset, and adds items
@@ -2347,7 +2347,7 @@ func testInitThenFailCreateContract(t *testing.T, scheme string) {
 		wallet, _ = wallet.RestoreFromSeedHex("0x010000b71c71a67e1177ad4e901695e1b4b9ee17ae16c6668d313eac2f96dbcda3f29100000000000000000000000000000000")
 		address   = wallet.GetAddress()
 		funds     = big.NewInt(1000000000000000000)
-		bb, _     = common.NewAddressFromString("Q000000000000000000000000000000000000bbbb")
+		bb, _     = common.NewAddressFromString("Q0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000bbbb")
 	)
 
 	// The bb-code needs to CREATE2 the aa contract. It consists of
@@ -2462,7 +2462,7 @@ func TestEIP2718Transition(t *testing.T) {
 
 func testEIP2718Transition(t *testing.T, scheme string) {
 	var (
-		aa, _  = common.NewAddressFromString("Q000000000000000000000000000000000000aaaa")
+		aa, _  = common.NewAddressFromString("Q0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000aaaa")
 		engine = beacon.NewFaker()
 
 		// A sender who makes transactions, has some funds
@@ -2544,7 +2544,7 @@ func TestEIP1559Transition(t *testing.T) {
 
 func testEIP1559Transition(t *testing.T, scheme string) {
 	var (
-		aa, _  = common.NewAddressFromString("Q000000000000000000000000000000000000aaaa")
+		aa, _  = common.NewAddressFromString("Q0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000aaaa")
 		engine = beacon.NewFaker()
 
 		// A sender who makes transactions, has some funds
@@ -2700,7 +2700,7 @@ func testSetCanonical(t *testing.T, scheme string) {
 	_, canon, _ := GenerateChainWithGenesis(gspec, engine, 2*TriesInMemory, func(i int, gen *BlockGen) {
 		tx := types.NewTx(&types.DynamicFeeTx{
 			Nonce:     gen.TxNonce(address),
-			To:        &common.Address{0x00},
+			To:        &common.Address{},
 			Value:     big.NewInt(1000),
 			Gas:       params.TxGas,
 			GasFeeCap: gen.header.BaseFee,
@@ -2729,7 +2729,7 @@ func testSetCanonical(t *testing.T, scheme string) {
 	_, side, _ := GenerateChainWithGenesis(gspec, engine, 2*TriesInMemory, func(i int, gen *BlockGen) {
 		tx := types.NewTx(&types.DynamicFeeTx{
 			Nonce:     gen.TxNonce(address),
-			To:        &common.Address{0x00},
+			To:        &common.Address{},
 			Value:     big.NewInt(1),
 			Gas:       params.TxGas,
 			GasFeeCap: gen.header.BaseFee,
@@ -2904,7 +2904,7 @@ func TestTxIndexer(t *testing.T) {
 		nonce  = uint64(0)
 	)
 	_, blocks, receipts := GenerateChainWithGenesis(gspec, engine, 128, func(i int, gen *BlockGen) {
-		to, _ := common.NewAddressFromString("Q00000000000000000000000000000000deadbeef")
+		to, _ := common.NewAddressFromString("Q000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000deadbeef")
 		tx := types.NewTx(&types.DynamicFeeTx{
 			Nonce:     nonce,
 			To:        &to,
@@ -3105,8 +3105,8 @@ func TestTxIndexer(t *testing.T) {
 
 func TestEIP3651(t *testing.T) {
 	var (
-		aa, _  = common.NewAddressFromString("Q000000000000000000000000000000000000aaaa")
-		bb, _  = common.NewAddressFromString("Q000000000000000000000000000000000000bbbb")
+		aa     = common.BytesToAddress(common.Hex2Bytes("aaaa"))
+		bb     = common.BytesToAddress(common.Hex2Bytes("bbbb"))
 		engine = beacon.NewFaker()
 
 		// A sender who makes transactions, has some funds
@@ -3139,6 +3139,7 @@ func TestEIP3651(t *testing.T) {
 						byte(vm.DUP1),  // out offset
 						byte(vm.DUP1),  // out insize
 						byte(vm.DUP1),  // in offset
+						byte(vm.DUP1),  // address high word
 						byte(vm.PUSH2), // address
 						byte(0xaa),
 						byte(0xaa),
@@ -3185,7 +3186,7 @@ func TestEIP3651(t *testing.T) {
 
 	// 1+2: Ensure EIP-1559 access lists are accounted for via gas usage.
 	innerGas := vm.GasQuickStep*2 + params.ColdSloadCostEIP2929*2
-	expectedGas := params.TxGas + 5*vm.GasFastestStep + vm.GasQuickStep + 100 + innerGas // 100 because 0xaaaa is in access list
+	expectedGas := params.TxGas + 6*vm.GasFastestStep + vm.GasQuickStep + 100 + innerGas // 100 because 0xaaaa is in access list
 	if block.GasUsed() != expectedGas {
 		t.Fatalf("incorrect amount of gas spent: expected %d, got %d", expectedGas, block.GasUsed())
 	}

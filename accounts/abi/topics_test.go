@@ -52,7 +52,7 @@ func TestMakeTopics(t *testing.T) {
 		{
 			"support address types in topics",
 			args{[][]any{{common.Address{1, 2, 3, 4, 5}}}},
-			[][]common.Hash{{common.Hash{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 2, 3, 4, 5}}},
+			[][]common.Hash{{crypto.Keccak256Hash(addressTopicDomain, common.Address{1, 2, 3, 4, 5}.Bytes())}},
 			false,
 		},
 		{
@@ -191,7 +191,7 @@ type hashStruct struct {
 }
 
 type funcStruct struct {
-	FuncValue [24]byte
+	FuncValue common.Hash
 }
 
 type topicTest struct {
@@ -292,11 +292,11 @@ func setupTopicsTests() []topicTest {
 			args: args{
 				createObj: func() any { return &funcStruct{} },
 				resultObj: func() any {
-					return &funcStruct{[24]byte{255, 255, 255, 255, 255, 255, 255, 255,
+					return &funcStruct{common.Hash{0, 0, 0, 0, 0, 0, 0, 0, 255, 255, 255, 255, 255, 255, 255, 255,
 						255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255}}
 				},
 				resultMap: func() map[string]any {
-					return map[string]any{"funcValue": [24]byte{255, 255, 255, 255, 255, 255, 255, 255,
+					return map[string]any{"funcValue": common.Hash{0, 0, 0, 0, 0, 0, 0, 0, 255, 255, 255, 255, 255, 255, 255, 255,
 						255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255}}
 				},
 				fields: Arguments{Argument{
@@ -360,12 +360,16 @@ func setupTopicsTests() []topicTest {
 			wantErr: true,
 		},
 		{
-			name: "error on improper encoded function",
+			name: "function type hash accepts any topic",
 			args: args{
 				createObj: func() any { return &funcStruct{} },
-				resultObj: func() any { return &funcStruct{} },
+				resultObj: func() any {
+					return &funcStruct{common.Hash{0, 0, 0, 0, 0, 0, 0, 128, 255, 255, 255, 255, 255, 255, 255, 255,
+						255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255}}
+				},
 				resultMap: func() map[string]any {
-					return make(map[string]any)
+					return map[string]any{"funcValue": common.Hash{0, 0, 0, 0, 0, 0, 0, 128, 255, 255, 255, 255, 255, 255, 255, 255,
+						255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255}}
 				},
 				fields: Arguments{Argument{
 					Name:    "funcValue",
@@ -377,7 +381,7 @@ func setupTopicsTests() []topicTest {
 						255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255},
 				},
 			},
-			wantErr: true,
+			wantErr: false,
 		},
 	}
 

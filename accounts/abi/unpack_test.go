@@ -471,15 +471,17 @@ func TestMultiReturnWithStringArray(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	buff := new(bytes.Buffer)
-	buff.Write(common.Hex2Bytes("000000000000000000000000000000000000000000000000000000005c1b78ea0000000000000000000000000000000000000000000000000000000000000006000000000000000000000000000000000000000000000001a055690d9db80000000000000000000000000000ab1257528b3782fb40d7ed5f72e624b744dffb2f00000000000000000000000000000000000000000000000000000000000000c00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000004000000000000000000000000000000000000000000000000000000000000000800000000000000000000000000000000000000000000000000000000000000008457468657265756d000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001048656c6c6f2c20457468657265756d2100000000000000000000000000000000"))
 	temp, _ := new(big.Int).SetString("30000000000000000000", 10)
 	ret1, ret1Exp := new([3]*big.Int), [3]*big.Int{big.NewInt(1545304298), big.NewInt(6), temp}
 	ret2 := new(common.Address)
-	ret2Exp, _ := common.NewAddressFromString("Qab1257528b3782fb40d7ed5f72e624b744dffb2f")
+	ret2Exp := common.BytesToAddress(common.Hex2Bytes("ab1257528b3782fb40d7ed5f72e624b744dffb2f"))
 	ret3, ret3Exp := new([2]string), [2]string{"Ethereum", "Hello, Ethereum!"}
 	ret4, ret4Exp := new(bool), false
-	if err := abi.UnpackIntoInterface(&[]any{ret1, ret2, ret3, ret4}, "multi", buff.Bytes()); err != nil {
+	packed, err := abi.Methods["multi"].Outputs.Pack(ret1Exp, ret2Exp, ret3Exp, ret4Exp)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := abi.UnpackIntoInterface(&[]any{ret1, ret2, ret3, ret4}, "multi", packed); err != nil {
 		t.Fatal(err)
 	}
 	if !reflect.DeepEqual(*ret1, ret1Exp) {
@@ -754,9 +756,10 @@ func TestUnmarshal(t *testing.T) {
 	}
 	// marshal address slice
 	buff.Reset()
-	buff.Write(common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000020")) // offset
-	buff.Write(common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000001")) // size
-	buff.Write(common.Hex2Bytes("0000000000000000000000000100000000000000000000000000000000000000"))
+	buff.Write(common.LeftPadBytes([]byte{32}, 32)) // offset
+	buff.Write(common.LeftPadBytes([]byte{1}, 32))  // size
+	addr1 := common.Address{1}
+	buff.Write(addr1.Bytes())
 
 	var outAddr []common.Address
 	err = abi.UnpackIntoInterface(&outAddr, "addressSliceSingle", buff.Bytes())
@@ -768,19 +771,21 @@ func TestUnmarshal(t *testing.T) {
 		t.Fatal("expected 1 item, got", len(outAddr))
 	}
 
-	if outAddr[0] != (common.Address{1}) {
-		t.Errorf("expected %x, got %x", common.Address{1}, outAddr[0])
+	if outAddr[0] != addr1 {
+		t.Errorf("expected %x, got %x", addr1, outAddr[0])
 	}
 
 	// marshal multiple address slice
 	buff.Reset()
-	buff.Write(common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000040")) // offset
-	buff.Write(common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000080")) // offset
-	buff.Write(common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000001")) // size
-	buff.Write(common.Hex2Bytes("0000000000000000000000000100000000000000000000000000000000000000"))
-	buff.Write(common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000002")) // size
-	buff.Write(common.Hex2Bytes("0000000000000000000000000200000000000000000000000000000000000000"))
-	buff.Write(common.Hex2Bytes("0000000000000000000000000300000000000000000000000000000000000000"))
+	buff.Write(common.LeftPadBytes([]byte{64}, 32))  // offset
+	buff.Write(common.LeftPadBytes([]byte{160}, 32)) // offset
+	buff.Write(common.LeftPadBytes([]byte{1}, 32))   // size
+	buff.Write(addr1.Bytes())
+	buff.Write(common.LeftPadBytes([]byte{2}, 32)) // size
+	addr2 := common.Address{2}
+	addr3 := common.Address{3}
+	buff.Write(addr2.Bytes())
+	buff.Write(addr3.Bytes())
 
 	var outAddrStruct struct {
 		A []common.Address
@@ -795,19 +800,19 @@ func TestUnmarshal(t *testing.T) {
 		t.Fatal("expected 1 item, got", len(outAddrStruct.A))
 	}
 
-	if outAddrStruct.A[0] != (common.Address{1}) {
-		t.Errorf("expected %x, got %x", common.Address{1}, outAddrStruct.A[0])
+	if outAddrStruct.A[0] != addr1 {
+		t.Errorf("expected %x, got %x", addr1, outAddrStruct.A[0])
 	}
 
 	if len(outAddrStruct.B) != 2 {
 		t.Fatal("expected 1 item, got", len(outAddrStruct.B))
 	}
 
-	if outAddrStruct.B[0] != (common.Address{2}) {
-		t.Errorf("expected %x, got %x", common.Address{2}, outAddrStruct.B[0])
+	if outAddrStruct.B[0] != addr2 {
+		t.Errorf("expected %x, got %x", addr2, outAddrStruct.B[0])
 	}
-	if outAddrStruct.B[1] != (common.Address{3}) {
-		t.Errorf("expected %x, got %x", common.Address{3}, outAddrStruct.B[1])
+	if outAddrStruct.B[1] != addr3 {
+		t.Errorf("expected %x, got %x", addr3, outAddrStruct.B[1])
 	}
 
 	// marshal invalid address slice

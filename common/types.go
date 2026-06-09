@@ -27,6 +27,7 @@ import (
 	"math/rand"
 	"reflect"
 	"strconv"
+	"strings"
 
 	"github.com/theQRL/go-qrl/common/hexutil"
 	"golang.org/x/crypto/sha3"
@@ -37,7 +38,7 @@ const (
 	// HashLength is the expected length of the hash
 	HashLength = 32
 	// AddressLength is the expected length of the address
-	AddressLength = 20
+	AddressLength = 64
 )
 
 var (
@@ -45,7 +46,7 @@ var (
 	addressT = reflect.TypeFor[Address]()
 
 	// MaxAddress represents the maximum possible address value.
-	MaxAddress, _ = NewAddressFromString("Qffffffffffffffffffffffffffffffffffffffff")
+	MaxAddress, _ = NewAddressFromString("Q" + strings.Repeat("f", 2*AddressLength))
 
 	// MaxHash represents the maximum possible hash value.
 	MaxHash = HexToHash("0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff")
@@ -210,11 +211,11 @@ func (h UnprefixedHash) MarshalText() ([]byte, error) {
 
 /////////// Address
 
-// Address represents the 20 byte address of a QRL account.
+// Address represents the 64 byte address of a QRL account.
 type Address [AddressLength]byte
 
 // BytesToAddress returns Address with value b.
-// If b is larger than len(h), b will be cropped from the left.
+// If b is smaller than len(h), b will be left padded with zeroes.
 func BytesToAddress(b []byte) Address {
 	var a Address
 	a.SetBytes(b)
@@ -222,8 +223,30 @@ func BytesToAddress(b []byte) Address {
 }
 
 // BigToAddress returns Address with byte values of b.
-// If b is larger than len(h), b will be cropped from the left.
+// If b is smaller than len(h), b will be left padded with zeroes.
 func BigToAddress(b *big.Int) Address { return BytesToAddress(b.Bytes()) }
+
+// PrecompileAddress returns an address from the reserved low-number precompile
+// namespace 0x000...0001 through 0x000...00ff.
+func PrecompileAddress(id byte) Address {
+	if id == 0 {
+		panic("precompile address id 0 is not reserved")
+	}
+	var a Address
+	a[AddressLength-1] = id
+	return a
+}
+
+// IsReservedPrecompileAddress reports whether a belongs to the reserved
+// low-number precompile namespace.
+func IsReservedPrecompileAddress(a Address) bool {
+	for _, b := range a[:AddressLength-1] {
+		if b != 0 {
+			return false
+		}
+	}
+	return a[AddressLength-1] != 0
+}
 
 // NewAddressFromString returns Address with byte values of s.
 func NewAddressFromString(hexaddr string) (Address, error) {
@@ -231,7 +254,9 @@ func NewAddressFromString(hexaddr string) (Address, error) {
 		return Address{}, ErrInvalidAddress
 	}
 	rawAddr, _ := hex.DecodeString(hexaddr[1:])
-	return BytesToAddress(rawAddr), nil
+	var addr Address
+	copy(addr[:], rawAddr)
+	return addr, nil
 }
 
 // IsAddress verifies whether a string can represent a valid hex-encoded
@@ -242,7 +267,11 @@ func IsAddress(s string) bool {
 	}
 	s = s[1:]
 
-	return len(s) == 2*AddressLength && isHex(s)
+	if len(s) != 2*AddressLength || !isHex(s) {
+		return false
+	}
+	lower := strings.ToLower(s)
+	return s == lower || s == strings.ToUpper(s) || s == checksumAddressHex(lower)
 }
 
 // Cmp compares two addresses.
@@ -253,8 +282,13 @@ func (a Address) Cmp(other Address) int {
 // Bytes gets the string representation of the underlying address.
 func (a Address) Bytes() []byte { return a[:] }
 
-// Hash converts an address to a hash by left-padding it with zeros.
-func (a Address) Hash() Hash { return BytesToHash(a[:]) }
+// Hash converts an address to a 32-byte digest of the full address.
+func (a Address) Hash() (h Hash) {
+	sha := sha3.NewLegacyKeccak256()
+	_, _ = sha.Write(a[:])
+	copy(h[:], sha.Sum(nil))
+	return h
+}
 
 // Big converts an address to a big integer.
 func (a Address) Big() *big.Int { return new(big.Int).SetBytes(a[:]) }
@@ -270,24 +304,37 @@ func (a Address) String() string {
 }
 
 func (a *Address) checksumHex() []byte {
-	buf := a.hex()
+	body := checksumAddressHex(hex.EncodeToString(a[:]))
+	buf := make([]byte, 1+len(body))
+	buf[0] = 'Q'
+	copy(buf[1:], body)
+	return buf
+}
 
-	// compute checksum
-	sha := sha3.NewLegacyKeccak256()
-	sha.Write(buf[1:])
-	hash := sha.Sum(nil)
-	for i := 1; i < len(buf); i++ {
-		hashByte := hash[(i-1)/2]
-		if (i+1)%2 == 0 {
-			hashByte = hashByte >> 4
-		} else {
-			hashByte &= 0xf
+func checksumAddressHex(lowerHex string) string {
+	sh := sha3.NewShake256()
+	_, _ = sh.Write([]byte(lowerHex))
+	var hash [AddressLength]byte
+	_, _ = sh.Read(hash[:])
+
+	out := make([]byte, len(lowerHex))
+	for i := range lowerHex {
+		c := lowerHex[i]
+		if c >= 'a' && c <= 'f' {
+			var nibble byte
+			if i&1 == 0 {
+				nibble = hash[i>>1] >> 4
+			} else {
+				nibble = hash[i>>1] & 0x0f
+			}
+			if nibble >= 8 {
+				out[i] = c - ('a' - 'A')
+				continue
+			}
 		}
-		if buf[i] > '9' && hashByte > 7 {
-			buf[i] -= 32
-		}
+		out[i] = c
 	}
-	return buf[:]
+	return string(out)
 }
 
 func (a Address) hex() []byte {
@@ -326,27 +373,40 @@ func (a Address) Format(s fmt.State, c rune) {
 }
 
 // SetBytes sets the address to the value of b.
-// If b is larger than len(a), b will be cropped from the left.
+// If b is smaller than len(a), b will be left padded with zeroes.
 func (a *Address) SetBytes(b []byte) {
 	if len(b) > len(a) {
-		b = b[len(b)-AddressLength:]
+		panic(fmt.Sprintf("address length %d exceeds %d bytes", len(b), AddressLength))
 	}
+	clear(a[:])
 	copy(a[AddressLength-len(b):], b)
 }
 
 // MarshalText returns the hex representation of a.
 func (a Address) MarshalText() ([]byte, error) {
-	return hexutil.BytesQ(a[:]).MarshalText()
+	return []byte(a.Hex()), nil
 }
 
 // UnmarshalText parses a hash in hex syntax.
 func (a *Address) UnmarshalText(input []byte) error {
-	return hexutil.UnmarshalFixedTextQ("Address", input, a[:])
+	addr, err := NewAddressFromString(string(input))
+	if err != nil {
+		return err
+	}
+	*a = addr
+	return nil
 }
 
 // UnmarshalJSON parses a address in hex syntax.
 func (a *Address) UnmarshalJSON(input []byte) error {
-	return hexutil.UnmarshalFixedJSONQ(addressT, input, a[:])
+	if !isString(input) {
+		return &json.UnmarshalTypeError{Value: "non-string", Type: addressT}
+	}
+	var s string
+	if err := json.Unmarshal(input, &s); err != nil {
+		return err
+	}
+	return a.UnmarshalText([]byte(s))
 }
 
 // Scan implements Scanner for database/sql.
@@ -400,15 +460,27 @@ func NewMixedcaseAddressFromString(hexaddr string) (*MixedcaseAddress, error) {
 		return nil, ErrInvalidAddress
 	}
 	rawAddr, _ := hex.DecodeString(hexaddr[1:])
-	return &MixedcaseAddress{addr: BytesToAddress(rawAddr), original: hexaddr}, nil
+	var addr Address
+	copy(addr[:], rawAddr)
+	return &MixedcaseAddress{addr: addr, original: hexaddr}, nil
 }
 
 // UnmarshalJSON parses MixedcaseAddress
 func (ma *MixedcaseAddress) UnmarshalJSON(input []byte) error {
-	if err := hexutil.UnmarshalFixedJSONQ(addressT, input, ma.addr[:]); err != nil {
+	if !isString(input) {
+		return &json.UnmarshalTypeError{Value: "non-string", Type: addressT}
+	}
+	var original string
+	if err := json.Unmarshal(input, &original); err != nil {
 		return err
 	}
-	return json.Unmarshal(input, &ma.original)
+	addr, err := NewAddressFromString(original)
+	if err != nil {
+		return err
+	}
+	ma.addr = addr
+	ma.original = original
+	return nil
 }
 
 // MarshalJSON marshals the original value

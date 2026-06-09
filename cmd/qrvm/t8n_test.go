@@ -20,7 +20,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"reflect"
 	"strings"
 	"testing"
 
@@ -411,5 +410,38 @@ func cmpJson(a, b []byte) (bool, error) {
 	if err := json.Unmarshal(b, &j2); err != nil {
 		return false, err
 	}
-	return reflect.DeepEqual(j2, j), nil
+	return jsonMatches(j2, j), nil
+}
+
+func jsonMatches(want, have any) bool {
+	if want == "*" {
+		return true
+	}
+	switch want := want.(type) {
+	case map[string]any:
+		have, ok := have.(map[string]any)
+		if !ok || len(want) != len(have) {
+			return false
+		}
+		for key, wantValue := range want {
+			haveValue, ok := have[key]
+			if !ok || !jsonMatches(wantValue, haveValue) {
+				return false
+			}
+		}
+		return true
+	case []any:
+		have, ok := have.([]any)
+		if !ok || len(want) != len(have) {
+			return false
+		}
+		for i, wantValue := range want {
+			if !jsonMatches(wantValue, have[i]) {
+				return false
+			}
+		}
+		return true
+	default:
+		return want == have
+	}
 }

@@ -33,7 +33,7 @@ func TestChainIterator(t *testing.T) {
 
 	var block *types.Block
 	var txs []*types.Transaction
-	to := common.BytesToAddress([]byte{0x11})
+	to := common.BytesToAddress([]byte{0x11, 0})
 	block = types.NewBlock(&types.Header{Number: big.NewInt(int64(0))}, nil, nil, newTestHasher()) // Empty genesis block
 	WriteBlock(chainDb, block)
 	WriteCanonicalHash(chainDb, block.Hash(), block.NumberU64())
@@ -108,7 +108,7 @@ func TestIndexTransactions(t *testing.T) {
 
 	var block *types.Block
 	var txs []*types.Transaction
-	to := common.BytesToAddress([]byte{0x11})
+	to := common.BytesToAddress([]byte{0x11, 0})
 
 	// Write empty genesis block
 	block = types.NewBlock(&types.Header{Number: big.NewInt(int64(0))}, nil, nil, newTestHasher())

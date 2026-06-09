@@ -135,7 +135,7 @@ func newTestWorker(t *testing.T, chainConfig *params.ChainConfig, engine consens
 func TestBuildPayload(t *testing.T) {
 	var (
 		db           = rawdb.NewMemoryDatabase()
-		recipient, _ = common.NewAddressFromString("Q00000000000000000000000000000000deadbeef")
+		recipient, _ = common.NewAddressFromString("Q000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000deadbeef")
 	)
 	w, b := newTestWorker(t, params.TestChainConfig, beacon.NewFaker(), db, 0)
 
@@ -191,42 +191,42 @@ func TestPayloadId(t *testing.T) {
 			Parent:       common.Hash{1},
 			Timestamp:    1,
 			Random:       common.Hash{0x1},
-			FeeRecipient: common.Address{0x1},
+			FeeRecipient: common.BytesToAddress([]byte{0x1, 0}),
 		},
 		// Different parent
 		{
 			Parent:       common.Hash{2},
 			Timestamp:    1,
 			Random:       common.Hash{0x1},
-			FeeRecipient: common.Address{0x1},
+			FeeRecipient: common.BytesToAddress([]byte{0x1, 0}),
 		},
 		// Different timestamp
 		{
 			Parent:       common.Hash{2},
 			Timestamp:    2,
 			Random:       common.Hash{0x1},
-			FeeRecipient: common.Address{0x1},
+			FeeRecipient: common.BytesToAddress([]byte{0x1, 0}),
 		},
 		// Different Random
 		{
 			Parent:       common.Hash{2},
 			Timestamp:    2,
 			Random:       common.Hash{0x2},
-			FeeRecipient: common.Address{0x1},
+			FeeRecipient: common.BytesToAddress([]byte{0x1, 0}),
 		},
 		// Different fee-recipient
 		{
 			Parent:       common.Hash{2},
 			Timestamp:    2,
 			Random:       common.Hash{0x2},
-			FeeRecipient: common.Address{0x2},
+			FeeRecipient: common.BytesToAddress([]byte{0x2, 0}),
 		},
 		// Different withdrawals (non-empty)
 		{
 			Parent:       common.Hash{2},
 			Timestamp:    2,
 			Random:       common.Hash{0x2},
-			FeeRecipient: common.Address{0x2},
+			FeeRecipient: common.BytesToAddress([]byte{0x2, 0}),
 			Withdrawals: []*types.Withdrawal{
 				{
 					Index:     0,
@@ -241,7 +241,7 @@ func TestPayloadId(t *testing.T) {
 			Parent:       common.Hash{2},
 			Timestamp:    2,
 			Random:       common.Hash{0x2},
-			FeeRecipient: common.Address{0x2},
+			FeeRecipient: common.BytesToAddress([]byte{0x2, 0}),
 			Withdrawals: []*types.Withdrawal{
 				{
 					Index:     2,

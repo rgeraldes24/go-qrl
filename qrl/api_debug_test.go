@@ -161,7 +161,7 @@ func TestStorageRangeAt(t *testing.T) {
 	var (
 		db     = state.NewDatabaseWithConfig(rawdb.NewMemoryDatabase(), &trie.Config{Preimages: true})
 		sdb, _ = state.New(types.EmptyRootHash, db, nil)
-		addr   = common.Address{0x01}
+		addr   = common.BytesToAddress([]byte{0x01, 0})
 		keys   = []common.Hash{ // hashes of Keys of storage
 			common.HexToHash("340dd630ad21bf010b4e676dbfa9ba9a02175262d1fa356232cfde6cb5b47ef2"),
 			common.HexToHash("426fcb404ab2d5d8e61a3d918108006bbb0a9be65e92235bb10eefbdb6dcd053"),

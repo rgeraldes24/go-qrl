@@ -35,7 +35,7 @@ func BenchmarkTransactionTrace(b *testing.B) {
 	wallet, _ := wallet.RestoreFromSeedHex("010000b71c71a67e1177ad4e901695e1b4b9ee17ae16c6668d313eac2f96dbcda3f29100000000000000000000000000000000")
 	from := wallet.GetAddress()
 	gas := uint64(1000000) // 1M gas
-	to, _ := common.NewAddressFromString("Q00000000000000000000000000000000deadbeef")
+	to, _ := common.NewAddressFromString("Q000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000deadbeef")
 	signer := types.LatestSignerForChainID(big.NewInt(1337))
 	tx, err := types.SignNewTx(wallet, signer,
 		&types.DynamicFeeTx{
@@ -68,7 +68,7 @@ func BenchmarkTransactionTrace(b *testing.B) {
 		byte(vm.PUSH1), 0, // jumpdestination
 		byte(vm.JUMP),
 	}
-	address, _ := common.NewAddressFromString("Q00000000000000000000000000000000deadbeef")
+	address, _ := common.NewAddressFromString("Q000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000deadbeef")
 	alloc[address] = core.GenesisAccount{
 		Nonce:   1,
 		Code:    loop,

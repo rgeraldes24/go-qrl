@@ -29,7 +29,6 @@ import (
 	"github.com/theQRL/go-qrl/core/rawdb"
 	"github.com/theQRL/go-qrl/core/types"
 	"github.com/theQRL/go-qrl/crypto/pqcrypto/wallet"
-	"github.com/theQRL/go-qrl/rlp"
 	"github.com/theQRL/go-qrl/trie"
 )
 
@@ -54,24 +53,28 @@ func TestDeriveSha(t *testing.T) {
 
 // TestEIP2718DeriveSha tests that the input to the DeriveSha function is correct.
 func TestEIP2718DeriveSha(t *testing.T) {
-	for _, tc := range []struct {
-		rlpData string
-		exp     string
-	}{
-		{
-			rlpData: "b202f001010203825208940102030405060708090a0b0c0d0e0f101112131404820506c08301020383070809820a0b830c0d0e",
-			exp:     "01 02f001010203825208940102030405060708090a0b0c0d0e0f101112131404820506c08301020383070809820a0b830c0d0e\n80 02f001010203825208940102030405060708090a0b0c0d0e0f101112131404820506c08301020383070809820a0b830c0d0e\n",
-		},
-	} {
-		d := &hashToHumanReadable{}
-		var t1, t2 types.Transaction
-		rlp.DecodeBytes(common.FromHex(tc.rlpData), &t1)
-		rlp.DecodeBytes(common.FromHex(tc.rlpData), &t2)
-		txs := types.Transactions{&t1, &t2}
-		types.DeriveSha(txs, d)
-		if tc.exp != string(d.data) {
-			t.Fatalf("Want\n%v\nhave:\n%v", tc.exp, string(d.data))
-		}
+	addr := common.BytesToAddress(common.Hex2Bytes("0102030405060708090a0b0c0d0e0f1011121314"))
+	tx := types.NewTx(&types.DynamicFeeTx{
+		ChainID:   big.NewInt(1),
+		Nonce:     3,
+		To:        &addr,
+		Value:     big.NewInt(10),
+		Gas:       25000,
+		GasFeeCap: big.NewInt(1),
+		GasTipCap: big.NewInt(0),
+		Data:      common.FromHex("5544"),
+	})
+	encoded, err := tx.MarshalBinary()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	d := &hashToHumanReadable{}
+	txs := types.Transactions{tx, tx}
+	types.DeriveSha(txs, d)
+	exp := fmt.Sprintf("01 %x\n80 %x\n", encoded, encoded)
+	if exp != string(d.data) {
+		t.Fatalf("Want\n%v\nhave:\n%v", exp, string(d.data))
 	}
 }
 

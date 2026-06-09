@@ -333,7 +333,7 @@ func makeHeaderChainWithGenesis(genesis *Genesis, n int, engine consensus.Engine
 // makeBlockChain creates a deterministic chain of blocks rooted at parent.
 func makeBlockChain(chainConfig *params.ChainConfig, parent *types.Block, n int, engine consensus.Engine, db qrldb.Database, seed int) []*types.Block {
 	blocks, _ := GenerateChain(chainConfig, parent, engine, db, n, func(i int, b *BlockGen) {
-		b.SetCoinbase(common.Address{0: byte(seed), 19: byte(i)})
+		b.SetCoinbase(common.Address{0: byte(seed), common.AddressLength - 2: byte(i)})
 	})
 	return blocks
 }
@@ -341,7 +341,7 @@ func makeBlockChain(chainConfig *params.ChainConfig, parent *types.Block, n int,
 // makeBlockChain creates a deterministic chain of blocks from genesis
 func makeBlockChainWithGenesis(genesis *Genesis, n int, engine consensus.Engine, seed int) (qrldb.Database, []*types.Block) {
 	db, blocks, _ := GenerateChainWithGenesis(genesis, engine, n, func(i int, b *BlockGen) {
-		b.SetCoinbase(common.Address{0: byte(seed), 19: byte(i)})
+		b.SetCoinbase(common.Address{0: byte(seed), common.AddressLength - 2: byte(i)})
 	})
 	return db, blocks
 }

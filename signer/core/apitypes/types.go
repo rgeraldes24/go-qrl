@@ -305,7 +305,8 @@ func (typedData *TypedData) TypeHash(primaryType string) hexutil.Bytes {
 // EncodeData generates the following encoding:
 // `enc(value₁) ‖ enc(value₂) ‖ … ‖ enc(valueₙ)`
 //
-// each encoded member is 32-byte long
+// Static members use ABI-style QRL encoding. Address values occupy two
+// 32-byte words because QRL addresses are 64 bytes.
 func (typedData *TypedData) EncodeData(primaryType string, data map[string]any, depth int) (hexutil.Bytes, error) {
 	if err := typedData.validate(); err != nil {
 		return nil, err
@@ -459,21 +460,19 @@ func parseInteger(encType string, encValue any) (*big.Int, error) {
 func (typedData *TypedData) EncodePrimitiveValue(encType string, encValue any, depth int) ([]byte, error) {
 	switch encType {
 	case "address":
-		retval := make([]byte, 32)
 		switch val := encValue.(type) {
 		case string:
 			if address, err := common.NewAddressFromString(val); err == nil {
-				copy(retval[12:], address.Bytes())
-				return retval, nil
+				return address.Bytes(), nil
 			}
 		case []byte:
-			if len(val) == 20 {
-				copy(retval[12:], val)
-				return retval, nil
+			if len(val) == common.AddressLength {
+				return val, nil
 			}
-		case [20]byte:
-			copy(retval[12:], val[:])
-			return retval, nil
+		case [common.AddressLength]byte:
+			return val[:], nil
+		case common.Address:
+			return val.Bytes(), nil
 		}
 		return nil, dataMismatchError(encType, encValue)
 	case "bool":

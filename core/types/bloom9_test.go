@@ -92,7 +92,7 @@ func BenchmarkBloom9Lookup(b *testing.B) {
 }
 
 func BenchmarkCreateBloom(b *testing.B) {
-	to, _ := common.NewAddressFromString("Q0000000000000000000000000000000000000002")
+	to, _ := common.NewAddressFromString("Q00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000002")
 	var txs = Transactions{
 		NewTx(&DynamicFeeTx{
 			Nonce:     1,
@@ -115,7 +115,7 @@ func BenchmarkCreateBloom(b *testing.B) {
 			Status:            ReceiptStatusFailed,
 			CumulativeGasUsed: 1,
 			Logs: []*Log{
-				{Address: common.BytesToAddress([]byte{0x11})},
+				{Address: common.BytesToAddress([]byte{0x11, 0})},
 				{Address: common.BytesToAddress([]byte{0x01, 0x11})},
 			},
 			TxHash:          txs[0].Hash(),
@@ -126,7 +126,7 @@ func BenchmarkCreateBloom(b *testing.B) {
 			PostState:         common.Hash{2}.Bytes(),
 			CumulativeGasUsed: 3,
 			Logs: []*Log{
-				{Address: common.BytesToAddress([]byte{0x22})},
+				{Address: common.BytesToAddress([]byte{0x22, 0})},
 				{Address: common.BytesToAddress([]byte{0x02, 0x22})},
 			},
 			TxHash:          txs[1].Hash(),

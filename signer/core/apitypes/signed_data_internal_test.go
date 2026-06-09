@@ -19,6 +19,7 @@ package apitypes
 import (
 	"bytes"
 	"math/big"
+	"strings"
 	"testing"
 
 	"github.com/theQRL/go-qrl/common"
@@ -89,30 +90,47 @@ func TestBytesPadding(t *testing.T) {
 
 func TestParseAddress(t *testing.T) {
 	t.Parallel()
+	addr := common.Address{
+		0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08,
+		0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F, 0x10,
+		0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18,
+		0x19, 0x1A, 0x1B, 0x1C, 0x1D, 0x1E, 0x1F, 0x20,
+		0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27, 0x28,
+		0x29, 0x2A, 0x2B, 0x2C, 0x2D, 0x2E, 0x2F, 0x30,
+		0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37, 0x38,
+		0x39, 0x3A, 0x3B, 0x3C, 0x3D, 0x3E, 0x3F, 0x40,
+	}
 	tests := []struct {
 		Input  any
 		Output []byte // nil => error
 	}{
 		{
-			Input:  [20]byte{0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F, 0x10, 0x11, 0x12, 0x13, 0x14},
-			Output: common.FromHex("0x0000000000000000000000000102030405060708090A0B0C0D0E0F1011121314"),
+			Input:  [common.AddressLength]byte(addr),
+			Output: addr.Bytes(),
 		},
 		{
-			Input:  "Q0102030405060708090A0B0C0D0E0F1011121314",
-			Output: common.FromHex("0x0000000000000000000000000102030405060708090A0B0C0D0E0F1011121314"),
+			Input:  addr.Hex(),
+			Output: addr.Bytes(),
 		},
 		{
-			Input:  []byte{0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F, 0x10, 0x11, 0x12, 0x13, 0x14},
-			Output: common.FromHex("0x0000000000000000000000000102030405060708090A0B0C0D0E0F1011121314"),
+			Input:  addr.Bytes(),
+			Output: addr.Bytes(),
+		},
+		{
+			Input:  addr,
+			Output: addr.Bytes(),
 		},
 		// Various error-cases:
-		{Input: "Q000102030405060708090A0B0C0D0E0F1011121314"}, // too long string
+		{Input: [20]byte{0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F, 0x10, 0x11, 0x12, 0x13, 0x14}},
+		{Input: "Q" + strings.Repeat("01", common.AddressLength-1)},
+		{Input: []byte{0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F, 0x10, 0x11, 0x12, 0x13, 0x14}},
+		{Input: "Q" + strings.Repeat("00", common.AddressLength-1)},
 		{Input: "Q01"}, // too short string
 		{Input: ""},
-		{Input: [32]byte{}},       // too long fixed-size array
-		{Input: [21]byte{}},       // too long fixed-size array
-		{Input: make([]byte, 19)}, // too short slice
-		{Input: make([]byte, 21)}, // too long slice
+		{Input: [32]byte{}},       // too short fixed-size array
+		{Input: [65]byte{}},       // too long fixed-size array
+		{Input: make([]byte, 63)}, // too short slice
+		{Input: make([]byte, 65)}, // too long slice
 		{Input: nil},
 	}
 
@@ -128,7 +146,7 @@ func TestParseAddress(t *testing.T) {
 		if err != nil {
 			t.Errorf("test %d: expected no error, got %v", i, err)
 		}
-		if have, want := len(val), 32; have != want {
+		if have, want := len(val), common.AddressLength; have != want {
 			t.Errorf("test %d: have len %d, want %d", i, have, want)
 		}
 		if !bytes.Equal(val, test.Output) {
@@ -229,9 +247,9 @@ func TestConvertUint256DataToSlice(t *testing.T) {
 
 func TestConvertAddressDataToSlice(t *testing.T) {
 	t.Parallel()
-	addr1, _ := common.NewAddressFromString("Q0000000000000000000000000000000000000001")
-	addr2, _ := common.NewAddressFromString("Q0000000000000000000000000000000000000002")
-	addr3, _ := common.NewAddressFromString("Q0000000000000000000000000000000000000003")
+	addr1 := common.BytesToAddress([]byte{1})
+	addr2 := common.BytesToAddress([]byte{2})
+	addr3 := common.BytesToAddress([]byte{3})
 
 	slice := []common.Address{addr1, addr2, addr3}
 	var it any = slice

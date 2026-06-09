@@ -39,8 +39,9 @@ import (
 
 // Used for testing
 type headlessUi struct {
-	approveCh chan string // to send approve/deny
-	inputCh   chan string // to send password
+	approveCh        chan string // to send approve/deny
+	inputCh          chan string // to send password
+	signDataRequests []*core.SignDataRequest
 }
 
 func (ui *headlessUi) OnInputRequired(info core.UserInputRequest) (core.UserInputResponse, error) {
@@ -68,6 +69,7 @@ func (ui *headlessUi) ApproveTx(request *core.SignTxRequest) (core.SignTxRespons
 }
 
 func (ui *headlessUi) ApproveSignData(request *core.SignDataRequest) (core.SignDataResponse, error) {
+	ui.signDataRequests = append(ui.signDataRequests, request)
 	approved := (<-ui.approveCh == "Y")
 	return core.SignDataResponse{approved}, nil
 }
@@ -118,7 +120,10 @@ func setup(t *testing.T) (*core.SignerAPI, *headlessUi) {
 	if err != nil {
 		t.Fatal(err.Error())
 	}
-	ui := &headlessUi{make(chan string, 20), make(chan string, 20)}
+	ui := &headlessUi{
+		approveCh: make(chan string, 20),
+		inputCh:   make(chan string, 20),
+	}
 	am := core.StartClefAccountManager(tmpDirName(t) /*false,*/, true /*, ""*/)
 	api := core.NewSignerAPI(am, 1337 /*true,*/, ui, db, true, &storage.NoStorage{})
 	return api, ui
@@ -215,7 +220,7 @@ func TestNewAcc(t *testing.T) {
 }
 
 func mkTestTx(from common.MixedcaseAddress) apitypes.SendTxArgs {
-	address, _ := common.NewAddressFromString("Q0000000000000000000000000000000000001337")
+	address, _ := common.NewAddressFromString("Q00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001337")
 	to := common.NewMixedcaseAddress(address)
 	gas := hexutil.Uint64(21000)
 	maxFeePerGas := (hexutil.Big)(*big.NewInt(2000000000))
@@ -296,8 +301,12 @@ func TestSignTx(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !bytes.Equal(res.Raw, res2.Raw) {
-		t.Error("Expected tx to be unmodified by UI")
+	parsedTxAgain := &types.Transaction{}
+	if err := parsedTxAgain.UnmarshalBinary(res2.Raw); err != nil {
+		t.Fatal(err)
+	}
+	if !sameTxPayload(parsedTx, parsedTxAgain) {
+		t.Error("Expected tx payload to be unmodified by UI")
 	}
 
 	//The tx is modified by the UI
@@ -320,4 +329,20 @@ func TestSignTx(t *testing.T) {
 	if bytes.Equal(res.Raw, res2.Raw) {
 		t.Error("Expected tx to be modified by UI")
 	}
+}
+
+func sameTxPayload(a, b *types.Transaction) bool {
+	if a.Type() != b.Type() ||
+		a.Nonce() != b.Nonce() ||
+		a.Gas() != b.Gas() ||
+		a.Value().Cmp(b.Value()) != 0 ||
+		a.GasFeeCap().Cmp(b.GasFeeCap()) != 0 ||
+		a.GasTipCap().Cmp(b.GasTipCap()) != 0 ||
+		!bytes.Equal(a.Data(), b.Data()) {
+		return false
+	}
+	if a.To() == nil || b.To() == nil {
+		return a.To() == nil && b.To() == nil
+	}
+	return *a.To() == *b.To()
 }

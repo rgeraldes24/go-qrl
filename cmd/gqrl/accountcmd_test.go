@@ -51,15 +51,15 @@ func TestAccountList(t *testing.T) {
 	t.Parallel()
 	datadir := tmpDatadirWithKeystore(t)
 	var want = `
-Account #0: {Q31fec69ece96b8cdac5814ff9dd92759e7c6018b} keystore://{{.Datadir}}/keystore/UTC--2025-11-06T07-34-54.273240000Z--Q31fec69ece96b8cdac5814ff9dd92759e7c6018b
-Account #1: {Q4cce0507b955d0c7e6b79269b66ed498c670bb0a} keystore://{{.Datadir}}/keystore/aaa
-Account #2: {Q2d9b972ef8219246c73363fd7c048cef81456f9d} keystore://{{.Datadir}}/keystore/zzz
+Account #0: {Q000000000000000000000000000000000000000000000000000000000000000000000000000000000000000031fec69ece96b8cdac5814ff9dd92759e7c6018b} keystore://{{.Datadir}}/keystore/UTC--2025-11-06T07-34-54.273240000Z--Q000000000000000000000000000000000000000000000000000000000000000000000000000000000000000031fec69ece96b8cdac5814ff9dd92759e7c6018b
+Account #1: {Q00000000000000000000000000000000000000000000000000000000000000000000000000000000000000004cce0507b955d0c7e6b79269b66ed498c670bb0a} keystore://{{.Datadir}}/keystore/aaa
+Account #2: {Q00000000000000000000000000000000000000000000000000000000000000000000000000000000000000002d9b972ef8219246c73363fd7c048cef81456f9d} keystore://{{.Datadir}}/keystore/zzz
 `
 	if runtime.GOOS == "windows" {
 		want = `
-Account #0: {Q31fec69ece96b8cdac5814ff9dd92759e7c6018b} keystore://{{.Datadir}}\keystore\UTC--2025-11-06T07-34-54.273240000Z--Q31fec69ece96b8cdac5814ff9dd92759e7c6018b
-Account #1: {Q4cce0507b955d0c7e6b79269b66ed498c670bb0a} keystore://{{.Datadir}}\keystore\aaa
-Account #2: {Q2d9b972ef8219246c73363fd7c048cef81456f9d} keystore://{{.Datadir}}\keystore\zzz
+Account #0: {Q000000000000000000000000000000000000000000000000000000000000000000000000000000000000000031fec69ece96b8cdac5814ff9dd92759e7c6018b} keystore://{{.Datadir}}\keystore\UTC--2025-11-06T07-34-54.273240000Z--Q000000000000000000000000000000000000000000000000000000000000000000000000000000000000000031fec69ece96b8cdac5814ff9dd92759e7c6018b
+Account #1: {Q00000000000000000000000000000000000000000000000000000000000000000000000000000000000000004cce0507b955d0c7e6b79269b66ed498c670bb0a} keystore://{{.Datadir}}\keystore\aaa
+Account #2: {Q00000000000000000000000000000000000000000000000000000000000000000000000000000000000000002d9b972ef8219246c73363fd7c048cef81456f9d} keystore://{{.Datadir}}\keystore\zzz
 `
 	}
 	{
@@ -87,8 +87,8 @@ Repeat password: {{.InputLine "foobar"}}
 Your new key was generated
 `)
 	gqrl.ExpectRegexp(`
-Public address of the key:   Q[0-9a-fA-F]{40}
-Path of the secret key file: .*UTC--.+--Q[0-9a-f]{40}
+Public address of the key:   Q[0-9a-fA-F]{128}
+Path of the secret key file: .*UTC--.+--Q[0-9a-f]{128}
 
 - You can share your public address with anyone. Others need it to interact with you.
 - You must NEVER share the secret key with anyone! The key controls access to your funds!
@@ -103,7 +103,7 @@ func TestAccountImport(t *testing.T) {
 		{
 			name:   "correct account",
 			seed:   "0100000123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdeffcad0b19bb29d4674531d6f115237e16",
-			output: "Address: {Q958d36976b91586a10341cf20c7dfbcb122a1065}\n",
+			output: "Address: {Q958d36976b91586a10341cf20c7dfbcb122a106533cef625327b684878c1755196fd25156fc39b43291dce296aceea83d716e1ef1e0382a8984efc12185426e4}\n",
 		},
 		{
 			name:   "invalid character",
@@ -167,14 +167,14 @@ func TestAccountUpdate(t *testing.T) {
 	datadir := tmpDatadirWithKeystore(t)
 	gqrl := runGqrl(t, "account", "update",
 		"--datadir", datadir, "--lightkdf",
-		"Q2d9b972ef8219246c73363fd7c048cef81456f9d")
+		"Q00000000000000000000000000000000000000000000000000000000000000000000000000000000000000002d9b972ef8219246c73363fd7c048cef81456f9d")
 	defer gqrl.ExpectExit()
 	gqrl.Expect(`
 Please give a NEW password. Do not forget this password.
 !! Unsupported terminal, password will be echoed.
 Password: {{.InputLine "foobar"}}
 Repeat password: {{.InputLine "foobar"}}
-Please provide the OLD password for account Q2d9B972ef8219246C73363fD7c048ceF81456F9d | Attempt 1/3
+Please provide the OLD password for account Q00000000000000000000000000000000000000000000000000000000000000000000000000000000000000002d9B972EF8219246C73363fD7c048CEF81456f9D | Attempt 1/3
 Password: {{.InputLine "1234567890"}}
 `)
 }

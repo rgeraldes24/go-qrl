@@ -897,7 +897,7 @@ func testRepairWithScheme(t *testing.T, tt *rewindTest, snapshots bool, scheme s
 		t.Fatalf("Failed to create chain: %v", err)
 	}
 	canonblocks, _ := GenerateChain(gspec.Config, gspec.ToBlock(), engine, rawdb.NewMemoryDatabase(), tt.canonicalBlocks, func(i int, b *BlockGen) {
-		b.SetCoinbase(common.Address{0x02})
+		b.SetCoinbase(common.BytesToAddress([]byte{0x02, 0}))
 	})
 	if _, err := chain.InsertChain(canonblocks[:tt.commitBlock]); err != nil {
 		t.Fatalf("Failed to import canonical chain start: %v", err)
@@ -1017,7 +1017,7 @@ func testIssue23496(t *testing.T, scheme string) {
 		t.Fatalf("Failed to create chain: %v", err)
 	}
 	_, blocks, _ := GenerateChainWithGenesis(gspec, engine, 4, func(i int, b *BlockGen) {
-		b.SetCoinbase(common.Address{0x02})
+		b.SetCoinbase(common.BytesToAddress([]byte{0x02, 0}))
 	})
 
 	// Insert block B1 and commit the state into disk

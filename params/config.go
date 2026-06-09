@@ -26,9 +26,9 @@ import (
 // TODO(now.youtrack.cloud/issue/TGZ-16)
 // Genesis hashes to enforce below configs on.
 var (
-	MainnetGenesisHash = common.HexToHash("0x01bc5f152bbe334ee169a63069fd2700933c470b40192d177136ff70dbef9c7b")
-	BetaNetGenesisHash = common.HexToHash("0x73c6974a471c34fc65ce4051a78642ca25a4feb0eaa6ef420588955a518a7a12")
-	TestnetGenesisHash = common.HexToHash("0x6a7659906cc310bbef84a9a934f1f5cffdf5487e5f43addcf0386e40396eebe7")
+	MainnetGenesisHash = common.HexToHash("0xd50f892b8d1f861f214663de512b8d2100c0a21b325edfbf8c5a4eaabb16bca9")
+	BetaNetGenesisHash = common.HexToHash("0x792b0c26abdb309d48e5fbae6f091d51c38759d8efd8e150747c2915fced4f92")
+	TestnetGenesisHash = common.HexToHash("0x095fec18bf329e0890fae266c6ff9ca626d35078e38cd802c6b185a49b562195")
 )
 
 // NOTE(rgeraldes24): unused atm

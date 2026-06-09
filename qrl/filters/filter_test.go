@@ -51,6 +51,21 @@ func makeReceipt(addr common.Address) *types.Receipt {
 	return receipt
 }
 
+func addressWithFirstByte(b byte) common.Address {
+	var addr common.Address
+	addr[0] = b
+	return addr
+}
+
+func logsJSON(t *testing.T, logs ...*types.Log) string {
+	t.Helper()
+	blob, err := json.Marshal(logs)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return string(blob)
+}
+
 func BenchmarkFilters(b *testing.B) {
 	var (
 		db, _      = rawdb.NewLevelDBDatabase(b.TempDir(), 0, 0, "", false)
@@ -60,7 +75,7 @@ func BenchmarkFilters(b *testing.B) {
 		addr2      = common.BytesToAddress([]byte("jeff"))
 		addr3      = common.BytesToAddress([]byte("ethereum"))
 		addr4      = common.BytesToAddress([]byte("random addresses please"))
-		to, _      = common.NewAddressFromString("Q0000000000000000000000000000000000000999")
+		to         = common.BytesToAddress(common.Hex2Bytes("0999"))
 
 		gspec = &core.Genesis{
 			Alloc:   core.GenesisAlloc{addr1: {Balance: big.NewInt(1000000)}},
@@ -120,8 +135,8 @@ func TestFilters(t *testing.T) {
 		addr       = wallet1.GetAddress()
 		signer     = types.NewZondSigner(big.NewInt(1))
 		// Logging contract
-		contract  = common.Address{0xfe}
-		contract2 = common.Address{0xff}
+		contract  = addressWithFirstByte(0xfe)
+		contract2 = addressWithFirstByte(0xff)
 		abiStr    = `[{"inputs":[],"name":"log0","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"uint256","name":"t1","type":"uint256"}],"name":"log1","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"uint256","name":"t1","type":"uint256"},{"internalType":"uint256","name":"t2","type":"uint256"}],"name":"log2","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"uint256","name":"t1","type":"uint256"},{"internalType":"uint256","name":"t2","type":"uint256"},{"internalType":"uint256","name":"t3","type":"uint256"}],"name":"log3","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"uint256","name":"t1","type":"uint256"},{"internalType":"uint256","name":"t2","type":"uint256"},{"internalType":"uint256","name":"t3","type":"uint256"},{"internalType":"uint256","name":"t4","type":"uint256"}],"name":"log4","outputs":[],"stateMutability":"nonpayable","type":"function"}]`
 
 		/*
@@ -289,6 +304,57 @@ func TestFilters(t *testing.T) {
 	})
 	backend.setPending(pchain[0], preceipts[0])
 
+	contractLog1 := &types.Log{
+		Address:     contract,
+		Topics:      []common.Hash{hash1},
+		Data:        []byte{},
+		BlockNumber: chain[1].NumberU64(),
+		TxHash:      chain[1].Transactions()[0].Hash(),
+		TxIndex:     0,
+		BlockHash:   chain[1].Hash(),
+		Index:       0,
+	}
+	contract2Log1 := &types.Log{
+		Address:     contract2,
+		Topics:      []common.Hash{hash1},
+		Data:        []byte{},
+		BlockNumber: chain[1].NumberU64(),
+		TxHash:      chain[1].Transactions()[1].Hash(),
+		TxIndex:     1,
+		BlockHash:   chain[1].Hash(),
+		Index:       1,
+	}
+	contractLog2 := &types.Log{
+		Address:     contract,
+		Topics:      []common.Hash{hash2, hash1},
+		Data:        []byte{},
+		BlockNumber: chain[2].NumberU64(),
+		TxHash:      chain[2].Transactions()[0].Hash(),
+		TxIndex:     0,
+		BlockHash:   chain[2].Hash(),
+		Index:       0,
+	}
+	contract2Log3 := &types.Log{
+		Address:     contract2,
+		Topics:      []common.Hash{hash3},
+		Data:        []byte{},
+		BlockNumber: chain[998].NumberU64(),
+		TxHash:      chain[998].Transactions()[0].Hash(),
+		TxIndex:     0,
+		BlockHash:   chain[998].Hash(),
+		Index:       0,
+	}
+	contractLog4 := &types.Log{
+		Address:     contract,
+		Topics:      []common.Hash{hash4},
+		Data:        []byte{},
+		BlockNumber: chain[999].NumberU64(),
+		TxHash:      chain[999].Transactions()[0].Hash(),
+		TxIndex:     0,
+		BlockHash:   chain[999].Hash(),
+		Index:       0,
+	}
+
 	for i, tc := range []struct {
 		f    *Filter
 		want string
@@ -296,22 +362,22 @@ func TestFilters(t *testing.T) {
 	}{
 		{
 			f:    sys.NewBlockFilter(chain[2].Hash(), []common.Address{contract}, nil),
-			want: `[{"address":"Qfe00000000000000000000000000000000000000","topics":["0x0000000000000000000000000000000000000000000000000000746f70696332","0x0000000000000000000000000000000000000000000000000000746f70696331"],"data":"0x","blockNumber":"0x3","transactionHash":"0xabeaa3a78b0388e1d5eccae6548761832c0ecb1aaea6e5a5aef24a1b9aa6d5e6","transactionIndex":"0x0","blockHash":"0x207006320bfb3413ae191d3f4fb3c36566aabc82acea381467c4f8928ec72a99","logIndex":"0x0","removed":false}]`,
+			want: logsJSON(t, contractLog2),
 		},
 		{
 			f:    sys.NewRangeFilter(0, int64(rpc.LatestBlockNumber), []common.Address{contract}, [][]common.Hash{{hash1, hash2, hash3, hash4}}),
-			want: `[{"address":"Qfe00000000000000000000000000000000000000","topics":["0x0000000000000000000000000000000000000000000000000000746f70696331"],"data":"0x","blockNumber":"0x2","transactionHash":"0x6aaf21e1608d7ce841d4d8aecfddeb3cb67a1f336e2e0a302be26bf6c13327e0","transactionIndex":"0x0","blockHash":"0xf9672460cd13a34c9bddffcb46f8c2773d7f2545ee4008f4193278a1ffe4a474","logIndex":"0x0","removed":false},{"address":"Qfe00000000000000000000000000000000000000","topics":["0x0000000000000000000000000000000000000000000000000000746f70696332","0x0000000000000000000000000000000000000000000000000000746f70696331"],"data":"0x","blockNumber":"0x3","transactionHash":"0xabeaa3a78b0388e1d5eccae6548761832c0ecb1aaea6e5a5aef24a1b9aa6d5e6","transactionIndex":"0x0","blockHash":"0x207006320bfb3413ae191d3f4fb3c36566aabc82acea381467c4f8928ec72a99","logIndex":"0x0","removed":false},{"address":"Qfe00000000000000000000000000000000000000","topics":["0x0000000000000000000000000000000000000000000000000000746f70696334"],"data":"0x","blockNumber":"0x3e8","transactionHash":"0xdd1b17bb23012b0f8b3e9fe465f93452069c72aff647ce3a7a997d3710f06d75","transactionIndex":"0x0","blockHash":"0xd775a674640f1f9454b68d853f3a202f4d2f7f985df331ea7e45812f4038e783","logIndex":"0x0","removed":false}]`,
+			want: logsJSON(t, contractLog1, contractLog2, contractLog4),
 		},
 		{
 			f: sys.NewRangeFilter(900, 999, []common.Address{contract}, [][]common.Hash{{hash3}}),
 		},
 		{
 			f:    sys.NewRangeFilter(990, int64(rpc.LatestBlockNumber), []common.Address{contract2}, [][]common.Hash{{hash3}}),
-			want: `[{"address":"Qff00000000000000000000000000000000000000","topics":["0x0000000000000000000000000000000000000000000000000000746f70696333"],"data":"0x","blockNumber":"0x3e7","transactionHash":"0xcef6909852c7317a800a13bc8ede04622a0aa15d62807b12122bf8fad6ac0b5f","transactionIndex":"0x0","blockHash":"0x5e7712ed078faebc1ca9d44bf174c5dd5654c6287004fecbe22d3f834ed528dd","logIndex":"0x0","removed":false}]`,
+			want: logsJSON(t, contract2Log3),
 		},
 		{
 			f:    sys.NewRangeFilter(1, 10, nil, [][]common.Hash{{hash1, hash2}}),
-			want: `[{"address":"Qfe00000000000000000000000000000000000000","topics":["0x0000000000000000000000000000000000000000000000000000746f70696331"],"data":"0x","blockNumber":"0x2","transactionHash":"0x6aaf21e1608d7ce841d4d8aecfddeb3cb67a1f336e2e0a302be26bf6c13327e0","transactionIndex":"0x0","blockHash":"0xf9672460cd13a34c9bddffcb46f8c2773d7f2545ee4008f4193278a1ffe4a474","logIndex":"0x0","removed":false},{"address":"Qff00000000000000000000000000000000000000","topics":["0x0000000000000000000000000000000000000000000000000000746f70696331"],"data":"0x","blockNumber":"0x2","transactionHash":"0x6301f00e7ec7c7d398f1e67942ecd561cffebc5648ff3c5a6d6a321b7fb0172d","transactionIndex":"0x1","blockHash":"0xf9672460cd13a34c9bddffcb46f8c2773d7f2545ee4008f4193278a1ffe4a474","logIndex":"0x1","removed":false},{"address":"Qfe00000000000000000000000000000000000000","topics":["0x0000000000000000000000000000000000000000000000000000746f70696332","0x0000000000000000000000000000000000000000000000000000746f70696331"],"data":"0x","blockNumber":"0x3","transactionHash":"0xabeaa3a78b0388e1d5eccae6548761832c0ecb1aaea6e5a5aef24a1b9aa6d5e6","transactionIndex":"0x0","blockHash":"0x207006320bfb3413ae191d3f4fb3c36566aabc82acea381467c4f8928ec72a99","logIndex":"0x0","removed":false}]`,
+			want: logsJSON(t, contractLog1, contract2Log1, contractLog2),
 		},
 		{
 			f: sys.NewRangeFilter(0, int64(rpc.LatestBlockNumber), nil, [][]common.Hash{{common.BytesToHash([]byte("fail"))}}),
@@ -324,15 +390,15 @@ func TestFilters(t *testing.T) {
 		},
 		{
 			f:    sys.NewRangeFilter(int64(rpc.LatestBlockNumber), int64(rpc.LatestBlockNumber), nil, nil),
-			want: `[{"address":"Qfe00000000000000000000000000000000000000","topics":["0x0000000000000000000000000000000000000000000000000000746f70696334"],"data":"0x","blockNumber":"0x3e8","transactionHash":"0xdd1b17bb23012b0f8b3e9fe465f93452069c72aff647ce3a7a997d3710f06d75","transactionIndex":"0x0","blockHash":"0xd775a674640f1f9454b68d853f3a202f4d2f7f985df331ea7e45812f4038e783","logIndex":"0x0","removed":false}]`,
+			want: logsJSON(t, contractLog4),
 		},
 		{
 			f:    sys.NewRangeFilter(int64(rpc.FinalizedBlockNumber), int64(rpc.LatestBlockNumber), nil, nil),
-			want: `[{"address":"Qff00000000000000000000000000000000000000","topics":["0x0000000000000000000000000000000000000000000000000000746f70696333"],"data":"0x","blockNumber":"0x3e7","transactionHash":"0xcef6909852c7317a800a13bc8ede04622a0aa15d62807b12122bf8fad6ac0b5f","transactionIndex":"0x0","blockHash":"0x5e7712ed078faebc1ca9d44bf174c5dd5654c6287004fecbe22d3f834ed528dd","logIndex":"0x0","removed":false},{"address":"Qfe00000000000000000000000000000000000000","topics":["0x0000000000000000000000000000000000000000000000000000746f70696334"],"data":"0x","blockNumber":"0x3e8","transactionHash":"0xdd1b17bb23012b0f8b3e9fe465f93452069c72aff647ce3a7a997d3710f06d75","transactionIndex":"0x0","blockHash":"0xd775a674640f1f9454b68d853f3a202f4d2f7f985df331ea7e45812f4038e783","logIndex":"0x0","removed":false}]`,
+			want: logsJSON(t, contract2Log3, contractLog4),
 		},
 		{
 			f:    sys.NewRangeFilter(int64(rpc.FinalizedBlockNumber), int64(rpc.FinalizedBlockNumber), nil, nil),
-			want: `[{"address":"Qff00000000000000000000000000000000000000","topics":["0x0000000000000000000000000000000000000000000000000000746f70696333"],"data":"0x","blockNumber":"0x3e7","transactionHash":"0xcef6909852c7317a800a13bc8ede04622a0aa15d62807b12122bf8fad6ac0b5f","transactionIndex":"0x0","blockHash":"0x5e7712ed078faebc1ca9d44bf174c5dd5654c6287004fecbe22d3f834ed528dd","logIndex":"0x0","removed":false}]`,
+			want: logsJSON(t, contract2Log3),
 		},
 		{
 			f: sys.NewRangeFilter(int64(rpc.LatestBlockNumber), int64(rpc.FinalizedBlockNumber), nil, nil),

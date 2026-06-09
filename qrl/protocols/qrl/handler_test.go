@@ -334,7 +334,7 @@ func testGetBlockBodies(t *testing.T, protocol uint) {
 	gen := func(n int, g *core.BlockGen) {
 		if n%2 == 0 {
 			w := &types.Withdrawal{
-				Address: common.Address{0xaa},
+				Address: common.BytesToAddress([]byte{0xaa, 0}),
 				Amount:  42,
 			}
 			g.AddWithdrawal(w)
@@ -466,7 +466,7 @@ func testGetBlockBodiesMaxBlockSize(t *testing.T, protocol uint) {
 	txsPerBlock := params.MaxGasLimit/params.TxGas - 1
 	var nonce uint64
 	gen := func(n int, g *core.BlockGen) {
-		to := common.Address{0x01}
+		to := common.BytesToAddress([]byte{0x01, 0})
 		baseFee := g.BaseFee()
 		gasFeeCap := new(big.Int).Mul(baseFee, big.NewInt(10))
 		for i := uint64(0); i < txsPerBlock; i++ {
@@ -566,7 +566,7 @@ func testGetBlockBodiesMaxServeMaxSize(t *testing.T, protocol uint) {
 	txsPerBlock := params.MaxGasLimit/params.TxGas - 1
 	var nonce uint64
 	gen := func(n int, g *core.BlockGen) {
-		to := common.Address{0x01}
+		to := common.BytesToAddress([]byte{0x01, 0})
 		baseFee := g.BaseFee()
 		gasFeeCap := new(big.Int).Mul(baseFee, big.NewInt(10))
 		for i := uint64(0); i < txsPerBlock; i++ {

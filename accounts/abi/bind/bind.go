@@ -311,7 +311,7 @@ func bindBasicType(kind abi.Type) string {
 	case abi.BytesTy:
 		return "[]byte"
 	case abi.FunctionTy:
-		return "[24]byte"
+		return fmt.Sprintf("[%d]byte", kind.Size)
 	default:
 		// string, bool types
 		return kind.String()
@@ -345,7 +345,7 @@ func bindTopicType(kind abi.Type, structs map[string]*tmplStruct) string {
 	//
 	// We only convert strings and bytes to hash, still need to deal with
 	// array(both fixed-size and dynamic-size) and struct.
-	if bound == "string" || bound == "[]byte" {
+	if kind.T == abi.AddressTy || kind.T == abi.FunctionTy || bound == "string" || bound == "[]byte" {
 		bound = "common.Hash"
 	}
 	return bound

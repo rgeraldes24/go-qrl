@@ -183,38 +183,24 @@ func (arguments Arguments) copyTuple(v any, marshalledValues []any) error {
 // values. An atomic argument will be a list with one element.
 func (arguments Arguments) UnpackValues(data []byte) ([]any, error) {
 	var (
-		retval      = make([]any, 0)
-		virtualArgs = 0
-		index       = 0
+		retval = make([]any, 0)
+		offset = 0
 	)
 
 	for _, arg := range arguments {
 		if arg.Indexed {
 			continue
 		}
-		marshalledValue, err := toGoType((index+virtualArgs)*32, arg.Type, data)
+		marshalledValue, err := toGoType(offset, arg.Type, data)
 		if err != nil {
 			return nil, err
 		}
-		if arg.Type.T == ArrayTy && !isDynamicType(arg.Type) {
-			// If we have a static array, like [3]uint256, these are coded as
-			// just like uint256,uint256,uint256.
-			// This means that we need to add two 'virtual' arguments when
-			// we count the index from now on.
-			//
-			// Array values nested multiple levels deep are also encoded inline:
-			// [2][3]uint256: uint256,uint256,uint256,uint256,uint256,uint256
-			//
-			// Calculate the full array size to get the correct offset for the next argument.
-			// Decrement it by 1, as the normal index increment is still applied.
-			virtualArgs += getTypeSize(arg.Type)/32 - 1
-		} else if arg.Type.T == TupleTy && !isDynamicType(arg.Type) {
-			// If we have a static tuple, like (uint256, bool, uint256), these are
-			// coded as just like uint256,bool,uint256
-			virtualArgs += getTypeSize(arg.Type)/32 - 1
+		if isDynamicType(arg.Type) {
+			offset += 32
+		} else {
+			offset += getTypeSize(arg.Type)
 		}
 		retval = append(retval, marshalledValue)
-		index++
 	}
 	return retval, nil
 }

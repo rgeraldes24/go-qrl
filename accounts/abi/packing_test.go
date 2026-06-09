@@ -17,6 +17,7 @@
 package abi
 
 import (
+	"encoding/hex"
 	"math/big"
 
 	"github.com/theQRL/go-qrl/common"
@@ -26,6 +27,18 @@ type packUnpackTest struct {
 	def      string
 	unpacked any
 	packed   string
+}
+
+func addressFixtureHex(prefix byte) string {
+	var addr common.Address
+	addr[0] = prefix
+	return hex.EncodeToString(addr[:])
+}
+
+func functionFixtureHex(prefix byte) string {
+	var fn [common.AddressLength + 4]byte
+	fn[0] = prefix
+	return hex.EncodeToString(common.RightPadBytes(fn[:], 96))
 }
 
 var packUnpackTests = []packUnpackTest{
@@ -194,7 +207,7 @@ var packUnpackTests = []packUnpackTest{
 	// Address
 	{
 		def:      `[{"type": "address"}]`,
-		packed:   "0000000000000000000000000100000000000000000000000000000000000000",
+		packed:   addressFixtureHex(1),
 		unpacked: common.Address{1},
 	},
 	{
@@ -202,8 +215,8 @@ var packUnpackTests = []packUnpackTest{
 		unpacked: []common.Address{{1}, {2}},
 		packed: "0000000000000000000000000000000000000000000000000000000000000020" +
 			"0000000000000000000000000000000000000000000000000000000000000002" +
-			"0000000000000000000000000100000000000000000000000000000000000000" +
-			"0000000000000000000000000200000000000000000000000000000000000000",
+			addressFixtureHex(1) +
+			addressFixtureHex(2),
 	},
 	// Bytes
 	{
@@ -386,8 +399,8 @@ var packUnpackTests = []packUnpackTest{
 	// Functions
 	{
 		def:      `[{"type": "function"}]`,
-		packed:   "0100000000000000000000000000000000000000000000000000000000000000",
-		unpacked: [24]byte{1},
+		packed:   functionFixtureHex(1),
+		unpacked: [common.AddressLength + 4]byte{1},
 	},
 	// Slice and Array
 	{
@@ -891,8 +904,8 @@ var packUnpackTests = []packUnpackTest{
 			"0000000000000000000000000000000000000000000000000000000000000001" + // 1
 			"ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff" + // -1
 			"0000000000000000000000000000000000000000000000000000000000000002" + // struct[f] length
-			"0000000000000000000000000100000000000000000000000000000000000000" + // common.Address{1}
-			"0000000000000000000000000200000000000000000000000000000000000000", // common.Address{2}
+			addressFixtureHex(1) + // common.Address{1}
+			addressFixtureHex(2), // common.Address{2}
 	},
 	{
 		def: `[{"components": [{ "type": "tuple","components": [{"name": "a","type": "uint256"},	

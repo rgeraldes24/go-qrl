@@ -1071,14 +1071,14 @@ func testSetHeadWithScheme(t *testing.T, tt *rewindTest, snapshots bool, scheme 
 	var sideblocks types.Blocks
 	if tt.sidechainBlocks > 0 {
 		sideblocks, _ = GenerateChain(gspec.Config, gspec.ToBlock(), engine, rawdb.NewMemoryDatabase(), tt.sidechainBlocks, func(i int, b *BlockGen) {
-			b.SetCoinbase(common.Address{0x01})
+			b.SetCoinbase(common.BytesToAddress([]byte{0x01, 0}))
 		})
 		if _, err := chain.InsertChain(sideblocks); err != nil {
 			t.Fatalf("Failed to import side chain: %v", err)
 		}
 	}
 	canonblocks, _ := GenerateChain(gspec.Config, gspec.ToBlock(), engine, rawdb.NewMemoryDatabase(), tt.canonicalBlocks, func(i int, b *BlockGen) {
-		b.SetCoinbase(common.Address{0x02})
+		b.SetCoinbase(common.BytesToAddress([]byte{0x02, 0}))
 	})
 	if _, err := chain.InsertChain(canonblocks[:tt.commitBlock]); err != nil {
 		t.Fatalf("Failed to import canonical chain start: %v", err)

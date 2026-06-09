@@ -485,7 +485,7 @@ func DefaultGenesisBlock() *Genesis {
 		Config:    params.MainnetChainConfig,
 		ExtraData: hexutil.MustDecode("0x11bbe8db4e347b4e8c937c1c8370e4b5ed33adb3db69cbdb7a38e1e50b1b82fa"),
 		GasLimit:  5000,
-		Alloc:     decodePrealloc(mainnetAllocData),
+		Alloc:     GenesisAlloc{},
 	}
 }
 
@@ -496,7 +496,7 @@ func DefaultBetaNetGenesisBlock() *Genesis {
 		ExtraData: []byte("BetaNet, Zond, XMSS, Dilithium!!"),
 		GasLimit:  0x1c9c380,
 		Timestamp: 1705841668,
-		Alloc:     decodePreallocWithContractCode(betaNetAllocData),
+		Alloc:     GenesisAlloc{},
 	}
 }
 
@@ -507,7 +507,7 @@ func DefaultTestnetGenesisBlock() *Genesis {
 		ExtraData: hexutil.MustDecode("0x0000000000000000000000000000000000000000000000000000000000000000"),
 		GasLimit:  0x1312d00,
 		Timestamp: 1775003316,
-		Alloc:     decodePrealloc(testnetAllocData),
+		Alloc:     GenesisAlloc{},
 	}
 }
 
@@ -522,21 +522,21 @@ func DeveloperGenesisBlock(gasLimit uint64, faucet common.Address) *Genesis {
 		GasLimit: gasLimit,
 		BaseFee:  big.NewInt(params.InitialBaseFee),
 		Alloc: map[common.Address]GenesisAccount{
-			common.BytesToAddress([]byte{1}): {Balance: big.NewInt(1)}, // DepositRoot
-			common.BytesToAddress([]byte{2}): {Balance: big.NewInt(1)}, // SHA256
-			common.BytesToAddress([]byte{4}): {Balance: big.NewInt(1)}, // Identity
-			common.BytesToAddress([]byte{5}): {Balance: big.NewInt(1)}, // ModExp
-			common.BytesToAddress([]byte{6}): {Balance: big.NewInt(1)}, // ECAdd
-			common.BytesToAddress([]byte{7}): {Balance: big.NewInt(1)}, // ECScalarMul
-			common.BytesToAddress([]byte{8}): {Balance: big.NewInt(1)}, // ECPairing
-			faucet:                           {Balance: new(big.Int).Sub(new(big.Int).Lsh(big.NewInt(1), 256), big.NewInt(9))},
+			common.PrecompileAddress(1): {Balance: big.NewInt(1)}, // DepositRoot
+			common.PrecompileAddress(2): {Balance: big.NewInt(1)}, // SHA256
+			common.PrecompileAddress(4): {Balance: big.NewInt(1)}, // Identity
+			common.PrecompileAddress(5): {Balance: big.NewInt(1)}, // ModExp
+			common.PrecompileAddress(6): {Balance: big.NewInt(1)}, // ECAdd
+			common.PrecompileAddress(7): {Balance: big.NewInt(1)}, // ECScalarMul
+			common.PrecompileAddress(8): {Balance: big.NewInt(1)}, // ECPairing
+			faucet:                      {Balance: new(big.Int).Sub(new(big.Int).Lsh(big.NewInt(1), 256), big.NewInt(9))},
 		},
 	}
 }
 
 func decodePrealloc(data string) GenesisAlloc {
 	var p []struct {
-		Addr    *big.Int
+		Addr    common.Address
 		Balance *big.Int
 		Misc    *struct {
 			Nonce uint64
@@ -562,22 +562,23 @@ func decodePrealloc(data string) GenesisAlloc {
 				acc.Storage[slot.Key] = slot.Val
 			}
 		}
-		ga[common.BigToAddress(account.Addr)] = acc
+		ga[account.Addr] = acc
 	}
 	return ga
 }
 
 func decodePreallocWithContractCode(data string) GenesisAlloc {
 	var p []struct {
-		Addr, Balance *big.Int
-		Code          []byte
+		Addr    common.Address
+		Balance *big.Int
+		Code    []byte
 	}
 	if err := rlp.NewStream(strings.NewReader(data), 0).Decode(&p); err != nil {
 		panic(err)
 	}
 	ga := make(GenesisAlloc, len(p))
 	for _, account := range p {
-		ga[common.BigToAddress(account.Addr)] = GenesisAccount{Balance: account.Balance, Code: account.Code}
+		ga[account.Addr] = GenesisAccount{Balance: account.Balance, Code: account.Code}
 	}
 	return ga
 }

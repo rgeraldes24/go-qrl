@@ -345,7 +345,7 @@ func ExampleJSON() {
 	if err != nil {
 		panic(err)
 	}
-	address, _ := common.NewAddressFromString("Q0000000000000000000000000000000000000001")
+	address := common.BytesToAddress([]byte{1})
 	out, err := abi.Pack("isBar", address)
 	if err != nil {
 		panic(err)
@@ -353,7 +353,7 @@ func ExampleJSON() {
 
 	fmt.Printf("%x\n", out)
 	// Output:
-	// 1f2c40920000000000000000000000000000000000000000000000000000000000000001
+	// 1f2c409200000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001
 }
 
 func TestInputVariableInputLength(t *testing.T) {
@@ -759,11 +759,8 @@ func TestUnpackEvent(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	const hexdata = `000000000000000000000000376c47978271565f56deb45495afa69e59c16ab200000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000060000000000000000000000000000000000000000000000000000000000000000158`
-	data, err := hex.DecodeString(hexdata)
-	if err != nil {
-		t.Fatal(err)
-	}
+	sender := common.BytesToAddress(common.Hex2Bytes("376c47978271565f56deb45495afa69e59c16ab2"))
+	data := receivedEventData(sender)
 	if len(data)%32 == 0 {
 		t.Errorf("len(data) is %d, want a non-multiple of 32", len(data))
 	}
@@ -798,16 +795,12 @@ func TestUnpackEventIntoMap(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	const hexdata = `000000000000000000000000376c47978271565f56deb45495afa69e59c16ab200000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000060000000000000000000000000000000000000000000000000000000000000000158`
-	data, err := hex.DecodeString(hexdata)
-	if err != nil {
-		t.Fatal(err)
-	}
+	sender := common.BytesToAddress(common.Hex2Bytes("376c47978271565f56deb45495afa69e59c16ab2"))
+	data := receivedEventData(sender)
 	if len(data)%32 == 0 {
 		t.Errorf("len(data) is %d, want a non-multiple of 32", len(data))
 	}
 
-	sender, _ := common.NewAddressFromString("Q376c47978271565f56DEB45495afa69E59c16Ab2")
 	receivedMap := map[string]any{}
 	expectedReceivedMap := map[string]any{
 		"sender": sender,
@@ -840,6 +833,16 @@ func TestUnpackEventIntoMap(t *testing.T) {
 	if receivedAddrMap["sender"] != expectedReceivedMap["sender"] {
 		t.Error("unpacked `receivedAddr` map does not match expected map")
 	}
+}
+
+func receivedEventData(sender common.Address) []byte {
+	buf := new(bytes.Buffer)
+	buf.Write(sender.Bytes())
+	buf.Write(math.U256Bytes(big.NewInt(1)))
+	buf.Write(math.U256Bytes(big.NewInt(128)))
+	buf.Write(math.U256Bytes(big.NewInt(1)))
+	buf.WriteByte(0x58)
+	return buf.Bytes()
 }
 
 func TestUnpackMethodIntoMap(t *testing.T) {
@@ -920,11 +923,8 @@ func TestUnpackIntoMapNamingConflict(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	hexdata = `000000000000000000000000376c47978271565f56deb45495afa69e59c16ab200000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000060000000000000000000000000000000000000000000000000000000000000000158`
-	data, err = hex.DecodeString(hexdata)
-	if err != nil {
-		t.Fatal(err)
-	}
+	sender := common.BytesToAddress(common.Hex2Bytes("376c47978271565f56deb45495afa69e59c16ab2"))
+	data = receivedEventData(sender)
 	if len(data)%32 == 0 {
 		t.Errorf("len(data) is %d, want a non-multiple of 32", len(data))
 	}
@@ -955,7 +955,6 @@ func TestUnpackIntoMapNamingConflict(t *testing.T) {
 	if len(data)%32 == 0 {
 		t.Errorf("len(data) is %d, want a non-multiple of 32", len(data))
 	}
-	sender, _ := common.NewAddressFromString("Q376c47978271565f56DEB45495afa69E59c16Ab2")
 	expectedReceivedMap := map[string]any{
 		"sender": sender,
 		"amount": big.NewInt(1),

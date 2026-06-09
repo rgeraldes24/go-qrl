@@ -41,10 +41,10 @@ type PrecompiledContract interface {
 // PrecompiledContractsZond contains the default set of pre-compiled QRL
 // contracts used in the Zond release.
 var PrecompiledContractsZond = map[common.Address]PrecompiledContract{
-	common.BytesToAddress([]byte{1}): &depositroot{},
-	common.BytesToAddress([]byte{2}): &sha256hash{},
-	common.BytesToAddress([]byte{4}): &dataCopy{},
-	common.BytesToAddress([]byte{5}): &bigModExp{},
+	common.PrecompileAddress(1): &depositroot{},
+	common.PrecompileAddress(2): &sha256hash{},
+	common.PrecompileAddress(4): &dataCopy{},
+	common.PrecompileAddress(5): &bigModExp{},
 }
 
 var (

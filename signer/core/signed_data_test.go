@@ -134,17 +134,17 @@ var jsonTypedData = `
         "name": "Ether Mail",
         "version": "1",
         "chainId": "1",
-        "verifyingContract": "QCCCcccccCCCCcCCCCCCcCcCccCcCCCcCcccccccC"
+        "verifyingContract": "Q0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000cccccccccccccccccccccccccccccccccccccccc"
       },
       "message": {
         "from": {
           "name": "Cow",
 		  "test": 3,
-          "wallet": "QcD2a3d9F938E13CD947Ec05AbC7FE734Df8DD826"
+          "wallet": "Q0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000cd2a3d9f938e13cd947ec05abc7fe734df8dd826"
         },
         "to": {
           "name": "Bob",
-          "wallet": "QbBbBBBBbbBBBbbbBbbBbbbbBBbBbbbbBbBbbBBbB"
+          "wallet": "Q0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
         },
         "contents": "Hello, Bob!"
       }
@@ -157,18 +157,18 @@ var domainStandard = apitypes.TypedDataDomain{
 	Name:              "Ether Mail",
 	Version:           "1",
 	ChainId:           math.NewHexOrDecimal256(1),
-	VerifyingContract: "QCcCCccccCCCCcCCCCCCcCcCccCcCCCcCcccccccC",
+	VerifyingContract: "Q0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000cccccccccccccccccccccccccccccccccccccccc",
 	Salt:              "",
 }
 
 var messageStandard = map[string]any{
 	"from": map[string]any{
 		"name":   "Cow",
-		"wallet": "QCD2a3d9F938E13CD947Ec05AbC7FE734Df8DD826",
+		"wallet": "Q0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000cd2a3d9f938e13cd947ec05abc7fe734df8dd826",
 	},
 	"to": map[string]any{
 		"name":   "Bob",
-		"wallet": "QbBbBBBBbbBBBbbbBbbBbbbbBBbBbbbbBbBbbBBbB",
+		"wallet": "Q0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
 	},
 	"contents": "Hello, Bob!",
 }
@@ -223,14 +223,12 @@ func TestSignData(t *testing.T) {
 	// data/typed via SignTypeData
 	control.approveCh <- "Y"
 	control.inputCh <- "a_long_password"
-	var want []byte
 	if signature, err = api.SignTypedData(t.Context(), a, typedData); err != nil {
 		t.Fatal(err)
 	} else if signature == nil || len(signature) != 4627 {
 		t.Errorf("Expected 4627 byte ML-DSA-87 signature (got %d bytes)", len(signature))
-	} else {
-		want = signature
 	}
+	directReq := control.signDataRequests[len(control.signDataRequests)-1]
 
 	// data/typed via SignData / mimetype typed data
 	control.approveCh <- "Y"
@@ -241,8 +239,10 @@ func TestSignData(t *testing.T) {
 		t.Fatal(err)
 	} else if signature == nil || len(signature) != 4627 {
 		t.Errorf("Expected 4627 byte ML-DSA-87 signature (got %d bytes)", len(signature))
-	} else if have := signature; !bytes.Equal(have, want) {
-		t.Fatalf("want %x, have %x", want, have)
+	} else if dataReq := control.signDataRequests[len(control.signDataRequests)-1]; !bytes.Equal(dataReq.Hash, directReq.Hash) {
+		t.Fatalf("typed data hash mismatch: want %x, have %x", directReq.Hash, dataReq.Hash)
+	} else if !bytes.Equal(dataReq.Rawdata, directReq.Rawdata) {
+		t.Fatalf("typed data preimage mismatch: want %x, have %x", directReq.Rawdata, dataReq.Rawdata)
 	}
 }
 
@@ -295,7 +295,7 @@ func TestHashStruct(t *testing.T) {
 		t.Fatal(err)
 	}
 	mainHash := fmt.Sprintf("0x%s", common.Bytes2Hex(hash))
-	if mainHash != "0xc52c0ee5d84264471806290a3f2c4cecfc5490626bf912d01f240d7a274b371e" {
+	if mainHash != "0xf46ea81ea61623fee312622a7389ccd8e26592895ab9b08f9d7f203dfba696a7" {
 		t.Errorf("Expected different hashStruct result (got %s)", mainHash)
 	}
 
@@ -304,7 +304,7 @@ func TestHashStruct(t *testing.T) {
 		t.Error(err)
 	}
 	domainHash := fmt.Sprintf("0x%s", common.Bytes2Hex(hash))
-	if domainHash != "0xf2cee375fa42b42143804025fc449deafd50cc031ca257e0b194a650a912090f" {
+	if domainHash != "0x7eae04f80f2713b56e612af066c342b78acb134d3632acb9f469b79fc9901a6e" {
 		t.Errorf("Expected different domain hashStruct result (got %s)", domainHash)
 	}
 }
@@ -337,7 +337,7 @@ func TestEncodeData(t *testing.T) {
 		t.Fatal(err)
 	}
 	dataEncoding := fmt.Sprintf("0x%s", common.Bytes2Hex(hash))
-	if dataEncoding != "0xa0cedeb2dc280ba39b857546d74f5549c3a1d7bdc2dd96bf881f76108e23dac2fc71e5fa27ff56c350aa531bc129ebdf613b772b6604664f5d8dbe21b85eb0c8cd54f074a4af31b4411ff6a60c9719dbd559c221c8ac3492d9d872b041d703d1b5aadf3154a261abdd9086fc627b61efca26ae5702701d05cd2305f7c52a2fc8" {
+	if dataEncoding != "0xa0cedeb2dc280ba39b857546d74f5549c3a1d7bdc2dd96bf881f76108e23dac2e8ac13d633f2be95a0c2016ed6cdf5cab394e44b8e4a81ec38156b6a5fc5e0b9463f9e7f8e08a5d79073c631cc1c470974340f38e3e9ba919014f8cf2f279c83b5aadf3154a261abdd9086fc627b61efca26ae5702701d05cd2305f7c52a2fc8" {
 		t.Errorf("Expected different encodeData result (got %s)", dataEncoding)
 	}
 }
@@ -531,7 +531,7 @@ var complexTypedData = `
     "domain": {
         "chainId": "56",
         "name": "da.systems",
-        "verifyingContract": "Q0000000000000000000000000000000020210722",
+        "verifyingContract": "Q00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000020210722",
         "version": "1"
     },
     "message": {
@@ -584,7 +584,7 @@ func TestComplexTypedData(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	expSigHash := common.FromHex("0x42b1aca82bb6900ff75e90a136de550a58f1a220a071704088eabd5e6ce20446")
+	expSigHash := common.FromHex("0x00d7104fc7b8c435a61ab2b09219fe97f17153a4c73ea551e1dcad6efbbc383e")
 	if !bytes.Equal(expSigHash, sighash) {
 		t.Fatalf("Error, got %x, wanted %x", sighash, expSigHash)
 	}
@@ -682,7 +682,7 @@ var complexTypedDataLCRefType = `
     "domain": {
         "chainId": "56",
         "name": "da.systems",
-        "verifyingContract": "Q0000000000000000000000000000000020210722",
+        "verifyingContract": "Q00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000020210722",
         "version": "1"
     },
     "message": {
@@ -735,7 +735,7 @@ func TestComplexTypedDataWithLowercaseReftype(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	expSigHash := common.FromHex("0x49191f910874f0148597204d9076af128d4694a7c4b714f1ccff330b87207bff")
+	expSigHash := common.FromHex("0x6825297162f9e4a8d59ef0201ae6c61db4e32cfb86541f7430fa5ca52a04c341")
 	if !bytes.Equal(expSigHash, sighash) {
 		t.Fatalf("Error, got %x, wanted %x", sighash, expSigHash)
 	}

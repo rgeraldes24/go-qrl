@@ -55,7 +55,7 @@ func packElement(t Type, reflectValue reflect.Value) ([]byte, error) {
 			reflectValue = mustArrayToByteSlice(reflectValue)
 		}
 
-		return common.LeftPadBytes(reflectValue.Bytes(), 32), nil
+		return common.RightPadBytes(reflectValue.Bytes(), getTypeSize(t)), nil
 	case BoolTy:
 		if reflectValue.Bool() {
 			return math.PaddedBigBytes(common.Big1, 32), nil
@@ -73,7 +73,7 @@ func packElement(t Type, reflectValue reflect.Value) ([]byte, error) {
 		if reflectValue.Kind() == reflect.Array {
 			reflectValue = mustArrayToByteSlice(reflectValue)
 		}
-		return common.RightPadBytes(reflectValue.Bytes(), 32), nil
+		return common.RightPadBytes(reflectValue.Bytes(), getTypeSize(t)), nil
 	default:
 		return []byte{}, fmt.Errorf("could not pack element, unknown type: %v", t.T)
 	}

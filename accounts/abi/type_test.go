@@ -260,9 +260,9 @@ func TestTypeCheck(t *testing.T) {
 		{"string", nil, "", ""},
 		{"string", nil, []byte{}, "abi: cannot use slice as type string as argument"},
 		{"bytes32[]", nil, [][32]byte{{}}, ""},
-		{"function", nil, [24]byte{}, ""},
-		{"bytes20", nil, common.Address{}, ""},
-		{"address", nil, [20]byte{}, ""},
+		{"function", nil, [common.AddressLength + 4]byte{}, ""},
+		{"bytes20", nil, common.Address{}, "abi: cannot use common.Address as type [20]uint8 as argument"},
+		{"address", nil, [common.AddressLength]byte{}, ""},
 		{"address", nil, common.Address{}, ""},
 		{"bytes32[]]", nil, "", "invalid arg type in abi"},
 		{"invalidType", nil, "", "unsupported arg type: invalidType"},
@@ -343,7 +343,7 @@ func TestGetTypeSize(t *testing.T) {
 	}{
 		// simple array
 		{"uint256[2]", nil, 32 * 2},
-		{"address[3]", nil, 32 * 3},
+		{"address[3]", nil, common.AddressLength * 3},
 		{"bytes32[4]", nil, 32 * 4},
 		// array array
 		{"uint256[2][3][4]", nil, 32 * (2 * 3 * 4)},

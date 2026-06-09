@@ -72,7 +72,7 @@ func generateChain(n int) (*core.Genesis, []*types.Block) {
 	generate := func(i int, g *core.BlockGen) {
 		g.OffsetTime(5)
 		g.SetExtra([]byte("test"))
-		to, _ := common.NewAddressFromString("Q9a9070028361F7AAbeB3f2F2Dc07F82C4a98A02a")
+		to, _ := common.NewAddressFromString("Q00000000000000000000000000000000000000000000000000000000000000000000000000000000000000009a9070028361f7aabeb3f2f2dc07f82c4a98a02a")
 		tx, _ := types.SignTx(types.NewTx(&types.DynamicFeeTx{
 			Nonce:     testNonce,
 			To:        &to,
@@ -158,7 +158,11 @@ func TestPrepareAndGetPayload(t *testing.T) {
 
 	// Put the 10th block's tx in the pool and produce a new block
 	txs := blocks[9].Transactions()
-	qrlservice.TxPool().Add(txs, true, false)
+	for i, err := range qrlservice.TxPool().Add(txs, true, true) {
+		if err != nil {
+			t.Fatalf("failed to add tx %d to pool: %v", i, err)
+		}
+	}
 	blockParams := engine.PayloadAttributes{
 		Timestamp:   blocks[8].Time() + 5,
 		Withdrawals: []*types.Withdrawal{},
@@ -962,8 +966,8 @@ func TestWithdrawals(t *testing.T) {
 	}
 
 	// 11: build zond block with withdrawal
-	aa := common.Address{0xaa}
-	bb := common.Address{0xbb}
+	aa := common.BytesToAddress([]byte{0xaa, 0})
+	bb := common.BytesToAddress([]byte{0xbb, 0})
 	blockParams = engine.PayloadAttributes{
 		Timestamp: execData.ExecutionPayload.Timestamp + 5,
 		Withdrawals: []*types.Withdrawal{
@@ -1031,7 +1035,7 @@ func TestNilWithdrawals(t *testing.T) {
 
 	api := NewConsensusAPI(qrlservice)
 	parent := qrlservice.BlockChain().CurrentHeader()
-	aa := common.Address{0xaa}
+	aa := common.BytesToAddress([]byte{0xaa, 0})
 
 	type test struct {
 		blockParams engine.PayloadAttributes

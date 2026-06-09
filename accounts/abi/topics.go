@@ -17,7 +17,6 @@
 package abi
 
 import (
-	"encoding/binary"
 	"errors"
 	"fmt"
 	"math/big"
@@ -27,6 +26,8 @@ import (
 	"github.com/theQRL/go-qrl/common/math"
 	"github.com/theQRL/go-qrl/crypto"
 )
+
+var addressTopicDomain = []byte("QRL-ABI-ADDRESS-TOPIC-v1")
 
 // MakeTopics converts a filter query argument list into a filter topic set.
 func MakeTopics(query ...[]any) ([][]common.Hash, error) {
@@ -40,7 +41,7 @@ func MakeTopics(query ...[]any) ([][]common.Hash, error) {
 			case common.Hash:
 				copy(topic[:], rule[:])
 			case common.Address:
-				copy(topic[common.HashLength-common.AddressLength:], rule[:])
+				topic = crypto.Keccak256Hash(addressTopicDomain, rule.Bytes())
 			case *big.Int:
 				copy(topic[:], math.U256Bytes(new(big.Int).Set(rule)))
 			case bool:
@@ -147,17 +148,10 @@ func parseTopicWithSetter(fields Arguments, topics []common.Hash, setter func(Ar
 		switch arg.Type.T {
 		case TupleTy:
 			return errors.New("tuple type in topic reconstruction")
-		case StringTy, BytesTy, SliceTy, ArrayTy:
-			// Array types (including strings and bytes) have their keccak256 hashes stored in the topic- not a hash
+		case AddressTy, FunctionTy, StringTy, BytesTy, SliceTy, ArrayTy:
+			// Address64 values and dynamic types have their hashes stored in the topic, not a value
 			// whose bytes can be decoded to the actual value- so the best we can do is retrieve that hash
 			reconstr = topics[i]
-		case FunctionTy:
-			if garbage := binary.BigEndian.Uint64(topics[i][0:8]); garbage != 0 {
-				return fmt.Errorf("bind: got improperly encoded function type, got %v", topics[i].Bytes())
-			}
-			var tmp [24]byte
-			copy(tmp[:], topics[i][8:32])
-			reconstr = tmp
 		default:
 			var err error
 			reconstr, err = toGoType(0, arg.Type, topics[i].Bytes())

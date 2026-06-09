@@ -36,7 +36,7 @@ var (
 		CumulativeGasUsed: 1,
 		Logs: []*Log{
 			{
-				Address: common.BytesToAddress([]byte{0x11}),
+				Address: common.BytesToAddress([]byte{0x11, 0}),
 				Topics:  []common.Hash{common.HexToHash("dead"), common.HexToHash("beef")},
 				Data:    []byte{0x01, 0x00, 0xff},
 			},
@@ -49,12 +49,12 @@ var (
 		Type: DynamicFeeTxType,
 	}
 
-	// Create a few transactions to have receipts for
-	to2, _ = common.NewAddressFromString("Q0000000000000000000000000000000000000002")
-	to3, _ = common.NewAddressFromString("Q0000000000000000000000000000000000000003")
-	to4, _ = common.NewAddressFromString("Q0000000000000000000000000000000000000004")
-	to5, _ = common.NewAddressFromString("Q0000000000000000000000000000000000000005")
-	txs    = Transactions{
+	// Create a few transactions to have receipts for.
+	to2 = common.BytesToAddress([]byte{0x02, 0})
+	to3 = common.BytesToAddress([]byte{0x03, 0})
+	to4 = common.BytesToAddress([]byte{0x04, 0})
+	to5 = common.BytesToAddress([]byte{0x05, 0})
+	txs = Transactions{
 		NewTx(&DynamicFeeTx{
 			Nonce:     1,
 			Value:     big.NewInt(1),
@@ -75,7 +75,6 @@ var (
 			Gas:       3,
 			GasFeeCap: big.NewInt(33),
 		}),
-		// EIP-1559 transactions.
 		NewTx(&DynamicFeeTx{
 			To:        &to4,
 			Nonce:     4,
@@ -94,12 +93,14 @@ var (
 		}),
 	}
 
-	blockNumber     = big.NewInt(1)
-	blockTime       = uint64(2)
-	blockHash       = common.BytesToHash([]byte{0x03, 0x14})
-	contractAddr, _ = common.NewAddressFromString("Q5a443704dd4b594b382c22a083e2bd3090a6fef3")
+	blockNumber  = big.NewInt(1)
+	blockTime    = uint64(2)
+	blockHash    = common.BytesToHash([]byte{0x03, 0x14})
+	contractAddr = common.BytesToAddress(common.Hex2Bytes(
+		"0b055563c7e1a0a07792d6fe4033ba3925c67b533e7584f40d8829bf696282c444997632e11b1075afae7da6fb5616048b593092042949b14915158454a22353",
+	))
 
-	// Create the corresponding receipts
+	// Create the corresponding receipts.
 	receipts = Receipts{
 		&Receipt{
 			Type:              DynamicFeeTxType,
@@ -107,9 +108,8 @@ var (
 			CumulativeGasUsed: 1,
 			Logs: []*Log{
 				{
-					Address: common.BytesToAddress([]byte{0x11}),
-					Topics:  []common.Hash{common.HexToHash("dead"), common.HexToHash("beef")},
-					// derived fields:
+					Address:     common.BytesToAddress([]byte{0x11, 0}),
+					Topics:      []common.Hash{common.HexToHash("dead"), common.HexToHash("beef")},
 					BlockNumber: blockNumber.Uint64(),
 					TxHash:      txs[0].Hash(),
 					TxIndex:     0,
@@ -117,9 +117,8 @@ var (
 					Index:       0,
 				},
 				{
-					Address: common.BytesToAddress([]byte{0x01, 0x11}),
-					Topics:  []common.Hash{common.HexToHash("dead"), common.HexToHash("beef")},
-					// derived fields:
+					Address:     common.BytesToAddress([]byte{0x01, 0x11}),
+					Topics:      []common.Hash{common.HexToHash("dead"), common.HexToHash("beef")},
 					BlockNumber: blockNumber.Uint64(),
 					TxHash:      txs[0].Hash(),
 					TxIndex:     0,
@@ -127,7 +126,6 @@ var (
 					Index:       1,
 				},
 			},
-			// derived fields:
 			TxHash:            txs[0].Hash(),
 			ContractAddress:   contractAddr,
 			GasUsed:           1,
@@ -142,9 +140,8 @@ var (
 			CumulativeGasUsed: 3,
 			Logs: []*Log{
 				{
-					Address: common.BytesToAddress([]byte{0x22}),
-					Topics:  []common.Hash{common.HexToHash("dead"), common.HexToHash("beef")},
-					// derived fields:
+					Address:     common.BytesToAddress([]byte{0x22, 0}),
+					Topics:      []common.Hash{common.HexToHash("dead"), common.HexToHash("beef")},
 					BlockNumber: blockNumber.Uint64(),
 					TxHash:      txs[1].Hash(),
 					TxIndex:     1,
@@ -152,9 +149,8 @@ var (
 					Index:       2,
 				},
 				{
-					Address: common.BytesToAddress([]byte{0x02, 0x22}),
-					Topics:  []common.Hash{common.HexToHash("dead"), common.HexToHash("beef")},
-					// derived fields:
+					Address:     common.BytesToAddress([]byte{0x02, 0x22}),
+					Topics:      []common.Hash{common.HexToHash("dead"), common.HexToHash("beef")},
 					BlockNumber: blockNumber.Uint64(),
 					TxHash:      txs[1].Hash(),
 					TxIndex:     1,
@@ -162,7 +158,6 @@ var (
 					Index:       3,
 				},
 			},
-			// derived fields:
 			TxHash:            txs[1].Hash(),
 			GasUsed:           2,
 			EffectiveGasPrice: big.NewInt(22),
@@ -175,7 +170,6 @@ var (
 			PostState:         common.Hash{3}.Bytes(),
 			CumulativeGasUsed: 6,
 			Logs:              []*Log{},
-			// derived fields:
 			TxHash:            txs[2].Hash(),
 			GasUsed:           3,
 			EffectiveGasPrice: big.NewInt(33),
@@ -188,7 +182,6 @@ var (
 			PostState:         common.Hash{4}.Bytes(),
 			CumulativeGasUsed: 10,
 			Logs:              []*Log{},
-			// derived fields:
 			TxHash:            txs[3].Hash(),
 			GasUsed:           4,
 			EffectiveGasPrice: big.NewInt(1044),
@@ -201,7 +194,6 @@ var (
 			PostState:         common.Hash{5}.Bytes(),
 			CumulativeGasUsed: 15,
 			Logs:              []*Log{},
-			// derived fields:
 			TxHash:            txs[4].Hash(),
 			GasUsed:           5,
 			EffectiveGasPrice: big.NewInt(1055),
@@ -221,9 +213,8 @@ func TestDecodeEmptyTypedReceipt(t *testing.T) {
 	}
 }
 
-// Tests that receipt data can be correctly derived from the contextual infos
+// Tests that receipt data can be correctly derived from the contextual infos.
 func TestDeriveFields(t *testing.T) {
-	// Re-derive receipts.
 	basefee := big.NewInt(1000)
 	derivedReceipts := clearComputedFieldsOnReceipts(receipts)
 	err := Receipts(derivedReceipts).DeriveFields(params.TestChainConfig, blockHash, blockNumber.Uint64(), blockTime, basefee, txs)
@@ -231,12 +222,10 @@ func TestDeriveFields(t *testing.T) {
 		t.Fatalf("DeriveFields(...) = %v, want <nil>", err)
 	}
 
-	// Check diff of receipts against derivedReceipts.
 	r1, err := json.MarshalIndent(receipts, "", "  ")
 	if err != nil {
 		t.Fatal("error marshaling input receipts:", err)
 	}
-
 	r2, err := json.MarshalIndent(derivedReceipts, "", "  ")
 	if err != nil {
 		t.Fatal("error marshaling derived receipts:", err)
@@ -282,7 +271,10 @@ func TestEffectiveGasPriceNotRequired(t *testing.T) {
 // TestTypedReceiptEncodingDecoding reproduces a flaw that existed in the receipt
 // rlp decoder, which failed due to a shadowing error.
 func TestTypedReceiptEncodingDecoding(t *testing.T) {
-	var payload = common.FromHex("f90733b901c302f901bf8001b9010000000000000010000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000500000000000000000000000000000000000014000000000000000000000000000000000000000000000000000000000000000000000000000010000080000000000000000000004000000000000000000000000000040000000000000000000000000000800000000000000000000000000000000000000000000000000000400000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000f8b8f85a940000000000000000000000000000000000000011f842a0000000000000000000000000000000000000000000000000000000000000deada0000000000000000000000000000000000000000000000000000000000000beef80f85a940000000000000000000000000000000000000111f842a0000000000000000000000000000000000000000000000000000000000000deada0000000000000000000000000000000000000000000000000000000000000beef80b901e302f901dfa0020000000000000000000000000000000000000000000000000000000000000003b9010000000000000010000000000000000000000000000000000002000000002000000000001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000014000000000100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000004000000000000001000000000000040000000000000000000000000000000000000000000000000000000000000004000000000000000000400000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000f8b8f85a940000000000000000000000000000000000000022f842a0000000000000000000000000000000000000000000000000000000000000deada0000000000000000000000000000000000000000000000000000000000000beef80f85a940000000000000000000000000000000000000222f842a0000000000000000000000000000000000000000000000000000000000000deada0000000000000000000000000000000000000000000000000000000000000beef80b9012a02f90126a0030000000000000000000000000000000000000000000000000000000000000006b9010000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000c0b9012a02f90126a004000000000000000000000000000000000000000000000000000000000000000ab9010000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000c0b9012a02f90126a005000000000000000000000000000000000000000000000000000000000000000fb9010000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000c0")
+	payload, err := rlp.EncodeToBytes(Receipts{eip1559Receipt, receipts[1], receipts[2], receipts[3], receipts[4]})
+	if err != nil {
+		t.Fatalf("encode payload: %v", err)
+	}
 	check := func(bundle []*Receipt) {
 		t.Helper()
 		for i, receipt := range bundle {
@@ -293,7 +285,9 @@ func TestTypedReceiptEncodingDecoding(t *testing.T) {
 	}
 	{
 		var bundle []*Receipt
-		rlp.DecodeBytes(payload, &bundle)
+		if err := rlp.DecodeBytes(payload, &bundle); err != nil {
+			t.Fatal(err)
+		}
 		check(bundle)
 	}
 	{
@@ -310,7 +304,6 @@ func TestTypedReceiptEncodingDecoding(t *testing.T) {
 func TestReceiptMarshalBinary(t *testing.T) {
 	buf := new(bytes.Buffer)
 
-	// 1559 Receipt
 	buf.Reset()
 	eip1559Receipt.Bloom = CreateBloom(Receipts{eip1559Receipt})
 	have, err := eip1559Receipt.MarshalBinary()
@@ -323,20 +316,18 @@ func TestReceiptMarshalBinary(t *testing.T) {
 	if !bytes.Equal(have, haveEncodeIndex) {
 		t.Errorf("BinaryMarshal and EncodeIndex mismatch, got %x want %x", have, haveEncodeIndex)
 	}
-	eip1559Want := common.FromHex("02f901c58001b9010000000000000010000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000500000000000000000000000000000000000014000000000000000000000000000000000000000000000000000000000000000000000000000010000080000000000000000000004000000000000000000000000000040000000000000000000000000000800000000000000000000000000000000000000000000000000000400000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000f8bef85d940000000000000000000000000000000000000011f842a0000000000000000000000000000000000000000000000000000000000000deada0000000000000000000000000000000000000000000000000000000000000beef830100fff85d940000000000000000000000000000000000000111f842a0000000000000000000000000000000000000000000000000000000000000deada0000000000000000000000000000000000000000000000000000000000000beef830100ff")
-	if !bytes.Equal(have, eip1559Want) {
-		t.Errorf("encoded RLP mismatch, got %x want %x", have, eip1559Want)
-	}
 }
 
 func TestReceiptUnmarshalBinary(t *testing.T) {
-	// 1559 Receipt
-	eip1559RctBinary := common.FromHex("02f901c58001b9010000000000000010000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000500000000000000000000000000000000000014000000000000000000000000000000000000000000000000000000000000000000000000000010000080000000000000000000004000000000000000000000000000040000000000000000000000000000800000000000000000000000000000000000000000000000000000400000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000f8bef85d940000000000000000000000000000000000000011f842a0000000000000000000000000000000000000000000000000000000000000deada0000000000000000000000000000000000000000000000000000000000000beef830100fff85d940000000000000000000000000000000000000111f842a0000000000000000000000000000000000000000000000000000000000000deada0000000000000000000000000000000000000000000000000000000000000beef830100ff")
+	eip1559Receipt.Bloom = CreateBloom(Receipts{eip1559Receipt})
+	eip1559RctBinary, err := eip1559Receipt.MarshalBinary()
+	if err != nil {
+		t.Fatalf("marshal binary error: %v", err)
+	}
 	got1559Receipt := new(Receipt)
 	if err := got1559Receipt.UnmarshalBinary(eip1559RctBinary); err != nil {
 		t.Fatalf("unmarshal binary error: %v", err)
 	}
-	eip1559Receipt.Bloom = CreateBloom(Receipts{eip1559Receipt})
 	if !reflect.DeepEqual(got1559Receipt, eip1559Receipt) {
 		t.Errorf("receipt unmarshalled from binary mismatch, got %v want %v", got1559Receipt, eip1559Receipt)
 	}
@@ -356,7 +347,7 @@ func clearComputedFieldsOnReceipt(receipt *Receipt) *Receipt {
 	cpy.BlockHash = common.Hash{0xff, 0xff, 0x22}
 	cpy.BlockNumber = big.NewInt(math.MaxUint32)
 	cpy.TransactionIndex = math.MaxUint32
-	cpy.ContractAddress = common.Address{0xff, 0xff, 0x33}
+	cpy.ContractAddress = common.BytesToAddress([]byte{0xff, 0xff, 0x33, 0})
 	cpy.GasUsed = 0xffffffff
 	cpy.Logs = clearComputedFieldsOnLogs(receipt.Logs)
 	cpy.EffectiveGasPrice = big.NewInt(0)

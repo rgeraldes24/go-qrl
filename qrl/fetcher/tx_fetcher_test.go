@@ -31,10 +31,10 @@ import (
 )
 
 var (
-	to0 = common.Address{0x0f}
-	to1 = common.Address{0xbb}
-	to2 = common.Address{0x86}
-	to3 = common.Address{0xac}
+	to0 = common.BytesToAddress([]byte{0x0f, 0})
+	to1 = common.BytesToAddress([]byte{0xbb, 0})
+	to2 = common.BytesToAddress([]byte{0x86, 0})
+	to3 = common.BytesToAddress([]byte{0xac, 0})
 	// testTxs is a set of transactions to use during testing that have meaningful hashes.
 	testTxs = []*types.Transaction{
 		types.NewTx(&types.DynamicFeeTx{Nonce: 5577006791947779410, To: &to0, Value: new(big.Int), Gas: 0, GasFeeCap: new(big.Int), Data: nil}),

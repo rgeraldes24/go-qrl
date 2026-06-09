@@ -121,19 +121,18 @@ func readBool(word []byte) (bool, error) {
 	}
 }
 
-// A function type is simply the address with the function selection signature at the end.
-//
-// readFunctionType enforces that standard by always presenting it as a 24-array (address + sig = 24 bytes)
-func readFunctionType(t Type, word []byte) (funcTy [24]byte, err error) {
+// A function type is the address with the function selection signature at the end.
+func readFunctionType(t Type, word []byte) (funcTy [common.AddressLength + 4]byte, err error) {
 	if t.T != FunctionTy {
-		return [24]byte{}, errors.New("abi: invalid type in call to make function type byte array")
+		return [common.AddressLength + 4]byte{}, errors.New("abi: invalid type in call to make function type byte array")
 	}
-	if garbage := binary.BigEndian.Uint64(word[24:32]); garbage != 0 {
-		err = fmt.Errorf("abi: got improperly encoded function type, got %v", word)
-	} else {
-		copy(funcTy[:], word[0:24])
+	for _, b := range word[common.AddressLength+4:] {
+		if b != 0 {
+			return funcTy, fmt.Errorf("abi: got improperly encoded function type, got %v", word)
+		}
 	}
-	return
+	copy(funcTy[:], word[:common.AddressLength+4])
+	return funcTy, nil
 }
 
 // ReadFixedBytes uses reflection to create a fixed array to be read from.
@@ -191,28 +190,16 @@ func forEachUnpack(t Type, output []byte, start, size int) (any, error) {
 
 func forTupleUnpack(t Type, output []byte) (any, error) {
 	retval := reflect.New(t.GetType()).Elem()
-	virtualArgs := 0
+	offset := 0
 	for index, elem := range t.TupleElems {
-		marshalledValue, err := toGoType((index+virtualArgs)*32, *elem, output)
+		marshalledValue, err := toGoType(offset, *elem, output)
 		if err != nil {
 			return nil, err
 		}
-		if elem.T == ArrayTy && !isDynamicType(*elem) {
-			// If we have a static array, like [3]uint256, these are coded as
-			// just like uint256,uint256,uint256.
-			// This means that we need to add two 'virtual' arguments when
-			// we count the index from now on.
-			//
-			// Array values nested multiple levels deep are also encoded inline:
-			// [2][3]uint256: uint256,uint256,uint256,uint256,uint256,uint256
-			//
-			// Calculate the full array size to get the correct offset for the next argument.
-			// Decrement it by 1, as the normal index increment is still applied.
-			virtualArgs += getTypeSize(*elem)/32 - 1
-		} else if elem.T == TupleTy && !isDynamicType(*elem) {
-			// If we have a static tuple, like (uint256, bool, uint256), these are
-			// coded as just like uint256,bool,uint256
-			virtualArgs += getTypeSize(*elem)/32 - 1
+		if isDynamicType(*elem) {
+			offset += 32
+		} else {
+			offset += getTypeSize(*elem)
 		}
 		retval.Field(index).Set(reflect.ValueOf(marshalledValue))
 	}
@@ -222,8 +209,12 @@ func forTupleUnpack(t Type, output []byte) (any, error) {
 // toGoType parses the output bytes and recursively assigns the value of these bytes
 // into a go type with accordance with the ABI spec.
 func toGoType(index int, t Type, output []byte) (any, error) {
-	if index+32 > len(output) {
-		return nil, fmt.Errorf("abi: cannot marshal in to go type: length insufficient %d require %d", len(output), index+32)
+	headSize := 32
+	if !isDynamicType(t) {
+		headSize = getTypeSize(t)
+	}
+	if index+headSize > len(output) {
+		return nil, fmt.Errorf("abi: cannot marshal in to go type: length insufficient %d require %d", len(output), index+headSize)
 	}
 
 	var (
@@ -239,7 +230,7 @@ func toGoType(index int, t Type, output []byte) (any, error) {
 			return nil, err
 		}
 	} else {
-		returnOutput = output[index : index+32]
+		returnOutput = output[index : index+headSize]
 	}
 
 	switch t.T {

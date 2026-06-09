@@ -34,6 +34,12 @@ var hasherPool = sync.Pool{
 	},
 }
 
+var hasher512Pool = sync.Pool{
+	New: func() any {
+		return sha3.NewLegacyKeccak512().(KeccakState)
+	},
+}
+
 // Keccak256 calculates and returns the Keccak256 hash of the input data.
 func Keccak256(data ...[]byte) []byte {
 	b := make([]byte, 32)
@@ -58,4 +64,17 @@ func Keccak256Hash(data ...[]byte) (h common.Hash) {
 	d.Read(h[:])
 	hasherPool.Put(d)
 	return h
+}
+
+// Keccak512 calculates and returns the 64-byte Keccak512 hash of the input data.
+func Keccak512(data ...[]byte) []byte {
+	b := make([]byte, common.AddressLength)
+	d := hasher512Pool.Get().(KeccakState)
+	d.Reset()
+	for _, b := range data {
+		d.Write(b)
+	}
+	d.Read(b)
+	hasher512Pool.Put(d)
+	return b
 }

@@ -100,7 +100,7 @@ func TestExecute(t *testing.T) {
 
 func TestCall(t *testing.T) {
 	state, _ := state.New(types.EmptyRootHash, state.NewDatabase(rawdb.NewMemoryDatabase()), nil)
-	address, _ := common.NewAddressFromString("Q000000000000000000000000000000000000000a")
+	address := common.BytesToAddress([]byte{0x0a, 0})
 	state.SetCode(address, []byte{
 		byte(vm.PUSH1), 10,
 		byte(vm.PUSH1), 0,
@@ -197,7 +197,7 @@ func BenchmarkQRVM_CREATE2_1200(bench *testing.B) {
 }
 
 func fakeHeader(n uint64, parentHash common.Hash) *types.Header {
-	coinbase, _ := common.NewAddressFromString("Q00000000000000000000000000000000deadbeef")
+	coinbase := common.BytesToAddress(common.Hex2Bytes("deadbeef"))
 	header := types.Header{
 		Coinbase:   coinbase,
 		Number:     big.NewInt(int64(n)),
@@ -327,12 +327,12 @@ func benchmarkNonModifyingCode(gas uint64, code []byte, name string, tracerCode 
 		sender      = vm.AccountRef(cfg.Origin)
 	)
 	cfg.State.CreateAccount(destination)
-	eoa, _ := common.NewAddressFromString("Q00000000000000000000000000000000000000E0")
+	eoa := common.BytesToAddress([]byte{0xe0, 0})
 	{
 		cfg.State.CreateAccount(eoa)
 		cfg.State.SetNonce(eoa, 100)
 	}
-	reverting, _ := common.NewAddressFromString("Q00000000000000000000000000000000000000EE")
+	reverting := common.BytesToAddress([]byte{0xee, 0})
 	{
 		cfg.State.CreateAccount(reverting)
 		cfg.State.SetCode(reverting, []byte{
@@ -362,10 +362,10 @@ func BenchmarkSimpleLoop(b *testing.B) {
 		byte(vm.JUMPDEST), //  [ count ]
 		// push args for the call
 		byte(vm.PUSH1), 0, // out size
-		byte(vm.DUP1),       // out offset
-		byte(vm.DUP1),       // out insize
-		byte(vm.DUP1),       // in offset
-		byte(vm.PUSH1), 0x4, // address of identity
+		byte(vm.DUP1),                            // out offset
+		byte(vm.DUP1),                            // out insize
+		byte(vm.DUP1),                            // in offset
+		byte(vm.PUSH1), 0x0, byte(vm.PUSH1), 0x4, // address hi, lo of identity
 		byte(vm.GAS), // gas
 		byte(vm.STATICCALL),
 		byte(vm.POP),      // pop return value
@@ -377,11 +377,11 @@ func BenchmarkSimpleLoop(b *testing.B) {
 		byte(vm.JUMPDEST), //  [ count ]
 		// push args for the call
 		byte(vm.PUSH1), 0, // out size
-		byte(vm.DUP1),       // out offset
-		byte(vm.DUP1),       // out insize
-		byte(vm.DUP1),       // in offset
-		byte(vm.DUP1),       // value
-		byte(vm.PUSH1), 0x4, // address of identity
+		byte(vm.DUP1),                            // out offset
+		byte(vm.DUP1),                            // out insize
+		byte(vm.DUP1),                            // in offset
+		byte(vm.DUP1),                            // value
+		byte(vm.PUSH1), 0x0, byte(vm.PUSH1), 0x4, // address hi, lo of identity
 		byte(vm.GAS), // gas
 		byte(vm.CALL),
 		byte(vm.POP),      // pop return value
@@ -393,11 +393,11 @@ func BenchmarkSimpleLoop(b *testing.B) {
 		byte(vm.JUMPDEST), //  [ count ]
 		// push args for the call
 		byte(vm.PUSH1), 0, // out size
-		byte(vm.DUP1),        // out offset
-		byte(vm.DUP1),        // out insize
-		byte(vm.DUP1),        // in offset
-		byte(vm.DUP1),        // value
-		byte(vm.PUSH1), 0xff, // address of existing contract
+		byte(vm.DUP1),                             // out offset
+		byte(vm.DUP1),                             // out insize
+		byte(vm.DUP1),                             // in offset
+		byte(vm.DUP1),                             // value
+		byte(vm.PUSH1), 0x0, byte(vm.PUSH1), 0xff, // address hi, lo of existing contract
 		byte(vm.GAS), // gas
 		byte(vm.CALL),
 		byte(vm.POP),      // pop return value
@@ -409,11 +409,11 @@ func BenchmarkSimpleLoop(b *testing.B) {
 		byte(vm.JUMPDEST), //  [ count ]
 		// push args for the call
 		byte(vm.PUSH1), 0, // out size
-		byte(vm.DUP1),        // out offset
-		byte(vm.DUP1),        // out insize
-		byte(vm.DUP1),        // in offset
-		byte(vm.DUP1),        // value
-		byte(vm.PUSH1), 0xE0, // address of EOA
+		byte(vm.DUP1),                             // out offset
+		byte(vm.DUP1),                             // out insize
+		byte(vm.DUP1),                             // in offset
+		byte(vm.DUP1),                             // value
+		byte(vm.PUSH1), 0x0, byte(vm.PUSH1), 0xE0, // address hi, lo of EOA
 		byte(vm.GAS), // gas
 		byte(vm.CALL),
 		byte(vm.POP),      // pop return value
@@ -425,13 +425,13 @@ func BenchmarkSimpleLoop(b *testing.B) {
 		byte(vm.JUMPDEST), //  [ count ]
 		// push args for the call
 		byte(vm.PUSH1), 0, // out size
-		byte(vm.DUP1),       // out offset
-		byte(vm.DUP1),       // out insize
-		byte(vm.DUP1),       // in offset
-		byte(vm.PUSH1), 0x4, // address of identity
+		byte(vm.DUP1),                            // out offset
+		byte(vm.DUP1),                            // out insize
+		byte(vm.DUP1),                            // in offset
+		byte(vm.PUSH1), 0x0, byte(vm.PUSH1), 0x4, // address hi, lo of identity
 		byte(vm.GAS), // gas
 
-		byte(vm.POP), byte(vm.POP), byte(vm.POP), byte(vm.POP), byte(vm.POP), byte(vm.POP),
+		byte(vm.POP), byte(vm.POP), byte(vm.POP), byte(vm.POP), byte(vm.POP), byte(vm.POP), byte(vm.POP),
 		byte(vm.PUSH1), 0, // jumpdestination
 		byte(vm.JUMP),
 	}
@@ -444,7 +444,7 @@ func BenchmarkSimpleLoop(b *testing.B) {
 		byte(vm.PUSH1), 0x20, // in size
 		byte(vm.PUSH1), 0x00, // in offset
 		byte(vm.PUSH1), 0x00, // value
-		byte(vm.PUSH1), 0xEE, // address of reverting contract
+		byte(vm.PUSH1), 0x0, byte(vm.PUSH1), 0xEE, // address hi, lo of reverting contract
 		byte(vm.GAS), // gas
 		byte(vm.CALL),
 		byte(vm.POP),      // pop return value
@@ -490,17 +490,17 @@ func TestEip2929Cases(t *testing.T) {
 	{ // First eip testcase
 		code := []byte{
 			// Three checks against a precompile
-			byte(vm.PUSH1), 1, byte(vm.EXTCODEHASH), byte(vm.POP),
-			byte(vm.PUSH1), 2, byte(vm.EXTCODESIZE), byte(vm.POP),
-			byte(vm.PUSH1), 3, byte(vm.BALANCE), byte(vm.POP),
+			byte(vm.PUSH1), 0, byte(vm.PUSH1), 1, byte(vm.EXTCODEHASH), byte(vm.POP),
+			byte(vm.PUSH1), 0, byte(vm.PUSH1), 2, byte(vm.EXTCODESIZE), byte(vm.POP),
+			byte(vm.PUSH1), 0, byte(vm.PUSH1), 3, byte(vm.BALANCE), byte(vm.POP),
 			// Three checks against a non-precompile
-			byte(vm.PUSH1), 0xf1, byte(vm.EXTCODEHASH), byte(vm.POP),
-			byte(vm.PUSH1), 0xf2, byte(vm.EXTCODESIZE), byte(vm.POP),
-			byte(vm.PUSH1), 0xf3, byte(vm.BALANCE), byte(vm.POP),
+			byte(vm.PUSH1), 0, byte(vm.PUSH1), 0xf1, byte(vm.EXTCODEHASH), byte(vm.POP),
+			byte(vm.PUSH1), 0, byte(vm.PUSH1), 0xf2, byte(vm.EXTCODESIZE), byte(vm.POP),
+			byte(vm.PUSH1), 0, byte(vm.PUSH1), 0xf3, byte(vm.BALANCE), byte(vm.POP),
 			// Same three checks (should be cheaper)
-			byte(vm.PUSH1), 0xf2, byte(vm.EXTCODEHASH), byte(vm.POP),
-			byte(vm.PUSH1), 0xf3, byte(vm.EXTCODESIZE), byte(vm.POP),
-			byte(vm.PUSH1), 0xf1, byte(vm.BALANCE), byte(vm.POP),
+			byte(vm.PUSH1), 0, byte(vm.PUSH1), 0xf2, byte(vm.EXTCODEHASH), byte(vm.POP),
+			byte(vm.PUSH1), 0, byte(vm.PUSH1), 0xf3, byte(vm.EXTCODESIZE), byte(vm.POP),
+			byte(vm.PUSH1), 0, byte(vm.PUSH1), 0xf1, byte(vm.BALANCE), byte(vm.POP),
 			// Check the origin, and the 'this'
 			byte(vm.ORIGIN), byte(vm.BALANCE), byte(vm.POP),
 			byte(vm.ADDRESS), byte(vm.BALANCE), byte(vm.POP),
@@ -516,10 +516,10 @@ func TestEip2929Cases(t *testing.T) {
 		code := []byte{
 			// extcodecopy( 0xff,0,0,0,0)
 			byte(vm.PUSH1), 0x00, byte(vm.PUSH1), 0x00, byte(vm.PUSH1), 0x00, //length, codeoffset, memoffset
-			byte(vm.PUSH1), 0xff, byte(vm.EXTCODECOPY),
+			byte(vm.PUSH1), 0, byte(vm.PUSH1), 0xff, byte(vm.EXTCODECOPY),
 			// extcodecopy( 0xff,0,0,0,0)
 			byte(vm.PUSH1), 0x00, byte(vm.PUSH1), 0x00, byte(vm.PUSH1), 0x00, //length, codeoffset, memoffset
-			byte(vm.PUSH1), 0xff, byte(vm.EXTCODECOPY),
+			byte(vm.PUSH1), 0, byte(vm.PUSH1), 0xff, byte(vm.EXTCODECOPY),
 			// extcodecopy( this,0,0,0,0)
 			byte(vm.PUSH1), 0x00, byte(vm.PUSH1), 0x00, byte(vm.PUSH1), 0x00, //length, codeoffset, memoffset
 			byte(vm.ADDRESS), byte(vm.EXTCODECOPY),
@@ -553,15 +553,15 @@ func TestEip2929Cases(t *testing.T) {
 		code := []byte{
 			// identity precompile
 			byte(vm.PUSH1), 0x0, byte(vm.DUP1), byte(vm.DUP1), byte(vm.DUP1), byte(vm.DUP1),
-			byte(vm.PUSH1), 0x04, byte(vm.PUSH1), 0x0, byte(vm.CALL), byte(vm.POP),
+			byte(vm.PUSH1), 0x00, byte(vm.PUSH1), 0x04, byte(vm.PUSH1), 0x0, byte(vm.CALL), byte(vm.POP),
 
 			// random account - call 1
 			byte(vm.PUSH1), 0x0, byte(vm.DUP1), byte(vm.DUP1), byte(vm.DUP1), byte(vm.DUP1),
-			byte(vm.PUSH1), 0xff, byte(vm.PUSH1), 0x0, byte(vm.CALL), byte(vm.POP),
+			byte(vm.PUSH1), 0x00, byte(vm.PUSH1), 0xff, byte(vm.PUSH1), 0x0, byte(vm.CALL), byte(vm.POP),
 
 			// random account - call 2
 			byte(vm.PUSH1), 0x0, byte(vm.DUP1), byte(vm.DUP1), byte(vm.DUP1), byte(vm.DUP1),
-			byte(vm.PUSH1), 0xff, byte(vm.PUSH1), 0x0, byte(vm.STATICCALL), byte(vm.POP),
+			byte(vm.PUSH1), 0x00, byte(vm.PUSH1), 0xff, byte(vm.PUSH1), 0x0, byte(vm.STATICCALL), byte(vm.POP),
 		}
 		prettyPrint("This calls the `identity`-precompile (cheap), then calls an account (expensive) and `staticcall`s the same"+
 			"account (cheap)", code)
@@ -578,41 +578,41 @@ func TestColdAccountAccessCost(t *testing.T) {
 		want uint64
 	}{
 		{ // EXTCODEHASH(0xff)
-			code: []byte{byte(vm.PUSH1), 0xFF, byte(vm.EXTCODEHASH), byte(vm.POP)},
-			step: 1,
+			code: []byte{byte(vm.PUSH1), 0x00, byte(vm.PUSH1), 0xFF, byte(vm.EXTCODEHASH), byte(vm.POP)},
+			step: 2,
 			want: 2600,
 		},
 		{ // BALANCE(0xff)
-			code: []byte{byte(vm.PUSH1), 0xFF, byte(vm.BALANCE), byte(vm.POP)},
-			step: 1,
+			code: []byte{byte(vm.PUSH1), 0x00, byte(vm.PUSH1), 0xFF, byte(vm.BALANCE), byte(vm.POP)},
+			step: 2,
 			want: 2600,
 		},
 		{ // CALL(0xff)
 			code: []byte{
 				byte(vm.PUSH1), 0x0,
 				byte(vm.DUP1), byte(vm.DUP1), byte(vm.DUP1), byte(vm.DUP1),
-				byte(vm.PUSH1), 0xff, byte(vm.DUP1), byte(vm.CALL), byte(vm.POP),
+				byte(vm.PUSH1), 0x00, byte(vm.PUSH1), 0xff, byte(vm.PUSH1), 0x00, byte(vm.CALL), byte(vm.POP),
 			},
-			step: 7,
-			want: 2855,
+			step: 8,
+			want: 2600,
 		},
 		{ // DELEGATECALL(0xff)
 			code: []byte{
 				byte(vm.PUSH1), 0x0,
 				byte(vm.DUP1), byte(vm.DUP1), byte(vm.DUP1),
-				byte(vm.PUSH1), 0xff, byte(vm.DUP1), byte(vm.DELEGATECALL), byte(vm.POP),
+				byte(vm.PUSH1), 0x00, byte(vm.PUSH1), 0xff, byte(vm.PUSH1), 0x00, byte(vm.DELEGATECALL), byte(vm.POP),
 			},
-			step: 6,
-			want: 2855,
+			step: 7,
+			want: 2600,
 		},
 		{ // STATICCALL(0xff)
 			code: []byte{
 				byte(vm.PUSH1), 0x0,
 				byte(vm.DUP1), byte(vm.DUP1), byte(vm.DUP1),
-				byte(vm.PUSH1), 0xff, byte(vm.DUP1), byte(vm.STATICCALL), byte(vm.POP),
+				byte(vm.PUSH1), 0x00, byte(vm.PUSH1), 0xff, byte(vm.PUSH1), 0x00, byte(vm.STATICCALL), byte(vm.POP),
 			},
-			step: 6,
-			want: 2855,
+			step: 7,
+			want: 2600,
 		},
 	} {
 		tracer := logger.NewStructLogger(nil)
@@ -677,9 +677,9 @@ func TestRuntimeJSTracer(t *testing.T) {
 				// length, offset, value
 				byte(vm.PUSH1), 5, byte(vm.PUSH1), 27, byte(vm.PUSH1), 0,
 				byte(vm.CREATE),
-				byte(vm.POP),
+				byte(vm.POP), byte(vm.POP),
 			},
-			results: []string{`"1,1,952853,6,12"`, `"1,1,952853,6,0"`},
+			results: []string{`"1,1,952853,6,13"`, `"1,1,952853,6,0"`},
 		},
 		{
 			// CREATE2
@@ -693,9 +693,9 @@ func TestRuntimeJSTracer(t *testing.T) {
 				// salt, length, offset, value
 				byte(vm.PUSH1), 1, byte(vm.PUSH1), 5, byte(vm.PUSH1), 27, byte(vm.PUSH1), 0,
 				byte(vm.CREATE2),
-				byte(vm.POP),
+				byte(vm.POP), byte(vm.POP),
 			},
-			results: []string{`"1,1,952844,6,13"`, `"1,1,952844,6,0"`},
+			results: []string{`"1,1,952844,6,14"`, `"1,1,952844,6,0"`},
 		},
 		{
 			// CALL
@@ -703,36 +703,36 @@ func TestRuntimeJSTracer(t *testing.T) {
 				// outsize, outoffset, insize, inoffset
 				byte(vm.PUSH1), 0, byte(vm.PUSH1), 0, byte(vm.PUSH1), 0, byte(vm.PUSH1), 0,
 				byte(vm.PUSH1), 0, // value
-				byte(vm.PUSH1), 0xbb, //address
+				byte(vm.PUSH1), 0, byte(vm.PUSH2), 0xbb, 0, // address hi, lo
 				byte(vm.GAS), // gas
 				byte(vm.CALL),
 				byte(vm.POP),
 			},
-			results: []string{`"1,1,981796,6,13"`, `"1,1,981796,6,0"`},
+			results: []string{`"1,1,981793,6,14"`, `"1,1,981793,6,0"`},
 		},
 		{
 			// STATICCALL
 			code: []byte{
 				// outsize, outoffset, insize, inoffset
 				byte(vm.PUSH1), 0, byte(vm.PUSH1), 0, byte(vm.PUSH1), 0, byte(vm.PUSH1), 0,
-				byte(vm.PUSH1), 0xdd, //address
+				byte(vm.PUSH1), 0, byte(vm.PUSH2), 0xdd, 0, // address hi, lo
 				byte(vm.GAS), // gas
 				byte(vm.STATICCALL),
 				byte(vm.POP),
 			},
-			results: []string{`"1,1,981799,6,12"`, `"1,1,981799,6,0"`},
+			results: []string{`"1,1,981796,6,13"`, `"1,1,981796,6,0"`},
 		},
 		{
 			// DELEGATECALL
 			code: []byte{
 				// outsize, outoffset, insize, inoffset
 				byte(vm.PUSH1), 0, byte(vm.PUSH1), 0, byte(vm.PUSH1), 0, byte(vm.PUSH1), 0,
-				byte(vm.PUSH1), 0xee, //address
+				byte(vm.PUSH1), 0, byte(vm.PUSH2), 0xee, 0, // address hi, lo
 				byte(vm.GAS), // gas
 				byte(vm.DELEGATECALL),
 				byte(vm.POP),
 			},
-			results: []string{`"1,1,981799,6,12"`, `"1,1,981799,6,0"`},
+			results: []string{`"1,1,981796,6,13"`, `"1,1,981796,6,0"`},
 		},
 	}
 	calleeCode := []byte{
@@ -740,11 +740,11 @@ func TestRuntimeJSTracer(t *testing.T) {
 		byte(vm.PUSH1), 0,
 		byte(vm.RETURN),
 	}
-	main, _ := common.NewAddressFromString("Q00000000000000000000000000000000000000aa")
-	address0, _ := common.NewAddressFromString("Q00000000000000000000000000000000000000bb")
-	address1, _ := common.NewAddressFromString("Q00000000000000000000000000000000000000cc")
-	address2, _ := common.NewAddressFromString("Q00000000000000000000000000000000000000dd")
-	address3, _ := common.NewAddressFromString("Q00000000000000000000000000000000000000ee")
+	main := common.BytesToAddress([]byte{0xaa, 0})
+	address0 := common.BytesToAddress([]byte{0xbb, 0})
+	address1 := common.BytesToAddress([]byte{0xcc, 0})
+	address2 := common.BytesToAddress([]byte{0xdd, 0})
+	address3 := common.BytesToAddress([]byte{0xee, 0})
 	for i, jsTracer := range jsTracers {
 		for j, tc := range tests {
 			statedb, _ := state.New(types.EmptyRootHash, state.NewDatabase(rawdb.NewMemoryDatabase()), nil)
