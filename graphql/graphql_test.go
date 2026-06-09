@@ -33,6 +33,7 @@ import (
 	"github.com/theQRL/go-qrl/core/types"
 	"github.com/theQRL/go-qrl/core/vm"
 	"github.com/theQRL/go-qrl/crypto/pqcrypto/wallet"
+	"github.com/theQRL/go-qrl/internal/testutil"
 	"github.com/theQRL/go-qrl/node"
 	"github.com/theQRL/go-qrl/params"
 	"github.com/theQRL/go-qrl/qrl"
@@ -141,7 +142,7 @@ func TestGraphQLBlockSerialization(t *testing.T) {
 		},
 		// should return `status` as decimal
 		{
-			body: `{"query": "{block {number call (data : {from : \"Qa94f5374fce5edbc8e2a8697c15331677e6ebf0b\", to: \"Q6295ee1b4f6dd65047762f924ecd367c17eabf8f\", data :\"0x12a7b914\"}){data status}}}"}`,
+			body: `{"query": "{block {number call (data : {from : \"Qbe6c1fd78f40b86a24dc2d7d633e2912d71e5d166f8be2c850d5727f0adcc170c7741b784295eae0c4f28291d0928dc7a94f5374fce5edbc8e2a8697c1533167\", to: \"Q6295ee1b4f6dd65047762f924ecd367c17eabf8f6295ee1b4f6dd65047762f924ecd367c17eabf8f11223344556677886295ee1b4f6dd65047762f924ecd367c\", data :\"0x12a7b914\"}){data status}}}"}`,
 			want: `{"data":{"block":{"number":"0xa","call":{"data":"0x","status":"0x1"}}}}`,
 			code: 200,
 		},
@@ -167,10 +168,12 @@ func TestGraphQLBlockSerialization(t *testing.T) {
 func TestGraphQLBlockSerializationEIP2718(t *testing.T) {
 	// Account for signing txes
 	var (
-		wallet, _ = wallet.RestoreFromSeedHex("0x010000f29f58aff0b00de2844f7e20bd9eeaacc379150043beeb328335817512b29fbb7184da84a092f842b2a06d72a24a5d28")
-		address   = wallet.GetAddress()
-		funds     = big.NewInt(1000000000000000)
-		dad, _    = common.NewAddressFromString("Q0000000000000000000000000000000000000dad")
+		wallet  = testutil.LoadAccount(t, "dave").Wallet(t)
+		address = wallet.GetAddress()
+		funds   = big.NewInt(1000000000000000000)
+		// 64-byte "dad" address: the 0xdad marker lives in the lowest two
+		// bytes, everything else is zero.
+		dad = common.BytesToAddress([]byte{0x0d, 0xad})
 	)
 	stack := createNode(t)
 	defer stack.Close()
@@ -189,6 +192,7 @@ func TestGraphQLBlockSerializationEIP2718(t *testing.T) {
 		BaseFee: big.NewInt(params.InitialBaseFee),
 	}
 	signer := types.LatestSigner(genesis.Config)
+	var txHashes []common.Hash
 	newGQLService(t, stack, genesis, 1, func(i int, gen *core.BlockGen) {
 		gen.SetCoinbase(common.Address{1})
 		tx, _ := types.SignNewTx(wallet, signer, &types.DynamicFeeTx{
@@ -199,6 +203,7 @@ func TestGraphQLBlockSerializationEIP2718(t *testing.T) {
 			GasFeeCap: big.NewInt(params.InitialBaseFee),
 		})
 		gen.AddTx(tx)
+		txHashes = append(txHashes, tx.Hash())
 		tx, _ = types.SignNewTx(wallet, signer, &types.DynamicFeeTx{
 			ChainID:   genesis.Config.ChainID,
 			Nonce:     uint64(1),
@@ -212,6 +217,7 @@ func TestGraphQLBlockSerializationEIP2718(t *testing.T) {
 			}},
 		})
 		gen.AddTx(tx)
+		txHashes = append(txHashes, tx.Hash())
 	})
 	// start node
 	if err := stack.Start(); err != nil {
@@ -225,7 +231,11 @@ func TestGraphQLBlockSerializationEIP2718(t *testing.T) {
 	}{
 		{
 			body: `{"query": "{block {number transactions { from { address } to { address } value hash type accessList { address storageKeys } index}}}"}`,
-			want: `{"data":{"block":{"number":"0x1","transactions":[{"from":{"address":"Qd5812f6cf4a0f645aa620cd57319a0ed649dd8f5"},"to":{"address":"Q0000000000000000000000000000000000000dad"},"value":"0x64","hash":"0xaccc1bbdcc246afeee7dec4c3dd9b3da84755774a696a6822fb5fe716f14254f","type":"0x2","accessList":[],"index":"0x0"},{"from":{"address":"Qd5812f6cf4a0f645aa620cd57319a0ed649dd8f5"},"to":{"address":"Q0000000000000000000000000000000000000dad"},"value":"0x32","hash":"0xeb6a6e0f5f64894f783b48b6fb1da060df829ca9fa776ff3ab60ae6dcd668ce5","type":"0x2","accessList":[{"address":"Q0000000000000000000000000000000000000dad","storageKeys":["0x0000000000000000000000000000000000000000000000000000000000000000"]}],"index":"0x1"}]}}}`,
+			// Addresses widen to 128 hex chars and tx hashes change because
+			// the from/to/accessList fields now carry 64-byte values.
+			want: fmt.Sprintf(`{"data":{"block":{"number":"0x1","transactions":[{"from":{"address":"%s"},"to":{"address":"%s"},"value":"0x64","hash":"%s","type":"0x2","accessList":[],"index":"0x0"},{"from":{"address":"%s"},"to":{"address":"%s"},"value":"0x32","hash":"%s","type":"0x2","accessList":[{"address":"%s","storageKeys":["0x0000000000000000000000000000000000000000000000000000000000000000"]}],"index":"0x1"}]}}}`,
+				common.Address(address).Hex(), dad.Hex(), txHashes[0].Hex(),
+				common.Address(address).Hex(), dad.Hex(), txHashes[1].Hex(), dad.Hex()),
 			code: 200,
 		},
 	} {
@@ -267,16 +277,19 @@ func TestGraphQLHTTPOnSamePort_GQLRequest_Unsuccessful(t *testing.T) {
 func TestGraphQLConcurrentResolvers(t *testing.T) {
 	var (
 		wallet, _ = wallet.Generate(wallet.ML_DSA_87)
-		dadStr    = "Q0000000000000000000000000000000000000dad"
-		dad, _    = common.NewAddressFromString(dadStr)
-		genesis   = &core.Genesis{
+		// A 64-byte address with the "dad" marker at the lowest three
+		// bytes so the test logs have an identifiable address.
+		dad     = common.BytesToAddress([]byte{0x0d, 0xad})
+		dadStr  = dad.Hex()
+		genesis = &core.Genesis{
 			Config:   params.AllBeaconProtocolChanges,
 			GasLimit: 11500000,
 			Alloc: core.GenesisAlloc{
 				wallet.GetAddress(): {Balance: big.NewInt(params.Quanta)},
 				dad: {
-					// LOG0(0, 0), LOG0(0, 0), RETURN(0, 0)
-					Code:    common.Hex2Bytes("60006000a060006000a060006000f3"),
+					// LOG0(0, 0), LOG0(0, 0), RETURN(0, 0). LOG0 moved
+					// from 0xa0 to 0xc0 in the 512-bit VM opcode shift.
+					Code:    common.Hex2Bytes("60006000c060006000c060006000f3"),
 					Nonce:   0,
 					Balance: big.NewInt(0),
 				},
@@ -314,7 +327,7 @@ func TestGraphQLConcurrentResolvers(t *testing.T) {
 		// because resolving the tx body belonging to a log is delayed.
 		{
 			body: `{block { logs(filter: {}) { transaction { nonce value maxFeePerGas }}}}`,
-			want: `{"block":{"logs":[{"transaction":{"nonce":"0x0","value":"0x0","maxFeePerGas":"0x3b9aca00"}},{"transaction":{"nonce":"0x0","value":"0x0","maxFeePerGas":"0x3b9aca00"}},{"transaction":{"nonce":"0x1","value":"0x0","maxFeePerGas":"0x3b9aca00"}},{"transaction":{"nonce":"0x1","value":"0x0","maxFeePerGas":"0x3b9aca00"}},{"transaction":{"nonce":"0x2","value":"0x0","maxFeePerGas":"0x3b9aca00"}},{"transaction":{"nonce":"0x2","value":"0x0","maxFeePerGas":"0x3b9aca00"}}]}}`,
+			want: `{"block":{"logs":[{"transaction":{"nonce":"0x0","value":"0x0","maxFeePerGas":"0x174876e800"}},{"transaction":{"nonce":"0x0","value":"0x0","maxFeePerGas":"0x174876e800"}},{"transaction":{"nonce":"0x1","value":"0x0","maxFeePerGas":"0x174876e800"}},{"transaction":{"nonce":"0x1","value":"0x0","maxFeePerGas":"0x174876e800"}},{"transaction":{"nonce":"0x2","value":"0x0","maxFeePerGas":"0x174876e800"}},{"transaction":{"nonce":"0x2","value":"0x0","maxFeePerGas":"0x174876e800"}}]}}`,
 		},
 		// Multiple txes of a block race to set/retrieve receipts of a block.
 		{
@@ -334,11 +347,11 @@ func TestGraphQLConcurrentResolvers(t *testing.T) {
 		// Account fields race the resolve the state object.
 		{
 			body: fmt.Sprintf(`{ block { account(address: "%s") { balance transactionCount code } } }`, dadStr),
-			want: `{"block":{"account":{"balance":"0x0","transactionCount":"0x0","code":"0x60006000a060006000a060006000f3"}}}`,
+			want: `{"block":{"account":{"balance":"0x0","transactionCount":"0x0","code":"0x60006000c060006000c060006000f3"}}}`,
 		},
 		// Test values for a non-existent account.
 		{
-			body: fmt.Sprintf(`{ block { account(address: "%s") { balance transactionCount code } } }`, "Q1111111111111111111111111111111111111111"),
+			body: fmt.Sprintf(`{ block { account(address: "%s") { balance transactionCount code } } }`, "Q11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111"),
 			want: `{"block":{"account":{"balance":"0x0","transactionCount":"0x0","code":"0x"}}}`,
 		},
 	} {
@@ -396,7 +409,7 @@ func TestWithdrawals(t *testing.T) {
 		},
 		{
 			body: "{block(number: 1) { withdrawalsRoot withdrawals { validator amount } } }",
-			want: `{"block":{"withdrawalsRoot":"0x8418fc1a48818928f6692f148e9b10e99a88edc093b095cb8ca97950284b553d","withdrawals":[{"validator":"0x5","amount":"0xa"}]}}`,
+			want: `{"block":{"withdrawalsRoot":"0xaa813d09af1a68c5a1504f6b586e5803e976b3270992d4c4efa074289841228b","withdrawals":[{"validator":"0x5","amount":"0xa"}]}}`,
 		},
 	} {
 		res := handler.Schema.Exec(t.Context(), tt.body, "", map[string]any{})

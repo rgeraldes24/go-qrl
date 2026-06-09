@@ -63,7 +63,10 @@ var (
 	// Files that end up in the gqrl-alltools*.zip archive.
 	allToolsArchiveFiles = []string{
 		"COPYING",
+		executablePath("abidump"),
 		executablePath("abigen"),
+		executablePath("devp2p"),
+		executablePath("qrlkey"),
 		executablePath("qrvm"),
 		executablePath("gqrl"),
 		executablePath("rlpdump"),

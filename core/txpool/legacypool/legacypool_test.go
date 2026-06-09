@@ -23,6 +23,7 @@ import (
 	"math/big"
 	"math/rand"
 	"os"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -303,6 +304,31 @@ func TestStateChangeDuringReset(t *testing.T) {
 	nonce = pool.Nonce(address)
 	if nonce != 2 {
 		t.Fatalf("Invalid nonce, want 2, got %d", nonce)
+	}
+}
+
+func TestRejectNonEmptyExtraParams(t *testing.T) {
+	t.Parallel()
+
+	pool, wallet := setupPool()
+	defer pool.Close()
+
+	addr := common.Address(wallet.GetAddress())
+	testAddBalance(pool, addr, big.NewInt(1000000))
+
+	tx := dynamicFeeTx(0, 100000, big.NewInt(1), big.NewInt(1), wallet)
+	signer := types.LatestSignerForChainID(params.TestChainConfig.ChainID)
+	tampered, err := tx.WithAuthValues(signer, tx.RawSignatureValue(), tx.RawPublicKeyValue(), tx.Descriptor(), []byte{0x01})
+	if err != nil {
+		t.Fatalf("re-wrap with extra params: %v", err)
+	}
+
+	err = pool.Add([]*types.Transaction{tampered}, false, false)[0]
+	if !errors.Is(err, txpool.ErrInvalidSender) {
+		t.Fatalf("expected invalid sender, got %v", err)
+	}
+	if err == nil || !strings.Contains(err.Error(), "non-empty extraParams not supported") {
+		t.Fatalf("unexpected error: %v", err)
 	}
 }
 

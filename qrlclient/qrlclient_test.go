@@ -30,7 +30,7 @@ import (
 	"github.com/theQRL/go-qrl/consensus/beacon"
 	"github.com/theQRL/go-qrl/core"
 	"github.com/theQRL/go-qrl/core/types"
-	"github.com/theQRL/go-qrl/crypto/pqcrypto/wallet"
+	"github.com/theQRL/go-qrl/internal/testutil"
 	"github.com/theQRL/go-qrl/node"
 	"github.com/theQRL/go-qrl/params"
 	qrlsvc "github.com/theQRL/go-qrl/qrl"
@@ -55,7 +55,7 @@ var (
 
 func TestToFilterArg(t *testing.T) {
 	blockHashErr := errors.New("cannot specify both BlockHash and FromBlock/ToBlock")
-	address, _ := common.NewAddressFromString("QD36722ADeC3EdCB29c8e7b5a47f352D701393462")
+	address, _ := common.NewAddressFromString("Q00000000000000000000000000000000000000000000000000000000D36722ADeC3EdCB29c8e7b5a47f352D701393462")
 	addresses := []common.Address{
 		address,
 	}
@@ -75,13 +75,13 @@ func TestToFilterArg(t *testing.T) {
 				Addresses: addresses,
 				FromBlock: big.NewInt(1),
 				ToBlock:   big.NewInt(2),
-				Topics:    [][]common.Hash{},
+				Topics:    [][]common.LogTopic{},
 			},
 			map[string]any{
 				"address":   addresses,
 				"fromBlock": "0x1",
 				"toBlock":   "0x2",
-				"topics":    [][]common.Hash{},
+				"topics":    [][]common.LogTopic{},
 			},
 			nil,
 		},
@@ -89,13 +89,13 @@ func TestToFilterArg(t *testing.T) {
 			"with nil fromBlock and nil toBlock",
 			qrl.FilterQuery{
 				Addresses: addresses,
-				Topics:    [][]common.Hash{},
+				Topics:    [][]common.LogTopic{},
 			},
 			map[string]any{
 				"address":   addresses,
 				"fromBlock": "0x0",
 				"toBlock":   "latest",
-				"topics":    [][]common.Hash{},
+				"topics":    [][]common.LogTopic{},
 			},
 			nil,
 		},
@@ -105,13 +105,13 @@ func TestToFilterArg(t *testing.T) {
 				Addresses: addresses,
 				FromBlock: big.NewInt(-1),
 				ToBlock:   big.NewInt(-1),
-				Topics:    [][]common.Hash{},
+				Topics:    [][]common.LogTopic{},
 			},
 			map[string]any{
 				"address":   addresses,
 				"fromBlock": "pending",
 				"toBlock":   "pending",
-				"topics":    [][]common.Hash{},
+				"topics":    [][]common.LogTopic{},
 			},
 			nil,
 		},
@@ -120,12 +120,12 @@ func TestToFilterArg(t *testing.T) {
 			qrl.FilterQuery{
 				Addresses: addresses,
 				BlockHash: &blockHash,
-				Topics:    [][]common.Hash{},
+				Topics:    [][]common.LogTopic{},
 			},
 			map[string]any{
 				"address":   addresses,
 				"blockHash": blockHash,
-				"topics":    [][]common.Hash{},
+				"topics":    [][]common.LogTopic{},
 			},
 			nil,
 		},
@@ -135,7 +135,7 @@ func TestToFilterArg(t *testing.T) {
 				Addresses: addresses,
 				BlockHash: &blockHash,
 				FromBlock: big.NewInt(1),
-				Topics:    [][]common.Hash{},
+				Topics:    [][]common.LogTopic{},
 			},
 			nil,
 			blockHashErr,
@@ -146,7 +146,7 @@ func TestToFilterArg(t *testing.T) {
 				Addresses: addresses,
 				BlockHash: &blockHash,
 				ToBlock:   big.NewInt(1),
-				Topics:    [][]common.Hash{},
+				Topics:    [][]common.LogTopic{},
 			},
 			nil,
 			blockHashErr,
@@ -158,7 +158,7 @@ func TestToFilterArg(t *testing.T) {
 				BlockHash: &blockHash,
 				FromBlock: big.NewInt(1),
 				ToBlock:   big.NewInt(2),
-				Topics:    [][]common.Hash{},
+				Topics:    [][]common.LogTopic{},
 			},
 			nil,
 			blockHashErr,
@@ -181,9 +181,9 @@ func TestToFilterArg(t *testing.T) {
 }
 
 var (
-	testWallet, _ = wallet.RestoreFromSeedHex("010000b71c71a67e1177ad4e901695e1b4b9ee17ae16c6668d313eac2f96dbcda3f29100000000000000000000000000000000")
-	testAddr      = testWallet.GetAddress()
-	testBalance   = big.NewInt(2e15)
+	testWallet  = testutil.MustLoadAccount("alice").MustWallet()
+	testAddr    = testWallet.GetAddress()
+	testBalance = big.NewInt(2e18)
 )
 
 var genesis = &core.Genesis{
@@ -198,8 +198,8 @@ var testTx1 = types.MustSignNewTx(testWallet, types.LatestSigner(genesis.Config)
 	Nonce:     0,
 	Value:     big.NewInt(12),
 	Gas:       params.TxGas,
-	GasTipCap: big.NewInt(765625000),
-	GasFeeCap: big.NewInt(1000000000),
+	GasTipCap: big.NewInt(76562500000),
+	GasFeeCap: big.NewInt(100000000000),
 	To:        &common.Address{2},
 })
 
@@ -207,8 +207,8 @@ var testTx2 = types.MustSignNewTx(testWallet, types.LatestSigner(genesis.Config)
 	Nonce:     1,
 	Value:     big.NewInt(8),
 	Gas:       params.TxGas,
-	GasTipCap: big.NewInt(765625000),
-	GasFeeCap: big.NewInt(1000000000),
+	GasTipCap: big.NewInt(76562500000),
+	GasFeeCap: big.NewInt(100000000000),
 	To:        &common.Address{2},
 })
 
@@ -498,7 +498,7 @@ func testStatusFunctions(t *testing.T, client *rpc.Client) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if gasPrice.Cmp(big.NewInt(1000000000)) != 0 {
+	if gasPrice.Cmp(big.NewInt(100000000000)) != 0 {
 		t.Fatalf("unexpected gas price: %v", gasPrice)
 	}
 
@@ -507,7 +507,7 @@ func testStatusFunctions(t *testing.T, client *rpc.Client) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if gasTipCap.Cmp(big.NewInt(234375000)) != 0 {
+	if gasTipCap.Cmp(big.NewInt(23437500000)) != 0 {
 		t.Fatalf("unexpected gas tip cap: %v", gasTipCap)
 	}
 
@@ -520,13 +520,13 @@ func testStatusFunctions(t *testing.T, client *rpc.Client) {
 		OldestBlock: big.NewInt(2),
 		Reward: [][]*big.Int{
 			{
-				big.NewInt(234375000),
-				big.NewInt(234375000),
+				big.NewInt(23437500000),
+				big.NewInt(23437500000),
 			},
 		},
 		BaseFee: []*big.Int{
-			big.NewInt(765625000),
-			big.NewInt(671627818),
+			big.NewInt(76562500000),
+			big.NewInt(67162781741),
 		},
 		GasUsedRatio: []float64{0.008912678667376286},
 	}
@@ -717,7 +717,7 @@ func sendTransaction(zc *Client) error {
 		To:        &common.Address{2},
 		Value:     big.NewInt(1),
 		Gas:       22000,
-		GasFeeCap: big.NewInt(765625000),
+		GasFeeCap: big.NewInt(100000000000),
 	})
 	if err != nil {
 		return err

@@ -26,20 +26,20 @@ import (
 	"github.com/theQRL/go-qrl/core/rawdb"
 	"github.com/theQRL/go-qrl/core/types"
 	"github.com/theQRL/go-qrl/core/vm"
-	"github.com/theQRL/go-qrl/crypto/pqcrypto/wallet"
+	"github.com/theQRL/go-qrl/internal/testutil"
 	"github.com/theQRL/go-qrl/params"
 	"github.com/theQRL/go-qrl/trie"
 )
 
 func TestGenerateWithdrawalChain(t *testing.T) {
 	var (
-		wallet, _ = wallet.RestoreFromSeedHex("0x0100009c647b8b7c4e7c3490668fb6c11473619db80c93704c70893d3813af4090c39c00000000000000000000000000000000")
-		address   = wallet.GetAddress()
-		aa        = common.Address{0xaa}
-		bb        = common.Address{0xbb}
-		funds     = big.NewInt(0).Mul(big.NewInt(1337), big.NewInt(params.Quanta))
-		config    = *params.AllBeaconProtocolChanges
-		gspec     = &Genesis{
+		wallet  = testutil.LoadAccount(t, "alice").Wallet(t)
+		address = wallet.GetAddress()
+		aa      = common.Address{0xaa}
+		bb      = common.Address{0xbb}
+		funds   = big.NewInt(0).Mul(big.NewInt(1337), big.NewInt(params.Quanta))
+		config  = *params.AllBeaconProtocolChanges
+		gspec   = &Genesis{
 			Config:   &config,
 			Alloc:    GenesisAlloc{address: {Balance: funds}},
 			BaseFee:  big.NewInt(params.InitialBaseFee),
@@ -51,11 +51,11 @@ func TestGenerateWithdrawalChain(t *testing.T) {
 	)
 
 	// init 0xaa with some storage elements
-	storage := make(map[common.Hash]common.Hash)
-	storage[common.Hash{0x00}] = common.Hash{0x00}
-	storage[common.Hash{0x01}] = common.Hash{0x01}
-	storage[common.Hash{0x02}] = common.Hash{0x02}
-	storage[common.Hash{0x03}] = common.HexToHash("0303")
+	storage := make(map[common.Hash]common.StorageValue64)
+	storage[common.Hash{0x00}] = common.StorageValue64{0x00}
+	storage[common.Hash{0x01}] = common.StorageValue64{0x01}
+	storage[common.Hash{0x02}] = common.StorageValue64{0x02}
+	storage[common.Hash{0x03}] = common.HexToStorageValue64("0303")
 	gspec.Alloc[aa] = GenesisAccount{
 		Balance: common.Big1,
 		Nonce:   1,
@@ -141,14 +141,14 @@ func TestGenerateWithdrawalChain(t *testing.T) {
 
 func ExampleGenerateChain() {
 	var (
-		wallet1, _ = wallet.RestoreFromSeedHex("0x010000b71c71a67e1177ad4e901695e1b4b9ee17ae16c6668d313eac2f96dbcda3f29100000000000000000000000000000000")
-		wallet2, _ = wallet.RestoreFromSeedHex("0x0100008a1f9a8f95be41cd7ccb6168179afb4504aefe388d1e14474d32c45c72ce7b7a00000000000000000000000000000000")
-		wallet3, _ = wallet.RestoreFromSeedHex("0x01000049a7b37aa6f6645917e7b807e9d1c00d4fa71f18343b0d4122a4d2df64dd6fee00000000000000000000000000000000")
-		addr1      = wallet1.GetAddress()
-		addr2      = wallet2.GetAddress()
-		addr3      = wallet3.GetAddress()
-		db         = rawdb.NewMemoryDatabase()
-		genDb      = rawdb.NewMemoryDatabase()
+		wallet1 = testutil.MustLoadAccount("alice").MustWallet()
+		wallet2 = testutil.MustLoadAccount("bob").MustWallet()
+		wallet3 = testutil.MustLoadAccount("carol").MustWallet()
+		addr1   = wallet1.GetAddress()
+		addr2   = wallet2.GetAddress()
+		addr3   = wallet3.GetAddress()
+		db      = rawdb.NewMemoryDatabase()
+		genDb   = rawdb.NewMemoryDatabase()
 	)
 
 	// Ensure that key1 has some funds in the genesis block.
@@ -156,7 +156,7 @@ func ExampleGenerateChain() {
 		Config: &params.ChainConfig{
 			ChainID: big.NewInt(1),
 		},
-		Alloc: GenesisAlloc{addr1: {Balance: big.NewInt(2000000000000000)}},
+		Alloc: GenesisAlloc{addr1: {Balance: big.NewInt(200000000000000000)}},
 	}
 	genesis := gspec.MustCommit(genDb, trie.NewDatabase(genDb, trie.HashDefaults))
 
@@ -172,7 +172,7 @@ func ExampleGenerateChain() {
 			tx := types.NewTx(&types.DynamicFeeTx{
 				Nonce:     gen.TxNonce(addr1),
 				To:        &to,
-				Value:     big.NewInt(10000000000000),
+				Value:     big.NewInt(10000000000000000),
 				Gas:       params.TxGas,
 				GasFeeCap: gen.header.BaseFee,
 				Data:      nil,
@@ -188,7 +188,7 @@ func ExampleGenerateChain() {
 			tx1 := types.NewTx(&types.DynamicFeeTx{
 				Nonce:     gen.TxNonce(addr1),
 				To:        &to2,
-				Value:     big.NewInt(10000000000000),
+				Value:     big.NewInt(10000000000000000),
 				Gas:       params.TxGas,
 				GasFeeCap: gen.header.BaseFee,
 				Data:      nil,
@@ -234,7 +234,7 @@ func ExampleGenerateChain() {
 	fmt.Println("balance of addr3:", state.GetBalance(addr3))
 	// Output:
 	// last block: #5
-	// balance of addr1: 1945526403675000
-	// balance of addr2: 3901393675000
+	// balance of addr1: 176552640369117000
+	// balance of addr2: 18390140359117000
 	// balance of addr3: 10000000
 }

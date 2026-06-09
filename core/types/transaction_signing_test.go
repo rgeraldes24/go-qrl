@@ -19,6 +19,7 @@ package types
 import (
 	"errors"
 	"math/big"
+	"strings"
 	"testing"
 
 	"github.com/theQRL/go-qrl/common"
@@ -158,6 +159,84 @@ func TestZondSigner_Sender(t *testing.T) {
 		_, err = signer.Sender(tampered)
 		if !errors.Is(err, pqcrypto.ErrBadSignature) && err == nil {
 			t.Fatalf("expected bad signature error; got %v", err)
+		}
+	})
+	t.Run("error/non-empty-extra-params", func(t *testing.T) {
+		t.Parallel()
+
+		wallet, err := wallet.Generate(wallet.ML_DSA_87)
+		if err != nil {
+			t.Fatalf("wallet: %v", err)
+		}
+		signer := NewZondSigner(big.NewInt(7))
+		tx := mkTx(big.NewInt(7))
+		signed, sig, pk, desc := signTx(t, signer, tx, wallet)
+
+		tampered, err := signed.WithAuthValues(signer, sig, pk, desc, []byte{0x01})
+		if err != nil {
+			t.Fatalf("re-wrap with extra params: %v", err)
+		}
+		_, err = signer.Sender(tampered)
+		if err == nil {
+			t.Fatal("expected non-empty extraParams error, got nil")
+		}
+		if got := err.Error(); got != "non-empty extraParams not supported" {
+			t.Fatalf("unexpected error: got %q", got)
+		}
+	})
+	t.Run("error/rejects-malformed-auth-lengths", func(t *testing.T) {
+		t.Parallel()
+
+		wallet, err := wallet.Generate(wallet.ML_DSA_87)
+		if err != nil {
+			t.Fatalf("wallet: %v", err)
+		}
+		signer := NewZondSigner(big.NewInt(7))
+		tx := mkTx(big.NewInt(7))
+		_, sig, pk, desc := signTx(t, signer, tx, wallet)
+
+		tests := []struct {
+			name string
+			sig  []byte
+			pk   []byte
+			desc []byte
+			want string
+		}{
+			{
+				name: "signature",
+				sig:  sig[:len(sig)-1],
+				pk:   pk,
+				desc: desc,
+				want: "wrong size for ml-dsa-87 signature",
+			},
+			{
+				name: "public-key",
+				sig:  sig,
+				pk:   pk[:len(pk)-1],
+				desc: desc,
+				want: "wrong size for ml-dsa-87 publickey",
+			},
+			{
+				name: "descriptor",
+				sig:  sig,
+				pk:   pk,
+				desc: desc[:len(desc)-1],
+				want: "wrong size for descriptor",
+			},
+		}
+		for _, tt := range tests {
+			tt := tt
+			t.Run(tt.name, func(t *testing.T) {
+				t.Parallel()
+
+				_, err := tx.WithAuthValues(signer, tt.sig, tt.pk, tt.desc, extraParams)
+				if err == nil {
+					t.Fatal("expected malformed auth error, got nil")
+				}
+				if got := err.Error(); !strings.HasPrefix(got, tt.want) {
+					t.Fatalf("unexpected error: got %q want prefix %q", got, tt.want)
+				}
+			})
 		}
 	})
 }

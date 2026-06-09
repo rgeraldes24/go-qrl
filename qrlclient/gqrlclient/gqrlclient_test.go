@@ -28,7 +28,7 @@ import (
 	"github.com/theQRL/go-qrl/core"
 	"github.com/theQRL/go-qrl/core/types"
 	"github.com/theQRL/go-qrl/crypto"
-	"github.com/theQRL/go-qrl/crypto/pqcrypto/wallet"
+	"github.com/theQRL/go-qrl/internal/testutil"
 	"github.com/theQRL/go-qrl/node"
 	"github.com/theQRL/go-qrl/params"
 	qrlsvc "github.com/theQRL/go-qrl/qrl"
@@ -39,14 +39,14 @@ import (
 )
 
 var (
-	testWallet, _   = wallet.RestoreFromSeedHex("010000b71c71a67e1177ad4e901695e1b4b9ee17ae16c6668d313eac2f96dbcda3f29100000000000000000000000000000000")
-	testAddr        = testWallet.GetAddress()
-	zeroAddr, _     = common.NewAddressFromString("Q0000000000000000000000000000000000000000")
-	testContract, _ = common.NewAddressFromString("Q000000000000000000000000000000000000beef")
-	testEmpty, _    = common.NewAddressFromString("Q000000000000000000000000000000000000eeee")
-	testSlot        = common.HexToHash("0xdeadbeef")
-	testValue       = crypto.Keccak256Hash(testSlot[:])
-	testBalance     = big.NewInt(2e15)
+	testWallet   = testutil.MustLoadAccount("alice").MustWallet()
+	testAddr     = testWallet.GetAddress()
+	zeroAddr     = common.Address{}
+	testContract = common.BytesToAddress(common.FromHex("000000000000000000000000000000000000beef000000000000000000000000000000000000beef11223344556677"))
+	testEmpty    = common.BytesToAddress(common.FromHex("000000000000000000000000000000000000eeee000000000000000000000000000000000000eeee11223344556677"))
+	testSlot     = common.HexToHash("0xdeadbeef")
+	testValue    = common.BytesToStorageValue64(crypto.Keccak256Hash(testSlot[:]).Bytes())
+	testBalance  = big.NewInt(2e18)
 )
 
 func newTestBackend(t *testing.T) (*node.Node, []*types.Block) {
@@ -83,7 +83,7 @@ func generateTestChain() (*core.Genesis, []*types.Block) {
 	genesis := &core.Genesis{
 		Config: params.AllBeaconProtocolChanges,
 		Alloc: core.GenesisAlloc{
-			testAddr:     {Balance: testBalance, Storage: map[common.Hash]common.Hash{testSlot: testValue}},
+			testAddr:     {Balance: testBalance, Storage: map[common.Hash]common.StorageValue64{testSlot: testValue}},
 			testContract: {Nonce: 1, Code: []byte{0x13, 0x37}},
 			testEmpty:    {Balance: big.NewInt(1)},
 		},
@@ -182,7 +182,7 @@ func testAccessList(t *testing.T, client *rpc.Client) {
 		From:      testAddr,
 		To:        &common.Address{},
 		Gas:       21000,
-		GasFeeCap: big.NewInt(1000000000),
+		GasFeeCap: big.NewInt(100000000000),
 		Value:     big.NewInt(1),
 	}
 	al, gas, vmErr, err := zc.CreateAccessList(t.Context(), msg)
@@ -203,7 +203,7 @@ func testAccessList(t *testing.T, client *rpc.Client) {
 		From:      testAddr,
 		To:        nil,
 		Gas:       100000,
-		GasFeeCap: big.NewInt(1000000000),
+		GasFeeCap: big.NewInt(100000000000),
 		Value:     big.NewInt(1),
 		Data:      common.FromHex("0x608060806080608155fd"),
 	}
@@ -299,7 +299,7 @@ func testGetProofCanonicalizeKeys(t *testing.T, client *rpc.Client) {
 }
 
 func testGetProofNonExistent(t *testing.T, client *rpc.Client) {
-	addr, _ := common.NewAddressFromString("Q0000000000000000000000000000000000000001")
+	addr, _ := common.NewAddressFromString("Q00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001")
 	ec := New(client)
 	result, err := ec.GetProof(t.Context(), addr, nil, nil)
 	if err != nil {
@@ -386,7 +386,7 @@ func testSubscribePendingTransactions(t *testing.T, client *rpc.Client) {
 		To:        &common.Address{1},
 		Value:     big.NewInt(1),
 		Gas:       22000,
-		GasFeeCap: big.NewInt(1),
+		GasFeeCap: big.NewInt(100000000000),
 		Data:      nil,
 	})
 	signer := types.LatestSignerForChainID(chainID)
@@ -423,7 +423,7 @@ func testSubscribeFullPendingTransactions(t *testing.T, client *rpc.Client) {
 		To:        &common.Address{1},
 		Value:     big.NewInt(1),
 		Gas:       22000,
-		GasFeeCap: big.NewInt(1),
+		GasFeeCap: big.NewInt(100000000000),
 		Data:      nil,
 	})
 	signer := types.LatestSignerForChainID(chainID)
@@ -449,7 +449,7 @@ func testCallContract(t *testing.T, client *rpc.Client) {
 		From:      testAddr,
 		To:        &common.Address{},
 		Gas:       21000,
-		GasFeeCap: big.NewInt(1000000000),
+		GasFeeCap: big.NewInt(100000000000),
 		Value:     big.NewInt(1),
 	}
 	// CallContract without override
@@ -496,18 +496,21 @@ func TestOverrideAccountMarshal(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
+	// 64-byte Address values render as a Q prefix plus 128 lowercase hex
+	// characters with the seed byte at position 0 and the remaining 63
+	// bytes zeroed, rendered with QIP-55 checksum casing.
 	expected := `{
-  "Q1100000000000000000000000000000000000000": {},
-  "Qaa00000000000000000000000000000000000000": {
-    "nonce": "0x5"
-  },
-  "Qbb00000000000000000000000000000000000000": {
+  "Q11000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000": {},
+  "QBB000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000": {
     "code": "0x01"
   },
-  "Qcc00000000000000000000000000000000000000": {
+  "QCC000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000": {
     "code": "0x",
     "balance": "0x0",
     "state": {}
+  },
+  "QaA000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000": {
+    "nonce": "0x5"
   }
 }`
 
@@ -518,7 +521,7 @@ func TestOverrideAccountMarshal(t *testing.T) {
 }
 
 func TestBlockOverridesMarshal(t *testing.T) {
-	coinbase, _ := common.NewAddressFromString("Q1111111111111111111111111111111111111111")
+	coinbase := common.BytesToAddress(bytes.Repeat([]byte{0x11}, common.AddressLength))
 
 	for i, tt := range []struct {
 		bo   BlockOverrides
@@ -532,7 +535,7 @@ func TestBlockOverridesMarshal(t *testing.T) {
 			bo: BlockOverrides{
 				Coinbase: coinbase,
 			},
-			want: `{"coinbase":"Q1111111111111111111111111111111111111111"}`,
+			want: `{"coinbase":"Q11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111"}`,
 		},
 		{
 			bo: BlockOverrides{
@@ -560,12 +563,18 @@ func testCallContractWithBlockOverrides(t *testing.T, client *rpc.Client) {
 		From:      testAddr,
 		To:        &common.Address{},
 		Gas:       50000,
-		GasFeeCap: big.NewInt(1000000000),
+		GasFeeCap: big.NewInt(100000000000),
 		Value:     big.NewInt(1),
 	}
+	// Returns the coinbase address:
+	//   41       COINBASE           ; push 64-byte word == 64-byte address
+	//   60 00    PUSH1 0x00         ; memory offset
+	//   52       MSTORE             ; write 64 bytes to memory[0]
+	//   60 40    PUSH1 0x40         ; return length = 64 bytes
+	//   60 00    PUSH1 0x00         ; return offset = 0
+	//   f3       RETURN
 	override := OverrideAccount{
-		// Returns coinbase address.
-		Code: common.FromHex("0x41806000526014600cf3"),
+		Code: common.FromHex("0x4160005260406000f3"),
 	}
 	mapAcc := make(map[common.Address]OverrideAccount)
 	mapAcc[common.Address{}] = override
@@ -573,12 +582,12 @@ func testCallContractWithBlockOverrides(t *testing.T, client *rpc.Client) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if !bytes.Equal(res, common.FromHex("0x0000000000000000000000000000000000000000")) {
+	if !bytes.Equal(res, make([]byte, common.AddressLength)) {
 		t.Fatalf("unexpected result: %x", res)
 	}
 
 	// Now test with block overrides
-	coinbase, _ := common.NewAddressFromString("Q1111111111111111111111111111111111111111")
+	coinbase := common.BytesToAddress(bytes.Repeat([]byte{0x11}, common.AddressLength))
 	bo := BlockOverrides{
 		Coinbase: coinbase,
 	}
@@ -586,7 +595,7 @@ func testCallContractWithBlockOverrides(t *testing.T, client *rpc.Client) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if !bytes.Equal(res, common.FromHex("0x1111111111111111111111111111111111111111")) {
+	if !bytes.Equal(res, coinbase[:]) {
 		t.Fatalf("unexpected result: %x", res)
 	}
 }

@@ -1,12 +1,10 @@
 {
-  "Qa94f5374fce5edbc8e2a8697c15331677e6ebf0b": {
-    "balance": "0x5ffd4878be161d74",
-    "code": "0x",
-    "nonce": "0xac",
-    "storage": {}
+  "Q00000000000000000000000000000000c0DecafEc0dEcAfec0DECaFEC0DecaFEC0decAfec0DECAFec0DeCAFEC0DECafec0dEcaFEc0DecAfeC0DEcafeC0deCaFE": {
+    "balance": "0x0",
+    "nonce": "0x0"
   },
-  "Q23b66a9c42ab8ff57b2a7216470f682d7a9a0d94":{
-    "balance": "0xfeedbead0000",
-    "nonce" : "0x00"
+  "Qe22eb845C3857b8CfD5F272FeD318C9463173C496173A37B72ce3372eAFB629EEe124d8B0fcDC329d0ef174374Aed94cA46beADf0E6b593bF71F5abD43E96853": {
+    "balance": "0x1000000000000000",
+    "nonce": "0x0"
   }
 }

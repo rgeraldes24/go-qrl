@@ -26,9 +26,9 @@ import (
 // TODO(now.youtrack.cloud/issue/TGZ-16)
 // Genesis hashes to enforce below configs on.
 var (
-	MainnetGenesisHash = common.HexToHash("0xb3de630542cf9acf842e24f428c7c21b7824b38a7718a632e424b58ba0f562c6")
-	BetaNetGenesisHash = common.HexToHash("0xab0c2cf4bd9bc1d3bad049a5ae94725177bf2b95f45115415e9941f218c661b1")
-	TestnetGenesisHash = common.HexToHash("0x117f3b8032b4ba0efa6cbd48445578bd721b4238e91724e47ce19cde1a8a4dbf")
+	MainnetGenesisHash = common.HexToHash("0x35cc0617c9aae4d8d67cc380fad8262a25b12687c913dbd170a350c192adf204")
+	BetaNetGenesisHash = common.HexToHash("0x7bf03c3943e81064f9b3b2eea52fab3b21a87c9934fa6ed6901ba0114d61df1f")
+	TestnetGenesisHash = common.HexToHash("0xf496c30579f6efe724bb180ce2f113a9de8f0a2c9ef583bd12008959892a08dd")
 )
 
 // NOTE(rgeraldes24): unused atm
@@ -41,7 +41,7 @@ var (
 	}
 	// TestnetChainConfig contains the chain parameters to run a node on the BetaNet test network.
 	TestnetChainConfig = &ChainConfig{
-		ChainID: big.NewInt(32382),
+		ChainID: big.NewInt(1337),
 	}
 	// BetaNetChainConfig contains the chain parameters to run a node on the BetaNet test network.
 	BetaNetChainConfig = &ChainConfig{
