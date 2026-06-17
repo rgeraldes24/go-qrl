@@ -57,7 +57,7 @@ func JSON(reader io.Reader) (ABI, error) {
 
 // Pack the given method name to conform the ABI. Method call's data
 // will consist of method_id, args0, arg1, ... argN. Method id consists
-// of 4 bytes and arguments are all 64 bytes.
+// of 4 bytes and arguments are ABI-slot-width values.
 // Method ids are created from the first 4 bytes of the hash of the
 // methods string signature. (signature = baz(uint32,string32))
 func (abi ABI) Pack(name string, args ...any) ([]byte, error) {
@@ -87,7 +87,7 @@ func (abi ABI) getArguments(name string, data []byte) (Arguments, error) {
 	// we need to decide whether we're calling a method or an event
 	var args Arguments
 	if method, ok := abi.Methods[name]; ok {
-		if len(data)%64 != 0 {
+		if len(data)%abiSlotBytes != 0 {
 			return nil, fmt.Errorf("abi: improperly formatted output: %q - Bytes: %+v", data, data)
 		}
 		args = method.Outputs
@@ -208,15 +208,30 @@ func (abi *ABI) MethodById(sigdata []byte) (*Method, error) {
 	return nil, fmt.Errorf("no method with id: %#x", sigdata[:4])
 }
 
-// EventByID looks an event up by its topic hash in the
-// ABI and returns nil if none found.
+// EventByID looks an event up by its 32-byte signature hash in the ABI.
+//
+// Use EventByTopic when dispatching from types.Log.Topics[0], which is a
+// full-width VM64 log topic.
 func (abi *ABI) EventByID(topic common.Hash) (*Event, error) {
 	for _, event := range abi.Events {
 		if bytes.Equal(event.ID.Bytes(), topic.Bytes()) {
 			return &event, nil
 		}
 	}
-	return nil, fmt.Errorf("no event with id: %#x", topic.Hex())
+	return nil, fmt.Errorf("no event with id: %s", topic.Hex())
+}
+
+// EventByTopic looks an event up by its full VM64 signature topic.
+//
+// Anonymous events do not place the event signature in topic 0, so they are not
+// returned by this helper.
+func (abi *ABI) EventByTopic(topic common.LogTopic) (*Event, error) {
+	for _, event := range abi.Events {
+		if !event.Anonymous && event.Topic() == topic {
+			return &event, nil
+		}
+	}
+	return nil, fmt.Errorf("no event with topic: %s", topic.Hex())
 }
 
 // ErrorByID looks up an error by the 4-byte id,
@@ -243,7 +258,9 @@ func (abi *ABI) HasReceive() bool {
 // revertSelector is a special function selector for revert reason unpacking.
 var revertSelector = crypto.Keccak256([]byte("Error(string)"))[:4]
 
-// panicSelector is a special function selector for panic reason unpacking.
+// panicSelector is the Solidity-reserved selector for built-in panic reverts.
+// VM64 keeps the Panic(uint256) signature, but encodes the uint256 code in one
+// 64-byte ABI slot. Panic(uint512) is not a built-in panic signature.
 var panicSelector = crypto.Keccak256([]byte("Panic(uint256)"))[:4]
 
 // panicReasons map is for readable panic codes
@@ -264,10 +281,10 @@ var panicReasons = map[uint64]string{
 	0x51: "uninitialized function",
 }
 
-// UnpackRevert resolves the abi-encoded revert reason. According to the hyperion
-// spec https://solidity.readthedocs.io/en/latest/control-structures.html#revert,
-// the provided revert reason is abi-encoded as if it were a call to function
-// `Error(string)` or `Panic(uint256)`. So it's a special tool for it.
+// UnpackRevert resolves the abi-encoded revert reason. The provided revert
+// reason is abi-encoded as if it were a call to `Error(string)` or
+// `Panic(uint256)`. In VM64, the Panic(uint256) code is still a uint256 value,
+// but it occupies one 64-byte ABI slot.
 func UnpackRevert(data []byte) (string, error) {
 	if len(data) < 4 {
 		return "", errors.New("invalid data for unpacking")

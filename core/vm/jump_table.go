@@ -19,6 +19,7 @@ package vm
 import (
 	"fmt"
 
+	"github.com/theQRL/go-qrl/common/uint512"
 	"github.com/theQRL/go-qrl/params"
 )
 
@@ -791,7 +792,7 @@ func newZondInstructionSet() JumpTable {
 			maxStack:    maxStack(0, 1),
 		},
 		PUSH64: {
-			execute:     makePush(64, 64),
+			execute:     makePush(uint512.WordBytes, uint512.WordBytes),
 			constantGas: GasFastestStep,
 			minStack:    minStack(0, 1),
 			maxStack:    maxStack(0, 1),

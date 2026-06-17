@@ -33,11 +33,17 @@ import (
 	"github.com/theQRL/go-qrl/common"
 	"github.com/theQRL/go-qrl/common/hexutil"
 	"github.com/theQRL/go-qrl/common/math"
+	"github.com/theQRL/go-qrl/common/uint512"
 	"github.com/theQRL/go-qrl/core/types"
 	"github.com/theQRL/go-qrl/crypto"
 )
 
 var typedDataReferenceTypeRegexp = regexp.MustCompile(`^[A-Za-z](\w*)(\[\])?$`)
+
+const (
+	typedDataWordBits  = uint512.WordBits
+	typedDataWordBytes = uint512.WordBytes
+)
 
 type ValidationInfo struct {
 	Typ     string `json:"type"`
@@ -170,7 +176,7 @@ type ValidatorData struct {
 	Message hexutil.Bytes
 }
 
-// TypedData is a type to encapsulate EIP-712 typed messages
+// TypedData is a type to encapsulate Hyperion typed messages derived from EIP-712.
 type TypedData struct {
 	Types       Types            `json:"types"`
 	PrimaryType string           `json:"primaryType"`
@@ -178,7 +184,7 @@ type TypedData struct {
 	Message     TypedDataMessage `json:"message"`
 }
 
-// Type is the inner type of an EIP-712 message
+// Type is the inner type of a Hyperion typed message.
 type Type struct {
 	Name string `json:"name"`
 	Type string `json:"type"`
@@ -206,19 +212,20 @@ type TypePriority struct {
 
 type TypedDataMessage = map[string]any
 
-// TypedDataDomain represents the domain part of an EIP-712 message.
+// TypedDataDomain represents the domain part of a Hyperion typed message.
 type TypedDataDomain struct {
 	Name              string                `json:"name"`
 	Version           string                `json:"version"`
-	ChainId           *math.HexOrDecimal256 `json:"chainId"`
+	ChainId           *math.HexOrDecimal512 `json:"chainId"`
 	VerifyingContract string                `json:"verifyingContract"`
 	Salt              string                `json:"salt"`
 }
 
-// TypedDataAndHash is a helper function that calculates a hash for typed data conforming to EIP-712.
+// TypedDataAndHash is a helper function that calculates a hash for Hyperion typed data.
 // This hash can then be safely used to calculate a signature.
 //
-// See https://eips.ethereum.org/EIPS/eip-712 for the full specification.
+// Hyperion typed data keeps the EIP-712 envelope but encodes typed fields as
+// VM64-native 64-byte ABI words.
 //
 // This gives context to the signed typed data and prevents signing of transactions.
 func TypedDataAndHash(typedData TypedData) ([]byte, string, error) {
@@ -302,10 +309,12 @@ func (typedData *TypedData) TypeHash(primaryType string) hexutil.Bytes {
 	return crypto.Keccak256(typedData.EncodeType(primaryType))
 }
 
-// EncodeData generates the following encoding:
-// `enc(value₁) ‖ enc(value₂) ‖ … ‖ enc(valueₙ)`
+// EncodeData generates the VM64-native struct encoding:
+// `typeHash ‖ enc(value₁) ‖ enc(value₂) ‖ … ‖ enc(valueₙ)`
 //
-// each encoded member is 32-byte long
+// Each encoded member is one 64-byte VM64 ABI word. The Keccak256 type hash and
+// nested/dynamic value hashes are 32-byte hash values encoded as fixed bytes32
+// into a 64-byte word.
 func (typedData *TypedData) EncodeData(primaryType string, data map[string]any, depth int) (hexutil.Bytes, error) {
 	if err := typedData.validate(); err != nil {
 		return nil, err
@@ -319,7 +328,7 @@ func (typedData *TypedData) EncodeData(primaryType string, data map[string]any, 
 	}
 
 	// Add typehash
-	buffer.Write(typedData.TypeHash(primaryType))
+	buffer.Write(encodeHashWord(typedData.TypeHash(primaryType)))
 
 	// Add field contents. Structs and arrays have special handlers.
 	for _, field := range typedData.Types[primaryType] {
@@ -343,7 +352,7 @@ func (typedData *TypedData) EncodeData(primaryType string, data map[string]any, 
 					if err != nil {
 						return nil, err
 					}
-					arrayBuffer.Write(crypto.Keccak256(encodedData))
+					arrayBuffer.Write(encodeHashWord(crypto.Keccak256(encodedData)))
 				} else {
 					bytesValue, err := typedData.EncodePrimitiveValue(parsedType, item, depth)
 					if err != nil {
@@ -353,7 +362,7 @@ func (typedData *TypedData) EncodeData(primaryType string, data map[string]any, 
 				}
 			}
 
-			buffer.Write(crypto.Keccak256(arrayBuffer.Bytes()))
+			buffer.Write(encodeHashWord(crypto.Keccak256(arrayBuffer.Bytes())))
 		} else if typedData.Types[field.Type] != nil {
 			mapValue, ok := encValue.(map[string]any)
 			if !ok {
@@ -363,7 +372,7 @@ func (typedData *TypedData) EncodeData(primaryType string, data map[string]any, 
 			if err != nil {
 				return nil, err
 			}
-			buffer.Write(crypto.Keccak256(encodedData))
+			buffer.Write(encodeHashWord(crypto.Keccak256(encodedData)))
 		} else {
 			byteValue, err := typedData.EncodePrimitiveValue(encType, encValue, depth)
 			if err != nil {
@@ -373,6 +382,10 @@ func (typedData *TypedData) EncodeData(primaryType string, data map[string]any, 
 		}
 	}
 	return buffer.Bytes(), nil
+}
+
+func encodeHashWord(hash []byte) []byte {
+	return common.RightPadBytes(hash, typedDataWordBytes)
 }
 
 // Attempt to parse bytes in different formats: byte array, hex string, hexutil.Bytes.
@@ -402,37 +415,25 @@ func parseBytes(encType any) ([]byte, bool) {
 }
 
 func parseInteger(encType string, encValue any) (*big.Int, error) {
-	var (
-		length int
-		signed = strings.HasPrefix(encType, "int")
-		b      *big.Int
-	)
-	if encType == "int" || encType == "uint" {
-		length = 256
-	} else {
-		lengthStr := ""
-		if after, ok := strings.CutPrefix(encType, "uint"); ok {
-			lengthStr = after
-		} else {
-			lengthStr = strings.TrimPrefix(encType, "int")
-		}
-		atoiSize, err := strconv.Atoi(lengthStr)
-		if err != nil {
-			return nil, fmt.Errorf("invalid size on integer: %v", lengthStr)
-		}
-		length = atoiSize
+	length, signed, err := parseIntegerType(encType)
+	if err != nil {
+		return nil, err
 	}
+
+	var b *big.Int
 	switch v := encValue.(type) {
+	case *math.HexOrDecimal512:
+		b = (*big.Int)(v)
 	case *math.HexOrDecimal256:
 		b = (*big.Int)(v)
 	case *big.Int:
 		b = v
 	case string:
-		var hexIntValue math.HexOrDecimal256
-		if err := hexIntValue.UnmarshalText([]byte(v)); err != nil {
-			return nil, err
+		intValue, ok := math.ParseBig512(v)
+		if !ok {
+			return nil, fmt.Errorf("invalid hex or decimal integer %q", v)
 		}
-		b = (*big.Int)(&hexIntValue)
+		b = intValue
 	case float64:
 		// JSON parses non-strings as float64. Fail if we cannot
 		// convert it losslessly
@@ -445,13 +446,54 @@ func parseInteger(encType string, encValue any) (*big.Int, error) {
 	if b == nil {
 		return nil, fmt.Errorf("invalid integer value %v/%v for type %v", encValue, reflect.TypeOf(encValue), encType)
 	}
-	if b.BitLen() > length {
-		return nil, fmt.Errorf("integer larger than '%v'", encType)
-	}
-	if !signed && b.Sign() == -1 {
-		return nil, fmt.Errorf("invalid negative value for unsigned type %v", encType)
+	if signed {
+		min, max := signedIntegerBounds(length)
+		if b.Cmp(min) < 0 || b.Cmp(max) > 0 {
+			return nil, fmt.Errorf("integer outside range for '%v'", encType)
+		}
+	} else {
+		max := new(big.Int).Lsh(big.NewInt(1), uint(length))
+		if b.Sign() < 0 {
+			return nil, fmt.Errorf("invalid negative value for unsigned type %v", encType)
+		}
+		if b.Cmp(max) >= 0 {
+			return nil, fmt.Errorf("integer larger than '%v'", encType)
+		}
 	}
 	return b, nil
+}
+
+func parseIntegerType(encType string) (length int, signed bool, err error) {
+	switch encType {
+	case "int":
+		return typedDataWordBits, true, nil
+	case "uint":
+		return typedDataWordBits, false, nil
+	}
+	lengthStr := ""
+	if after, ok := strings.CutPrefix(encType, "uint"); ok {
+		lengthStr = after
+	} else if after, ok := strings.CutPrefix(encType, "int"); ok {
+		lengthStr = after
+		signed = true
+	} else {
+		return 0, false, fmt.Errorf("invalid integer type: %v", encType)
+	}
+	length, err = strconv.Atoi(lengthStr)
+	if err != nil {
+		return 0, false, fmt.Errorf("invalid size on integer: %v", lengthStr)
+	}
+	if length == 0 || length > typedDataWordBits || length%8 != 0 {
+		return 0, false, fmt.Errorf("invalid size on integer: %v", length)
+	}
+	return length, signed, nil
+}
+
+func signedIntegerBounds(bits int) (min, max *big.Int) {
+	limit := new(big.Int).Lsh(big.NewInt(1), uint(bits-1))
+	min = new(big.Int).Neg(limit)
+	max = new(big.Int).Sub(new(big.Int).Set(limit), big.NewInt(1))
+	return min, max
 }
 
 // EncodePrimitiveValue deals with the primitive values found
@@ -459,24 +501,20 @@ func parseInteger(encType string, encValue any) (*big.Int, error) {
 func (typedData *TypedData) EncodePrimitiveValue(encType string, encValue any, depth int) ([]byte, error) {
 	switch encType {
 	case "address":
-		// Addresses on QRL are common.AddressLength bytes; right-align into
-		// a 64-byte slot so the encoding matches the 64-byte VM word used
-		// everywhere else in the struct hash. When AddressLength == 64 the
-		// right-align is a no-op (slot is fully filled).
-		retval := make([]byte, 64)
+		retval := make([]byte, typedDataWordBytes)
 		switch val := encValue.(type) {
 		case string:
 			if address, err := common.NewAddressFromString(val); err == nil {
-				copy(retval[64-common.AddressLength:], address.Bytes())
+				copy(retval[typedDataWordBytes-common.AddressLength:], address.Bytes())
 				return retval, nil
 			}
 		case []byte:
 			if len(val) == common.AddressLength {
-				copy(retval[64-common.AddressLength:], val)
+				copy(retval[typedDataWordBytes-common.AddressLength:], val)
 				return retval, nil
 			}
 		case [common.AddressLength]byte:
-			copy(retval[64-common.AddressLength:], val[:])
+			copy(retval[typedDataWordBytes-common.AddressLength:], val[:])
 			return retval, nil
 		}
 		return nil, dataMismatchError(encType, encValue)
@@ -486,21 +524,21 @@ func (typedData *TypedData) EncodePrimitiveValue(encType string, encValue any, d
 			return nil, dataMismatchError(encType, encValue)
 		}
 		if boolValue {
-			return math.PaddedBigBytes(common.Big1, 32), nil
+			return math.PaddedBigBytes(common.Big1, typedDataWordBytes), nil
 		}
-		return math.PaddedBigBytes(common.Big0, 32), nil
+		return math.PaddedBigBytes(common.Big0, typedDataWordBytes), nil
 	case "string":
 		strVal, ok := encValue.(string)
 		if !ok {
 			return nil, dataMismatchError(encType, encValue)
 		}
-		return crypto.Keccak256([]byte(strVal)), nil
+		return encodeHashWord(crypto.Keccak256([]byte(strVal))), nil
 	case "bytes":
 		bytesValue, ok := parseBytes(encValue)
 		if !ok {
 			return nil, dataMismatchError(encType, encValue)
 		}
-		return crypto.Keccak256(bytesValue), nil
+		return encodeHashWord(crypto.Keccak256(bytesValue)), nil
 	}
 	if after, ok := strings.CutPrefix(encType, "bytes"); ok {
 		lengthStr := after
@@ -508,14 +546,13 @@ func (typedData *TypedData) EncodePrimitiveValue(encType string, encValue any, d
 		if err != nil {
 			return nil, fmt.Errorf("invalid size on bytes: %v", lengthStr)
 		}
-		if length < 0 || length > 32 {
+		if length <= 0 || length > typedDataWordBytes {
 			return nil, fmt.Errorf("invalid size on bytes: %d", length)
 		}
 		if byteValue, ok := parseBytes(encValue); !ok || len(byteValue) != length {
 			return nil, dataMismatchError(encType, encValue)
 		} else {
-			// Right-pad the bits
-			dst := make([]byte, 32)
+			dst := make([]byte, typedDataWordBytes)
 			copy(dst, byteValue)
 			return dst, nil
 		}
@@ -525,7 +562,7 @@ func (typedData *TypedData) EncodePrimitiveValue(encType string, encValue any, d
 		if err != nil {
 			return nil, err
 		}
-		return math.U256Bytes(b), nil
+		return math.U512Bytes(new(big.Int).Set(b)), nil
 	}
 	return nil, fmt.Errorf("unrecognized type '%s'", encType)
 }
@@ -729,15 +766,15 @@ func isPrimitiveTypeValid(primitiveType string) bool {
 		primitiveType == "uint[]" {
 		return true
 	}
-	// For 'bytesN', 'bytesN[]', we allow N from 1 to 32
-	for n := 1; n <= 32; n++ {
+	// For 'bytesN', 'bytesN[]', we allow N from 1 to 64.
+	for n := 1; n <= typedDataWordBytes; n++ {
 		// e.g. 'bytes28' or 'bytes28[]'
 		if primitiveType == fmt.Sprintf("bytes%d", n) || primitiveType == fmt.Sprintf("bytes%d[]", n) {
 			return true
 		}
 	}
-	// For 'intN','intN[]' and 'uintN','uintN[]' we allow N in increments of 8, from 8 up to 256
-	for n := 8; n <= 256; n += 8 {
+	// For 'intN','intN[]' and 'uintN','uintN[]' we allow N in increments of 8, from 8 up to 512.
+	for n := 8; n <= typedDataWordBits; n += 8 {
 		if primitiveType == fmt.Sprintf("int%d", n) || primitiveType == fmt.Sprintf("int%d[]", n) {
 			return true
 		}

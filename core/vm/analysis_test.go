@@ -59,6 +59,38 @@ func TestJumpDestAnalysis(t *testing.T) {
 	}
 }
 
+func TestJumpDestAnalysisPush64(t *testing.T) {
+	tests := []struct {
+		name string
+		op   OpCode
+		size int
+	}{
+		{"push33", PUSH33, 33},
+		{"push64", PUSH64, 64},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			code := make([]byte, 1+test.size+1)
+			code[0] = byte(test.op)
+			for i := 1; i <= test.size; i++ {
+				code[i] = byte(JUMPDEST)
+			}
+			code[len(code)-1] = byte(JUMPDEST)
+
+			bits := codeBitmap(code)
+			for pc := 1; pc <= test.size; pc++ {
+				if bits.codeSegment(uint64(pc)) {
+					t.Fatalf("%s immediate byte %d marked as code", test.op, pc)
+				}
+			}
+			if !bits.codeSegment(uint64(len(code) - 1)) {
+				t.Fatalf("%s trailing JUMPDEST marked as push data", test.op)
+			}
+		})
+	}
+}
+
 const analysisCodeSize = 1200 * 1024
 
 func BenchmarkJumpdestAnalysis_1200k(bench *testing.B) {
@@ -88,13 +120,13 @@ func BenchmarkJumpdestOpAnalysis(bench *testing.B) {
 		for i := range code {
 			code[i] = byte(op)
 		}
-		bits := make(bitvec, len(code)/8+1+4)
+		bits := make(bitvec, len(code)/8+1+8)
 		for b.Loop() {
 			clear(bits)
 			codeBitmapInternal(code, bits)
 		}
 	}
-	for op = PUSH1; op <= PUSH32; op++ {
+	for op = PUSH1; op <= PUSH64; op++ {
 		bench.Run(op.String(), bencher)
 	}
 	op = JUMPDEST

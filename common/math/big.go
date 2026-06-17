@@ -20,6 +20,8 @@ package math
 import (
 	"fmt"
 	"math/big"
+
+	"github.com/theQRL/go-qrl/common/uint512"
 )
 
 // Various big integer limit values.
@@ -27,7 +29,7 @@ var (
 	tt256     = BigPow(2, 256)
 	tt256m1   = new(big.Int).Sub(tt256, big.NewInt(1))
 	MaxBig256 = new(big.Int).Set(tt256m1)
-	tt512     = BigPow(2, 512)
+	tt512     = BigPow(2, uint512.WordBits)
 	tt512m1   = new(big.Int).Sub(tt512, big.NewInt(1))
 	MaxBig512 = new(big.Int).Set(tt512m1)
 )
@@ -72,6 +74,45 @@ func (i *HexOrDecimal256) UnmarshalText(input []byte) error {
 
 // MarshalText implements encoding.TextMarshaler.
 func (i *HexOrDecimal256) MarshalText() ([]byte, error) {
+	if i == nil {
+		return []byte("0x0"), nil
+	}
+	return fmt.Appendf(nil, "%#x", (*big.Int)(i)), nil
+}
+
+// HexOrDecimal512 marshals big.Int as hex or decimal up to 512 bits.
+type HexOrDecimal512 big.Int
+
+// NewHexOrDecimal512 creates a new HexOrDecimal512.
+func NewHexOrDecimal512(x int64) *HexOrDecimal512 {
+	b := big.NewInt(x)
+	h := HexOrDecimal512(*b)
+	return &h
+}
+
+// UnmarshalJSON implements json.Unmarshaler.
+//
+// It is similar to UnmarshalText, but allows parsing real decimals too, not just
+// quoted decimal strings.
+func (i *HexOrDecimal512) UnmarshalJSON(input []byte) error {
+	if len(input) > 1 && input[0] == '"' {
+		input = input[1 : len(input)-1]
+	}
+	return i.UnmarshalText(input)
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (i *HexOrDecimal512) UnmarshalText(input []byte) error {
+	bigint, ok := ParseBig512(string(input))
+	if !ok {
+		return fmt.Errorf("invalid hex or decimal integer %q", input)
+	}
+	*i = HexOrDecimal512(*bigint)
+	return nil
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (i *HexOrDecimal512) MarshalText() ([]byte, error) {
 	if i == nil {
 		return []byte("0x0"), nil
 	}
@@ -126,6 +167,25 @@ func ParseBig256(s string) (*big.Int, bool) {
 		bigint, ok = new(big.Int).SetString(s, 10)
 	}
 	if ok && bigint.BitLen() > 256 {
+		bigint, ok = nil, false
+	}
+	return bigint, ok
+}
+
+// ParseBig512 parses s as a 512 bit integer in decimal or hexadecimal syntax.
+// Leading zeros are accepted. The empty string parses as zero.
+func ParseBig512(s string) (*big.Int, bool) {
+	if s == "" {
+		return new(big.Int), true
+	}
+	var bigint *big.Int
+	var ok bool
+	if len(s) >= 2 && (s[:2] == "0x" || s[:2] == "0X") {
+		bigint, ok = new(big.Int).SetString(s[2:], 16)
+	} else {
+		bigint, ok = new(big.Int).SetString(s, 10)
+	}
+	if ok && bigint.BitLen() > uint512.WordBits {
 		bigint, ok = nil, false
 	}
 	return bigint, ok
@@ -205,5 +265,5 @@ func U512(x *big.Int) *big.Int {
 // U512Bytes converts a big Int into a 512bit QRVM number (64 bytes, big-endian).
 // This operation is destructive.
 func U512Bytes(n *big.Int) []byte {
-	return PaddedBigBytes(U512(n), 64)
+	return PaddedBigBytes(U512(n), uint512.WordBytes)
 }

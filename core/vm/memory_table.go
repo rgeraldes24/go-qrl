@@ -16,6 +16,8 @@
 
 package vm
 
+import "github.com/theQRL/go-qrl/common/uint512"
+
 func memoryKeccak256(stack *Stack) (uint64, bool) {
 	return calcMemSize64(stack.Back(0), stack.Back(1))
 }
@@ -37,7 +39,7 @@ func memoryExtCodeCopy(stack *Stack) (uint64, bool) {
 }
 
 func memoryMLoad(stack *Stack) (uint64, bool) {
-	return calcMemSize64WithUint(stack.Back(0), 64)
+	return calcMemSize64WithUint(stack.Back(0), uint512.WordBytes)
 }
 
 func memoryMStore8(stack *Stack) (uint64, bool) {
@@ -45,7 +47,7 @@ func memoryMStore8(stack *Stack) (uint64, bool) {
 }
 
 func memoryMStore(stack *Stack) (uint64, bool) {
-	return calcMemSize64WithUint(stack.Back(0), 64)
+	return calcMemSize64WithUint(stack.Back(0), uint512.WordBytes)
 }
 
 func memoryCreate(stack *Stack) (uint64, bool) {

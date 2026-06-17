@@ -129,6 +129,7 @@ func TestCalldataDecoding(t *testing.T) {
 	jsondata := `
 [
 	{"type":"function","name":"send","inputs":[{"name":"a","type":"uint256"}]},
+	{"type":"function","name":"send512","inputs":[{"name":"a","type":"uint512"}]},
 	{"type":"function","name":"compareAndApprove","inputs":[{"name":"a","type":"address"},{"name":"a","type":"uint256"},{"name":"a","type":"uint256"}]},
 	{"type":"function","name":"issue","inputs":[{"name":"a","type":"address[]"},{"name":"a","type":"uint256"}]},
 	{"type":"function","name":"sam","inputs":[{"name":"a","type":"bytes"},{"name":"a","type":"bool"},{"name":"a","type":"uint256[]"}]}
@@ -137,15 +138,17 @@ func TestCalldataDecoding(t *testing.T) {
 	// abi.Pack, then derive the corresponding failure cases (truncations,
 	// illegal bool values, mis-aligned lengths) by mutating those payloads.
 	const (
-		sendSpec              = `[{"type":"function","name":"send","inputs":[{"name":"a","type":"uint256"}]}]`
-		compareSpec           = `[{"type":"function","name":"compareAndApprove","inputs":[{"name":"a","type":"address"},{"name":"a","type":"uint256"},{"name":"a","type":"uint256"}]}]`
-		issueSpec             = `[{"type":"function","name":"issue","inputs":[{"name":"a","type":"address[]"},{"name":"a","type":"uint256"}]}]`
-		samSpec               = `[{"type":"function","name":"sam","inputs":[{"name":"a","type":"bytes"},{"name":"a","type":"bool"},{"name":"a","type":"uint256[]"}]}]`
+		sendSpec    = `[{"type":"function","name":"send","inputs":[{"name":"a","type":"uint256"}]}]`
+		send512Spec = `[{"type":"function","name":"send512","inputs":[{"name":"a","type":"uint512"}]}]`
+		compareSpec = `[{"type":"function","name":"compareAndApprove","inputs":[{"name":"a","type":"address"},{"name":"a","type":"uint256"},{"name":"a","type":"uint256"}]}]`
+		issueSpec   = `[{"type":"function","name":"issue","inputs":[{"name":"a","type":"address[]"},{"name":"a","type":"uint256"}]}]`
+		samSpec     = `[{"type":"function","name":"sam","inputs":[{"name":"a","type":"bytes"},{"name":"a","type":"bool"},{"name":"a","type":"uint256[]"}]}]`
 	)
 	addrA := common.Address{0xde, 0xad}
 	addrB := common.Address{0xbe, 0xef}
 
 	sendOK := mustPack(t, sendSpec, "send", big.NewInt(0x12))
+	send512OK := mustPack(t, send512Spec, "send512", new(big.Int).Sub(new(big.Int).Lsh(big.NewInt(1), 512), big.NewInt(1)))
 	compareOK := mustPack(t, compareSpec, "compareAndApprove", common.Address{}, big.NewInt(0), big.NewInt(0))
 	issueOK := mustPack(t, issueSpec, "issue", []common.Address{addrA, addrB}, big.NewInt(1))
 	samOK := mustPack(t, samSpec, "sam", []byte{0x64, 0x61, 0x76, 0x65}, true, []*big.Int{big.NewInt(1), big.NewInt(2), big.NewInt(3)})
@@ -157,9 +160,9 @@ func TestCalldataDecoding(t *testing.T) {
 	// Expected failures
 	for i, hexdata := range []string{
 		sendOK + "0000000000000000000000000000000000000000000000000000000000000042", // extra trailing bytes
-		sendOK + "00", // extra single byte
+		sendOK + "00",          // extra single byte
 		sendOK[:len(sendOK)-2], // truncated final byte
-		sendOK[:8],     // selector only
+		sendOK[:8],             // selector only
 		"a52c10",
 		"",
 		// Too short
@@ -167,6 +170,9 @@ func TestCalldataDecoding(t *testing.T) {
 		"751e1079FFffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
 		// Not valid multiple of 64-byte slot width
 		"deadbeef" + "00000000000000000000000000000000000000000000000000000000000000",
+		// send(uint256) with high bits set above uint256.
+		"a52c101e" + "FFffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff" +
+			"FFffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
 		// Too short 'issue'
 		"42958b54" + "00000000000000000000000000000000000000000000000000000000000000120000000000000000000000000000000000000000000000000000000000000042",
 		// Too short compareAndApprove (2 slots of 64 bytes instead of 3)
@@ -185,9 +191,7 @@ func TestCalldataDecoding(t *testing.T) {
 	for i, hexdata := range []string{
 		samOK,
 		sendOK,
-		// sendOK with high bits set in the uint256 slot (still a valid encoding).
-		"a52c101e" + "FFffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff" +
-			"FFffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+		send512OK,
 		compareOK,
 		issueOK,
 	} {

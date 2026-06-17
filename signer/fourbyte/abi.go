@@ -24,6 +24,7 @@ import (
 
 	"github.com/theQRL/go-qrl/accounts/abi"
 	"github.com/theQRL/go-qrl/common"
+	"github.com/theQRL/go-qrl/common/uint512"
 )
 
 // decodedCallData is an internal type to represent a method call parsed according
@@ -88,15 +89,15 @@ func parseSelector(unescapedSelector string) ([]byte, error) {
 // parseCallData matches the provided call data against the ABI definition and
 // returns a struct containing the actual go-typed values.
 func parseCallData(calldata []byte, unescapedAbidata string) (*decodedCallData, error) {
-	// Validate the call data that it has the 4byte prefix and the rest divisible by 32 bytes
+	// Validate the call data that it has the 4byte prefix and the rest divisible by a VM word.
 	if len(calldata) < 4 {
 		return nil, fmt.Errorf("invalid call data, incomplete method signature (%d bytes < 4)", len(calldata))
 	}
 	sigdata := calldata[:4]
 
 	argdata := calldata[4:]
-	if len(argdata)%32 != 0 {
-		return nil, fmt.Errorf("invalid call data; length should be a multiple of 32 bytes (was %d)", len(argdata))
+	if len(argdata)%uint512.WordBytes != 0 {
+		return nil, fmt.Errorf("invalid call data; length should be a multiple of %d bytes (was %d)", uint512.WordBytes, len(argdata))
 	}
 	// Validate the called method and unpack the call data accordingly
 	abispec, err := abi.JSON(strings.NewReader(unescapedAbidata))

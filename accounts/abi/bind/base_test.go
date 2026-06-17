@@ -272,6 +272,27 @@ func TestUnpackIndexedArrayTyLogIntoMap(t *testing.T) {
 	unpackAndCheck(t, bc, expectedReceivedMap, mockLog)
 }
 
+func TestBoundContractFiltersRejectIndexedIntegerOverflow(t *testing.T) {
+	parsedAbi, err := abi.JSON(strings.NewReader(`[{
+		"anonymous": false,
+		"inputs": [{"indexed": true, "name": "value", "type": "uint256"}],
+		"name": "Observed",
+		"type": "event"
+	}]`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	bc := bind.NewBoundContract(common.Address{}, parsedAbi, nil, nil, nil)
+
+	tooLarge := new(big.Int).Lsh(big.NewInt(1), 256)
+	if _, _, err := bc.FilterLogs(nil, "Observed", []any{tooLarge}); err == nil {
+		t.Fatalf("FilterLogs accepted indexed uint256 overflow")
+	}
+	if _, _, err := bc.WatchLogs(nil, "Observed", []any{big.NewInt(-1)}); err == nil {
+		t.Fatalf("WatchLogs accepted negative indexed uint256")
+	}
+}
+
 func TestUnpackIndexedFuncTyLogIntoMap(t *testing.T) {
 	addrBytes := mockSender.Bytes()
 	hash := crypto.Keccak256Hash([]byte("mockFunction(address,uint)"))
@@ -291,7 +312,7 @@ func TestUnpackIndexedFuncTyLogIntoMap(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected indexed function topic to be rejected")
 	}
-	if !strings.Contains(err.Error(), "function type does not fit") {
+	if !errors.Is(err, abi.ErrUnsupportedFunctionType) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 }

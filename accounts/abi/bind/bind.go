@@ -14,14 +14,13 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with the go-ethereum library. If not, see <http://www.gnu.org/licenses/>.
 
-// Package bind generates QRL contract Go bindings.
-//
-// Detailed usage document and tutorial available on the go-ethereum Wiki page:
-// https://github.com/ethereum/go-ethereum/wiki/Native-DApps:-Go-bindings-to-Ethereum-contracts
+// Package bind generates QRL/Hyperion contract Go bindings.
 package bind
 
 import (
 	"bytes"
+	"encoding/hex"
+	"errors"
 	"fmt"
 	"go/format"
 	"regexp"
@@ -30,12 +29,41 @@ import (
 	"unicode"
 
 	"github.com/theQRL/go-qrl/accounts/abi"
-	"github.com/theQRL/go-qrl/log"
+	"github.com/theQRL/go-qrl/common"
+	"github.com/theQRL/go-qrl/crypto"
 )
 
 var (
 	intRegex = regexp.MustCompile(`(u)?int([0-9]*)`)
+
+	libraryPlaceholderPatternHexLength = common.AddressLength*2 - len(libraryPlaceholderPrefix) - len(libraryPlaceholderSuffix)
+	vm64LibraryPlaceholderRegex        = regexp.MustCompile(fmt.Sprintf(`__\$[0-9a-fA-F]{%d}\$__`, libraryPlaceholderPatternHexLength))
+	legacyLibraryPlaceholderRegex      = regexp.MustCompile(`__\$[0-9a-fA-F]{34}\$__`)
+
+	// ErrUnsupportedLibraryLinking is returned when bytecode still contains a
+	// legacy Solidity library link placeholder. Those placeholders reserve 20 bytes
+	// for an Ethereum address and cannot be rewritten with a 64-byte QRL address
+	// without changing code layout.
+	ErrUnsupportedLibraryLinking = errors.New("bind: legacy 20-byte Solidity library link placeholders are unsupported in VM64")
+
+	// ErrUnresolvedLibraryLink is returned when VM64 bytecode contains a link
+	// placeholder, but no library metadata was provided to resolve it.
+	ErrUnresolvedLibraryLink = errors.New("bind: unresolved VM64 library link placeholder")
 )
+
+const (
+	libraryPlaceholderPrefix = "__$"
+	libraryPlaceholderSuffix = "$__"
+)
+
+// LibraryLinkPattern derives the VM64 library link pattern for a fully qualified
+// library name. The returned string excludes the "__$" and "$__" delimiters and
+// is sized so the complete placeholder has the same width as a 64-byte address
+// encoded as hex.
+func LibraryLinkPattern(qualifiedName string) string {
+	hash := hex.EncodeToString(crypto.Keccak512([]byte(qualifiedName)))
+	return hash[:libraryPlaceholderPatternHexLength]
+}
 
 func isKeyWord(arg string) bool {
 	switch arg {
@@ -85,14 +113,17 @@ func Bind(types []string, abis []string, bytecodes []string, fsigs []map[string]
 
 		// structs is the map of all redeclared structs shared by passed contracts.
 		structs = make(map[string]*tmplStruct)
-
-		// isLib is the map used to flag each encountered library as such
-		isLib = make(map[string]struct{})
 	)
 	for i := range types {
 		// Parse the actual ABI to generate the binding for
 		qrvmABI, err := abi.JSON(strings.NewReader(abis[i]))
 		if err != nil {
+			return "", err
+		}
+		if err := validateNoFunctionTypes(types[i], qrvmABI); err != nil {
+			return "", err
+		}
+		if err := validateNoLegacyLibraryPlaceholders(types[i], bytecodes[i]); err != nil {
 			return "", err
 		}
 		// Strip any whitespace from the JSON ABI
@@ -247,31 +278,14 @@ func Bind(types []string, abis []string, bytecodes []string, fsigs []map[string]
 		if len(fsigs) > i {
 			contracts[types[i]].FuncSigs = fsigs[i]
 		}
-		// Parse library references.
-		for pattern, name := range libs {
-			matched, err := regexp.MatchString("__\\$"+pattern+"\\$__", contracts[types[i]].InputBin)
-			if err != nil {
-				log.Error("Could not search for pattern", "pattern", pattern, "contract", contracts[types[i]], "err", err)
-			}
-			if matched {
-				contracts[types[i]].Libraries[pattern] = name
-				// keep track that this type is a library
-				if _, ok := isLib[name]; !ok {
-					isLib[name] = struct{}{}
-				}
-			}
+		if err := resolveLibraryPlaceholders(types[i], contracts[types[i]].InputBin, libs, contracts[types[i]].Libraries); err != nil {
+			return "", err
 		}
-	}
-	// Check if that type has already been identified as a library
-	for i := range types {
-		_, ok := isLib[types[i]]
-		contracts[types[i]].Library = ok
 	}
 	// Generate the contract template data content and render it
 	data := &tmplData{
 		Package:   pkg,
 		Contracts: contracts,
-		Libraries: libs,
 		Structs:   structs,
 	}
 	buffer := new(bytes.Buffer)
@@ -294,6 +308,108 @@ func Bind(types []string, abis []string, bytecodes []string, fsigs []map[string]
 	return string(code), nil
 }
 
+func validateNoLegacyLibraryPlaceholders(contract string, bytecode string) error {
+	if bytecode == "" {
+		return nil
+	}
+	bin := strings.TrimPrefix(strings.TrimSpace(bytecode), "0x")
+	placeholder := legacyLibraryPlaceholderRegex.FindString(bin)
+	if placeholder == "" {
+		return nil
+	}
+	return fmt.Errorf("%w: contract %s bytecode contains %q; compile and link with Hyperion VM64 output or pass already-linked bytecode", ErrUnsupportedLibraryLinking, contract, placeholder)
+}
+
+func resolveLibraryPlaceholders(contract string, bytecode string, libs map[string]string, linked map[string]string) error {
+	if bytecode == "" {
+		return nil
+	}
+	unresolved := make(map[string]struct{})
+	for _, placeholder := range vm64LibraryPlaceholderRegex.FindAllString(bytecode, -1) {
+		unresolved[placeholder] = struct{}{}
+	}
+	for pattern, name := range libs {
+		if len(pattern) != libraryPlaceholderPatternHexLength {
+			continue
+		}
+		placeholder := libraryPlaceholder(pattern)
+		if strings.Contains(bytecode, placeholder) {
+			linked[placeholder] = name
+			delete(unresolved, placeholder)
+		}
+	}
+	for placeholder := range unresolved {
+		return fmt.Errorf("%w: contract %s bytecode contains %q but no matching library was provided", ErrUnresolvedLibraryLink, contract, placeholder)
+	}
+	return nil
+}
+
+func libraryPlaceholder(pattern string) string {
+	return libraryPlaceholderPrefix + pattern + libraryPlaceholderSuffix
+}
+
+func validateNoFunctionTypes(contract string, qrvmABI abi.ABI) error {
+	if err := validateNoFunctionTypeArgs(contract, "constructor input", qrvmABI.Constructor.Inputs); err != nil {
+		return err
+	}
+	for _, method := range qrvmABI.Methods {
+		name := method.RawName
+		if name == "" {
+			name = method.Name
+		}
+		if err := validateNoFunctionTypeArgs(contract+"."+name, "method input", method.Inputs); err != nil {
+			return err
+		}
+		if err := validateNoFunctionTypeArgs(contract+"."+name, "method output", method.Outputs); err != nil {
+			return err
+		}
+	}
+	for _, event := range qrvmABI.Events {
+		name := event.RawName
+		if name == "" {
+			name = event.Name
+		}
+		if err := validateNoFunctionTypeArgs(contract+"."+name, "event input", event.Inputs); err != nil {
+			return err
+		}
+	}
+	for _, errABI := range qrvmABI.Errors {
+		if err := validateNoFunctionTypeArgs(contract+"."+errABI.Name, "error input", errABI.Inputs); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func validateNoFunctionTypeArgs(scope string, role string, args abi.Arguments) error {
+	for i, arg := range args {
+		if containsFunctionType(arg.Type) {
+			name := arg.Name
+			if name == "" {
+				name = fmt.Sprintf("arg%d", i)
+			}
+			return fmt.Errorf("%w: %s %s %q uses ABI type %s", abi.ErrUnsupportedFunctionType, scope, role, name, arg.Type)
+		}
+	}
+	return nil
+}
+
+func containsFunctionType(kind abi.Type) bool {
+	switch kind.T {
+	case abi.FunctionTy:
+		return true
+	case abi.ArrayTy, abi.SliceTy:
+		return containsFunctionType(*kind.Elem)
+	case abi.TupleTy:
+		for _, elem := range kind.TupleElems {
+			if containsFunctionType(*elem) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 // bindBasicType converts basic hyperion types(except array, slice and tuple) to Go ones.
 func bindBasicType(kind abi.Type) string {
 	switch kind.T {
@@ -311,7 +427,7 @@ func bindBasicType(kind abi.Type) string {
 	case abi.BytesTy:
 		return "[]byte"
 	case abi.FunctionTy:
-		return "[24]byte"
+		return "unsupportedFunctionType"
 	default:
 		// string, bool types
 		return kind.String()
@@ -319,7 +435,7 @@ func bindBasicType(kind abi.Type) string {
 }
 
 // bindType converts hyperion types to Go ones. Since there is no clear mapping
-// from all Hyperion types to Go ones (e.g. uint17), those that cannot be exactly
+// from all Hyperion types to Go ones (e.g. uint24), those that cannot be exactly
 // mapped will use an upscaled type (e.g. BigDecimal).
 func bindType(kind abi.Type, structs map[string]*tmplStruct) string {
 	switch kind.T {
@@ -334,21 +450,16 @@ func bindType(kind abi.Type, structs map[string]*tmplStruct) string {
 	}
 }
 
-// bindTopicType converts a Hyperion topic type to a Go one. It is almost the same
-// functionality as for simple types, but dynamic types get converted to hashes.
+// bindTopicType converts a Hyperion topic type to the Go type reconstructed by
+// abi.ParseTopics. Indexed hash-only values are not recoverable from logs; the
+// generated event exposes the full 64-byte topic that contains their hash.
 func bindTopicType(kind abi.Type, structs map[string]*tmplStruct) string {
-	bound := bindType(kind, structs)
-
-	// todo(rjl493456442) according hyperion documentation, indexed event
-	// parameters that are not value types i.e. arrays and structs are not
-	// stored directly but instead a keccak256-hash of an encoding is stored.
-	//
-	// We only convert strings and bytes to hash, still need to deal with
-	// array(both fixed-size and dynamic-size) and struct.
-	if bound == "string" || bound == "[]byte" {
-		bound = "common.Hash"
+	switch kind.T {
+	case abi.StringTy, abi.BytesTy, abi.SliceTy, abi.ArrayTy, abi.TupleTy:
+		return "common.LogTopic"
+	default:
+		return bindType(kind, structs)
 	}
-	return bound
 }
 
 // bindStructType converts a Hyperion tuple type to a Go one and records the mapping

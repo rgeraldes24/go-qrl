@@ -36,12 +36,12 @@ func TestMemoryGasCost(t *testing.T) {
 		cost     uint64
 		overflow bool
 	}{
-		// The overflow threshold is still 0x1FFFFFFFE0, but the gas cost at
-		// that boundary drops by 4x relative to the 32-byte-word chain:
-		// doubling the word width quarters the squared word count that
-		// drives the quadratic term.
+		// VM64 uses 64-byte memory words, so the overflow threshold is
+		// 0xffffffff * uint512.WordBytes == 0x3fffffffc0.
 		{0x1fffffffe0, 9007205697191936, false},
-		{0x1fffffffe1, 0, true},
+		{0x1fffffffe1, 9007205697191936, false},
+		{maxMemoryExpansionBytes, 36028809887088637, false},
+		{maxMemoryExpansionBytes + 1, 0, true},
 	}
 	for i, tt := range tests {
 		v, err := memoryGasCost(&Memory{}, tt.size)

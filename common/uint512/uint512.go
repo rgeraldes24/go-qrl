@@ -12,6 +12,15 @@ import (
 	"fmt"
 	"math/big"
 	"math/bits"
+
+	"github.com/theQRL/go-qrl/common/hexutil"
+)
+
+const (
+	// WordBits is the QRVM stack word width in bits.
+	WordBits = 512
+	// WordBytes is the QRVM stack word width in bytes.
+	WordBytes = WordBits / 8
 )
 
 // Int is a 512-bit unsigned integer stored as 8 little-endian 64-bit limbs.
@@ -182,14 +191,14 @@ func (z *Int) SetUint64(v uint64) *Int {
 // truncates to 512 bits if longer (keeping the least-significant bytes),
 // and sets z. Returns z.
 func (z *Int) SetBytes(buf []byte) *Int {
-	if len(buf) > 64 {
-		buf = buf[len(buf)-64:]
+	if len(buf) > WordBytes {
+		buf = buf[len(buf)-WordBytes:]
 	}
 	// Zero the destination first.
 	*z = Int{}
 	// Copy bytes into a temporary 64-byte buffer, right-aligned.
-	var tmp [64]byte
-	copy(tmp[64-len(buf):], buf)
+	var tmp [WordBytes]byte
+	copy(tmp[WordBytes-len(buf):], buf)
 	// tmp is big-endian: tmp[0..7] are the most-significant 8 bytes (limb 7).
 	for i := 0; i < 8; i++ {
 		// limb i (little-endian) comes from tmp bytes (7-i)*8 .. (7-i)*8+7.
@@ -205,7 +214,7 @@ func (z *Int) SetBytes(buf []byte) *Int {
 // SetFromBig sets z to b mod 2^512 and reports whether b was outside
 // [0, 2^512).
 func (z *Int) SetFromBig(b *big.Int) bool {
-	overflow := b.Sign() < 0 || b.BitLen() > 512
+	overflow := b.Sign() < 0 || b.BitLen() > WordBits
 	if overflow {
 		// Reduce to [0, 2^512).
 		tmp := new(big.Int).And(b, mask512())
@@ -220,11 +229,11 @@ func (z *Int) SetFromBig(b *big.Int) bool {
 func (z *Int) setFromBigUnsafe(b *big.Int) {
 	*z = Int{}
 	bytes := b.Bytes() // big-endian
-	if len(bytes) > 64 {
-		bytes = bytes[len(bytes)-64:]
+	if len(bytes) > WordBytes {
+		bytes = bytes[len(bytes)-WordBytes:]
 	}
-	var tmp [64]byte
-	copy(tmp[64-len(bytes):], bytes)
+	var tmp [WordBytes]byte
+	copy(tmp[WordBytes-len(bytes):], bytes)
 	for i := 0; i < 8; i++ {
 		off := (7 - i) * 8
 		z[i] = uint64(tmp[off])<<56 | uint64(tmp[off+1])<<48 |
@@ -273,7 +282,7 @@ func (z *Int) ToBig() *big.Int {
 // bytes64Slice returns the 64-byte big-endian representation of z as a slice,
 // without the leading-zero stripping done by Bytes().
 func (z *Int) bytes64Slice() []byte {
-	out := make([]byte, 64)
+	out := make([]byte, WordBytes)
 	for i := 0; i < 8; i++ {
 		off := (7 - i) * 8
 		v := z[i]
@@ -323,8 +332,8 @@ func (z *Int) Bytes32() [32]byte {
 }
 
 // Bytes64 returns the 64-byte big-endian representation of z.
-func (z *Int) Bytes64() [64]byte {
-	var out [64]byte
+func (z *Int) Bytes64() [WordBytes]byte {
+	var out [WordBytes]byte
 	for i := 0; i < 8; i++ {
 		off := (7 - i) * 8
 		v := z[i]
@@ -343,6 +352,29 @@ func (z *Int) Bytes64() [64]byte {
 // Hex returns the hexadecimal representation of z prefixed with "0x".
 func (z *Int) Hex() string {
 	return "0x" + z.ToBig().Text(16)
+}
+
+// Hex64 returns the canonical 64-byte hexadecimal representation of z.
+func (z Int) Hex64() string {
+	b := (&z).Bytes64()
+	return hexutil.Encode(b[:])
+}
+
+// MarshalText implements encoding.TextMarshaler using the canonical 64-byte
+// VM word representation.
+func (z Int) MarshalText() ([]byte, error) {
+	b := (&z).Bytes64()
+	return hexutil.Bytes(b[:]).MarshalText()
+}
+
+// UnmarshalText decodes a canonical 64-byte VM word.
+func (z *Int) UnmarshalText(input []byte) error {
+	var b [WordBytes]byte
+	if err := hexutil.UnmarshalFixedText("uint512.Int", input, b[:]); err != nil {
+		return err
+	}
+	z.SetBytes(b[:])
+	return nil
 }
 
 // Format implements fmt.Formatter. It supports the same verbs as big.Int.
@@ -500,7 +532,7 @@ func (z *Int) MulMod(x, y, m *Int) *Int {
 // ExtendSign sets z to x sign-extended from byte position (byteNum+1) to
 // 512 bits. Matches the semantics of EVM SIGNEXTEND but for 64-byte words.
 func (z *Int) ExtendSign(x, byteNum *Int) *Int {
-	if !byteNum.IsUint64() || byteNum[0] >= 63 {
+	if !byteNum.IsUint64() || byteNum[0] >= WordBytes-1 {
 		if z != x {
 			*z = *x
 		}
@@ -511,7 +543,7 @@ func (z *Int) ExtendSign(x, byteNum *Int) *Int {
 
 	// Bits below and including the sign bit are preserved; bits above are
 	// filled with the sign value.
-	signSet := (x[bit/64] >> (bit % 64)) & 1 != 0
+	signSet := (x[bit/64]>>(bit%64))&1 != 0
 
 	// Build mask = 2^(bit+1) - 1.
 	var mask Int
@@ -600,7 +632,7 @@ func (z *Int) Not(x *Int) *Int {
 
 // Lsh sets z = x << n (mod 2^512) and returns z.
 func (z *Int) Lsh(x *Int, n uint) *Int {
-	if n >= 512 {
+	if n >= WordBits {
 		z.Clear()
 		return z
 	}
@@ -630,7 +662,7 @@ func (z *Int) Lsh(x *Int, n uint) *Int {
 
 // Rsh sets z = x >> n (logical shift right) and returns z.
 func (z *Int) Rsh(x *Int, n uint) *Int {
-	if n >= 512 {
+	if n >= WordBits {
 		z.Clear()
 		return z
 	}
@@ -663,7 +695,7 @@ func (z *Int) SRsh(x *Int, n uint) *Int {
 	if x[7]>>63 == 0 {
 		return z.Rsh(x, n)
 	}
-	if n >= 512 {
+	if n >= WordBits {
 		return z.SetAllOne()
 	}
 	if n == 0 {
@@ -673,7 +705,7 @@ func (z *Int) SRsh(x *Int, n uint) *Int {
 	// For negative numbers: rshift normally, then fill the top `n` bits with 1s.
 	z.Rsh(x, n)
 	// OR in the sign-extended bits.
-	bit := uint(512) - n // first bit index (from LSB) that should be 1
+	bit := uint(WordBits) - n // first bit index (from LSB) that should be 1
 	for i := int(bit) / 64; i < 8; i++ {
 		var mask uint64
 		if i == int(bit)/64 {
@@ -690,15 +722,15 @@ func (z *Int) SRsh(x *Int, n uint) *Int {
 // 0 is the most significant byte of the 64-byte representation. If n >= 64, z
 // is set to 0.
 func (z *Int) Byte(n *Int) *Int {
-	if !n.IsUint64() || n[0] >= 64 {
+	if !n.IsUint64() || n[0] >= WordBytes {
 		z.Clear()
 		return z
 	}
 	idx := n[0]
-	// Big-endian index `idx` corresponds to bit position 8*(63-idx) in the
-	// little-endian limb layout. Limb = (63-idx)/8 from the bottom, byte
-	// within limb = (63-idx)%8 from the bottom.
-	be := 63 - idx
+	// Big-endian index `idx` corresponds to bit position 8*(WordBytes-1-idx)
+	// in the little-endian limb layout. Limb = (WordBytes-1-idx)/8 from the
+	// bottom, byte within limb = (WordBytes-1-idx)%8 from the bottom.
+	be := WordBytes - 1 - idx
 	limb := be / 8
 	byteInLimb := be % 8
 	b := (z[limb] >> (byteInLimb * 8)) & 0xff
@@ -711,7 +743,7 @@ func (z *Int) Byte(n *Int) *Int {
 // modulus returns a fresh 2^512 big.Int. Allocated per call to avoid shared
 // mutable state with callers that mutate the returned value.
 func modulus() *big.Int {
-	return new(big.Int).Lsh(big.NewInt(1), 512)
+	return new(big.Int).Lsh(big.NewInt(1), WordBits)
 }
 
 // mask512 returns a fresh (2^512 - 1) big.Int.

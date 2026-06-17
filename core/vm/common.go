@@ -62,16 +62,17 @@ func getData(data []byte, start uint64, size uint64) []byte {
 }
 
 // toWordSize returns the ceiled word size required for memory expansion.
-// The VM word is 64 bytes.
+// The VM word is uint512.WordBytes bytes.
 func toWordSize(size uint64) uint64 {
-	if size > math.MaxUint64-63 {
-		return math.MaxUint64/64 + 1
+	const wordBytes = uint64(uint512.WordBytes)
+	if size > math.MaxUint64-(wordBytes-1) {
+		return math.MaxUint64/wordBytes + 1
 	}
 
-	return (size + 63) / 64
+	return (size + wordBytes - 1) / wordBytes
 }
 
-// stackToAddress extracts a 64-byte address from a 512-bit stack value.
+// stackToAddress extracts an address from a stack word.
 func stackToAddress(val *uint512.Int) common.Address {
 	b := val.Bytes64()
 	return common.BytesToAddress(b[:])

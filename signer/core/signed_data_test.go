@@ -158,7 +158,7 @@ const primaryType = "Mail"
 var domainStandard = apitypes.TypedDataDomain{
 	Name:              "Ether Mail",
 	Version:           "1",
-	ChainId:           math.NewHexOrDecimal256(1),
+	ChainId:           math.NewHexOrDecimal512(1),
 	VerifyingContract: "QCCCcCCCcCCCcCCCcCCCcCCCcCCCcCCCcCCCcCCCcCCCcCCCcCCCcCCCcCCCcCCCcCCCcCCCcCCCcCCCcCCCcCCCcCCCcCCCc99aabbccddeeff001122334455667788",
 	Salt:              "",
 }
@@ -275,7 +275,7 @@ func TestDomainChainId(t *testing.T) {
 		},
 		Domain: apitypes.TypedDataDomain{
 			Name:    "test",
-			ChainId: math.NewHexOrDecimal256(1),
+			ChainId: math.NewHexOrDecimal512(1),
 		},
 	}
 
@@ -295,7 +295,7 @@ func TestHashStruct(t *testing.T) {
 		t.Fatal(err)
 	}
 	mainHash := fmt.Sprintf("0x%s", common.Bytes2Hex(hash))
-	if mainHash != "0xeffdb2572b96cf174446b4b5e29ea4cdfe99bdc1062c0e74d3f0f02d0e3627df" {
+	if mainHash != "0x77abdbfc62ca407545b8fe30a4592c7f18b9624308e9311931582df2cee8e1a9" {
 		t.Errorf("Expected different hashStruct result (got %s)", mainHash)
 	}
 
@@ -304,7 +304,7 @@ func TestHashStruct(t *testing.T) {
 		t.Error(err)
 	}
 	domainHash := fmt.Sprintf("0x%s", common.Bytes2Hex(hash))
-	if domainHash != "0x924f059b0a641eed4ccf8aa0493fae0c3da1608bc27d6f3c1153c630564c2ceb" {
+	if domainHash != "0x194b65549e59e15cae655dd9f0c46cadcf76c8e1ee2505faaad9d28d4bf8afee" {
 		t.Errorf("Expected different domain hashStruct result (got %s)", domainHash)
 	}
 }
@@ -337,7 +337,7 @@ func TestEncodeData(t *testing.T) {
 		t.Fatal(err)
 	}
 	dataEncoding := fmt.Sprintf("0x%s", common.Bytes2Hex(hash))
-	if dataEncoding != "0xa0cedeb2dc280ba39b857546d74f5549c3a1d7bdc2dd96bf881f76108e23dac2f888d4475c55744d89f6b79a6379db848638f3413c2fc14e12365fe5d631d900c4820e22bb4840c5fd1609ee923f74d281c863bd07b0933743bced0b7c5381dcb5aadf3154a261abdd9086fc627b61efca26ae5702701d05cd2305f7c52a2fc8" {
+	if dataEncoding != "0xa0cedeb2dc280ba39b857546d74f5549c3a1d7bdc2dd96bf881f76108e23dac200000000000000000000000000000000000000000000000000000000000000005ff9606cfd3cf02dff608d92b16a99bf08b087ba3f7d50de6c94668c4d911863000000000000000000000000000000000000000000000000000000000000000094329683ebe350d70c5560224b7ce95ef5b12d253a28e2fc0f573da4570a44fc0000000000000000000000000000000000000000000000000000000000000000b5aadf3154a261abdd9086fc627b61efca26ae5702701d05cd2305f7c52a2fc80000000000000000000000000000000000000000000000000000000000000000" {
 		t.Errorf("Expected different encodeData result (got %s)", dataEncoding)
 	}
 }
@@ -584,7 +584,7 @@ func TestComplexTypedData(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	expSigHash := common.FromHex("0xac3c843be9142fd326260349ab779f913083bb1b0d1d80010b55c3cd8d1e01eb")
+	expSigHash := common.FromHex("0x9042c549b56e30d9081304ec51ca69da3914a3c9f34d2387530ca57d9dc7b513")
 	if !bytes.Equal(expSigHash, sighash) {
 		t.Fatalf("Error, got %x, wanted %x", sighash, expSigHash)
 	}
@@ -735,7 +735,7 @@ func TestComplexTypedDataWithLowercaseReftype(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	expSigHash := common.FromHex("0x4f36ab9b7b50c6e7e91017a569cdfe8e4d8adb5e0901cb27f3d845879a8e5141")
+	expSigHash := common.FromHex("0xa306ea6f9aaf1a9a34a50fea39bfa38ee16fe7c9f02797127a42bd33d68717fc")
 	if !bytes.Equal(expSigHash, sighash) {
 		t.Fatalf("Error, got %x, wanted %x", sighash, expSigHash)
 	}

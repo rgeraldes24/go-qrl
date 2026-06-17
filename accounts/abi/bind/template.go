@@ -22,7 +22,6 @@ import "github.com/theQRL/go-qrl/accounts/abi"
 type tmplData struct {
 	Package   string                   // Name of the package to place the generated file in
 	Contracts map[string]*tmplContract // List of contracts to generate into this file
-	Libraries map[string]string        // Map the bytecode's link pattern to the library name
 	Structs   map[string]*tmplStruct   // Contract struct type definitions
 }
 
@@ -38,8 +37,7 @@ type tmplContract struct {
 	Fallback    *tmplMethod            // Additional special fallback function
 	Receive     *tmplMethod            // Additional special receive function
 	Events      map[string]*tmplEvent  // Contract events accessors
-	Libraries   map[string]string      // Same as tmplData, but filtered to only keep what the contract needs
-	Library     bool                   // Indicator whether the contract is a library
+	Libraries   map[string]string      // VM64 bytecode link placeholder to library binding type name
 }
 
 // tmplMethod is a wrapper around an abi.Method that contains a few preprocessed
@@ -153,9 +151,12 @@ var (
 		  if parsed == nil {
 			return common.Address{}, nil, nil, errors.New("GetABI returned nil")
 		  }
-		  {{range $pattern, $name := .Libraries}}
-			{{decapitalise $name}}Addr, _, _, _ := Deploy{{capitalise $name}}(auth, backend)
-			{{$contract.Type}}Bin = strings.ReplaceAll({{$contract.Type}}Bin, "__${{$pattern}}$__", {{decapitalise $name}}Addr.String()[1:])
+		  {{range $placeholder, $name := .Libraries}}
+			{{decapitalise $name}}Addr, _, _, err := Deploy{{capitalise $name}}(auth, backend)
+			if err != nil {
+				return common.Address{}, nil, nil, err
+			}
+			{{$contract.Type}}Bin = strings.ReplaceAll({{$contract.Type}}Bin, "{{$placeholder}}", {{decapitalise $name}}Addr.String()[1:])
 		  {{end}}
 		  address, tx, contract, err := bind.DeployContract(auth, *parsed, common.FromHex({{.Type}}Bin), backend {{range .Constructor.Inputs}}, {{.Name}}{{end}})
 		  if err != nil {
@@ -492,7 +493,7 @@ var (
 		// Filter{{.Normalized.Name}} is a free log retrieval operation binding the contract event 0x{{printf "%x" .Original.ID}}.
 		//
 		// Hyperion: {{.Original.String}}
- 		func (_{{$contract.Type}} *{{$contract.Type}}Filterer) Filter{{.Normalized.Name}}(opts *bind.FilterOpts{{range .Normalized.Inputs}}{{if .Indexed}}, {{.Name}} []{{bindtype .Type $structs}}{{end}}{{end}}) (*{{$contract.Type}}{{.Normalized.Name}}Iterator, error) {
+	 	func (_{{$contract.Type}} *{{$contract.Type}}Filterer) Filter{{.Normalized.Name}}(opts *bind.FilterOpts{{range .Normalized.Inputs}}{{if .Indexed}}, {{.Name}} []{{bindtopictype .Type $structs}}{{end}}{{end}}) (*{{$contract.Type}}{{.Normalized.Name}}Iterator, error) {
 			{{range .Normalized.Inputs}}
 			{{if .Indexed}}var {{.Name}}Rule []any
 			for _, {{.Name}}Item := range {{.Name}} {
@@ -509,7 +510,7 @@ var (
 		// Watch{{.Normalized.Name}} is a free log subscription operation binding the contract event 0x{{printf "%x" .Original.ID}}.
 		//
 		// Hyperion: {{.Original.String}}
-		func (_{{$contract.Type}} *{{$contract.Type}}Filterer) Watch{{.Normalized.Name}}(opts *bind.WatchOpts, sink chan<- *{{$contract.Type}}{{.Normalized.Name}}{{range .Normalized.Inputs}}{{if .Indexed}}, {{.Name}} []{{bindtype .Type $structs}}{{end}}{{end}}) (event.Subscription, error) {
+			func (_{{$contract.Type}} *{{$contract.Type}}Filterer) Watch{{.Normalized.Name}}(opts *bind.WatchOpts, sink chan<- *{{$contract.Type}}{{.Normalized.Name}}{{range .Normalized.Inputs}}{{if .Indexed}}, {{.Name}} []{{bindtopictype .Type $structs}}{{end}}{{end}}) (event.Subscription, error) {
 			{{range .Normalized.Inputs}}
 			{{if .Indexed}}var {{.Name}}Rule []any
 			for _, {{.Name}}Item := range {{.Name}} {

@@ -20,9 +20,11 @@ import (
 	"encoding/json"
 	"errors"
 	"math/big"
+	"strings"
 	"testing"
 
 	"github.com/theQRL/go-qrl/common"
+	"github.com/theQRL/go-qrl/common/uint512"
 	"github.com/theQRL/go-qrl/core/rawdb"
 	"github.com/theQRL/go-qrl/core/state"
 	"github.com/theQRL/go-qrl/core/types"
@@ -78,6 +80,36 @@ func TestStoreCapture(t *testing.T) {
 	exp := common.BytesToStorageValue64(common.BigToHash(big.NewInt(1)).Bytes())
 	if logger.storage[contract.Address()][index] != exp {
 		t.Errorf("expected %x, got %x", exp, logger.storage[contract.Address()][index])
+	}
+}
+
+func TestStructLogMarshalingStackWords(t *testing.T) {
+	stack := []uint512.Int{
+		*uint512.NewInt(1),
+		*new(uint512.Int).SetBytes(common.Hex2Bytes("80" + strings.Repeat("00", 63))),
+	}
+	blob, err := json.Marshal(&StructLog{Stack: stack})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var decoded struct {
+		Stack []string `json:"stack"`
+	}
+	if err := json.Unmarshal(blob, &decoded); err != nil {
+		t.Fatal(err)
+	}
+	want := []string{
+		"0x" + strings.Repeat("0", 127) + "1",
+		"0x80" + strings.Repeat("00", 63),
+	}
+	if len(decoded.Stack) != len(want) {
+		t.Fatalf("stack length mismatch: got %d want %d", len(decoded.Stack), len(want))
+	}
+	for i := range want {
+		if decoded.Stack[i] != want[i] {
+			t.Fatalf("stack word %d mismatch:\nhave %s\nwant %s", i, decoded.Stack[i], want[i])
+		}
 	}
 }
 

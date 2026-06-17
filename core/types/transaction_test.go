@@ -235,7 +235,7 @@ func TestEIP2930Signer(t *testing.T) {
 
 func TestEIP2718TransactionEncode(t *testing.T) {
 	// Previously this test compared against a hand-crafted RLP blob built
-	// for 20-byte addresses and a fixed MLDSA-87 signature. Regenerating
+	// for the pre-VM64 address layout and a fixed MLDSA-87 signature. Regenerating
 	// that blob for every new address layout is brittle; instead, verify
 	// the encoding round-trips: encode → decode → compare hashes.
 	{

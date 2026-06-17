@@ -18,7 +18,13 @@ package vm
 
 import (
 	"github.com/theQRL/go-qrl/common/math"
+	"github.com/theQRL/go-qrl/common/uint512"
 	"github.com/theQRL/go-qrl/params"
+)
+
+const (
+	maxMemoryExpansionWords = uint64(0xffffffff)
+	maxMemoryExpansionBytes = maxMemoryExpansionWords * uint64(uint512.WordBytes)
 )
 
 // memoryGasCost calculates the quadratic gas for memory expansion. It does so
@@ -27,16 +33,13 @@ func memoryGasCost(mem *Memory, newMemSize uint64) (uint64, error) {
 	if newMemSize == 0 {
 		return 0, nil
 	}
-	// The maximum that will fit in a uint64 is max_word_count - 1. Anything above
-	// that will result in an overflow. Additionally, a newMemSize which results in
-	// a newMemSizeWords larger than 0xFFFFFFFF will cause the square operation to
-	// overflow. The constant 0x1FFFFFFFE0 is the highest number that can be used
-	// without overflowing the gas calculation.
-	if newMemSize > 0x1FFFFFFFE0 {
+	// The memory gas formula squares the word count in uint64 arithmetic. The
+	// largest safe word count is 0xffffffff; one more word would wrap the square.
+	if newMemSize > maxMemoryExpansionBytes {
 		return 0, ErrGasUintOverflow
 	}
 	newMemSizeWords := toWordSize(newMemSize)
-	newMemSize = newMemSizeWords * 64
+	newMemSize = newMemSizeWords * uint512.WordBytes
 
 	if newMemSize > uint64(mem.Len()) {
 		square := newMemSizeWords * newMemSizeWords
@@ -190,7 +193,7 @@ func gasExpEIP158(qrvm *QRVM, contract *Contract, stack *Stack, mem *Memory, mem
 	expByteLen := uint64((stack.data[stack.len()-2].BitLen() + 7) / 8)
 
 	var (
-		gas      = expByteLen * params.ExpByteEIP158 // no overflow check required. Max is 512 * ExpByte gas
+		gas      = expByteLen * params.ExpByteEIP158 // no overflow check required. Max is one VM word * ExpByte gas
 		overflow bool
 	)
 	if gas, overflow = math.SafeAdd(gas, params.ExpGas); overflow {

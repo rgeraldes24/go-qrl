@@ -47,14 +47,8 @@ type precompiledFailureTest struct {
 }
 */
 
-// allPrecompiles does not map to the actual set of precompiles, as it also contains
-// repriced versions of precompiles at certain slots
-var allPrecompiles = map[common.Address]PrecompiledContract{
-	common.BytesToAddress([]byte{1}): &depositroot{},
-	common.BytesToAddress([]byte{2}): &sha256hash{},
-	common.BytesToAddress([]byte{3}): &dataCopy{},
-	common.BytesToAddress([]byte{4}): &bigModExp{},
-}
+// allPrecompiles mirrors the runtime precompile table used by the Zond rules.
+var allPrecompiles = PrecompiledContractsZond
 
 func precompileAddress(n string) string {
 	return "Q" + strings.Repeat("0", 2*common.AddressLength-len(n)) + n
@@ -193,10 +187,10 @@ func BenchmarkPrecompiledIdentity(bench *testing.B) {
 
 // Tests the sample inputs from the ModExp.
 func TestPrecompiledModExp(t *testing.T) {
-	testJson("modexp", precompileAddress("04"), t)
+	testJson("modexp", precompileAddress("05"), t)
 }
 func BenchmarkPrecompiledModExp(b *testing.B) {
-	benchJson("modexp", precompileAddress("04"), b)
+	benchJson("modexp", precompileAddress("05"), b)
 }
 
 // Tests OOG
@@ -206,7 +200,7 @@ func TestPrecompiledModExpOOG(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, test := range modexpTests {
-		testPrecompiledOOG(precompileAddress("04"), test, t)
+		testPrecompiledOOG(precompileAddress("05"), test, t)
 	}
 }
 

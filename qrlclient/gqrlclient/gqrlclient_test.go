@@ -20,6 +20,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"math/big"
+	"strings"
 	"testing"
 
 	qrl "github.com/theQRL/go-qrl"
@@ -45,7 +46,7 @@ var (
 	testContract = common.BytesToAddress(common.FromHex("000000000000000000000000000000000000beef000000000000000000000000000000000000beef11223344556677"))
 	testEmpty    = common.BytesToAddress(common.FromHex("000000000000000000000000000000000000eeee000000000000000000000000000000000000eeee11223344556677"))
 	testSlot     = common.HexToHash("0xdeadbeef")
-	testValue    = common.BytesToStorageValue64(crypto.Keccak256Hash(testSlot[:]).Bytes())
+	testValue    = common.HexToStorageValue64("0x" + strings.Repeat("00", 31) + "01" + strings.Repeat("ab", 32))
 	testBalance  = big.NewInt(2e18)
 )
 
@@ -257,7 +258,7 @@ func testGetProof(t *testing.T, client *rpc.Client, addr common.Address) {
 			t.Fatalf("invalid storage proof key, want: %q, got: %q", testSlot.String(), proof.Key)
 		}
 		slotValue, _ := qrlcl.StorageAt(t.Context(), addr, common.HexToHash(proof.Key), nil)
-		if have, want := common.BigToHash(proof.Value), common.BytesToHash(slotValue); have != want {
+		if have, want := proof.Value, common.BytesToStorageValue64(slotValue); have != want {
 			t.Fatalf("addr %x, invalid storage proof value: have: %v, want: %v", addr, have, want)
 		}
 	}
@@ -484,10 +485,10 @@ func TestOverrideAccountMarshal(t *testing.T) {
 			// a non-nil but empty value.
 			Code:    []byte{},
 			Balance: big.NewInt(0),
-			State:   map[common.Hash]common.Hash{},
+			State:   map[common.Hash]common.StorageValue64{},
 			// For 'stateDiff' the behavior is different, empty map
 			// is ignored because it makes no difference.
-			StateDiff: map[common.Hash]common.Hash{},
+			StateDiff: map[common.Hash]common.StorageValue64{},
 		},
 	}
 
@@ -517,6 +518,45 @@ func TestOverrideAccountMarshal(t *testing.T) {
 	if string(marshalled) != expected {
 		t.Error("wrong output:", string(marshalled))
 		t.Error("want:", expected)
+	}
+}
+
+func TestOverrideAccountMarshalStorageValue64(t *testing.T) {
+	slot := common.Hash{0x01}
+	value := common.StorageValue64{0x80, 0x01, 0x02}
+	diffSlot := common.Hash{0x02}
+	diffValue := common.StorageValue64{0xff}
+	override := OverrideAccount{
+		State: map[common.Hash]common.StorageValue64{
+			slot: value,
+		},
+		StateDiff: map[common.Hash]common.StorageValue64{
+			diffSlot: diffValue,
+		},
+	}
+
+	marshalled, err := json.Marshal(&override)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	var out struct {
+		State     map[string]string `json:"state"`
+		StateDiff map[string]string `json:"stateDiff"`
+	}
+	if err := json.Unmarshal(marshalled, &out); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got, want := out.State[slot.Hex()], value.Hex(); got != want {
+		t.Fatalf("state value mismatch: got %s want %s", got, want)
+	}
+	if got, want := out.StateDiff[diffSlot.Hex()], diffValue.Hex(); got != want {
+		t.Fatalf("stateDiff value mismatch: got %s want %s", got, want)
+	}
+	if got, want := len(out.State[slot.Hex()]), 2+common.StorageValue64Length*2; got != want {
+		t.Fatalf("state value width mismatch: got %d chars want %d", got, want)
+	}
+	if got, want := len(out.StateDiff[diffSlot.Hex()]), 2+common.StorageValue64Length*2; got != want {
+		t.Fatalf("stateDiff value width mismatch: got %d chars want %d", got, want)
 	}
 }
 

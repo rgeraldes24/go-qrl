@@ -19,6 +19,7 @@ package math
 import (
 	"bytes"
 	"encoding/hex"
+	"fmt"
 	"math/big"
 	"testing"
 )
@@ -55,6 +56,34 @@ func TestHexOrDecimal256(t *testing.T) {
 		}
 		if test.num != nil && (*big.Int)(&num).Cmp(test.num) != 0 {
 			t.Errorf("ParseBig(%q) -> %d, want %d", test.input, (*big.Int)(&num), test.num)
+		}
+	}
+}
+
+func TestHexOrDecimal512(t *testing.T) {
+	max512 := new(big.Int).Sub(new(big.Int).Lsh(big.NewInt(1), 512), big.NewInt(1))
+	overflow512 := new(big.Int).Lsh(big.NewInt(1), 512)
+	tests := []struct {
+		input string
+		num   *big.Int
+		ok    bool
+	}{
+		{"", big.NewInt(0), true},
+		{"0", big.NewInt(0), true},
+		{"0x0", big.NewInt(0), true},
+		{"12345678", big.NewInt(12345678), true},
+		{fmt.Sprintf("%#x", max512), max512, true},
+		{overflow512.String(), nil, false},
+	}
+	for _, test := range tests {
+		var num HexOrDecimal512
+		err := num.UnmarshalText([]byte(test.input))
+		if (err == nil) != test.ok {
+			t.Errorf("ParseBig512(%q) -> (err == nil) == %t, want %t", test.input, err == nil, test.ok)
+			continue
+		}
+		if test.num != nil && (*big.Int)(&num).Cmp(test.num) != 0 {
+			t.Errorf("ParseBig512(%q) -> %d, want %d", test.input, (*big.Int)(&num), test.num)
 		}
 	}
 }

@@ -19,6 +19,7 @@ package abi
 import (
 	"bytes"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"math"
 	"math/big"
@@ -96,11 +97,35 @@ func TestUnpack(t *testing.T) {
 	}
 }
 
+func TestUnpackUnsupportedFunctionType(t *testing.T) {
+	t.Parallel()
+
+	abi, err := JSON(strings.NewReader(`[{"name":"method","type":"function","outputs":[{"type":"function"}]}]`))
+	if err != nil {
+		t.Fatalf("invalid ABI definition: %v", err)
+	}
+	_, err = abi.Unpack("method", make([]byte, abiSlotBytes))
+	if !errors.Is(err, ErrUnsupportedFunctionType) {
+		t.Fatalf("unpack function type error = %v, want %v", err, ErrUnsupportedFunctionType)
+	}
+}
+
 type unpackTest struct {
 	def  string // ABI definition JSON
 	enc  string // qrvm return data
 	want any    // the expected output
 	err  string // empty or error if expected
+}
+
+func abiWordHex(v int) string {
+	return hex.EncodeToString(packNum(reflect.ValueOf(v)))
+}
+
+func malformedABIOffsetWordHex(lowByte byte) string {
+	word := make([]byte, abiSlotBytes)
+	word[0] = 1
+	word[len(word)-1] = lowByte
+	return hex.EncodeToString(word)
 }
 
 func (test unpackTest) checkError(err error) error {
@@ -142,7 +167,7 @@ var unpackTests = []unpackTest{
 		err:  "abi: cannot unmarshal uint32 in to uint16",
 	},
 	{
-		def:  `[{"type": "uint17"}]`,
+		def:  `[{"type": "uint24"}]`,
 		enc:  z32 + "0000000000000000000000000000000000000000000000000000000000000001",
 		want: uint16(0),
 		err:  "abi: cannot unmarshal *big.Int in to uint16",
@@ -154,7 +179,7 @@ var unpackTests = []unpackTest{
 		err:  "abi: cannot unmarshal int32 in to int16",
 	},
 	{
-		def:  `[{"type": "int17"}]`,
+		def:  `[{"type": "int24"}]`,
 		enc:  z32 + "0000000000000000000000000000000000000000000000000000000000000001",
 		want: int16(0),
 		err:  "abi: cannot unmarshal *big.Int in to int16",
@@ -314,8 +339,8 @@ func TestLocalUnpackTests(t *testing.T) {
 
 func TestUnpackIntoInterfaceSetDynamicArrayOutput(t *testing.T) {
 	t.Parallel()
-	const outSpec = `[{"constant":true,"inputs":[],"name":"testDynamicFixedBytes15","outputs":[{"name":"","type":"bytes15[]"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":true,"inputs":[],"name":"testDynamicFixedBytes32","outputs":[{"name":"","type":"bytes32[]"}],"payable":false,"stateMutability":"view","type":"function"}]`
-	const inSpec = `[{"inputs":[{"name":"","type":"bytes15[]"}],"name":"testDynamicFixedBytes15","type":"function"},{"inputs":[{"name":"","type":"bytes32[]"}],"name":"testDynamicFixedBytes32","type":"function"}]`
+	const outSpec = `[{"constant":true,"inputs":[],"name":"testDynamicFixedBytes15","outputs":[{"name":"","type":"bytes15[]"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":true,"inputs":[],"name":"testDynamicFixedBytes32","outputs":[{"name":"","type":"bytes32[]"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":true,"inputs":[],"name":"testDynamicFixedBytes64","outputs":[{"name":"","type":"bytes64[]"}],"payable":false,"stateMutability":"view","type":"function"}]`
+	const inSpec = `[{"inputs":[{"name":"","type":"bytes15[]"}],"name":"testDynamicFixedBytes15","type":"function"},{"inputs":[{"name":"","type":"bytes32[]"}],"name":"testDynamicFixedBytes32","type":"function"},{"inputs":[{"name":"","type":"bytes64[]"}],"name":"testDynamicFixedBytes64","type":"function"}]`
 	abi, err := JSON(strings.NewReader(outSpec))
 	if err != nil {
 		t.Fatal(err)
@@ -334,8 +359,14 @@ func TestUnpackIntoInterfaceSetDynamicArrayOutput(t *testing.T) {
 		copy(b[:], s)
 		return b
 	}
+	pad64 := func(s string) [64]byte {
+		var b [64]byte
+		copy(b[:], s)
+		return b
+	}
 	in32 := [][32]byte{pad32("0x1234567890"), pad32("0x0987654321")}
 	in15 := [][15]byte{pad15("0x012345"), pad15("0x987654")}
+	in64 := [][64]byte{pad64("0x1234567890abcdef"), pad64("0xfedcba0987654321")}
 	packed32, err := inAbi.Pack("testDynamicFixedBytes32", in32)
 	if err != nil {
 		t.Fatal(err)
@@ -344,12 +375,18 @@ func TestUnpackIntoInterfaceSetDynamicArrayOutput(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	packed64, err := inAbi.Pack("testDynamicFixedBytes64", in64)
+	if err != nil {
+		t.Fatal(err)
+	}
 	var (
 		marshalledReturn32 = packed32[4:]
 		marshalledReturn15 = packed15[4:]
+		marshalledReturn64 = packed64[4:]
 
 		out32 [][32]byte
 		out15 [][15]byte
+		out64 [][64]byte
 	)
 
 	// test 32
@@ -377,6 +414,20 @@ func TestUnpackIntoInterfaceSetDynamicArrayOutput(t *testing.T) {
 	for i, want := range in15 {
 		if !bytes.Equal(out15[i][:], want[:]) {
 			t.Errorf("out15[%d]: expected %x, got %x", i, want, out15[i])
+		}
+	}
+
+	// test 64
+	err = abi.UnpackIntoInterface(&out64, "testDynamicFixedBytes64", marshalledReturn64)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(out64) != len(in64) {
+		t.Fatalf("expected array with %d values, got %d", len(in64), len(out64))
+	}
+	for i, want := range in64 {
+		if !bytes.Equal(out64[i][:], want[:]) {
+			t.Errorf("out64[%d]: expected %x, got %x", i, want, out64[i])
 		}
 	}
 }
@@ -713,7 +764,7 @@ func TestUnmarshal(t *testing.T) {
 		t.Error("expected Bool to be true")
 	}
 
-	// marshal dynamic bytes, length equal to one slot (32 bytes)
+	// marshal dynamic bytes with a 32-byte payload
 	bytesOut := common.RightPadBytes([]byte("hello"), 32)
 	packed, err = inAbi.Pack("bytes", bytesOut)
 	if err != nil {
@@ -1037,6 +1088,54 @@ func TestUnpackTuple(t *testing.T) {
 	}
 	if ret.FieldT.X.Cmp(expected.FieldT.X) != 0 || ret.FieldT.Z.Cmp(expected.FieldT.Z) != 0 {
 		t.Errorf("T: got %+v want %+v", ret.FieldT, expected.FieldT)
+	}
+}
+
+func TestUnpackRejectsMalformedVM64OffsetWords(t *testing.T) {
+	t.Parallel()
+
+	badOffset := malformedABIOffsetWordHex(abiSlotBytes)
+	badLength := malformedABIOffsetWordHex(1)
+	validOffset := abiWordHex(abiSlotBytes)
+	validLength := abiWordHex(1)
+	data := hex.EncodeToString(common.RightPadBytes([]byte{0x01}, abiSlotBytes))
+
+	tests := []struct {
+		name string
+		def  string
+		enc  string
+	}{
+		{
+			name: "dynamic bytes offset",
+			def:  `[{"type":"bytes"}]`,
+			enc:  badOffset + validLength + data,
+		},
+		{
+			name: "dynamic bytes length",
+			def:  `[{"type":"bytes"}]`,
+			enc:  validOffset + badLength + data,
+		},
+		{
+			name: "fixed array dynamic element offset",
+			def:  `[{"type":"bytes[1]"}]`,
+			enc:  badOffset + validOffset + validLength + data,
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			abi, err := JSON(strings.NewReader(fmt.Sprintf(`[{ "name" : "method", "type": "function", "outputs": %s}]`, test.def)))
+			if err != nil {
+				t.Fatalf("invalid ABI definition: %v", err)
+			}
+			encb, err := hex.DecodeString(test.enc)
+			if err != nil {
+				t.Fatalf("invalid hex: %v", err)
+			}
+			_, err = abi.Methods["method"].Outputs.UnpackValues(encb)
+			if err == nil {
+				t.Fatalf("expected malformed ABI offset/length word to fail")
+			}
+		})
 	}
 }
 

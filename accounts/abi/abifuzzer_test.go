@@ -58,7 +58,10 @@ var (
 		"bytes1", "bytes2", "bytes3", "bytes4", "bytes5", "bytes6", "bytes7", "bytes8", "bytes9", "bytes10", "bytes11",
 		"bytes12", "bytes13", "bytes14", "bytes15", "bytes16", "bytes17", "bytes18", "bytes19", "bytes20", "bytes21",
 		"bytes22", "bytes23", "bytes24", "bytes25", "bytes26", "bytes27", "bytes28", "bytes29", "bytes30", "bytes31",
-		"bytes32", "bytes"}
+		"bytes32", "bytes33", "bytes34", "bytes35", "bytes36", "bytes37", "bytes38", "bytes39", "bytes40", "bytes41",
+		"bytes42", "bytes43", "bytes44", "bytes45", "bytes46", "bytes47", "bytes48", "bytes49", "bytes50", "bytes51",
+		"bytes52", "bytes53", "bytes54", "bytes55", "bytes56", "bytes57", "bytes58", "bytes59", "bytes60", "bytes61",
+		"bytes62", "bytes63", "bytes64", "bytes"}
 )
 
 func unpackPack(abi ABI, method string, input []byte) ([]any, bool) {

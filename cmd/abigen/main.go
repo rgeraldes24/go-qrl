@@ -27,7 +27,6 @@ import (
 	"github.com/theQRL/go-qrl/accounts/abi/bind"
 	"github.com/theQRL/go-qrl/cmd/utils"
 	"github.com/theQRL/go-qrl/common/compiler"
-	"github.com/theQRL/go-qrl/crypto"
 	"github.com/theQRL/go-qrl/internal/flags"
 	"github.com/theQRL/go-qrl/log"
 	"github.com/urfave/cli/v2"
@@ -185,12 +184,11 @@ func generate(c *cli.Context) error {
 			sigs = append(sigs, contract.Hashes)
 			types = append(types, typeName)
 
-			// Derive the library placeholder which is a 34 character prefix of the
-			// hex encoding of the keccak256 hash of the fully qualified library name.
-			// Note that the fully qualified library name is the path of its source
-			// file and the library name separated by ":".
-			libPattern := crypto.Keccak256Hash([]byte(name)).String()[2:36] // the first 2 chars are 0x
-			libs[libPattern] = typeName
+			// Derive the VM64 library placeholder pattern from the fully
+			// qualified library name (<source path>:<library name>). The full
+			// placeholder is sized to 128 hex characters so a 64-byte address can
+			// be linked in-place without changing bytecode layout.
+			libs[bind.LibraryLinkPattern(name)] = typeName
 		}
 	}
 	// Extract all aliases from the flags

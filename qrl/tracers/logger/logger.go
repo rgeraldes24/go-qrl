@@ -439,7 +439,7 @@ func formatLogs(logs []StructLog) []StructLogRes {
 		if trace.Stack != nil {
 			stack := make([]string, len(trace.Stack))
 			for i, stackValue := range trace.Stack {
-				stack[i] = stackValue.Hex()
+				stack[i] = stackValue.Hex64()
 			}
 			formatted[index].Stack = &stack
 		}

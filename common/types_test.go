@@ -40,6 +40,22 @@ func TestBytesConversion(t *testing.T) {
 	}
 }
 
+func TestEventSignatureLogTopicUsesRawTopicAlignment(t *testing.T) {
+	eventHash := bytes.Repeat([]byte{0x42}, HashLength)
+	got := BytesToEventSignatureLogTopic(eventHash)
+	want := BytesToLogTopic(eventHash)
+
+	if got != want {
+		t.Fatalf("event signature topic alignment mismatch: got %x want %x", got, want)
+	}
+	if !bytes.Equal(got[:LogTopicLength-HashLength], make([]byte, LogTopicLength-HashLength)) {
+		t.Fatalf("event signature topic high half should be zero padding, got %x", got[:LogTopicLength-HashLength])
+	}
+	if !bytes.Equal(got[LogTopicLength-HashLength:], eventHash) {
+		t.Fatalf("event signature topic low half mismatch: got %x want %x", got[LogTopicLength-HashLength:], eventHash)
+	}
+}
+
 func TestIsAddress(t *testing.T) {
 	tests := []struct {
 		str string

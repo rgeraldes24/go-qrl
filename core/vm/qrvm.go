@@ -20,8 +20,8 @@ import (
 	"math/big"
 	"sync/atomic"
 
-	"github.com/theQRL/go-qrl/common/uint512"
 	"github.com/theQRL/go-qrl/common"
+	"github.com/theQRL/go-qrl/common/uint512"
 	"github.com/theQRL/go-qrl/core/types"
 	"github.com/theQRL/go-qrl/crypto"
 	"github.com/theQRL/go-qrl/params"
@@ -444,8 +444,11 @@ func (qrvm *QRVM) Create(caller ContractRef, code []byte, gas uint64, value *big
 
 // Create2 creates a new contract using code as deployment code.
 //
-// The different between Create2 with Create is Create2 uses keccak256(0xff ++ msg.sender ++ salt ++ keccak256(init_code))[12:]
-// instead of the usual sender-and-nonce-hash as the address where the contract is initialized at.
+// The difference between Create2 and Create is that Create2 derives the
+// contract address from the caller, a 64-byte salt and the init-code hash,
+// instead of the usual sender-and-nonce hash used by Create. The final address
+// derivation is handled by crypto.CreateAddress2, which uses the QRL address
+// domain and Keccak-512 rather than Ethereum's keccak256(...)[12:] rule.
 func (qrvm *QRVM) Create2(caller ContractRef, code []byte, gas uint64, endowment *big.Int, salt *uint512.Int) (ret []byte, contractAddr common.Address, leftOverGas uint64, err error) {
 	codeAndHash := &codeAndHash{code: code}
 	contractAddr = crypto.CreateAddress2(caller.Address(), salt.Bytes64(), codeAndHash.Hash().Bytes())

@@ -128,6 +128,43 @@ func TestUnmarshalLog(t *testing.T) {
 	}
 }
 
+func TestUnmarshalLogRejects32ByteTopics(t *testing.T) {
+	t.Parallel()
+
+	input := `{"address":"` + logTestAddrHex + `","data":"0x","topics":["0x1111111111111111111111111111111111111111111111111111111111111111"],"transactionHash":"0x3b198bfd5d2907285af009e9ae84a0ecd63677110d89d7e030251acb87f6487e"}`
+	var log Log
+	if err := json.Unmarshal([]byte(input), &log); err == nil {
+		t.Fatal("expected 32-byte topic JSON to be rejected")
+	}
+}
+
+func TestMarshalLogReturns64ByteTopics(t *testing.T) {
+	t.Parallel()
+
+	log := Log{
+		Address: address,
+		Topics:  []common.LogTopic{common.HexToLogTopic("0x11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111")},
+		Data:    []byte{},
+		TxHash:  common.Hash{0x01},
+	}
+	blob, err := json.Marshal(log)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var decoded struct {
+		Topics []string `json:"topics"`
+	}
+	if err := json.Unmarshal(blob, &decoded); err != nil {
+		t.Fatal(err)
+	}
+	if len(decoded.Topics) != 1 {
+		t.Fatalf("topic count mismatch: %d", len(decoded.Topics))
+	}
+	if got, want := len(decoded.Topics[0]), 2+2*common.LogTopicLength; got != want {
+		t.Fatalf("topic hex length mismatch: got %d want %d (%s)", got, want, decoded.Topics[0])
+	}
+}
+
 func checkError(t *testing.T, testname string, got, want error) bool {
 	if got == nil {
 		if want != nil {

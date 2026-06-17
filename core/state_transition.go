@@ -23,6 +23,7 @@ import (
 
 	"github.com/theQRL/go-qrl/common"
 	cmath "github.com/theQRL/go-qrl/common/math"
+	"github.com/theQRL/go-qrl/common/uint512"
 	"github.com/theQRL/go-qrl/core/types"
 	"github.com/theQRL/go-qrl/core/vm"
 	"github.com/theQRL/go-qrl/params"
@@ -112,11 +113,12 @@ func IntrinsicGas(data []byte, accessList types.AccessList, isContractCreation b
 
 // toWordSize returns the ceiled word size required for init code payment calculation.
 func toWordSize(size uint64) uint64 {
-	if size > math.MaxUint64-63 {
-		return math.MaxUint64/64 + 1
+	const wordBytes = uint64(uint512.WordBytes)
+	if size > math.MaxUint64-(wordBytes-1) {
+		return math.MaxUint64/wordBytes + 1
 	}
 
-	return (size + 63) / 64
+	return (size + wordBytes - 1) / wordBytes
 }
 
 // A Message contains the data derived from a single transaction that is relevant to state

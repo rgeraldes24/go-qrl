@@ -952,27 +952,27 @@ func testExternalUI(api *core.SignerAPI) {
 		expectResponse("showerror", "Did you see the message? [yes/no]", "yes")
 	}
 	{ // Sign data test - typed data
-		api.UI.ShowInfo("Please approve the next request for signing EIP-712 typed data")
+		api.UI.ShowInfo("Please approve the next request for signing Hyperion typed data")
 		time.Sleep(delay)
-		addr, _ := common.NewMixedcaseAddressFromString("Q000000000000000000000000000000000000000000000000000000000011223344556677889900112233445566778899")
-		data := `{"types":{"EIP712Domain":[{"name":"name","type":"string"},{"name":"version","type":"string"},{"name":"chainId","type":"uint256"},{"name":"verifyingContract","type":"address"}],"Person":[{"name":"name","type":"string"},{"name":"test","type":"uint8"},{"name":"wallet","type":"address"}],"Mail":[{"name":"from","type":"Person"},{"name":"to","type":"Person"},{"name":"contents","type":"string"}]},"primaryType":"Mail","domain":{"name":"Ether Mail","version":"1","chainId":"1","verifyingContract":"Q00000000000000000000000000000000000000000000000000000000CCCcccccCCCCcCCCCCCcCcCccCcCCCcCcccccccC"},"message":{"from":{"name":"Cow","test":"3","wallet":"Q00000000000000000000000000000000000000000000000000000000cD2a3d9F938E13CD947Ec05AbC7FE734Df8DD826"},"to":{"name":"Bob","wallet":"Q00000000000000000000000000000000000000000000000000000000bBbBBBBbbBBBbbbBbbBbbbbBBbBbbbbBbBbbBBbB","test":"2"},"contents":"Hello, Bob!"}}`
+		addr, _ := common.NewMixedcaseAddressFromString("Q00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000011223344556677889900112233445566778899")
+		data := `{"types":{"EIP712Domain":[{"name":"name","type":"string"},{"name":"version","type":"string"},{"name":"chainId","type":"uint256"},{"name":"verifyingContract","type":"address"}],"Person":[{"name":"name","type":"string"},{"name":"test","type":"uint8"},{"name":"wallet","type":"address"}],"Mail":[{"name":"from","type":"Person"},{"name":"to","type":"Person"},{"name":"contents","type":"string"}]},"primaryType":"Mail","domain":{"name":"Hyperion Mail","version":"1","chainId":"1","verifyingContract":"Q0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000CCCcccccCCCCcCCCCCCcCcCccCcCCCcCcccccccC"},"message":{"from":{"name":"Cow","test":"3","wallet":"Q0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000cD2a3d9F938E13CD947Ec05AbC7FE734Df8DD826"},"to":{"name":"Bob","wallet":"Q0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000bBbBBBBbbBBBbbbBbbBbbbbBBbBbbbbBbBbbBBbB","test":"2"},"contents":"Hello, Bob!"}}`
 		// _, err := api.SignData(ctx, accounts.MimetypeTypedData, *addr, hexutil.Encode([]byte(data)))
 		var typedData apitypes.TypedData
 		json.Unmarshal([]byte(data), &typedData)
 		_, err := api.SignTypedData(ctx, *addr, typedData)
-		expectApprove("sign 712 typed data", err)
+		expectApprove("sign Hyperion typed data", err)
 	}
 	{ // Sign data test - plain text
 		api.UI.ShowInfo("Please approve the next request for signing text")
 		time.Sleep(delay)
-		addr, _ := common.NewMixedcaseAddressFromString("Q000000000000000000000000000000000000000000000000000000000011223344556677889900112233445566778899")
+		addr, _ := common.NewMixedcaseAddressFromString("Q00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000011223344556677889900112233445566778899")
 		_, err := api.SignData(ctx, accounts.MimetypeTextPlain, *addr, hexutil.Encode([]byte("hello world")))
 		expectApprove("signdata - text", err)
 	}
 	{ // Sign data test - plain text reject
 		api.UI.ShowInfo("Please deny the next request for signing text")
 		time.Sleep(delay)
-		addr, _ := common.NewMixedcaseAddressFromString("Q000000000000000000000000000000000000000000000000000000000011223344556677889900112233445566778899")
+		addr, _ := common.NewMixedcaseAddressFromString("Q00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000011223344556677889900112233445566778899")
 		_, err := api.SignData(ctx, accounts.MimetypeTextPlain, *addr, hexutil.Encode([]byte("hello world")))
 		expectDeny("signdata - text", err)
 	}
@@ -1056,10 +1056,19 @@ func decryptSeed(keyjson []byte, auth string) ([]byte, error) {
 
 // GenDoc outputs examples of all structures used in json-rpc communication
 func GenDoc(ctx *cli.Context) error {
+	a, err := common.NewAddressFromString("Q0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000deadbeef000000000000000000000000deadbeef")
+	if err != nil {
+		return err
+	}
+	b, err := common.NewAddressFromString("Q00000000000000000000000000000000000000000000000000000000000000000000000000000000000000001111111122222222222233333333334444444444")
+	if err != nil {
+		return err
+	}
+	c, err := common.NewAddressFromString("Q" + strings.Repeat("0", 112) + "c0ffee0000decafe")
+	if err != nil {
+		return err
+	}
 	var (
-		a, _ = common.NewAddressFromString("Q0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000deadbeef000000000000000000000000deadbeef")
-		b, _ = common.NewAddressFromString("Q00000000000000000000000000000000000000000000000000000000000000000000000000000000000000001111111122222222222233333333334444444444")
-		c, _ = common.NewAddressFromString("Qcowbeef000000cowbeef00000000000000000c0w")
 		meta = core.Metadata{
 			Scheme:    "http",
 			Local:     "localhost:8545",

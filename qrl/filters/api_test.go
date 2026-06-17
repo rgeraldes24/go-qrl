@@ -183,3 +183,39 @@ func TestUnmarshalJSONNewFilterArgs(t *testing.T) {
 		t.Fatalf("expected 0 topics, got %d topics", len(test7.Topics[2]))
 	}
 }
+
+func TestUnmarshalJSONRejectsNonVM64Topics(t *testing.T) {
+	t.Parallel()
+
+	shortTopic := "0x1111111111111111111111111111111111111111111111111111111111111111"
+	fullTopic := "0x" +
+		"1111111111111111111111111111111111111111111111111111111111111111" +
+		"2222222222222222222222222222222222222222222222222222222222222222"
+
+	tests := []struct {
+		name string
+		json string
+	}{
+		{
+			name: "single 32-byte topic",
+			json: fmt.Sprintf(`{"topics":["%s"]}`, shortTopic),
+		},
+		{
+			name: "or-list 32-byte topic",
+			json: fmt.Sprintf(`{"topics":[["%s","%s"]]}`, fullTopic, shortTopic),
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var crit FilterCriteria
+			if err := json.Unmarshal([]byte(tt.json), &crit); err == nil {
+				t.Fatalf("expected 32-byte topic to be rejected")
+			}
+		})
+	}
+
+	var crit FilterCriteria
+	if err := json.Unmarshal([]byte(fmt.Sprintf(`{"topics":["%s"]}`, fullTopic)), &crit); err != nil {
+		t.Fatalf("expected 64-byte topic to be accepted: %v", err)
+	}
+}

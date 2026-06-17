@@ -1,7 +1,10 @@
 package uint512
 
 import (
+	"encoding/json"
+	"fmt"
 	"math/big"
+	"strings"
 	"testing"
 )
 
@@ -86,6 +89,35 @@ func TestBytes64RoundTrip(t *testing.T) {
 	}
 }
 
+func TestJSONTextUsesCanonicalWordHex(t *testing.T) {
+	z := *NewInt(1)
+	want := "0x" + strings.Repeat("0", 127) + "1"
+
+	text, err := z.MarshalText()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(text) != want {
+		t.Fatalf("MarshalText mismatch: got %q want %q", text, want)
+	}
+
+	blob, err := json.Marshal(z)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(blob) != `"`+want+`"` {
+		t.Fatalf("MarshalJSON mismatch: got %s want %q", blob, `"`+want+`"`)
+	}
+
+	var roundTrip Int
+	if err := json.Unmarshal(blob, &roundTrip); err != nil {
+		t.Fatal(err)
+	}
+	if !roundTrip.Eq(&z) {
+		t.Fatalf("JSON round trip mismatch: got %s want %s", roundTrip.Hex64(), z.Hex64())
+	}
+}
+
 func TestByte(t *testing.T) {
 	z := new(Int).SetAllOne()
 	// byte at index 63 of AllOne == 0xff; result should be 0xff
@@ -163,6 +195,53 @@ func TestExtendSign(t *testing.T) {
 	z2 := new(Int).ExtendSign(x2, zero)
 	if z2.Uint64() != 0x7f {
 		t.Fatalf("ExtendSign of 0x7f byte 0: want 0x7f got %x", z2.Uint64())
+	}
+}
+
+func TestExtendSignLimbBoundaries(t *testing.T) {
+	mask512 := new(big.Int).Sub(new(big.Int).Lsh(big.NewInt(1), WordBits), big.NewInt(1))
+	reference := func(x *big.Int, byteNum uint64) *big.Int {
+		x = new(big.Int).And(new(big.Int).Set(x), mask512)
+		if byteNum >= WordBytes {
+			return x
+		}
+		signBit := byteNum*8 + 7
+		lowMask := new(big.Int).Sub(new(big.Int).Lsh(big.NewInt(1), uint(signBit+1)), big.NewInt(1))
+		out := new(big.Int).And(x, lowMask)
+		if x.Bit(int(signBit)) != 0 {
+			out.Or(out, new(big.Int).And(new(big.Int).Not(lowMask), mask512))
+		}
+		return out
+	}
+
+	for _, byteNum := range []uint64{7, 15, 23, 31, 39, 47, 55, 63, 64} {
+		t.Run(fmt.Sprintf("byte_%d_sign_set", byteNum), func(t *testing.T) {
+			var x *big.Int
+			if byteNum >= WordBytes {
+				x = new(big.Int).Lsh(big.NewInt(1), WordBits-1)
+			} else {
+				x = new(big.Int).Lsh(big.NewInt(1), uint(byteNum*8+7))
+			}
+			got := new(Int).ExtendSign(MustFromBig(x), NewInt(byteNum))
+			want := MustFromBig(reference(x, byteNum))
+			if !got.Eq(want) {
+				t.Fatalf("ExtendSign byte %d sign set:\ngot  %0128x\nwant %0128x", byteNum, got.ToBig(), want.ToBig())
+			}
+		})
+
+		t.Run(fmt.Sprintf("byte_%d_sign_clear", byteNum), func(t *testing.T) {
+			var x *big.Int
+			if byteNum >= WordBytes {
+				x = new(big.Int).Sub(new(big.Int).Lsh(big.NewInt(1), WordBits-1), big.NewInt(1))
+			} else {
+				x = new(big.Int).Sub(new(big.Int).Lsh(big.NewInt(1), uint(byteNum*8+7)), big.NewInt(1))
+			}
+			got := new(Int).ExtendSign(MustFromBig(x), NewInt(byteNum))
+			want := MustFromBig(reference(x, byteNum))
+			if !got.Eq(want) {
+				t.Fatalf("ExtendSign byte %d sign clear:\ngot  %0128x\nwant %0128x", byteNum, got.ToBig(), want.ToBig())
+			}
+		})
 	}
 }
 

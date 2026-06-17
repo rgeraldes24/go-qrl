@@ -319,9 +319,9 @@ type AccountResult struct {
 }
 
 type StorageResult struct {
-	Key   string       `json:"key"`
-	Value *hexutil.Big `json:"value"`
-	Proof []string     `json:"proof"`
+	Key   string                `json:"key"`
+	Value common.StorageValue64 `json:"value"`
+	Proof []string              `json:"proof"`
 }
 
 // proofList implements qrldb.KeyValueWriter and collects the proofs as
@@ -382,14 +382,14 @@ func (api *BlockChainAPI) GetProof(ctx context.Context, address common.Address, 
 				outputKey = hexutil.Encode(key[:])
 			}
 			if storageTrie == nil {
-				storageProof[i] = StorageResult{outputKey, &hexutil.Big{}, []string{}}
+				storageProof[i] = StorageResult{outputKey, common.StorageValue64{}, []string{}}
 				continue
 			}
 			var proof proofList
 			if err := storageTrie.Prove(crypto.Keccak256(key.Bytes()), &proof); err != nil {
 				return nil, err
 			}
-			value := (*hexutil.Big)(statedb.GetState(address, key).Big())
+			value := statedb.GetState(address, key)
 			storageProof[i] = StorageResult{outputKey, value, proof}
 		}
 	}
@@ -1378,7 +1378,7 @@ func marshalReceipt(receipt *types.Receipt, blockHash common.Hash, blockNumber u
 		fields["logs"] = []*types.Log{}
 	}
 
-	// If the ContractAddress is 20 0x0 bytes, assume it is not a contract creation
+	// If the ContractAddress is the zero address, assume it is not a contract creation.
 	if receipt.ContractAddress != (common.Address{}) {
 		fields["contractAddress"] = receipt.ContractAddress
 	}

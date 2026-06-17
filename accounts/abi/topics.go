@@ -27,78 +27,204 @@ import (
 	"github.com/theQRL/go-qrl/crypto"
 )
 
-// MakeTopics converts a filter query argument list into a filter topic set.
-// Topics are 64-byte values; scalar arguments are right-aligned (big-endian).
+// MakeTopics converts a raw filter query argument list into a filter topic set.
+// Topics are common.LogTopicLength-byte values; scalar arguments are right-aligned (big-endian).
+//
+// MakeTopics does not know ABI-declared integer widths. Use MakeTopicsWithTypes
+// or MakeTopicsForEvent when building topics for ABI-typed indexed arguments.
 func MakeTopics(query ...[]any) ([][]common.LogTopic, error) {
 	topics := make([][]common.LogTopic, len(query))
 	for i, filter := range query {
 		for _, rule := range filter {
-			var topic common.LogTopic
-
-			// Try to generate the topic based on simple types
-			switch rule := rule.(type) {
-			case common.LogTopic:
-				copy(topic[:], rule[:])
-			case common.Hash:
-				copy(topic[common.LogTopicLength-common.HashLength:], rule[:])
-			case common.Address:
-				copy(topic[common.LogTopicLength-common.AddressLength:], rule[:])
-			case *big.Int:
-				blob := math.U256Bytes(new(big.Int).Set(rule))
-				copy(topic[common.LogTopicLength-len(blob):], blob)
-			case bool:
-				if rule {
-					topic[common.LogTopicLength-1] = 1
-				}
-			case int8:
-				copy(topic[:], genIntType(int64(rule), 1))
-			case int16:
-				copy(topic[:], genIntType(int64(rule), 2))
-			case int32:
-				copy(topic[:], genIntType(int64(rule), 4))
-			case int64:
-				copy(topic[:], genIntType(rule, 8))
-			case uint8:
-				blob := new(big.Int).SetUint64(uint64(rule)).Bytes()
-				copy(topic[common.LogTopicLength-len(blob):], blob)
-			case uint16:
-				blob := new(big.Int).SetUint64(uint64(rule)).Bytes()
-				copy(topic[common.LogTopicLength-len(blob):], blob)
-			case uint32:
-				blob := new(big.Int).SetUint64(uint64(rule)).Bytes()
-				copy(topic[common.LogTopicLength-len(blob):], blob)
-			case uint64:
-				blob := new(big.Int).SetUint64(rule).Bytes()
-				copy(topic[common.LogTopicLength-len(blob):], blob)
-			case string:
-				hash := crypto.Keccak256Hash([]byte(rule))
-				copy(topic[common.LogTopicLength-common.HashLength:], hash[:])
-			case []byte:
-				hash := crypto.Keccak256Hash(rule)
-				copy(topic[common.LogTopicLength-common.HashLength:], hash[:])
-
-			default:
-				// todo(rjl493456442) according to hyperion documentation, indexed event
-				// parameters that are not value types i.e. arrays and structs are not
-				// stored directly but instead a keccak256-hash of an encoding is stored.
-				//
-				// We only convert stringS and bytes to hash, still need to deal with
-				// array(both fixed-size and dynamic-size) and struct.
-
-				// Attempt to generate the topic from funky types
-				val := reflect.ValueOf(rule)
-				switch {
-				// static byte array
-				case val.Kind() == reflect.Array && reflect.TypeOf(rule).Elem().Kind() == reflect.Uint8:
-					reflect.Copy(reflect.ValueOf(topic[:val.Len()]), val)
-				default:
-					return nil, fmt.Errorf("unsupported indexed type: %T", rule)
-				}
+			topic, err := makeTopic(rule)
+			if err != nil {
+				return nil, err
 			}
 			topics[i] = append(topics[i], topic)
 		}
 	}
 	return topics, nil
+}
+
+// MakeTopicsWithTypes converts ABI-typed indexed argument filters into a topic
+// set. Integer filters are checked against their declared ABI width before being
+// encoded into a 64-byte topic.
+func MakeTopicsWithTypes(fields Arguments, query ...[]any) ([][]common.LogTopic, error) {
+	if len(query) > len(fields) {
+		return nil, fmt.Errorf("abi: too many topic filters: have %d, want at most %d", len(query), len(fields))
+	}
+	topics := make([][]common.LogTopic, len(query))
+	for i, filter := range query {
+		for _, rule := range filter {
+			topic, err := makeTopicWithType(fields[i].Type, rule)
+			if err != nil {
+				return nil, err
+			}
+			topics[i] = append(topics[i], topic)
+		}
+	}
+	return topics, nil
+}
+
+// MakeTopicsForEvent converts ABI-typed indexed event filters into a topic set.
+// Non-anonymous events include the event signature topic at position 0.
+func MakeTopicsForEvent(event Event, query ...[]any) ([][]common.LogTopic, error) {
+	var indexed Arguments
+	for _, arg := range event.Inputs {
+		if arg.Indexed {
+			indexed = append(indexed, arg)
+		}
+	}
+	topics, err := MakeTopicsWithTypes(indexed, query...)
+	if err != nil {
+		return nil, err
+	}
+	if event.Anonymous {
+		return topics, nil
+	}
+	return append([][]common.LogTopic{{event.Topic()}}, topics...), nil
+}
+
+func makeTopic(rule any) (common.LogTopic, error) {
+	var topic common.LogTopic
+
+	// Try to generate the topic based on simple types
+	switch rule := rule.(type) {
+	case common.LogTopic:
+		copy(topic[:], rule[:])
+	case common.Hash:
+		copy(topic[common.LogTopicLength-common.HashLength:], rule[:])
+	case common.Address:
+		copy(topic[common.LogTopicLength-common.AddressLength:], rule[:])
+	case *big.Int:
+		if rule == nil {
+			return common.LogTopic{}, errors.New("abi: nil *big.Int topic")
+		}
+		blob := math.U512Bytes(new(big.Int).Set(rule))
+		copy(topic[common.LogTopicLength-len(blob):], blob)
+	case bool:
+		if rule {
+			topic[common.LogTopicLength-1] = 1
+		}
+	case int8:
+		copy(topic[:], genIntType(int64(rule), 1))
+	case int16:
+		copy(topic[:], genIntType(int64(rule), 2))
+	case int32:
+		copy(topic[:], genIntType(int64(rule), 4))
+	case int64:
+		copy(topic[:], genIntType(rule, 8))
+	case uint8:
+		blob := new(big.Int).SetUint64(uint64(rule)).Bytes()
+		copy(topic[common.LogTopicLength-len(blob):], blob)
+	case uint16:
+		blob := new(big.Int).SetUint64(uint64(rule)).Bytes()
+		copy(topic[common.LogTopicLength-len(blob):], blob)
+	case uint32:
+		blob := new(big.Int).SetUint64(uint64(rule)).Bytes()
+		copy(topic[common.LogTopicLength-len(blob):], blob)
+	case uint64:
+		blob := new(big.Int).SetUint64(rule).Bytes()
+		copy(topic[common.LogTopicLength-len(blob):], blob)
+	case string:
+		hash := crypto.Keccak256Hash([]byte(rule))
+		copy(topic[common.LogTopicLength-common.HashLength:], hash[:])
+	case []byte:
+		hash := crypto.Keccak256Hash(rule)
+		copy(topic[common.LogTopicLength-common.HashLength:], hash[:])
+
+	default:
+		// todo(rjl493456442) according to hyperion documentation, indexed event
+		// parameters that are not value types i.e. arrays and structs are not
+		// stored directly but instead a keccak256-hash of an encoding is stored.
+		//
+		// We only convert stringS and bytes to hash, still need to deal with
+		// array(both fixed-size and dynamic-size) and struct.
+
+		// Attempt to generate the topic from funky types
+		val := reflect.ValueOf(rule)
+		switch {
+		// static byte array
+		case val.Kind() == reflect.Array && reflect.TypeOf(rule).Elem().Kind() == reflect.Uint8:
+			if val.Len() == common.AddressLength+4 {
+				return common.LogTopic{}, ErrUnsupportedFunctionType
+			}
+			if val.Len() > common.LogTopicLength {
+				return common.LogTopic{}, fmt.Errorf("abi: fixed byte array of length %d does not fit in a %d-byte topic", val.Len(), common.LogTopicLength)
+			}
+			reflect.Copy(reflect.ValueOf(topic[:val.Len()]), val)
+		default:
+			return common.LogTopic{}, fmt.Errorf("unsupported indexed type: %T", rule)
+		}
+	}
+	return topic, nil
+}
+
+func makeTopicWithType(t Type, rule any) (common.LogTopic, error) {
+	if isHashOnlyIndexedType(t) {
+		if topic, ok := rule.(common.LogTopic); ok {
+			return topic, nil
+		}
+		return common.LogTopic{}, fmt.Errorf("abi: indexed %s filters require common.LogTopic, got %T", t, rule)
+	}
+	if t.T != IntTy && t.T != UintTy {
+		return makeTopic(rule)
+	}
+	if topic, ok := rule.(common.LogTopic); ok {
+		return topic, nil
+	}
+	n, ok := topicIntegerValue(rule)
+	if !ok {
+		return common.LogTopic{}, fmt.Errorf("abi: cannot use %T as type %s", rule, t)
+	}
+	if err := checkIntegerRange(t, n); err != nil {
+		return common.LogTopic{}, err
+	}
+	var topic common.LogTopic
+	blob := math.U512Bytes(n)
+	copy(topic[common.LogTopicLength-len(blob):], blob)
+	return topic, nil
+}
+
+func isHashOnlyIndexedType(t Type) bool {
+	switch t.T {
+	case StringTy, BytesTy, SliceTy, ArrayTy, TupleTy:
+		return true
+	default:
+		return false
+	}
+}
+
+func topicIntegerValue(rule any) (*big.Int, bool) {
+	switch rule := rule.(type) {
+	case *big.Int:
+		if rule == nil {
+			return nil, false
+		}
+		return new(big.Int).Set(rule), true
+	case int:
+		return big.NewInt(int64(rule)), true
+	case int8:
+		return big.NewInt(int64(rule)), true
+	case int16:
+		return big.NewInt(int64(rule)), true
+	case int32:
+		return big.NewInt(int64(rule)), true
+	case int64:
+		return big.NewInt(rule), true
+	case uint:
+		return new(big.Int).SetUint64(uint64(rule)), true
+	case uint8:
+		return new(big.Int).SetUint64(uint64(rule)), true
+	case uint16:
+		return new(big.Int).SetUint64(uint64(rule)), true
+	case uint32:
+		return new(big.Int).SetUint64(uint64(rule)), true
+	case uint64:
+		return new(big.Int).SetUint64(rule), true
+	default:
+		return nil, false
+	}
 }
 
 func genIntType(rule int64, size uint) []byte {
@@ -148,33 +274,18 @@ func parseTopicWithSetter(fields Arguments, topics []common.LogTopic, setter fun
 		if !arg.Indexed {
 			return errors.New("non-indexed field in topic reconstruction")
 		}
+		if containsFunctionType(arg.Type) {
+			return ErrUnsupportedFunctionType
+		}
 		var reconstr any
 		switch arg.Type.T {
-		case TupleTy:
-			return errors.New("tuple type in topic reconstruction")
-		case StringTy, BytesTy, SliceTy, ArrayTy:
-			// Array types (including strings and bytes) have their keccak256 hashes stored in the topic — returned verbatim.
+		case StringTy, BytesTy, SliceTy, ArrayTy, TupleTy:
+			// Hash-only indexed types have their encoded hashes stored in the topic; return the full topic verbatim.
 			reconstr = topics[i]
 		case FunctionTy:
-			// Functions are AddressLength+4 bytes and fit right-aligned in the
-			// 64-byte topic. Reject topics with non-zero bytes in the leading
-			// padding — matches the go-ethereum invariant adapted to QRL
-			// addresses.
-			fnLen := common.AddressLength + 4
-			if fnLen > common.LogTopicLength {
-				return errors.New("abi: function type does not fit in a 64-byte topic with 64-byte addresses")
-			}
-			prefix := topics[i][:common.LogTopicLength-fnLen]
-			for _, b := range prefix {
-				if b != 0 {
-					return fmt.Errorf("abi: improperly encoded function type, got %x", topics[i])
-				}
-			}
-			var tmp [common.AddressLength + 4]byte
-			copy(tmp[:], topics[i][common.LogTopicLength-fnLen:])
-			reconstr = tmp
+			return ErrUnsupportedFunctionType
 		default:
-			// Topic is already the width of an ABI slot (64 bytes); decode directly.
+			// Topic is already the width of an ABI slot; decode directly.
 			var err error
 			reconstr, err = toGoType(0, arg.Type, topics[i][:])
 			if err != nil {

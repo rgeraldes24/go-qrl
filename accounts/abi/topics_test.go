@@ -17,9 +17,11 @@
 package abi
 
 import (
+	"errors"
 	gomath "math"
 	"math/big"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/theQRL/go-qrl/common"
@@ -36,13 +38,8 @@ func TestMakeTopics(t *testing.T) {
 	intTopic := func(v int64) common.LogTopic {
 		var t common.LogTopic
 		bi := new(big.Int).SetInt64(v)
-		data := math.U256Bytes(bi) // 32-byte big-endian two's complement
-		if v < 0 {
-			for i := 0; i < common.LogTopicLength-len(data); i++ {
-				t[i] = 0xff
-			}
-		}
-		copy(t[common.LogTopicLength-len(data):], data)
+		data := math.U512Bytes(bi)
+		copy(t[:], data)
 		return t
 	}
 	uintTopic := func(v uint64) common.LogTopic {
@@ -98,6 +95,7 @@ func TestMakeTopics(t *testing.T) {
 			args{[][]any{
 				{big.NewInt(1)},
 				{new(big.Int).Lsh(big.NewInt(2), 254)},
+				{new(big.Int).Lsh(big.NewInt(1), 256)},
 			}},
 			[][]common.LogTopic{
 				{uintTopic(1)},
@@ -106,6 +104,13 @@ func TestMakeTopics(t *testing.T) {
 				{func() common.LogTopic {
 					var t common.LogTopic
 					t[common.LogTopicLength-common.HashLength] = 0x80
+					return t
+				}()},
+				// 2^256 must remain representable in a 64-byte topic instead
+				// of being reduced to zero modulo 2^256.
+				{func() common.LogTopic {
+					var t common.LogTopic
+					t[common.LogTopicLength-common.HashLength-1] = 0x01
 					return t
 				}()},
 			},
@@ -118,20 +123,8 @@ func TestMakeTopics(t *testing.T) {
 				{big.NewInt(gomath.MinInt64)},
 			}},
 			[][]common.LogTopic{
-				// MakeTopics encodes via math.U256Bytes, which left-pads to
-				// 32 bytes; so -1 lands as 0xff*32 in the low half with the
-				// upper half zero.
-				{func() common.LogTopic {
-					var t common.LogTopic
-					for i := common.LogTopicLength - common.HashLength; i < common.LogTopicLength; i++ {
-						t[i] = 0xff
-					}
-					return t
-				}()},
-				{func() common.LogTopic {
-					t := common.HexToLogTopic("ffffffffffffffffffffffffffffffffffffffffffffffff8000000000000000")
-					return t
-				}()},
+				{intTopic(-1)},
+				{intTopic(gomath.MinInt64)},
 			},
 			false,
 		},
@@ -209,15 +202,7 @@ func TestMakeTopics(t *testing.T) {
 
 	t.Run("does not mutate big.Int", func(t *testing.T) {
 		t.Parallel()
-		// -1 big.Int uses math.U256Bytes → 32-byte sign-extended form that
-		// lands in the low 32 bytes of the topic slot.
-		want := [][]common.LogTopic{{func() common.LogTopic {
-			var t common.LogTopic
-			for i := common.LogTopicLength - common.HashLength; i < common.LogTopicLength; i++ {
-				t[i] = 0xff
-			}
-			return t
-		}()}}
+		want := [][]common.LogTopic{{intTopic(-1)}}
 
 		in := big.NewInt(-1)
 		got, err := MakeTopics([]any{in})
@@ -233,6 +218,167 @@ func TestMakeTopics(t *testing.T) {
 	})
 }
 
+func TestMakeTopicsRejectsUnsupportedFunctionValue(t *testing.T) {
+	t.Parallel()
+
+	var value [common.AddressLength + 4]byte
+	_, err := MakeTopics([]any{value})
+	if !errors.Is(err, ErrUnsupportedFunctionType) {
+		t.Fatalf("MakeTopics function value error = %v, want %v", err, ErrUnsupportedFunctionType)
+	}
+}
+
+func TestMakeTopicsRejectsOversizedFixedByteArray(t *testing.T) {
+	t.Parallel()
+
+	var value [common.LogTopicLength + 1]byte
+	_, err := MakeTopics([]any{value})
+	if err == nil {
+		t.Fatal("expected oversized fixed byte array topic to be rejected")
+	}
+}
+
+func TestEventSignatureTopicMatchesHashTopicConstruction(t *testing.T) {
+	t.Parallel()
+
+	eventID := crypto.Keccak256Hash([]byte("Called()"))
+	topics, err := MakeTopics([]any{eventID})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(topics) != 1 || len(topics[0]) != 1 {
+		t.Fatalf("unexpected topic shape: %v", topics)
+	}
+	if got, want := topics[0][0], common.BytesToEventSignatureLogTopic(eventID.Bytes()); got != want {
+		t.Fatalf("event signature topic mismatch: got %x want %x", got, want)
+	}
+}
+
+func TestMakeTopicsWithTypesEnforcesIntegerWidths(t *testing.T) {
+	t.Parallel()
+
+	uint256Ty, _ := NewType("uint256", "", nil)
+	int256Ty, _ := NewType("int256", "", nil)
+	uint512Ty, _ := NewType("uint512", "", nil)
+
+	topicFromBig := func(n *big.Int) common.LogTopic {
+		var topic common.LogTopic
+		blob := math.U512Bytes(new(big.Int).Set(n))
+		copy(topic[:], blob)
+		return topic
+	}
+
+	maxUint256 := new(big.Int).Sub(twoPow(256), common.Big1)
+	topics, err := MakeTopicsWithTypes(Arguments{{Type: uint256Ty, Indexed: true}}, []any{maxUint256})
+	if err != nil {
+		t.Fatalf("MakeTopicsWithTypes uint256 max: %v", err)
+	}
+	if got, want := topics[0][0], topicFromBig(maxUint256); got != want {
+		t.Fatalf("uint256 max topic mismatch: got %x want %x", got, want)
+	}
+	if _, err := MakeTopicsWithTypes(Arguments{{Type: uint256Ty, Indexed: true}}, []any{twoPow(256)}); err == nil {
+		t.Fatalf("MakeTopicsWithTypes accepted uint256 overflow")
+	}
+	if _, err := MakeTopicsWithTypes(Arguments{{Type: uint256Ty, Indexed: true}}, []any{big.NewInt(-1)}); err == nil {
+		t.Fatalf("MakeTopicsWithTypes accepted negative uint256")
+	}
+
+	maxInt256 := new(big.Int).Sub(twoPow(255), common.Big1)
+	minInt256 := new(big.Int).Neg(twoPow(255))
+	if _, err := MakeTopicsWithTypes(Arguments{{Type: int256Ty, Indexed: true}}, []any{maxInt256}); err != nil {
+		t.Fatalf("MakeTopicsWithTypes int256 max: %v", err)
+	}
+	if _, err := MakeTopicsWithTypes(Arguments{{Type: int256Ty, Indexed: true}}, []any{minInt256}); err != nil {
+		t.Fatalf("MakeTopicsWithTypes int256 min: %v", err)
+	}
+	if _, err := MakeTopicsWithTypes(Arguments{{Type: int256Ty, Indexed: true}}, []any{twoPow(255)}); err == nil {
+		t.Fatalf("MakeTopicsWithTypes accepted int256 positive overflow")
+	}
+	if _, err := MakeTopicsWithTypes(Arguments{{Type: int256Ty, Indexed: true}}, []any{new(big.Int).Sub(minInt256, common.Big1)}); err == nil {
+		t.Fatalf("MakeTopicsWithTypes accepted int256 negative overflow")
+	}
+
+	if _, err := MakeTopicsWithTypes(Arguments{{Type: uint512Ty, Indexed: true}}, []any{math.MaxBig512}); err != nil {
+		t.Fatalf("MakeTopicsWithTypes uint512 max: %v", err)
+	}
+	if _, err := MakeTopicsWithTypes(Arguments{{Type: uint512Ty, Indexed: true}}, []any{twoPow(512)}); err == nil {
+		t.Fatalf("MakeTopicsWithTypes accepted uint512 overflow")
+	}
+}
+
+func TestMakeTopicsForEventUsesTypedIndexedFields(t *testing.T) {
+	t.Parallel()
+
+	uint256Ty, _ := NewType("uint256", "", nil)
+	event := NewEvent("Observed", "Observed", false, Arguments{
+		{Name: "value", Type: uint256Ty, Indexed: true},
+	})
+
+	topics, err := MakeTopicsForEvent(event, []any{big.NewInt(1)})
+	if err != nil {
+		t.Fatalf("MakeTopicsForEvent valid uint256: %v", err)
+	}
+	if len(topics) != 2 || len(topics[0]) != 1 || len(topics[1]) != 1 {
+		t.Fatalf("unexpected topic shape: %v", topics)
+	}
+	if got, want := topics[0][0], event.Topic(); got != want {
+		t.Fatalf("event selector topic mismatch: got %x want %x", got, want)
+	}
+
+	if _, err := MakeTopicsForEvent(event, []any{twoPow(256)}); err == nil {
+		t.Fatalf("MakeTopicsForEvent accepted uint256 overflow")
+	}
+}
+
+func TestMakeTopicsForEventRequiresRawTopicsForHashOnlyIndexedTypes(t *testing.T) {
+	t.Parallel()
+
+	stringTy, _ := NewType("string", "", nil)
+	bytesTy, _ := NewType("bytes", "", nil)
+	sliceTy, _ := NewType("address[]", "", nil)
+	arrayTy, _ := NewType("address[2]", "", nil)
+	tupleTy, err := NewType("tuple", "struct Observed.Point", []ArgumentMarshaling{
+		{Name: "x", Type: "uint256"},
+		{Name: "y", Type: "uint256"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	rawTopic := common.LogTopic{0xab}
+	tests := []struct {
+		name string
+		typ  Type
+		bad  any
+	}{
+		{"string", stringTy, "hello"},
+		{"bytes", bytesTy, []byte{1, 2, 3}},
+		{"slice", sliceTy, []common.Address{{}}},
+		{"array", arrayTy, [2]common.Address{}},
+		{"tuple", tupleTy, struct{ X, Y *big.Int }{big.NewInt(1), big.NewInt(2)}},
+	}
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			event := NewEvent("Observed", "Observed", false, Arguments{
+				{Name: "value", Type: tt.typ, Indexed: true},
+			})
+			topics, err := MakeTopicsForEvent(event, []any{rawTopic})
+			if err != nil {
+				t.Fatalf("MakeTopicsForEvent raw topic: %v", err)
+			}
+			if got := topics[1][0]; got != rawTopic {
+				t.Fatalf("raw topic mismatch: got %x want %x", got, rawTopic)
+			}
+			if _, err := MakeTopicsForEvent(event, []any{tt.bad}); err == nil || !strings.Contains(err.Error(), "require common.LogTopic") {
+				t.Fatalf("MakeTopicsForEvent hash-only value error = %v, want common.LogTopic requirement", err)
+			}
+		})
+	}
+}
+
 type args struct {
 	createObj func() any
 	resultObj func() any
@@ -243,6 +389,9 @@ type args struct {
 
 type bytesStruct struct {
 	StaticBytes [5]byte
+}
+type bytes64Struct struct {
+	StaticBytes [64]byte
 }
 type int8Struct struct {
 	Int8Value int8
@@ -256,6 +405,10 @@ type int256Struct struct {
 // right-aligned in the low 32 bytes).
 type hashStruct struct {
 	HashValue common.LogTopic
+}
+
+type tupleTopicStruct struct {
+	TupleValue common.LogTopic
 }
 
 // funcStruct mirrors the Solidity `function` type, which is address followed
@@ -283,6 +436,7 @@ var allOnesTopic = func() common.LogTopic {
 
 func setupTopicsTests() []topicTest {
 	bytesType, _ := NewType("bytes5", "", nil)
+	bytes64Type, _ := NewType("bytes64", "", nil)
 	int8Type, _ := NewType("int8", "", nil)
 	int256Type, _ := NewType("int256", "", nil)
 	tupleType, _ := NewType("tuple(int256,int8)", "", nil)
@@ -291,7 +445,7 @@ func setupTopicsTests() []topicTest {
 
 	tests := []topicTest{
 		{
-			name: "support fixed byte types, right padded to 32 bytes",
+			name: "support fixed byte types, left-packed into the 64-byte topic",
 			args: args{
 				createObj: func() any { return &bytesStruct{} },
 				resultObj: func() any { return &bytesStruct{StaticBytes: [5]byte{1, 2, 3, 4, 5}} },
@@ -305,6 +459,41 @@ func setupTopicsTests() []topicTest {
 				}},
 				topics: []common.LogTopic{
 					{1, 2, 3, 4, 5},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "support bytes64 fixed byte topics",
+			args: args{
+				createObj: func() any { return &bytes64Struct{} },
+				resultObj: func() any {
+					var value [64]byte
+					for i := range value {
+						value[i] = byte(i + 1)
+					}
+					return &bytes64Struct{StaticBytes: value}
+				},
+				resultMap: func() map[string]any {
+					var value [64]byte
+					for i := range value {
+						value[i] = byte(i + 1)
+					}
+					return map[string]any{"staticBytes": value}
+				},
+				fields: Arguments{Argument{
+					Name:    "staticBytes",
+					Type:    bytes64Type,
+					Indexed: true,
+				}},
+				topics: []common.LogTopic{
+					func() common.LogTopic {
+						var topic common.LogTopic
+						for i := range topic {
+							topic[i] = byte(i + 1)
+						}
+						return topic
+					}(),
 				},
 			},
 			wantErr: false,
@@ -421,19 +610,21 @@ func setupTopicsTests() []topicTest {
 			wantErr: true,
 		},
 		{
-			name: "error on tuple in topic reconstruction",
+			name: "support tuple hash topics",
 			args: args{
-				createObj: func() any { return &tupleType },
-				resultObj: func() any { return &tupleType },
-				resultMap: func() map[string]any { return make(map[string]any) },
+				createObj: func() any { return &tupleTopicStruct{} },
+				resultObj: func() any { return &tupleTopicStruct{TupleValue: common.LogTopic{0x42}} },
+				resultMap: func() map[string]any {
+					return map[string]any{"tupleValue": common.LogTopic{0x42}}
+				},
 				fields: Arguments{Argument{
-					Name:    "tupletype",
+					Name:    "tupleValue",
 					Type:    tupleType,
 					Indexed: true,
 				}},
-				topics: []common.LogTopic{{0}},
+				topics: []common.LogTopic{{0x42}},
 			},
-			wantErr: true,
+			wantErr: false,
 		},
 		{
 			name: "error on improper encoded function",
@@ -479,6 +670,43 @@ func TestParseTopics(t *testing.T) {
 			resultObj := tt.args.resultObj()
 			if !reflect.DeepEqual(createObj, resultObj) {
 				t.Errorf("parseTopics() = %v, want %v", createObj, resultObj)
+			}
+		})
+	}
+}
+
+func TestParseTopicsRejectsUnsupportedFunctionType(t *testing.T) {
+	t.Parallel()
+
+	funcType, err := NewType("function", "", nil)
+	if err != nil {
+		t.Fatalf("build function type: %v", err)
+	}
+	funcArrayType, err := NewType("function[]", "", nil)
+	if err != nil {
+		t.Fatalf("build function array type: %v", err)
+	}
+
+	tests := []struct {
+		name string
+		typ  Type
+		out  any
+	}{
+		{name: "direct", typ: funcType, out: &funcStruct{}},
+		{name: "array", typ: funcArrayType, out: new(struct{})},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			err := ParseTopics(tt.out, Arguments{{
+				Name:    "funcValue",
+				Type:    tt.typ,
+				Indexed: true,
+			}}, []common.LogTopic{{}})
+			if !errors.Is(err, ErrUnsupportedFunctionType) {
+				t.Fatalf("ParseTopics function type error = %v, want %v", err, ErrUnsupportedFunctionType)
 			}
 		})
 	}

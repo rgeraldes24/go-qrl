@@ -24,6 +24,7 @@ import (
 	"github.com/theQRL/go-qrl/common"
 	"github.com/theQRL/go-qrl/common/hexutil"
 	"github.com/theQRL/go-qrl/common/math"
+	"github.com/theQRL/go-qrl/crypto"
 )
 
 func TestBytesPadding(t *testing.T) {
@@ -42,7 +43,7 @@ func TestBytesPadding(t *testing.T) {
 		{
 			Type:   "bytes1",
 			Input:  []byte{1},
-			Output: []byte{1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+			Output: common.RightPadBytes([]byte{1}, typedDataWordBytes),
 		},
 		{
 			Type:   "bytes1",
@@ -52,16 +53,26 @@ func TestBytesPadding(t *testing.T) {
 		{
 			Type:   "bytes7",
 			Input:  []byte{1, 2, 3, 4, 5, 6, 7},
-			Output: []byte{1, 2, 3, 4, 5, 6, 7, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+			Output: common.RightPadBytes([]byte{1, 2, 3, 4, 5, 6, 7}, typedDataWordBytes),
 		},
 		{
 			Type:   "bytes32",
 			Input:  []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32},
-			Output: []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32},
+			Output: common.RightPadBytes([]byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32}, typedDataWordBytes),
 		},
 		{
 			Type:   "bytes32",
 			Input:  []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33},
+			Output: nil,
+		},
+		{
+			Type:   "bytes64",
+			Input:  bytes.Repeat([]byte{0xff}, typedDataWordBytes),
+			Output: bytes.Repeat([]byte{0xff}, typedDataWordBytes),
+		},
+		{
+			Type:   "bytes64",
+			Input:  bytes.Repeat([]byte{0xff}, typedDataWordBytes+1),
 			Output: nil,
 		},
 	}
@@ -77,8 +88,8 @@ func TestBytesPadding(t *testing.T) {
 			if err != nil {
 				t.Errorf("test %d: expected no error, got %v", i, err)
 			}
-			if len(val) != 32 {
-				t.Errorf("test %d: expected len 32, got %d", i, len(val))
+			if len(val) != typedDataWordBytes {
+				t.Errorf("test %d: expected len %d, got %d", i, typedDataWordBytes, len(val))
 			}
 			if !bytes.Equal(val, test.Output) {
 				t.Errorf("test %d: expected %x, got %x", i, test.Output, val)
@@ -89,7 +100,7 @@ func TestBytesPadding(t *testing.T) {
 
 func TestParseAddress(t *testing.T) {
 	t.Parallel()
-	// EIP-712 primitive encoding uses one 64-byte slot for QRL addresses.
+	// Hyperion typed data primitive encoding uses one 64-byte slot for QRL addresses.
 	validAddr64 := [common.AddressLength]byte{
 		0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08,
 		0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F, 0x10,
@@ -188,6 +199,12 @@ func TestParseBytes(t *testing.T) {
 
 func TestParseInteger(t *testing.T) {
 	t.Parallel()
+	maxUint512 := new(big.Int).Sub(new(big.Int).Lsh(big.NewInt(1), 512), big.NewInt(1))
+	overflowUint512 := new(big.Int).Lsh(big.NewInt(1), 512)
+	maxInt512 := new(big.Int).Sub(new(big.Int).Lsh(big.NewInt(1), 511), big.NewInt(1))
+	overflowInt512 := new(big.Int).Lsh(big.NewInt(1), 511)
+	minInt512 := new(big.Int).Neg(new(big.Int).Lsh(big.NewInt(1), 511))
+
 	for i, tt := range []struct {
 		t   string
 		v   any
@@ -198,6 +215,14 @@ func TestParseInteger(t *testing.T) {
 		{"int32", big.NewInt(-124), big.NewInt(-124)},
 		{"uint32", "0xff", big.NewInt(0xff)},
 		{"int8", "0xffff", nil},
+		{"int8", "0x7f", big.NewInt(0x7f)},
+		{"int8", "0x80", nil},
+		{"uint512", maxUint512.String(), maxUint512},
+		{"uint512", overflowUint512.String(), nil},
+		{"int512", maxInt512.String(), maxInt512},
+		{"int512", minInt512.String(), minInt512},
+		{"int512", overflowInt512.String(), nil},
+		{"uint", maxUint512.String(), maxUint512},
 	} {
 		res, err := parseInteger(tt.t, tt.v)
 		if tt.exp == nil && res == nil {
@@ -217,6 +242,93 @@ func TestParseInteger(t *testing.T) {
 	}
 }
 
+func TestHyperionTypedDataVM64PrimitiveEncoding(t *testing.T) {
+	t.Parallel()
+
+	d := TypedData{}
+	trueWord, err := d.EncodePrimitiveValue("bool", true, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(trueWord) != typedDataWordBytes || trueWord[typedDataWordBytes-1] != 1 {
+		t.Fatalf("bool true encoding mismatch: %x", trueWord)
+	}
+
+	maxUint512 := new(big.Int).Sub(new(big.Int).Lsh(big.NewInt(1), 512), big.NewInt(1))
+	uintWord, err := d.EncodePrimitiveValue("uint512", maxUint512, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(uintWord, bytes.Repeat([]byte{0xff}, typedDataWordBytes)) {
+		t.Fatalf("uint512 max encoding mismatch: %x", uintWord)
+	}
+
+	intWord, err := d.EncodePrimitiveValue("int512", big.NewInt(-1), 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(intWord, bytes.Repeat([]byte{0xff}, typedDataWordBytes)) {
+		t.Fatalf("int512 -1 encoding mismatch: %x", intWord)
+	}
+
+	if _, err := d.EncodePrimitiveValue("uint256", new(big.Int).Lsh(big.NewInt(1), 256), 1); err == nil {
+		t.Fatalf("expected uint256 overflow to fail")
+	}
+
+	stringWord, err := d.EncodePrimitiveValue("string", "vm64", 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	wantHashWord := common.RightPadBytes(crypto.Keccak256([]byte("vm64")), typedDataWordBytes)
+	if !bytes.Equal(stringWord, wantHashWord) {
+		t.Fatalf("string hash word mismatch:\ngot  %x\nwant %x", stringWord, wantHashWord)
+	}
+}
+
+func TestHyperionTypedDataVM64EncodeData(t *testing.T) {
+	t.Parallel()
+
+	maxUint512 := new(big.Int).Sub(new(big.Int).Lsh(big.NewInt(1), 512), big.NewInt(1))
+	td := TypedData{
+		Types: Types{
+			"EIP712Domain": {
+				{Name: "chainId", Type: "uint512"},
+			},
+			"Message": {
+				{Name: "amount", Type: "uint512"},
+				{Name: "delta", Type: "int512"},
+				{Name: "payload", Type: "bytes64"},
+			},
+		},
+		PrimaryType: "Message",
+		Domain: TypedDataDomain{
+			ChainId: math.NewHexOrDecimal512(1),
+		},
+		Message: TypedDataMessage{
+			"amount":  maxUint512,
+			"delta":   big.NewInt(-1),
+			"payload": bytes.Repeat([]byte{0xab}, typedDataWordBytes),
+		},
+	}
+
+	encoded, err := td.EncodeData(td.PrimaryType, td.Message, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if have, want := len(encoded), 4*typedDataWordBytes; have != want {
+		t.Fatalf("encoded length mismatch: have %d want %d", have, want)
+	}
+	if !bytes.Equal(encoded[typedDataWordBytes:2*typedDataWordBytes], bytes.Repeat([]byte{0xff}, typedDataWordBytes)) {
+		t.Fatalf("uint512 field was not encoded as one full VM64 word")
+	}
+	if !bytes.Equal(encoded[2*typedDataWordBytes:3*typedDataWordBytes], bytes.Repeat([]byte{0xff}, typedDataWordBytes)) {
+		t.Fatalf("int512 field was not encoded as one full VM64 word")
+	}
+	if !bytes.Equal(encoded[3*typedDataWordBytes:4*typedDataWordBytes], bytes.Repeat([]byte{0xab}, typedDataWordBytes)) {
+		t.Fatalf("bytes64 field was not encoded as one full VM64 word")
+	}
+}
+
 func TestConvertStringDataToSlice(t *testing.T) {
 	t.Parallel()
 	slice := []string{"a", "b", "c"}
@@ -227,12 +339,12 @@ func TestConvertStringDataToSlice(t *testing.T) {
 	}
 }
 
-func TestConvertUint256DataToSlice(t *testing.T) {
+func TestConvertUint512DataToSlice(t *testing.T) {
 	t.Parallel()
-	slice := []*math.HexOrDecimal256{
-		math.NewHexOrDecimal256(1),
-		math.NewHexOrDecimal256(2),
-		math.NewHexOrDecimal256(3),
+	slice := []*math.HexOrDecimal512{
+		math.NewHexOrDecimal512(1),
+		math.NewHexOrDecimal512(2),
+		math.NewHexOrDecimal512(3),
 	}
 	var it any = slice
 	_, err := convertDataToSlice(it)

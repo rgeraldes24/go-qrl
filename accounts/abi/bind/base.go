@@ -364,10 +364,7 @@ func (c *BoundContract) FilterLogs(opts *FilterOpts, name string, query ...[]any
 	if opts == nil {
 		opts = new(FilterOpts)
 	}
-	// Append the event selector to the query parameters and construct the topic set
-	query = append([][]any{{c.abi.Events[name].ID}}, query...)
-
-	topics, err := abi.MakeTopics(query...)
+	topics, err := abi.MakeTopicsForEvent(c.abi.Events[name], query...)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -413,10 +410,7 @@ func (c *BoundContract) WatchLogs(opts *WatchOpts, name string, query ...[]any) 
 	if opts == nil {
 		opts = new(WatchOpts)
 	}
-	// Append the event selector to the query parameters and construct the topic set
-	query = append([][]any{{c.abi.Events[name].ID}}, query...)
-
-	topics, err := abi.MakeTopics(query...)
+	topics, err := abi.MakeTopicsForEvent(c.abi.Events[name], query...)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -443,7 +437,7 @@ func (c *BoundContract) UnpackLog(out any, event string, log types.Log) error {
 	if len(log.Topics) == 0 {
 		return errNoEventSignature
 	}
-	if log.Topics[0] != common.BytesToEventSignatureLogTopic(c.abi.Events[event].ID.Bytes()) {
+	if log.Topics[0] != c.abi.Events[event].Topic() {
 		return errEventSignatureMismatch
 	}
 	if len(log.Data) > 0 {
@@ -466,7 +460,7 @@ func (c *BoundContract) UnpackLogIntoMap(out map[string]any, event string, log t
 	if len(log.Topics) == 0 {
 		return errNoEventSignature
 	}
-	if log.Topics[0] != common.BytesToEventSignatureLogTopic(c.abi.Events[event].ID.Bytes()) {
+	if log.Topics[0] != c.abi.Events[event].Topic() {
 		return errEventSignatureMismatch
 	}
 	if len(log.Data) > 0 {

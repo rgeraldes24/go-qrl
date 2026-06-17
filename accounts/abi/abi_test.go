@@ -1029,6 +1029,17 @@ func TestABI_EventById(t *testing.T) {
 			t.Errorf("Event id %s does not match topic %s, test #%d", event.ID.Hex(), topicID.Hex(), testnum)
 		}
 
+		topic0 := common.BytesToEventSignatureLogTopic(topicID.Bytes())
+		event, err = abi.EventByTopic(topic0)
+		if err != nil {
+			t.Fatalf("Failed to look up ABI event by VM64 topic: %v, test #%d", err, testnum)
+		}
+		if event == nil {
+			t.Errorf("We should find an event for topic %s, test #%d", topic0.Hex(), testnum)
+		} else if event.Topic() != topic0 {
+			t.Errorf("Event topic %s does not match log topic %s, test #%d", event.Topic().Hex(), topic0.Hex(), testnum)
+		}
+
 		unknowntopicID := crypto.Keccak256Hash([]byte("unknownEvent"))
 		unknownEvent, err := abi.EventByID(unknowntopicID)
 		if err == nil {
@@ -1037,6 +1048,30 @@ func TestABI_EventById(t *testing.T) {
 		if unknownEvent != nil {
 			t.Errorf("We should not find any event for topic %s, test #%d", unknowntopicID.Hex(), testnum)
 		}
+
+		unknownTopic := common.BytesToEventSignatureLogTopic(unknowntopicID.Bytes())
+		unknownEvent, err = abi.EventByTopic(unknownTopic)
+		if err == nil {
+			t.Errorf("EventByTopic should return an error if a topic is not found, test #%d", testnum)
+		}
+		if unknownEvent != nil {
+			t.Errorf("We should not find any event for topic %s, test #%d", unknownTopic.Hex(), testnum)
+		}
+	}
+}
+
+func TestABI_EventByTopicSkipsAnonymous(t *testing.T) {
+	t.Parallel()
+
+	abi, err := JSON(strings.NewReader(`[
+		{"type":"event","name":"Hidden","anonymous":true,"inputs":[{"indexed":true,"name":"value","type":"uint256"}]}
+	]`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	event := abi.Events["Hidden"]
+	if _, err := abi.EventByTopic(event.Topic()); err == nil {
+		t.Fatalf("EventByTopic should not match anonymous event signature topics")
 	}
 }
 
@@ -1187,6 +1222,7 @@ func TestUnpackRevert(t *testing.T) {
 		{common.Hex2Bytes("08c379a1"), "", errors.New("invalid data for unpacking")},
 		{revert("revert reason"), "revert reason", nil},
 		{panicPayload(big.NewInt(0)), "generic panic", nil},
+		{panicPayload(big.NewInt(0x11)), "arithmetic underflow or overflow", nil},
 		{panicPayload(big.NewInt(0xff)), "unknown panic code: 0xff", nil},
 	}
 	for index, c := range cases {
@@ -1206,6 +1242,21 @@ func TestUnpackRevert(t *testing.T) {
 				t.Fatalf("Output mismatch, want %v, got %v", c.expect, got)
 			}
 		})
+	}
+
+	payload := panicPayload(big.NewInt(0x11))
+	if have, want := len(payload), 4+abiSlotBytes; have != want {
+		t.Fatalf("panic payload length = %d, want %d", have, want)
+	}
+
+	legacyPayload := append(append([]byte{}, panicSelector...), common.LeftPadBytes([]byte{0x11}, 32)...)
+	if _, err := UnpackRevert(legacyPayload); err == nil {
+		t.Fatalf("expected legacy 36-byte Panic(uint256) payload to fail")
+	}
+
+	highBitsPayload := append(append([]byte{}, panicSelector...), append([]byte{0x01}, bytes.Repeat([]byte{0}, abiSlotBytes-1)...)...)
+	if _, err := UnpackRevert(highBitsPayload); err == nil {
+		t.Fatalf("expected Panic(uint256) payload with high bits above uint256 to fail")
 	}
 }
 
