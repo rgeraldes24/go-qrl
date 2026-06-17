@@ -45,11 +45,11 @@ var (
 
 	// aggregatorItemLimit is an approximate number of items that will end up
 	// in the agregator layer before it's flushed out to disk. A plain account
-	// weighs around 14B (+hash), a storage slot 32B (+hash), a deleted slot
-	// 0B (+hash). Slots are mostly set/unset in lockstep, so that average at
-	// 16B (+hash). All in all, the average entry seems to be 15+32=47B. Use a
-	// smaller number to be on the safe side.
-	aggregatorItemLimit = aggregatorMemoryLimit / 42
+	// weighs around 14B (+hash), a VM64 storage slot up to 64B (+hash), and a
+	// deleted slot 0B (+hash). Slots are mostly set/unset in lockstep, so the
+	// storage average is around half a VM64 slot plus the 32-byte key hash. Use
+	// 58B as a conservative mixed account/storage estimate for bloom sizing.
+	aggregatorItemLimit = aggregatorMemoryLimit / 58
 
 	// bloomTargetError is the target false positive rate when the aggregator
 	// layer is at its fullest. The actual value will probably move around up

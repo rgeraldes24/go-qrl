@@ -1982,10 +1982,35 @@ func TestBindRejectsUnresolvedLibraryPlaceholders(t *testing.T) {
 func TestBindRejectsLegacyLibraryPlaceholders(t *testing.T) {
 	t.Parallel()
 
-	legacy := "__$" + strings.Repeat("a", 34) + "$__"
-	_, err := Bind([]string{"UseMath"}, []string{`[]`}, []string{"73" + legacy}, nil, "bindtest", nil, nil)
-	if !errors.Is(err, ErrUnsupportedLibraryLinking) {
-		t.Fatalf("Bind error = %v, want %v", err, ErrUnsupportedLibraryLinking)
+	tests := []struct {
+		name        string
+		placeholder string
+	}{
+		{
+			name:        "HashStyle",
+			placeholder: "__$" + strings.Repeat("a", 34) + "$__",
+		},
+		{
+			name:        "NamePadded",
+			placeholder: "__Math" + strings.Repeat("_", 34),
+		},
+		{
+			name:        "QualifiedNamePadded",
+			placeholder: "__contracts/Math.sol:Math" + strings.Repeat("_", 15),
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			if len(tt.placeholder) != legacyLibraryPlaceholderLength {
+				t.Fatalf("legacy placeholder length = %d, want %d", len(tt.placeholder), legacyLibraryPlaceholderLength)
+			}
+			_, err := Bind([]string{"UseMath"}, []string{`[]`}, []string{"73" + tt.placeholder}, nil, "bindtest", nil, nil)
+			if !errors.Is(err, ErrUnsupportedLibraryLinking) {
+				t.Fatalf("Bind error = %v, want %v", err, ErrUnsupportedLibraryLinking)
+			}
+		})
 	}
 }
 

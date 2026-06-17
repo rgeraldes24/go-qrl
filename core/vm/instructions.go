@@ -508,6 +508,8 @@ func opMstore8(pc *uint64, interpreter *QRVMInterpreter, scope *ScopeContext) ([
 
 func opSload(pc *uint64, interpreter *QRVMInterpreter, scope *ScopeContext) ([]byte, error) {
 	loc := scope.Stack.peek()
+	// VM64 keeps storage keys at 32 bytes: SLOAD/SSTORE use the low 32 bytes
+	// of the 64-byte stack word as specified in VM64_SPEC.md.
 	hash := common.Hash(loc.Bytes32())
 	val := interpreter.qrvm.StateDB.GetState(scope.Contract.Address(), hash)
 	loc.SetBytes(val.Bytes())

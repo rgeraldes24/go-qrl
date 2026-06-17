@@ -555,8 +555,8 @@ func DeveloperGenesisBlock(gasLimit uint64, faucet common.Address) *Genesis {
 }
 
 func decodePrealloc(data string) GenesisAlloc {
-	// Prealloc data was encoded with 32-byte storage values; decode into
-	// byte slices and zero-extend to the 64-byte StorageValue64 width.
+	// Legacy prealloc blobs may contain shorter RLP-encoded storage values.
+	// Decode them as byte slices and normalize to VM64 StorageValue64 width.
 	var p []struct {
 		Addr    *big.Int
 		Balance *big.Int

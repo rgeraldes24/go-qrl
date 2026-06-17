@@ -38,7 +38,7 @@ var (
 
 	libraryPlaceholderPatternHexLength = common.AddressLength*2 - len(libraryPlaceholderPrefix) - len(libraryPlaceholderSuffix)
 	vm64LibraryPlaceholderRegex        = regexp.MustCompile(fmt.Sprintf(`__\$[0-9a-fA-F]{%d}\$__`, libraryPlaceholderPatternHexLength))
-	legacyLibraryPlaceholderRegex      = regexp.MustCompile(`__\$[0-9a-fA-F]{34}\$__`)
+	legacyHashLibraryPlaceholderRegex  = regexp.MustCompile(`__\$[0-9a-fA-F]{34}\$__`)
 
 	// ErrUnsupportedLibraryLinking is returned when bytecode still contains a
 	// legacy Solidity library link placeholder. Those placeholders reserve 20 bytes
@@ -54,6 +54,8 @@ var (
 const (
 	libraryPlaceholderPrefix = "__$"
 	libraryPlaceholderSuffix = "$__"
+
+	legacyLibraryPlaceholderLength = 40
 )
 
 // LibraryLinkPattern derives the VM64 library link pattern for a fully qualified
@@ -313,11 +315,49 @@ func validateNoLegacyLibraryPlaceholders(contract string, bytecode string) error
 		return nil
 	}
 	bin := strings.TrimPrefix(strings.TrimSpace(bytecode), "0x")
-	placeholder := legacyLibraryPlaceholderRegex.FindString(bin)
+	placeholder := findLegacyLibraryPlaceholder(bin)
 	if placeholder == "" {
 		return nil
 	}
 	return fmt.Errorf("%w: contract %s bytecode contains %q; compile and link with Hyperion VM64 output or pass already-linked bytecode", ErrUnsupportedLibraryLinking, contract, placeholder)
+}
+
+func findLegacyLibraryPlaceholder(bytecode string) string {
+	if placeholder := legacyHashLibraryPlaceholderRegex.FindString(bytecode); placeholder != "" {
+		return placeholder
+	}
+	for i := 0; i+legacyLibraryPlaceholderLength <= len(bytecode); i++ {
+		placeholder := bytecode[i : i+legacyLibraryPlaceholderLength]
+		if isLegacyNameLibraryPlaceholder(placeholder) {
+			return placeholder
+		}
+	}
+	return ""
+}
+
+func isLegacyNameLibraryPlaceholder(placeholder string) bool {
+	if len(placeholder) != legacyLibraryPlaceholderLength ||
+		!strings.HasPrefix(placeholder, "__") ||
+		strings.HasPrefix(placeholder, libraryPlaceholderPrefix) {
+		return false
+	}
+	body := placeholder[len("__"):]
+	lastNameChar := strings.LastIndexFunc(body, func(r rune) bool { return r != '_' })
+	if lastNameChar < 0 || lastNameChar == len(body)-1 {
+		return false
+	}
+	name := body[:lastNameChar+1]
+	for _, r := range name {
+		switch {
+		case r >= 'a' && r <= 'z':
+		case r >= 'A' && r <= 'Z':
+		case r >= '0' && r <= '9':
+		case r == '_', r == '.', r == '/', r == ':', r == '-':
+		default:
+			return false
+		}
+	}
+	return true
 }
 
 func resolveLibraryPlaceholders(contract string, bytecode string, libs map[string]string, linked map[string]string) error {

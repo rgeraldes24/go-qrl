@@ -856,25 +856,10 @@ var formatInputInt = function (value, name) {
  * @returns {HyperionParam}
  */
 var formatInputAddress = function (value) {
-    var result;
-    if (utils.isStrictAddress(value) || utils.isAddress(value)) {
-        result = value.slice(1);
-    } else if (typeof value === 'string') {
-        if (value.indexOf('0x') === 0 || value.indexOf('0X') === 0) {
-            result = value.slice(2);
-        } else if (/^[0-9a-f]{1,128}$/i.test(value)) {
-            result = value;
-        } else {
-            throw new Error('invalid address');
-        }
-    } else {
-        result = utils.toHex(value).substr(2);
+    if (!utils.isStrictAddress(value)) {
+        throw new Error('invalid address: expected Q-prefixed 64-byte QRL address');
     }
-    if (!/^[0-9a-f]*$/i.test(result) || result.length > 128) {
-        throw new Error('invalid address');
-    }
-    result = utils.padLeft(result.toLowerCase(), 128);
-    return new HyperionParam(result);
+    return new HyperionParam(value.slice(1).toLowerCase());
 };
 
 /**
@@ -2234,15 +2219,10 @@ var toChecksumAddress = function (address) {
  * @return {String} formatted address
  */
 var toAddress = function (address) {
-    if (isStrictAddress(address)) {
-        return address;
+    if (!isStrictAddress(address)) {
+        throw new Error('invalid address: expected Q-prefixed 64-byte QRL address');
     }
-
-    if (/^[0-9a-f]{128}$/i.test(address)) {
-        return 'Q' + address.toLowerCase();
-    }
-
-    return 'Q' + padLeft(toHex(address).substr(2), 128);
+    return address;
 };
 
 /**
@@ -2352,12 +2332,7 @@ var isBloom = function (bloom) {
  * @return {Boolean}
  */
 var isTopic = function (topic) {
-    if (!/^(0x)?[0-9a-f]{64}$/i.test(topic)) {
-        return false;
-    } else if (/^(0x)?[0-9a-f]{64}$/.test(topic) || /^(0x)?[0-9A-F]{64}$/.test(topic)) {
-        return true;
-    }
-    return false;
+    return /^(0x)?[0-9a-f]{128}$/i.test(topic);
 };
 
 module.exports = {
@@ -2586,9 +2561,9 @@ AllHyperionEvents.prototype.decode = function (data) {
     data.data = data.data || '';
     data.topics = data.topics || [];
 
-    var eventTopic = data.topics[0].slice(2);
+    var eventTopic = String(data.topics[0] || '').replace(/^0x/i, '').toLowerCase();
     var match = this._json.filter(function (j) {
-        return eventTopic === sha3(utils.transformToFullName(j));
+        return eventTopic === utils.padLeft(sha3(utils.transformToFullName(j)), 128).toLowerCase();
     })[0];
 
     if (!match) { // cannot find matching event?
@@ -3349,10 +3324,10 @@ var toTopic = function(value){
 
     value = String(value);
 
-    if(value.indexOf('0x') === 0)
-        return value;
-    else
-        return utils.fromUtf8(value);
+    if(!utils.isTopic(value))
+        throw new Error('invalid VM64 log topic: expected 64-byte hex');
+
+    return '0x' + value.replace(/^0x/i, '').toLowerCase();
 };
 
 /// This method should be called on options object, to verify deprecated properties && lazy load dynamic ones
@@ -3825,10 +3800,8 @@ var outputPostFormatter = function(post){
 var inputAddressFormatter = function (address) {
     if (utils.isStrictAddress(address)) {
         return address;
-    } else if (utils.isAddress(address)) {
-        return 'Q' + address;
     }
-    throw new Error('invalid address');
+    throw new Error('invalid address: expected Q-prefixed 64-byte QRL address');
 };
 
 

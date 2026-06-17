@@ -395,9 +395,11 @@ type BlockInfo struct {
 
 The encoding of values for `qrvm` utility attempts to be relatively flexible. It
 generally supports hex-encoded or decimal-encoded numeric values, and
-hex-encoded byte values (like `common.Address`, `common.Hash`, etc). When in
-doubt, the [`execution-apis`](https://github.com/ethereum/execution-apis) way
-of encoding should always be accepted.
+hex-encoded byte values where applicable. Numeric and generic hex encodings may
+follow the [`execution-apis`](https://github.com/ethereum/execution-apis)
+conventions where they still apply, but VM64 fixed-width fields must use QRL
+widths: Q-prefixed 64-byte addresses, 64-byte topics/storage values, and
+32-byte hashes/storage keys.
 
 ## Testing
 

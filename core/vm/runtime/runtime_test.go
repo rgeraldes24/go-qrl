@@ -651,7 +651,7 @@ func TestRuntimeJSTracer(t *testing.T) {
 		{
 			// CREATE
 			code: []byte{
-				// Store initcode in memory at 0x00 (5 bytes left-padded to 32 bytes)
+				// Store initcode in memory at 0x00 (5 bytes left-padded to one 64-byte VM word)
 				byte(vm.PUSH5),
 				// Init code: PUSH1 0, PUSH1 0, RETURN (3 steps)
 				byte(vm.PUSH1), 0, byte(vm.PUSH1), 0, byte(vm.RETURN),
@@ -667,7 +667,7 @@ func TestRuntimeJSTracer(t *testing.T) {
 		{
 			// CREATE2
 			code: []byte{
-				// Store initcode in memory at 0x00 (5 bytes left-padded to 32 bytes)
+				// Store initcode in memory at 0x00 (5 bytes left-padded to one 64-byte VM word)
 				byte(vm.PUSH5),
 				// Init code: PUSH1 0, PUSH1 0, RETURN (3 steps)
 				byte(vm.PUSH1), 0, byte(vm.PUSH1), 0, byte(vm.RETURN),
