@@ -47,22 +47,33 @@ var (
 	pays     = []string{"true", "false"}
 	vNames   = []string{"a", "b", "c", "d", "e", "f", "g"}
 	varNames = append(vNames, names...)
-	varTypes = []string{"bool", "address", "bytes", "string",
-		"uint8", "int8", "uint8", "int8", "uint16", "int16",
-		"uint24", "int24", "uint32", "int32", "uint40", "int40", "uint48", "int48", "uint56", "int56",
-		"uint64", "int64", "uint72", "int72", "uint80", "int80", "uint88", "int88", "uint96", "int96",
-		"uint104", "int104", "uint112", "int112", "uint120", "int120", "uint128", "int128", "uint136", "int136",
-		"uint144", "int144", "uint152", "int152", "uint160", "int160", "uint168", "int168", "uint176", "int176",
-		"uint184", "int184", "uint192", "int192", "uint200", "int200", "uint208", "int208", "uint216", "int216",
-		"uint224", "int224", "uint232", "int232", "uint240", "int240", "uint248", "int248", "uint256", "int256",
-		"bytes1", "bytes2", "bytes3", "bytes4", "bytes5", "bytes6", "bytes7", "bytes8", "bytes9", "bytes10", "bytes11",
-		"bytes12", "bytes13", "bytes14", "bytes15", "bytes16", "bytes17", "bytes18", "bytes19", "bytes20", "bytes21",
-		"bytes22", "bytes23", "bytes24", "bytes25", "bytes26", "bytes27", "bytes28", "bytes29", "bytes30", "bytes31",
-		"bytes32", "bytes33", "bytes34", "bytes35", "bytes36", "bytes37", "bytes38", "bytes39", "bytes40", "bytes41",
-		"bytes42", "bytes43", "bytes44", "bytes45", "bytes46", "bytes47", "bytes48", "bytes49", "bytes50", "bytes51",
-		"bytes52", "bytes53", "bytes54", "bytes55", "bytes56", "bytes57", "bytes58", "bytes59", "bytes60", "bytes61",
-		"bytes62", "bytes63", "bytes64", "bytes"}
+	varTypes = buildFuzzerTypes()
 )
+
+func buildFuzzerTypes() []string {
+	types := []string{"bool", "address", "bytes", "string"}
+	for bits := 8; bits <= abiSlotBits; bits += 8 {
+		types = append(types, fmt.Sprintf("uint%d", bits), fmt.Sprintf("int%d", bits))
+	}
+	for size := 1; size <= abiSlotBytes; size++ {
+		types = append(types, fmt.Sprintf("bytes%d", size))
+	}
+	return types
+}
+
+func TestABIFuzzerTypeUniverseCoversVM64(t *testing.T) {
+	t.Parallel()
+
+	have := make(map[string]bool, len(varTypes))
+	for _, typ := range varTypes {
+		have[typ] = true
+	}
+	for _, typ := range []string{"uint264", "int264", "uint504", "int504", "uint512", "int512", "bytes64"} {
+		if !have[typ] {
+			t.Fatalf("fuzzer type universe missing %s", typ)
+		}
+	}
+}
 
 func unpackPack(abi ABI, method string, input []byte) ([]any, bool) {
 	if out, err := abi.Unpack(method, input); err == nil {

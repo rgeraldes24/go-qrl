@@ -1125,9 +1125,9 @@ func TestCodeAt(t *testing.T) {
 	}
 }
 
-// When receive("X") is called with sender Q00... and value 1, it produces this tx receipt:
-//
-//	receipt{status=1 cgas=23949 bloom=00000000004000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000800000000000000000000000000000000000040200000000000000000000000000000000001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000080000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000 logs=[log: b6818c8064f645cd82d99b59a1a267d6d61117ef [75fd880d39c1daf53b6547ab6cb59451fc6452d27caa90e5b6649dd8293b9eed] 000000000000000000000000376c47978271565f56deb45495afa69e59c16ab200000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000060000000000000000000000000000000000000000000000000000000000000000158 9ae378b6d4409eada347a5dc0c180f186cb62dc68fcc0f043425eb917335aa28 0 95d429d309bb9d753954195fe2d69bd140b4ae731b9b5b605c34323de162cf00 0]}
+// When receive("X") is called with a VM64 sender and value 1, it emits the
+// received and receivedAddr events. The data bytes below are generated with
+// the current ABI slot width instead of carrying an old receipt fixture.
 func TestPendingAndCallContract(t *testing.T) {
 	testAddr := testWallet.GetAddress()
 	sim := simTestBackend(testAddr)
@@ -1187,31 +1187,9 @@ func TestPendingAndCallContract(t *testing.T) {
 	}
 }
 
-// This test is based on the following contract:
-/*
-contract Reverter {
-	function revertString() public pure{
-		require(false, "some error");
-	}
-	function revertNoString() public pure {
-		require(false, "");
-	}
-	function revertASM() public pure {
-		assembly {
-			revert(0x0, 0x0)
-		}
-	}
-	function noRevert() public pure {
-		assembly {
-			// Assembles something that looks like require(false, "some error") but is not reverted
-			mstore(0x0, 0x08c379a000000000000000000000000000000000000000000000000000000000)
-			mstore(0x4, 0x0000000000000000000000000000000000000000000000000000000000000020)
-			mstore(0x24, 0x000000000000000000000000000000000000000000000000000000000000000a)
-			mstore(0x44, 0x736f6d65206572726f7200000000000000000000000000000000000000000000)
-			return(0x0, 0x64)
-		}
-	}
-}*/
+// This test is based on a Reverter contract with methods that return or revert
+// with Error(string), empty Error(string), bare REVERT, and a successful return.
+// The bytecode below is hand-rolled for the VM64 ABI layout.
 func TestCallContractRevert(t *testing.T) {
 	testAddr := testWallet.GetAddress()
 	sim := simTestBackend(testAddr)

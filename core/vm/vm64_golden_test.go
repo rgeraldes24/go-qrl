@@ -36,17 +36,43 @@ func vm64IntFromHex(t *testing.T, s string) *uint512.Int {
 
 func TestVM64GoldenOpcodeWidthBoundaries(t *testing.T) {
 	allOnes := strings.Repeat("f", 128)
+	zero := strings.Repeat("0", 128)
 	minSigned := "8" + strings.Repeat("0", 127)
+	maxSigned := "7" + strings.Repeat("f", 127)
 	bit510 := "4" + strings.Repeat("0", 127)
 	signExtendByte62Input := "0080" + strings.Repeat("0", 124)
 	signExtendByte62Output := "ff80" + strings.Repeat("0", 124)
 	signExtendByte31Input := strings.Repeat("0", 64) + "80" + strings.Repeat("0", 62)
 	signExtendByte31Output := strings.Repeat("f", 64) + "80" + strings.Repeat("0", 62)
 
-	t.Run("add wraps at 2^512", func(t *testing.T) {
+	t.Run("arithmetic wraps at 2^512", func(t *testing.T) {
 		testTwoOperandOp(t, []TwoOperandTestcase{
-			{allOnes, "01", strings.Repeat("0", 128)},
+			{allOnes, "01", zero},
 		}, opAdd, "add")
+		testTwoOperandOp(t, []TwoOperandTestcase{
+			{"01", "00", allOnes}, // 0 - 1 == 2^512 - 1
+		}, opSub, "sub")
+		testTwoOperandOp(t, []TwoOperandTestcase{
+			{"02", minSigned, zero}, // 2^511 * 2 == 2^512 == 0
+		}, opMul, "mul")
+		testTwoOperandOp(t, []TwoOperandTestcase{
+			{"02", allOnes, maxSigned}, // (2^512 - 1) / 2 == 2^511 - 1
+		}, opDiv, "div")
+		testTwoOperandOp(t, []TwoOperandTestcase{
+			{allOnes, "01", vm64WordHex("1")}, // 1 mod (2^512 - 1) == 1
+		}, opMod, "mod")
+	})
+	t.Run("shift boundaries use 512 bits", func(t *testing.T) {
+		testTwoOperandOp(t, []TwoOperandTestcase{
+			{"01", "01ff", minSigned},
+			{"01", "0200", zero},
+			{allOnes, "0200", zero},
+		}, opSHL, "shl")
+		testTwoOperandOp(t, []TwoOperandTestcase{
+			{minSigned, "01ff", vm64WordHex("1")},
+			{minSigned, "0200", zero},
+			{allOnes, "0200", zero},
+		}, opSHR, "shr")
 	})
 	t.Run("sar uses bit 511 and handles shift 512", func(t *testing.T) {
 		testTwoOperandOp(t, []TwoOperandTestcase{
@@ -61,6 +87,8 @@ func TestVM64GoldenOpcodeWidthBoundaries(t *testing.T) {
 			{signExtendByte31Input, "1f", signExtendByte31Output},
 			{signExtendByte62Input, "3e", signExtendByte62Output},
 			{signExtendByte62Input, "3f", signExtendByte62Input},
+			{minSigned, "3f", minSigned},
+			{allOnes, "40", allOnes},
 		}, opSignExtend, "signextend")
 	})
 }
@@ -87,6 +115,77 @@ func TestVM64GoldenSignedArithmetic(t *testing.T) {
 	}
 	if !maxPositive.Sgt(negOne) {
 		t.Fatal("2^511-1 should be signed-greater-than -1")
+	}
+
+	t.Run("opcodes", func(t *testing.T) {
+		negTwo := strings.Repeat("f", 126) + "fe"
+		one := vm64WordHex("1")
+		zero := strings.Repeat("0", 128)
+
+		// testTwoOperandOp pushes X first and Y second; these opcodes consume Y
+		// as the signed left operand and X as the right operand.
+		testTwoOperandOp(t, []TwoOperandTestcase{
+			{"02", strings.Repeat("f", 126) + "fb", negTwo}, // -5 / 2 == -2
+		}, opSdiv, "sdiv")
+		testTwoOperandOp(t, []TwoOperandTestcase{
+			{"02", strings.Repeat("f", 126) + "fb", allOnes}, // -5 % 2 == -1
+		}, opSmod, "smod")
+		testTwoOperandOp(t, []TwoOperandTestcase{
+			{"01", allOnes, one},                         // -1 < 1
+			{allOnes, "01", zero},                        // 1 < -1 is false
+			{"8" + strings.Repeat("0", 127), "01", zero}, // 1 < -2^511 is false
+		}, opSlt, "slt")
+		testTwoOperandOp(t, []TwoOperandTestcase{
+			{allOnes, "01", one},                           // 1 > -1
+			{"01", allOnes, zero},                          // -1 > 1 is false
+			{"8" + strings.Repeat("0", 127), allOnes, one}, // -1 > -2^511
+		}, opSgt, "sgt")
+	})
+}
+
+func TestVM64GoldenMemoryGasAndWordLoadStore(t *testing.T) {
+	gasTests := []struct {
+		size uint64
+		gas  uint64
+	}{
+		{0, 0},
+		{1, 3},
+		{uint512.WordBytes - 1, 3},
+		{uint512.WordBytes, 3},
+		{uint512.WordBytes + 1, 6},
+		{2 * uint512.WordBytes, 6},
+		{2*uint512.WordBytes + 1, 9},
+	}
+	for _, tt := range gasTests {
+		got, err := memoryGasCost(NewMemory(), tt.size)
+		if err != nil {
+			t.Fatalf("memoryGasCost(%d): %v", tt.size, err)
+		}
+		if got != tt.gas {
+			t.Fatalf("memoryGasCost(%d) = %d, want %d", tt.size, got, tt.gas)
+		}
+	}
+
+	env := NewQRVM(BlockContext{}, TxContext{}, nil, params.TestChainConfig, Config{})
+	scope := &ScopeContext{Memory: NewMemory(), Stack: newstack()}
+	scope.Memory.Resize(1 + uint512.WordBytes)
+	pc := uint64(0)
+	value := vm64IntFromHex(t, "80"+strings.Repeat("00", 31)+"0123456789abcdeffedcba987654321000112233445566778899aabbccddeeff")
+
+	scope.Stack.push(value)
+	scope.Stack.push(uint512.NewInt(1))
+	if _, err := opMstore(&pc, env.interpreter, scope); err != nil {
+		t.Fatalf("MSTORE failed: %v", err)
+	}
+	if got, want := scope.Memory.GetCopy(1, int64(uint512.WordBytes)), value.Bytes64(); !bytes.Equal(got, want[:]) {
+		t.Fatalf("MSTORE wrote wrong VM word:\ngot  %x\nwant %x", got, want)
+	}
+	scope.Stack.push(uint512.NewInt(1))
+	if _, err := opMload(&pc, env.interpreter, scope); err != nil {
+		t.Fatalf("MLOAD failed: %v", err)
+	}
+	if got := scope.Stack.pop(); !got.Eq(value) {
+		t.Fatalf("MLOAD value mismatch:\ngot  %x\nwant %x", got.Bytes64(), value.Bytes64())
 	}
 }
 
@@ -141,6 +240,69 @@ func (db *vm64GoldenStateDB) RevertToSnapshot(int)            {}
 func (db *vm64GoldenStateDB) Snapshot() int                   { return 0 }
 func (db *vm64GoldenStateDB) AddLog(log *types.Log)           { db.logs = append(db.logs, log) }
 func (db *vm64GoldenStateDB) AddPreimage(common.Hash, []byte) {}
+
+func TestVM64GoldenStorageKeysUseLow32Bytes(t *testing.T) {
+	statedb := newVM64GoldenStateDB()
+	contractAddr := common.BytesToAddress([]byte("storage-key-policy"))
+	env := NewQRVM(BlockContext{}, TxContext{}, statedb, params.TestChainConfig, Config{})
+	contract := NewContract(AccountRef(contractAddr), AccountRef(contractAddr), new(big.Int), 1_000_000)
+	scope := &ScopeContext{Memory: NewMemory(), Stack: newstack(), Contract: contract}
+	pc := uint64(0)
+
+	store := func(key, value *uint512.Int) {
+		t.Helper()
+		scope.Stack.push(value)
+		scope.Stack.push(key)
+		if _, err := opSstore(&pc, env.interpreter, scope); err != nil {
+			t.Fatalf("SSTORE failed: %v", err)
+		}
+	}
+	load := func(key *uint512.Int) uint512.Int {
+		t.Helper()
+		scope.Stack.push(key)
+		if _, err := opSload(&pc, env.interpreter, scope); err != nil {
+			t.Fatalf("SLOAD failed: %v", err)
+		}
+		return scope.Stack.pop()
+	}
+
+	lowKeyA := "11223344556677889900aabbccddeeff00112233445566778899aabbccddeeff"
+	lowKeyB := "ffeeddccbbaa0099887766554433221100ffeeddccbbaa009988776655443322"
+	keyA := vm64IntFromHex(t, strings.Repeat("aa", 32)+lowKeyA)
+	keyAAlias := vm64IntFromHex(t, strings.Repeat("bb", 32)+lowKeyA)
+	keyB := vm64IntFromHex(t, strings.Repeat("aa", 32)+lowKeyB)
+	valueA := vm64IntFromHex(t, "01"+strings.Repeat("23", 63))
+	valueAlias := vm64IntFromHex(t, "45"+strings.Repeat("67", 63))
+	valueB := vm64IntFromHex(t, "89"+strings.Repeat("ab", 63))
+
+	store(keyA, valueA)
+	if got := load(keyAAlias); !got.Eq(valueA) {
+		t.Fatalf("SLOAD with same low 32-byte key did not ignore high 32 bytes:\ngot  %x\nwant %x", got.Bytes64(), valueA.Bytes64())
+	}
+
+	store(keyAAlias, valueAlias)
+	if got := load(keyA); !got.Eq(valueAlias) {
+		t.Fatalf("SSTORE alias with same low 32-byte key did not overwrite original key:\ngot  %x\nwant %x", got.Bytes64(), valueAlias.Bytes64())
+	}
+
+	store(keyB, valueB)
+	if got := load(keyA); !got.Eq(valueAlias) {
+		t.Fatalf("SSTORE with different low 32-byte key changed aliased key:\ngot  %x\nwant %x", got.Bytes64(), valueAlias.Bytes64())
+	}
+	if got := load(keyB); !got.Eq(valueB) {
+		t.Fatalf("SLOAD with different low 32-byte key mismatch:\ngot  %x\nwant %x", got.Bytes64(), valueB.Bytes64())
+	}
+
+	if got := len(statedb.storage[contractAddr]); got != 2 {
+		t.Fatalf("stored key count = %d, want 2 low-32-byte keys", got)
+	}
+	if _, ok := statedb.storage[contractAddr][common.HexToHash(lowKeyA)]; !ok {
+		t.Fatalf("missing low 32-byte key A %s", lowKeyA)
+	}
+	if _, ok := statedb.storage[contractAddr][common.HexToHash(lowKeyB)]; !ok {
+		t.Fatalf("missing low 32-byte key B %s", lowKeyB)
+	}
+}
 
 func TestVM64GoldenStorageValueAndLogTopics(t *testing.T) {
 	statedb := newVM64GoldenStateDB()
@@ -203,5 +365,27 @@ func TestVM64GoldenStorageValueAndLogTopics(t *testing.T) {
 	}
 	if got, want := log.Topics[1], common.LogTopic(topic1.Bytes64()); got != want {
 		t.Fatalf("topic1 mismatch:\ngot  %x\nwant %x", got, want)
+	}
+}
+
+func TestVM64GoldenRevertReturnsFullPayload(t *testing.T) {
+	env := NewQRVM(BlockContext{}, TxContext{}, nil, params.TestChainConfig, Config{})
+	payload := append([]byte{0x4e, 0x48, 0x7b, 0x71}, bytes.Repeat([]byte{0xff}, uint512.WordBytes)...)
+	scope := &ScopeContext{Memory: NewMemory(), Stack: newstack()}
+	scope.Memory.Resize(uint64(len(payload)))
+	scope.Memory.Set(0, uint64(len(payload)), payload)
+	scope.Stack.push(uint512.NewInt(uint64(len(payload))))
+	scope.Stack.push(uint512.NewInt(0))
+	pc := uint64(0)
+
+	ret, err := opRevert(&pc, env.interpreter, scope)
+	if err != ErrExecutionReverted {
+		t.Fatalf("REVERT error = %v, want %v", err, ErrExecutionReverted)
+	}
+	if !bytes.Equal(ret, payload) {
+		t.Fatalf("REVERT payload mismatch:\ngot  %x\nwant %x", ret, payload)
+	}
+	if !bytes.Equal(env.interpreter.returnData, payload) {
+		t.Fatalf("returnData mismatch:\ngot  %x\nwant %x", env.interpreter.returnData, payload)
 	}
 }

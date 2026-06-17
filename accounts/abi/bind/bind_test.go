@@ -35,6 +35,8 @@ import (
 // assumptions and 20-byte address/linking patterns, so they are not canonical
 // VM64 fixtures. Keep these binding tests compile-only until the fixtures can be
 // regenerated from Hyperion Solidity output.
+// TODO(vm64): Once Hyperion compiler output is available, regenerate real VM64
+// bytecode fixtures and restore runtime deploy/call/filter assertions.
 const (
 	compileOnlyVM64Bytecode    = "00"
 	compileOnlyVM64RuntimeSkip = "compile-only bind fixture uses placeholder VM64 bytecode; regenerate from Hyperion compiler output before enabling runtime assertions"
@@ -2123,6 +2125,100 @@ func TestBindFixturesUseOnlyCompileOnlyBytecode(t *testing.T) {
 			}
 			t.Fatalf("%s bytecode[%d] embeds concrete bytecode; regenerate from Hyperion Solidity output before treating it as a VM64 fixture", tt.name, i)
 		}
+	}
+}
+
+func TestGeneratedBindingRuntimeUsesVM64ABI(t *testing.T) {
+	gocmd := runtime.GOROOT() + "/bin/go"
+	if !common.FileExist(gocmd) {
+		t.Skip("go sdk not found for testing")
+	}
+
+	const (
+		abiJSON  = `[{"inputs":[],"name":"hello","outputs":[{"internalType":"string","name":"","type":"string"}],"stateMutability":"view","type":"function"}]`
+		bytecode = `0x6022600c60003960226000f3` +
+			`6040600052600b6040526a68656c6c6f20776f726c646101a81b60805260c06000f3`
+	)
+	code, err := Bind(
+		[]string{"VM64RuntimeGolden"},
+		[]string{abiJSON},
+		[]string{bytecode},
+		nil,
+		"bindtest",
+		nil,
+		nil,
+	)
+	if err != nil {
+		t.Fatalf("failed to generate VM64 runtime binding: %v", err)
+	}
+
+	ws := t.TempDir()
+	pkg := filepath.Join(ws, "bindtest")
+	if err := os.MkdirAll(pkg, 0700); err != nil {
+		t.Fatalf("failed to create package: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(pkg, "vm64runtimegolden.go"), []byte(code), 0600); err != nil {
+		t.Fatalf("failed to write binding: %v", err)
+	}
+	testCode := `
+		package bindtest
+
+		import (
+			"math/big"
+			"testing"
+
+			"github.com/theQRL/go-qrl/accounts/abi/bind"
+			"github.com/theQRL/go-qrl/accounts/abi/bind/backends"
+			"github.com/theQRL/go-qrl/core"
+			"github.com/theQRL/go-qrl/crypto/pqcrypto/wallet"
+		)
+
+		func TestVM64GeneratedBindingRuntime(t *testing.T) {
+			w, _ := wallet.Generate(wallet.ML_DSA_87)
+			auth, _ := bind.NewKeyedTransactorWithChainID(w, big.NewInt(1337))
+			sim := backends.NewSimulatedBackend(core.GenesisAlloc{
+				auth.From: {Balance: big.NewInt(9000000000000000000)},
+			}, 10000000)
+			defer sim.Close()
+
+			_, _, contract, err := DeployVM64RuntimeGolden(auth, sim)
+			if err != nil {
+				t.Fatalf("deploy failed: %v", err)
+			}
+			sim.Commit()
+			got, err := contract.Hello(nil)
+			if err != nil {
+				t.Fatalf("call failed: %v", err)
+			}
+			if got != "hello world" {
+				t.Fatalf("hello() = %q, want %q", got, "hello world")
+			}
+		}
+	`
+	if err := os.WriteFile(filepath.Join(pkg, "vm64runtimegolden_test.go"), []byte(testCode), 0600); err != nil {
+		t.Fatalf("failed to write runtime test: %v", err)
+	}
+
+	moder := exec.Command(gocmd, "mod", "init", "bindtest")
+	moder.Dir = pkg
+	if out, err := moder.CombinedOutput(); err != nil {
+		t.Fatalf("failed to convert binding runtime test to modules: %v\n%s", err, out)
+	}
+	pwd, _ := os.Getwd()
+	replacer := exec.Command(gocmd, "mod", "edit", "-require", "github.com/theQRL/go-qrl@v0.0.0", "-replace", "github.com/theQRL/go-qrl="+filepath.Join(pwd, "..", "..", ".."))
+	replacer.Dir = pkg
+	if out, err := replacer.CombinedOutput(); err != nil {
+		t.Fatalf("failed to replace binding runtime test dependency: %v\n%s", err, out)
+	}
+	tidier := exec.Command(gocmd, "mod", "tidy")
+	tidier.Dir = pkg
+	if out, err := tidier.CombinedOutput(); err != nil {
+		t.Fatalf("failed to tidy binding runtime test module: %v\n%s", err, out)
+	}
+	cmd := exec.Command(gocmd, "test", ".")
+	cmd.Dir = pkg
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("generated VM64 runtime binding test failed: %v\n%s", err, out)
 	}
 }
 

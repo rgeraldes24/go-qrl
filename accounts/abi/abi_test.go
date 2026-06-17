@@ -675,9 +675,9 @@ func TestBareEvents(t *testing.T) {
 //		}
 //	}
 //
-// When receive("X") is called with sender Q00... and value 1, it produces this tx receipt:
-//
-//	receipt{status=1 cgas=23949 bloom=00000000004000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000800000000000000000000000000000000000040200000000000000000000000000000000001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000080000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000 logs=[log: b6818c8064f645cd82d99b59a1a267d6d61117ef [75fd880d39c1daf53b6547ab6cb59451fc6452d27caa90e5b6649dd8293b9eed] 000000000000000000000000376c47978271565f56deb45495afa69e59c16ab200000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000060000000000000000000000000000000000000000000000000000000000000000158 9ae378b6d4409eada347a5dc0c180f186cb62dc68fcc0f043425eb917335aa28 0 95d429d309bb9d753954195fe2d69bd140b4ae731b9b5b605c34323de162cf00 0]}
+// When receive("X") is called with a VM64 sender and value 1, it emits the
+// received and receivedAddr events. The data bytes below are generated with
+// the current ABI slot width instead of carrying an old receipt fixture.
 func TestUnpackEvent(t *testing.T) {
 	t.Parallel()
 	const abiJSON = `[{"constant":false,"inputs":[{"name":"memo","type":"bytes"}],"name":"receive","outputs":[],"payable":true,"stateMutability":"payable","type":"function"},{"anonymous":false,"inputs":[{"indexed":false,"name":"sender","type":"address"},{"indexed":false,"name":"amount","type":"uint256"},{"indexed":false,"name":"memo","type":"bytes"}],"name":"received","type":"event"},{"anonymous":false,"inputs":[{"indexed":false,"name":"sender","type":"address"}],"name":"receivedAddr","type":"event"}]`
@@ -1242,6 +1242,23 @@ func TestUnpackRevert(t *testing.T) {
 				t.Fatalf("Output mismatch, want %v, got %v", c.expect, got)
 			}
 		})
+	}
+
+	errorPayload := revert("nope")
+	if have, want := len(errorPayload), 4+3*abiSlotBytes; have != want {
+		t.Fatalf("Error(string) payload length = %d, want %d", have, want)
+	}
+	if got, want := new(big.Int).SetBytes(errorPayload[4:4+abiSlotBytes]), big.NewInt(int64(abiSlotBytes)); got.Cmp(want) != 0 {
+		t.Fatalf("Error(string) offset = %s, want %s", got, want)
+	}
+	if got, want := new(big.Int).SetBytes(errorPayload[4+abiSlotBytes:4+2*abiSlotBytes]), big.NewInt(4); got.Cmp(want) != 0 {
+		t.Fatalf("Error(string) length = %s, want %s", got, want)
+	}
+	if got, want := errorPayload[4+2*abiSlotBytes:4+2*abiSlotBytes+4], []byte("nope"); !bytes.Equal(got, want) {
+		t.Fatalf("Error(string) data prefix = %x, want %x", got, want)
+	}
+	if tail := errorPayload[4+2*abiSlotBytes+4:]; !bytes.Equal(tail, bytes.Repeat([]byte{0}, abiSlotBytes-4)) {
+		t.Fatalf("Error(string) payload tail is not zero padded: %x", tail)
 	}
 
 	payload := panicPayload(big.NewInt(0x11))

@@ -153,8 +153,8 @@ var jsonTypedData = `
 
 const primaryType = "Mail"
 
-// 64-byte QRL addresses — any 128-char hex works; these extend the original
-// 20-byte fixtures to the full address width.
+// 64-byte QRL addresses: any 128-character hex payload works for these
+// typed-data fixtures.
 var domainStandard = apitypes.TypedDataDomain{
 	Name:              "Ether Mail",
 	Version:           "1",

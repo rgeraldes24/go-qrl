@@ -315,7 +315,7 @@ func TestRecipientNormal(t *testing.T) {
 	// signer reproduces the same address from the signed bytes.
 	w, addr := defaultTestWallet()
 	signer := NewZondSigner(big.NewInt(1))
-	to := common.BytesToAddress([]byte{0xb9, 0x4f, 0x53, 0x74, 0xfc, 0xe5, 0xed, 0xbc, 0x8e, 0x2a, 0x86, 0x97, 0xc1, 0x53, 0x31, 0x67, 0x7e, 0x6e, 0xbf, 0x0b})
+	to := common.BytesToAddress(bytes.Repeat([]byte{0xb9}, common.AddressLength))
 	signed, err := SignNewTx(w, signer, &DynamicFeeTx{
 		ChainID:   big.NewInt(1),
 		Nonce:     3,

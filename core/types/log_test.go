@@ -152,10 +152,17 @@ func TestMarshalLogReturns64ByteTopics(t *testing.T) {
 		t.Fatal(err)
 	}
 	var decoded struct {
-		Topics []string `json:"topics"`
+		Address string   `json:"address"`
+		Topics  []string `json:"topics"`
 	}
 	if err := json.Unmarshal(blob, &decoded); err != nil {
 		t.Fatal(err)
+	}
+	if got, want := len(decoded.Address), 1+2*common.AddressLength; got != want {
+		t.Fatalf("address hex length mismatch: got %d want %d (%s)", got, want, decoded.Address)
+	}
+	if decoded.Address != address.Hex() {
+		t.Fatalf("address mismatch: got %s want %s", decoded.Address, address.Hex())
 	}
 	if len(decoded.Topics) != 1 {
 		t.Fatalf("topic count mismatch: %d", len(decoded.Topics))

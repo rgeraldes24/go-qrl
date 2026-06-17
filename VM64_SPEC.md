@@ -154,6 +154,26 @@ for the same byte length.
 This policy does not change gas charged directly per byte. Transaction calldata
 zero/non-zero byte gas and LOG data gas remain byte-priced.
 
+## Precompile Input Formats
+
+Precompiles that parse structured byte input must use VM64-native fixed-width
+fields unless the precompile explicitly defines a byte-oriented payload.
+
+The ModExp precompile is VM64-native:
+
+- the input header is three 64-byte unsigned integers:
+  `baseLen`, `expLen`, and `modLen`;
+- the header is therefore 192 bytes total;
+- operand bytes follow the header as `base || exponent || modulus`, with byte
+  lengths taken from the three header fields;
+- adjusted exponent length uses the first 64 bytes of the exponent as its
+  leading window. If `expLen > 64`, the gas calculation adds
+  `8 * (expLen - 64)` to the most significant bit index of that first 64-byte
+  window;
+- output length is exactly `modLen` bytes, left-padded with zeros as needed.
+  It is not forced to one 64-byte word because modular exponentiation returns
+  arbitrary-width integer results.
+
 ## Economic Quantities
 
 Economic quantities remain 256-bit.

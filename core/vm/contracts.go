@@ -27,6 +27,7 @@ import (
 	ssz "github.com/prysmaticlabs/fastssz"
 	"github.com/theQRL/go-qrl/common"
 	"github.com/theQRL/go-qrl/common/math"
+	"github.com/theQRL/go-qrl/common/uint512"
 	"github.com/theQRL/go-qrl/params"
 )
 
@@ -196,34 +197,39 @@ func (c *dataCopy) Run(in []byte) ([]byte, error) {
 // bigModExp implements a native big integer exponential modular operation.
 type bigModExp struct{}
 
+const (
+	modExpLenFieldBytes = uint64(uint512.WordBytes)
+	modExpHeaderBytes   = 3 * modExpLenFieldBytes
+)
+
 var (
-	big0  = big.NewInt(0)
-	big1  = big.NewInt(1)
-	big3  = big.NewInt(3)
-	big7  = big.NewInt(7)
-	big8  = big.NewInt(8)
-	big32 = big.NewInt(32)
+	big0              = big.NewInt(0)
+	big1              = big.NewInt(1)
+	big3              = big.NewInt(3)
+	big7              = big.NewInt(7)
+	big8              = big.NewInt(8)
+	bigModExpWordSize = big.NewInt(int64(uint512.WordBytes))
 )
 
 // RequiredGas returns the gas required to execute the pre-compiled contract.
 func (c *bigModExp) RequiredGas(input []byte) uint64 {
 	var (
-		baseLen = new(big.Int).SetBytes(getData(input, 0, 32))
-		expLen  = new(big.Int).SetBytes(getData(input, 32, 32))
-		modLen  = new(big.Int).SetBytes(getData(input, 64, 32))
+		baseLen = new(big.Int).SetBytes(getData(input, 0, modExpLenFieldBytes))
+		expLen  = new(big.Int).SetBytes(getData(input, modExpLenFieldBytes, modExpLenFieldBytes))
+		modLen  = new(big.Int).SetBytes(getData(input, 2*modExpLenFieldBytes, modExpLenFieldBytes))
 	)
-	if len(input) > 96 {
-		input = input[96:]
+	if len(input) > int(modExpHeaderBytes) {
+		input = input[modExpHeaderBytes:]
 	} else {
 		input = input[:0]
 	}
-	// Retrieve the head 32 bytes of exp for the adjusted exponent length
+	// Retrieve the head 64 bytes of exp for the adjusted exponent length.
 	var expHead *big.Int
 	if big.NewInt(int64(len(input))).Cmp(baseLen) <= 0 {
 		expHead = new(big.Int)
 	} else {
-		if expLen.Cmp(big32) > 0 {
-			expHead = new(big.Int).SetBytes(getData(input, baseLen.Uint64(), 32))
+		if expLen.Cmp(bigModExpWordSize) > 0 {
+			expHead = new(big.Int).SetBytes(getData(input, baseLen.Uint64(), modExpLenFieldBytes))
 		} else {
 			expHead = new(big.Int).SetBytes(getData(input, baseLen.Uint64(), expLen.Uint64()))
 		}
@@ -234,8 +240,8 @@ func (c *bigModExp) RequiredGas(input []byte) uint64 {
 		msb = bitlen - 1
 	}
 	adjExpLen := new(big.Int)
-	if expLen.Cmp(big32) > 0 {
-		adjExpLen.Sub(expLen, big32)
+	if expLen.Cmp(bigModExpWordSize) > 0 {
+		adjExpLen.Sub(expLen, bigModExpWordSize)
 		adjExpLen.Mul(big8, adjExpLen)
 	}
 	adjExpLen.Add(adjExpLen, big.NewInt(int64(msb)))
@@ -269,12 +275,12 @@ func (c *bigModExp) RequiredGas(input []byte) uint64 {
 
 func (c *bigModExp) Run(input []byte) ([]byte, error) {
 	var (
-		baseLen = new(big.Int).SetBytes(getData(input, 0, 32)).Uint64()
-		expLen  = new(big.Int).SetBytes(getData(input, 32, 32)).Uint64()
-		modLen  = new(big.Int).SetBytes(getData(input, 64, 32)).Uint64()
+		baseLen = new(big.Int).SetBytes(getData(input, 0, modExpLenFieldBytes)).Uint64()
+		expLen  = new(big.Int).SetBytes(getData(input, modExpLenFieldBytes, modExpLenFieldBytes)).Uint64()
+		modLen  = new(big.Int).SetBytes(getData(input, 2*modExpLenFieldBytes, modExpLenFieldBytes)).Uint64()
 	)
-	if len(input) > 96 {
-		input = input[96:]
+	if len(input) > int(modExpHeaderBytes) {
+		input = input[modExpHeaderBytes:]
 	} else {
 		input = input[:0]
 	}

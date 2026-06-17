@@ -83,6 +83,34 @@ func TestStoreCapture(t *testing.T) {
 	}
 }
 
+func TestStoreCaptureRecordsFullVM64StorageValue(t *testing.T) {
+	var (
+		logger     = NewStructLogger(nil)
+		statedb, _ = state.New(types.EmptyRootHash, state.NewDatabase(rawdb.NewMemoryDatabase()), nil)
+		env        = vm.NewQRVM(vm.BlockContext{}, vm.TxContext{}, &dummyStatedb{StateDB: *statedb}, params.TestChainConfig, vm.Config{Tracer: logger})
+		contract   = vm.NewContract(&dummyContractRef{}, &dummyContractRef{}, new(big.Int), 100000)
+	)
+	statedb.AddAddressToAccessList(contract.Address())
+	valueBytes := common.FromHex(strings.Repeat("ab", common.StorageValue64Length))
+	contract.Code = append([]byte{byte(vm.PUSH64)}, valueBytes...)
+	contract.Code = append(contract.Code, byte(vm.PUSH1), 0x2a, byte(vm.SSTORE))
+
+	logger.CaptureStart(env, common.Address{}, contract.Address(), false, nil, 0, nil)
+	if _, err := env.Interpreter().Run(contract, []byte{}, false); err != nil {
+		t.Fatal(err)
+	}
+
+	key := common.BytesToHash([]byte{0x2a})
+	want := common.BytesToStorageValue64(valueBytes)
+	got := logger.storage[contract.Address()][key]
+	if got != want {
+		t.Fatalf("captured storage mismatch:\nhave %s\nwant %s", got.Hex(), want.Hex())
+	}
+	if got.Hex() != "0x"+strings.Repeat("ab", common.StorageValue64Length) {
+		t.Fatalf("captured storage is not canonical 64-byte hex: %s", got.Hex())
+	}
+}
+
 func TestStructLogMarshalingStackWords(t *testing.T) {
 	stack := []uint512.Int{
 		*uint512.NewInt(1),

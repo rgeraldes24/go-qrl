@@ -164,9 +164,7 @@ func TestPassingBlockNumber(t *testing.T) {
 }
 
 // mockSender is the 64-byte address encoded into hexData (the non-indexed
-// portion of every mock "received(...)" event used in these tests). It also
-// replaces the 20-byte hex literals that used to be parsed via
-// NewAddressFromString.
+// portion of every mock "received(...)" event used in these tests).
 var mockSender = func() common.Address {
 	raw, _ := hex.DecodeString("978271565f56deb45495afa69e59c16ab2376c47978271565f56deb45495afa69e59c16ab2112233445566778899aabb")
 	return common.BytesToAddress(raw)

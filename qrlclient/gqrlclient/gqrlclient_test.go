@@ -206,7 +206,9 @@ func testAccessList(t *testing.T, client *rpc.Client) {
 		Gas:       100000,
 		GasFeeCap: big.NewInt(100000000000),
 		Value:     big.NewInt(1),
-		Data:      common.FromHex("0x608060806080608155fd"),
+		// Hand-rolled VM64 bytecode: SSTORE touches low-32-byte key 0x81
+		// before the deliberately malformed REVERT produces a VM error.
+		Data: common.FromHex("0x608060806080608155fd"),
 	}
 	al, gas, vmErr, err = zc.CreateAccessList(t.Context(), msg)
 	if err != nil {

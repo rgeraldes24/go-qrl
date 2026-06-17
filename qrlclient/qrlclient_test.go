@@ -19,9 +19,11 @@ package qrlclient
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"math/big"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 
@@ -177,6 +179,49 @@ func TestToFilterArg(t *testing.T) {
 				t.Fatalf("expected filter arg %v but got %v", testCase.output, output)
 			}
 		})
+	}
+}
+
+func TestToFilterArgMarshalsVM64Widths(t *testing.T) {
+	address := common.BytesToAddress(bytes.Repeat([]byte{0x11}, common.AddressLength))
+	topic := common.BytesToLogTopic(bytes.Repeat([]byte{0x22}, common.LogTopicLength))
+	arg, err := toFilterArg(qrl.FilterQuery{
+		Addresses: []common.Address{address},
+		FromBlock: big.NewInt(1),
+		ToBlock:   big.NewInt(2),
+		Topics:    [][]common.LogTopic{{topic}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	blob, err := json.Marshal(arg)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var decoded struct {
+		Address   []string   `json:"address"`
+		FromBlock string     `json:"fromBlock"`
+		ToBlock   string     `json:"toBlock"`
+		Topics    [][]string `json:"topics"`
+	}
+	if err := json.Unmarshal(blob, &decoded); err != nil {
+		t.Fatal(err)
+	}
+	if got, want := decoded.Address[0], address.Hex(); got != want {
+		t.Fatalf("filter address mismatch:\nhave %s\nwant %s", got, want)
+	}
+	if got, want := len(decoded.Address[0]), 1+2*common.AddressLength; got != want || !strings.HasPrefix(decoded.Address[0], "Q") {
+		t.Fatalf("filter address should be Q + 128 hex chars, got %q", decoded.Address[0])
+	}
+	if got, want := decoded.Topics[0][0], topic.Hex(); got != want {
+		t.Fatalf("filter topic mismatch:\nhave %s\nwant %s", got, want)
+	}
+	if got, want := len(decoded.Topics[0][0]), 2+2*common.LogTopicLength; got != want {
+		t.Fatalf("filter topic should be 0x + 128 hex chars, got %q", decoded.Topics[0][0])
+	}
+	if decoded.FromBlock != "0x1" || decoded.ToBlock != "0x2" {
+		t.Fatalf("unexpected block bounds: from=%s to=%s", decoded.FromBlock, decoded.ToBlock)
 	}
 }
 
