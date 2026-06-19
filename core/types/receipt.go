@@ -208,7 +208,7 @@ func (r *Receipt) Size() common.StorageSize {
 	size := common.StorageSize(unsafe.Sizeof(*r)) + common.StorageSize(len(r.PostState))
 	size += common.StorageSize(len(r.Logs)) * common.StorageSize(unsafe.Sizeof(Log{}))
 	for _, log := range r.Logs {
-		size += common.StorageSize(len(log.Topics)*common.HashLength + len(log.Data))
+		size += common.StorageSize(len(log.Topics)*common.LogTopicLength + len(log.Data))
 	}
 	return size
 }
