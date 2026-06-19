@@ -275,7 +275,7 @@ var HyperionType = require('./type');
  * address[][6][], ...
  */
 var HyperionTypeAddress = function () {
-    this._inputFormatter = f.formatInputInt;
+    this._inputFormatter = f.formatInputAddress;
     this._outputFormatter = f.formatOutputAddress;
 };
 
@@ -443,10 +443,10 @@ HyperionCoder.prototype.encodeParams = function (types, params) {
 
     var dynamicOffset = hyperionTypes.reduce(function (acc, hyperionType, index) {
         var staticPartLength = hyperionType.staticPartLength(types[index]);
-        var roundedStaticPartLength = Math.floor((staticPartLength + 31) / 32) * 32;
+        var roundedStaticPartLength = Math.floor((staticPartLength + 63) / 64) * 64;
 
         return acc + (isDynamic(hyperionTypes[index], types[index]) ?
-            32 :
+            64 :
             roundedStaticPartLength);
     }, 0);
 
@@ -497,7 +497,7 @@ HyperionCoder.prototype.encodeWithOffset = function (type, hyperionType, encoded
                 if (hyperionType.isDynamicArray(nestedName)) {
                     for (var i = 1; i < encoded.length; i++) {
                         previousLength += +(encoded[i - 1])[0] || 0;
-                        result += f.formatInputInt(offset + i * nestedStaticPartLength + previousLength * 32).encode();
+                        result += f.formatInputInt(offset + i * nestedStaticPartLength + previousLength * 64).encode();
                     }
                 }
             })();
@@ -526,7 +526,7 @@ HyperionCoder.prototype.encodeWithOffset = function (type, hyperionType, encoded
                     for (var i = 0; i < encoded.length; i++) {
                         // calculate length of previous item
                         previousLength += +(encoded[i - 1] || [])[0] || 0;
-                        result += f.formatInputInt(offset + i * nestedStaticPartLength + previousLength * 32).encode();
+                        result += f.formatInputInt(offset + i * nestedStaticPartLength + previousLength * 64).encode();
                     }
                 })();
             }
@@ -674,8 +674,22 @@ var HyperionParam = require('./param');
  */
 var formatInputInt = function (value) {
     BigNumber.config(c.QRL_BIGNUMBER_ROUNDING_MODE);
-    var result = utils.padLeft(utils.toTwosComplement(value).toString(16), 64);
+    var result = utils.padLeft(utils.toTwosComplement(value).toString(16), 128);
     return new HyperionParam(result);
+};
+
+/**
+ * Formats input address to a 64-byte VM64 ABI word.
+ *
+ * @method formatInputAddress
+ * @param {String} value that needs to be formatted
+ * @returns {HyperionParam}
+ */
+var formatInputAddress = function (value) {
+    if (!utils.isStrictAddress(value)) {
+        throw new Error('invalid address: expected Q-prefixed 64-byte QRL address');
+    }
+    return new HyperionParam(value.slice(1).toLowerCase());
 };
 
 /**
@@ -687,8 +701,8 @@ var formatInputInt = function (value) {
  */
 var formatInputBytes = function (value) {
     var result = utils.toHex(value).substr(2);
-    var l = Math.floor((result.length + 63) / 64);
-    result = utils.padRight(result, l * 64);
+    var l = Math.floor((result.length + 127) / 128);
+    result = utils.padRight(result, l * 128);
     return new HyperionParam(result);
 };
 
@@ -702,8 +716,8 @@ var formatInputBytes = function (value) {
 var formatInputDynamicBytes = function (value) {
     var result = utils.toHex(value).substr(2);
     var length = result.length / 2;
-    var l = Math.floor((result.length + 63) / 64);
-    result = utils.padRight(result, l * 64);
+    var l = Math.floor((result.length + 127) / 128);
+    result = utils.padRight(result, l * 128);
     return new HyperionParam(formatInputInt(length).value + result);
 };
 
@@ -717,8 +731,8 @@ var formatInputDynamicBytes = function (value) {
 var formatInputString = function (value) {
     var result = utils.fromUtf8(value).substr(2);
     var length = result.length / 2;
-    var l = Math.floor((result.length + 63) / 64);
-    result = utils.padRight(result, l * 64);
+    var l = Math.floor((result.length + 127) / 128);
+    result = utils.padRight(result, l * 128);
     return new HyperionParam(formatInputInt(length).value + result);
 };
 
@@ -730,8 +744,7 @@ var formatInputString = function (value) {
  * @returns {HyperionParam}
  */
 var formatInputBool = function (value) {
-    var result = '000000000000000000000000000000000000000000000000000000000000000' + (value ?  '1' : '0');
-    return new HyperionParam(result);
+    return formatInputInt(value ? 1 : 0);
 };
 
 /**
@@ -770,7 +783,7 @@ var formatOutputInt = function (param) {
     // check if it's negative number
     // it is, return two's complement
     if (signedIsNegative(value)) {
-        return new BigNumber(value, 16).minus(new BigNumber('ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff', 16)).minus(1);
+        return new BigNumber(value, 16).minus(new BigNumber(new Array(129).join('f'), 16)).minus(1);
     }
     return new BigNumber(value, 16);
 };
@@ -817,7 +830,7 @@ var formatOutputUReal = function (param) {
  * @returns {Boolean} right-aligned input bytes formatted to bool
  */
 var formatOutputBool = function (param) {
-    return param.staticPart() === '0000000000000000000000000000000000000000000000000000000000000001' ? true : false;
+    return formatOutputUInt(param).equals(1);
 };
 
 /**
@@ -842,8 +855,8 @@ var formatOutputBytes = function (param, name) {
  * @returns {String} hex string
  */
 var formatOutputDynamicBytes = function (param) {
-    var length = (new BigNumber(param.dynamicPart().slice(0, 64), 16)).toNumber() * 2;
-    return '0x' + param.dynamicPart().substr(64, length);
+    var length = (new BigNumber(param.dynamicPart().slice(0, 128), 16)).toNumber() * 2;
+    return '0x' + param.dynamicPart().substr(128, length);
 };
 
 /**
@@ -854,8 +867,8 @@ var formatOutputDynamicBytes = function (param) {
  * @returns {String} ascii string
  */
 var formatOutputString = function (param) {
-    var length = (new BigNumber(param.dynamicPart().slice(0, 64), 16)).toNumber() * 2;
-    return utils.toUtf8(param.dynamicPart().substr(64, length));
+    var length = (new BigNumber(param.dynamicPart().slice(0, 128), 16)).toNumber() * 2;
+    return utils.toUtf8(param.dynamicPart().substr(128, length));
 };
 
 /**
@@ -867,11 +880,12 @@ var formatOutputString = function (param) {
  */
 var formatOutputAddress = function (param) {
     var value = param.staticPart();
-    return "Q" + value.slice(value.length - 40, value.length);
+    return "Q" + value.slice(value.length - 128, value.length);
 };
 
 module.exports = {
     formatInputInt: formatInputInt,
+    formatInputAddress: formatInputAddress,
     formatInputBytes: formatInputBytes,
     formatInputDynamicBytes: formatInputDynamicBytes,
     formatInputString: formatInputString,
@@ -1007,7 +1021,7 @@ HyperionParam.prototype.isDynamic = function () {
  * @returns {String} bytes representation of offset
  */
 HyperionParam.prototype.offsetAsBytes = function () {
-    return !this.isDynamic() ? '' : utils.padLeft(utils.toTwosComplement(this.offset).toString(16), 64);
+    return !this.isDynamic() ? '' : utils.padLeft(utils.toTwosComplement(this.offset).toString(16), 128);
 };
 
 /**
@@ -1053,7 +1067,7 @@ HyperionParam.prototype.encode = function () {
 HyperionParam.encodeList = function (params) {
     
     // updating offsets
-    var totalOffset = params.length * 32;
+    var totalOffset = params.length * 64;
     var offsetParams = params.map(function (param) {
         if (!param.isDynamic()) {
             return param;
@@ -1171,8 +1185,8 @@ HyperionType.prototype.staticPartLength = function (name) {
         })
         .reduce(function (previous, current) {
             return previous * current;
-        // all basic types are 32 bytes long
-        }, 32);
+        // all basic VM64 ABI types are 64 bytes long
+        }, 64);
 };
 
 /**
@@ -1338,13 +1352,13 @@ HyperionType.prototype.decode = function (bytes, offset, name) {
     if (this.isDynamicArray(name)) {
 
         return (function () {
-            var arrayOffset = parseInt('0x' + bytes.substr(offset * 2, 64)); // in bytes
-            var length = parseInt('0x' + bytes.substr(arrayOffset * 2, 64)); // in int
-            var arrayStart = arrayOffset + 32; // array starts after length; // in bytes
+            var arrayOffset = parseInt('0x' + bytes.substr(offset * 2, 128)); // in bytes
+            var length = parseInt('0x' + bytes.substr(arrayOffset * 2, 128)); // in int
+            var arrayStart = arrayOffset + 64; // array starts after length; // in bytes
 
             var nestedName = self.nestedName(name);
             var nestedStaticPartLength = self.staticPartLength(nestedName);  // in bytes
-            var roundedNestedStaticPartLength = Math.floor((nestedStaticPartLength + 31) / 32) * 32;
+            var roundedNestedStaticPartLength = Math.floor((nestedStaticPartLength + 63) / 64) * 64;
             var result = [];
 
             for (var i = 0; i < length * roundedNestedStaticPartLength; i += roundedNestedStaticPartLength) {
@@ -1362,7 +1376,7 @@ HyperionType.prototype.decode = function (bytes, offset, name) {
 
             var nestedName = self.nestedName(name);
             var nestedStaticPartLength = self.staticPartLength(nestedName); // in bytes
-            var roundedNestedStaticPartLength = Math.floor((nestedStaticPartLength + 31) / 32) * 32;
+            var roundedNestedStaticPartLength = Math.floor((nestedStaticPartLength + 63) / 64) * 64;
             var result = [];
 
             for (var i = 0; i < length * roundedNestedStaticPartLength; i += roundedNestedStaticPartLength) {
@@ -1374,10 +1388,10 @@ HyperionType.prototype.decode = function (bytes, offset, name) {
     } else if (this.isDynamicType(name)) {
 
         return (function () {
-            var dynamicOffset = parseInt('0x' + bytes.substr(offset * 2, 64));      // in bytes
-            var length = parseInt('0x' + bytes.substr(dynamicOffset * 2, 64));      // in bytes
-            var roundedLength = Math.floor((length + 31) / 32);                     // in int
-            var param = new HyperionParam(bytes.substr(dynamicOffset * 2, ( 1 + roundedLength) * 64), 0);
+            var dynamicOffset = parseInt('0x' + bytes.substr(offset * 2, 128));     // in bytes
+            var length = parseInt('0x' + bytes.substr(dynamicOffset * 2, 128));     // in bytes
+            var roundedLength = Math.floor((length + 63) / 64);                     // in int
+            var param = new HyperionParam(bytes.substr(dynamicOffset * 2, ( 1 + roundedLength) * 128), 0);
             return self._outputFormatter(param, name);
         })();
     }
@@ -1534,7 +1548,7 @@ var QRL_UNITS = [
 ];
 
 module.exports = {
-    QRL_PADDING: 32,
+    QRL_PADDING: 64,
     QRL_SIGNATURE_LENGTH: 4,
     QRL_UNITS: QRL_UNITS,
     QRL_BIGNUMBER_ROUNDING_MODE: { ROUNDING_MODE: BigNumber.ROUND_DOWN },
@@ -1956,7 +1970,7 @@ var toBigNumber = function(number) {
 var toTwosComplement = function (number) {
     var bigNumber = toBigNumber(number).round();
     if (bigNumber.lessThan(0)) {
-        return new BigNumber("ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff", 16).plus(bigNumber).plus(1);
+        return new BigNumber(new Array(129).join('f'), 16).plus(bigNumber).plus(1);
     }
     return bigNumber;
 };
@@ -2375,9 +2389,9 @@ AllHyperionEvents.prototype.decode = function (data) {
     data.data = data.data || '';
     data.topics = data.topics || [];
 
-    var eventTopic = data.topics[0].slice(2);
+    var eventTopic = String(data.topics[0] || '').replace(/^0x/i, '').toLowerCase();
     var match = this._json.filter(function (j) {
-        return eventTopic === sha3(utils.transformToFullName(j));
+        return eventTopic === utils.padLeft(sha3(utils.transformToFullName(j)), 128).toLowerCase();
     })[0];
 
     if (!match) { // cannot find matching event?
@@ -2944,7 +2958,7 @@ HyperionEvent.prototype.encode = function (indexed, options) {
 
     result.address = this._address;
     if (!this._anonymous) {
-        result.topics.push('0x' + this.signature());
+        result.topics.push('0x' + utils.padLeft(this.signature(), 128));
     }
 
     var indexedTopics = this._params.filter(function (i) {
