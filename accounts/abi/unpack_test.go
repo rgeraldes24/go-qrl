@@ -19,6 +19,7 @@ package abi
 import (
 	"bytes"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"math"
 	"math/big"
@@ -93,6 +94,19 @@ func TestUnpack(t *testing.T) {
 				t.Errorf("test %d (%v) failed: expected %v, got %v", i, test.def, test.unpacked, out[0])
 			}
 		})
+	}
+}
+
+func TestUnpackUnsupportedFunctionType(t *testing.T) {
+	t.Parallel()
+
+	abi, err := JSON(strings.NewReader(`[{"name":"method","type":"function","outputs":[{"type":"function"}]}]`))
+	if err != nil {
+		t.Fatalf("invalid ABI definition: %v", err)
+	}
+	_, err = abi.Unpack("method", make([]byte, 64))
+	if !errors.Is(err, ErrUnsupportedFunctionType) {
+		t.Fatalf("unpack function type error = %v, want %v", err, ErrUnsupportedFunctionType)
 	}
 }
 

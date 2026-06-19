@@ -33,6 +33,11 @@ var (
 	errBadInt32    = errors.New("abi: improperly encoded int32 value")
 	errBadInt64    = errors.New("abi: improperly encoded int64 value")
 	errInvalidSign = errors.New("abi: negatively-signed value cannot be packed into uint parameter")
+
+	// ErrUnsupportedFunctionType is returned when an ABI value uses Solidity's
+	// external function type. In VM64, an external function value is a 64-byte
+	// address plus a 4-byte selector, which does not fit in one 64-byte ABI slot.
+	ErrUnsupportedFunctionType = errors.New("abi: function type is unsupported in VM64 because address64 + selector4 is 68 bytes")
 )
 
 // formatSliceString formats the reflection kind with the given slice size

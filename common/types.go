@@ -29,6 +29,7 @@ import (
 	"strconv"
 
 	"github.com/theQRL/go-qrl/common/hexutil"
+	"github.com/theQRL/go-qrl/common/uint512"
 	"golang.org/x/crypto/sha3"
 )
 
@@ -37,14 +38,14 @@ const (
 	// HashLength is the expected length of the hash
 	HashLength = 32
 	// AddressLength is the expected length of the address
-	AddressLength = 64
+	AddressLength = uint512.WordBytes
 	// LogTopicLength is the width of a log topic, in bytes.
-	LogTopicLength = 64
+	LogTopicLength = uint512.WordBytes
 
 	// StorageValue64Length is the width of a persistent storage slot value, in
 	// bytes. It matches the VM stack word so that a 512-bit value pushed by a
 	// contract round-trips through SSTORE/SLOAD without truncation.
-	StorageValue64Length = 64
+	StorageValue64Length = uint512.WordBytes
 )
 
 var (
@@ -234,20 +235,13 @@ func BytesToLogTopic(b []byte) LogTopic {
 	return t
 }
 
-// BytesToEventSignatureLogTopic copies an event signature hash into a LogTopic,
-// left-aligned.
+// BytesToEventSignatureLogTopic copies an event signature hash into a LogTopic.
 //
-// Hyperion emits the 32-byte Keccak event signature hash as the HIGH half of
-// the 64-byte LOG topic after the VM word-size migration, so event selectors use
-// hash || zero-padding instead of the raw-value alignment used by
-// BytesToLogTopic.
+// Event signatures use the same right-aligned layout as raw LOG topics:
+// zero-padding || hash. This matches how LOG opcodes serialize PUSH32 values
+// into 512-bit topic words.
 func BytesToEventSignatureLogTopic(b []byte) LogTopic {
-	var t LogTopic
-	if len(b) > len(t) {
-		b = b[len(b)-LogTopicLength:]
-	}
-	copy(t[:], b)
-	return t
+	return BytesToLogTopic(b)
 }
 
 // HexToLogTopic parses a hex string into a LogTopic.

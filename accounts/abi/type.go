@@ -267,6 +267,10 @@ func (t Type) String() (out string) {
 }
 
 func (t Type) pack(v reflect.Value) ([]byte, error) {
+	if t.T == FunctionTy {
+		return nil, ErrUnsupportedFunctionType
+	}
+
 	// dereference pointer first if it's a pointer
 	v = indirect(v)
 	if err := typeCheck(t, v); err != nil {
@@ -351,6 +355,22 @@ func (t Type) pack(v reflect.Value) ([]byte, error) {
 // prefixing.
 func (t Type) requiresLengthPrefix() bool {
 	return t.T == StringTy || t.T == BytesTy || t.T == SliceTy
+}
+
+func containsFunctionType(t Type) bool {
+	switch t.T {
+	case FunctionTy:
+		return true
+	case SliceTy, ArrayTy:
+		return containsFunctionType(*t.Elem)
+	case TupleTy:
+		for _, elem := range t.TupleElems {
+			if containsFunctionType(*elem) {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // isDynamicType returns true if the type is dynamic.

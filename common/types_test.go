@@ -40,6 +40,25 @@ func TestBytesConversion(t *testing.T) {
 	}
 }
 
+func TestEventSignatureLogTopicIsRightAligned(t *testing.T) {
+	var hash Hash
+	for i := range hash {
+		hash[i] = byte(i + 1)
+	}
+
+	got := BytesToEventSignatureLogTopic(hash[:])
+	want := BytesToLogTopic(hash[:])
+	if got != want {
+		t.Fatalf("event signature topic mismatch: got %x want %x", got, want)
+	}
+	if !bytes.Equal(got[:LogTopicLength-HashLength], make([]byte, LogTopicLength-HashLength)) {
+		t.Fatalf("event signature topic is not right-aligned: %x", got)
+	}
+	if !bytes.Equal(got[LogTopicLength-HashLength:], hash[:]) {
+		t.Fatalf("event signature hash mismatch: got %x want %x", got[LogTopicLength-HashLength:], hash[:])
+	}
+}
+
 func TestIsAddress(t *testing.T) {
 	tests := []struct {
 		str string

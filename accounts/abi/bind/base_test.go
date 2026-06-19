@@ -114,6 +114,49 @@ func (mc *mockPendingCaller) PendingCallContract(ctx context.Context, call qrl.C
 	return mc.pendingCallContractBytes, mc.pendingCallContractErr
 }
 
+type mockFilterer struct {
+	query qrl.FilterQuery
+	logs  []types.Log
+}
+
+func (mf *mockFilterer) FilterLogs(ctx context.Context, query qrl.FilterQuery) ([]types.Log, error) {
+	mf.query = query
+	return mf.logs, nil
+}
+
+func (mf *mockFilterer) SubscribeFilterLogs(ctx context.Context, query qrl.FilterQuery, ch chan<- types.Log) (qrl.Subscription, error) {
+	mf.query = query
+	return nil, nil
+}
+
+func TestEventFilterTopicMatchesUnpackTopic(t *testing.T) {
+	parsed, err := abi.JSON(strings.NewReader(`[{"anonymous":false,"inputs":[],"name":"Called","type":"event"}]`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	filterer := new(mockFilterer)
+	bc := bind.NewBoundContract(common.Address{}, parsed, nil, nil, filterer)
+
+	_, sub, err := bc.FilterLogs(new(bind.FilterOpts), "Called")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer sub.Unsubscribe()
+
+	if len(filterer.query.Topics) != 1 || len(filterer.query.Topics[0]) != 1 {
+		t.Fatalf("unexpected topic filter shape: %#v", filterer.query.Topics)
+	}
+	expected := parsed.Events["Called"].Topic()
+	if got := filterer.query.Topics[0][0]; got != expected {
+		t.Fatalf("filter topic mismatch: got %x want %x", got, expected)
+	}
+
+	log := types.Log{Topics: []common.LogTopic{filterer.query.Topics[0][0]}}
+	if err := bc.UnpackLogIntoMap(make(map[string]any), "Called", log); err != nil {
+		t.Fatalf("filter topic should unpack as event topic: %v", err)
+	}
+}
+
 func TestPassingBlockNumber(t *testing.T) {
 	mc := &mockPendingCaller{
 		mockCaller: &mockCaller{
@@ -291,7 +334,7 @@ func TestUnpackIndexedFuncTyLogIntoMap(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected indexed function topic to be rejected")
 	}
-	if !strings.Contains(err.Error(), "function type does not fit") {
+	if !errors.Is(err, abi.ErrUnsupportedFunctionType) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 }

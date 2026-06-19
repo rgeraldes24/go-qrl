@@ -20,6 +20,8 @@ package math
 import (
 	"fmt"
 	"math/big"
+
+	"github.com/theQRL/go-qrl/common/uint512"
 )
 
 // Various big integer limit values.
@@ -27,7 +29,7 @@ var (
 	tt256     = BigPow(2, 256)
 	tt256m1   = new(big.Int).Sub(tt256, big.NewInt(1))
 	MaxBig256 = new(big.Int).Set(tt256m1)
-	tt512     = BigPow(2, 512)
+	tt512     = BigPow(2, uint512.WordBits)
 	tt512m1   = new(big.Int).Sub(tt512, big.NewInt(1))
 	MaxBig512 = new(big.Int).Set(tt512m1)
 )
@@ -205,5 +207,5 @@ func U512(x *big.Int) *big.Int {
 // U512Bytes converts a big Int into a 512bit QRVM number (64 bytes, big-endian).
 // This operation is destructive.
 func U512Bytes(n *big.Int) []byte {
-	return PaddedBigBytes(U512(n), 64)
+	return PaddedBigBytes(U512(n), uint512.WordBytes)
 }

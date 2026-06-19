@@ -17,6 +17,7 @@
 package abi
 
 import (
+	"errors"
 	gomath "math"
 	"math/big"
 	"reflect"
@@ -231,6 +232,26 @@ func TestMakeTopics(t *testing.T) {
 			t.Fatalf("makeTopics() mutated an input parameter from %v to %v", orig, in)
 		}
 	})
+}
+
+func TestMakeTopicsRejectsUnsupportedFunctionValue(t *testing.T) {
+	t.Parallel()
+
+	var value [common.AddressLength + 4]byte
+	_, err := MakeTopics([]any{value})
+	if !errors.Is(err, ErrUnsupportedFunctionType) {
+		t.Fatalf("MakeTopics function value error = %v, want %v", err, ErrUnsupportedFunctionType)
+	}
+}
+
+func TestMakeTopicsRejectsOversizedFixedByteArray(t *testing.T) {
+	t.Parallel()
+
+	var value [common.LogTopicLength + 1]byte
+	_, err := MakeTopics([]any{value})
+	if err == nil {
+		t.Fatal("expected oversized fixed byte array topic to be rejected")
+	}
 }
 
 type args struct {
@@ -479,6 +500,42 @@ func TestParseTopics(t *testing.T) {
 			resultObj := tt.args.resultObj()
 			if !reflect.DeepEqual(createObj, resultObj) {
 				t.Errorf("parseTopics() = %v, want %v", createObj, resultObj)
+			}
+		})
+	}
+}
+
+func TestParseTopicsRejectsUnsupportedFunctionType(t *testing.T) {
+	t.Parallel()
+
+	funcType, err := NewType("function", "", nil)
+	if err != nil {
+		t.Fatalf("build function type: %v", err)
+	}
+	funcArrayType, err := NewType("function[]", "", nil)
+	if err != nil {
+		t.Fatalf("build function array type: %v", err)
+	}
+
+	tests := []struct {
+		name string
+		typ  Type
+		out  any
+	}{
+		{name: "direct", typ: funcType, out: &funcStruct{}},
+		{name: "array", typ: funcArrayType, out: new(struct{})},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			err := ParseTopics(tt.out, Arguments{{
+				Name:    "funcValue",
+				Type:    tt.typ,
+				Indexed: true,
+			}}, []common.LogTopic{{}})
+			if !errors.Is(err, ErrUnsupportedFunctionType) {
+				t.Fatalf("ParseTopics function type error = %v, want %v", err, ErrUnsupportedFunctionType)
 			}
 		})
 	}

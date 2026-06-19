@@ -69,14 +69,13 @@ func packElement(t Type, reflectValue reflect.Value) ([]byte, error) {
 			return []byte{}, errors.New("bytes type is neither slice nor array")
 		}
 		return packBytesSlice(reflectValue.Bytes(), reflectValue.Len()), nil
-	case FixedBytesTy, FunctionTy:
+	case FixedBytesTy:
 		if reflectValue.Kind() == reflect.Array {
 			reflectValue = mustArrayToByteSlice(reflectValue)
 		}
-		if t.T == FunctionTy && reflectValue.Len() > 64 {
-			return []byte{}, errors.New("abi: function type does not fit in a 64-byte ABI word with 64-byte addresses")
-		}
 		return common.RightPadBytes(reflectValue.Bytes(), 64), nil
+	case FunctionTy:
+		return nil, ErrUnsupportedFunctionType
 	default:
 		return []byte{}, fmt.Errorf("could not pack element, unknown type: %v", t.T)
 	}

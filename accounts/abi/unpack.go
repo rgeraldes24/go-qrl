@@ -123,27 +123,6 @@ func readBool(word []byte) (bool, error) {
 	}
 }
 
-// A function type is simply the address with the function selection signature at the end.
-//
-// readFunctionType enforces that standard by always presenting it as an array of
-// (AddressLength + 4) bytes (address + 4-byte selector).
-func readFunctionType(t Type, word []byte) (funcTy [common.AddressLength + 4]byte, err error) {
-	if t.T != FunctionTy {
-		return [common.AddressLength + 4]byte{}, errors.New("abi: invalid type in call to make function type byte array")
-	}
-	if common.AddressLength+4 > len(word) {
-		return [common.AddressLength + 4]byte{}, errors.New("abi: function type does not fit in a 64-byte ABI word with 64-byte addresses")
-	}
-	for _, b := range word[common.AddressLength+4:] {
-		if b != 0 {
-			err = fmt.Errorf("abi: got improperly encoded function type, got %v", word)
-			return
-		}
-	}
-	copy(funcTy[:], word[0:common.AddressLength+4])
-	return
-}
-
 // ReadFixedBytes uses reflection to create a fixed array to be read from.
 func ReadFixedBytes(t Type, word []byte) (any, error) {
 	if t.T != FixedBytesTy {
@@ -286,7 +265,7 @@ func toGoType(index int, t Type, output []byte) (any, error) {
 	case FixedBytesTy:
 		return ReadFixedBytes(t, returnOutput)
 	case FunctionTy:
-		return readFunctionType(t, returnOutput)
+		return nil, ErrUnsupportedFunctionType
 	default:
 		return nil, fmt.Errorf("abi: unknown type %v", t.T)
 	}
