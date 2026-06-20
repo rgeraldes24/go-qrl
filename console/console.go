@@ -192,6 +192,7 @@ func (c *Console) initWeb3(bridge *bridge) error {
 		transport := vm.NewObject()
 		transport.Set("send", jsre.MakeCallback(vm, bridge.Send))
 		transport.Set("sendAsync", jsre.MakeCallback(vm, bridge.Send))
+		transport.Set("isConnected", func() bool { return true })
 		vm.Set("_consoleWeb3Transport", transport)
 		_, err = vm.RunString("var web3 = new Web3(_consoleWeb3Transport)")
 	})

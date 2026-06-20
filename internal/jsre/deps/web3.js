@@ -2314,11 +2314,6 @@ var properties = function () {
             name: 'version.network',
             getter: 'net_version',
             inputFormatter: utils.toDecimal
-        }),
-        new Property({
-            name: 'version.qrl',
-            getter: 'qrl_protocolVersion',
-            inputFormatter: utils.toDecimal
         })
     ];
 };
@@ -4922,10 +4917,6 @@ var properties = function () {
             name: 'blockNumber',
             getter: 'qrl_blockNumber',
             outputFormatter: utils.toDecimal
-        }),
-        new Property({
-            name: 'protocolVersion',
-            getter: 'qrl_protocolVersion'
         })
     ];
 };
