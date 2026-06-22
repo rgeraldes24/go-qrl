@@ -21,6 +21,7 @@ import (
 	"strings"
 
 	"github.com/theQRL/go-qrl/common"
+	"github.com/theQRL/go-qrl/common/uint512"
 )
 
 type packUnpackTest struct {
@@ -31,6 +32,10 @@ type packUnpackTest struct {
 
 func addressSlot(prefix byte) string {
 	return strings.Repeat(fmtByte(prefix), 1) + strings.Repeat("00", common.AddressLength-1)
+}
+
+func fixedBytesSlot(blob []byte) string {
+	return common.Bytes2Hex(common.RightPadBytes(blob, uint512.WordBytes))
 }
 
 func fmtByte(b byte) string {
@@ -375,6 +380,16 @@ var packUnpackTests = []packUnpackTest{
 		def:      `[{"type": "bytes32"}]`,
 		unpacked: [32]byte{1},
 		packed:   "01000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+	},
+	{
+		def:      `[{"type": "bytes33"}]`,
+		unpacked: [33]byte{0: 1, 32: 0x21},
+		packed:   fixedBytesSlot([]byte{0: 1, 32: 0x21}),
+	},
+	{
+		def:      `[{"type": "bytes64"}]`,
+		unpacked: [64]byte{0: 1, 63: 0x40},
+		packed:   fixedBytesSlot([]byte{0: 1, 63: 0x40}),
 	},
 	{
 		def:      `[{"type": "bytes32"}]`,

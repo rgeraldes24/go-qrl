@@ -27,6 +27,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/theQRL/go-qrl/common"
+	"github.com/theQRL/go-qrl/common/uint512"
 )
 
 // Type enumerator
@@ -153,10 +154,10 @@ func NewType(t string, internalType string, components []ArgumentMarshaling) (ty
 	case "string":
 		typ.T = StringTy
 	case "bytes":
-		if varSize == 0 {
+		if len(parsedType[3]) == 0 {
 			typ.T = BytesTy
 		} else {
-			if varSize > 32 {
+			if varSize == 0 || varSize > uint512.WordBytes {
 				return Type{}, fmt.Errorf("unsupported arg type: %s", t)
 			}
 			typ.T = FixedBytesTy

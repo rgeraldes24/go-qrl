@@ -79,10 +79,14 @@ func TestTypeRegexp(t *testing.T) {
 		{"uint256[]", nil, Type{T: SliceTy, Elem: &Type{Size: 256, T: UintTy, stringKind: "uint256"}, stringKind: "uint256[]"}},
 		{"uint256[2]", nil, Type{T: ArrayTy, Size: 2, Elem: &Type{Size: 256, T: UintTy, stringKind: "uint256"}, stringKind: "uint256[2]"}},
 		{"bytes32", nil, Type{T: FixedBytesTy, Size: 32, stringKind: "bytes32"}},
+		{"bytes33", nil, Type{T: FixedBytesTy, Size: 33, stringKind: "bytes33"}},
+		{"bytes64", nil, Type{T: FixedBytesTy, Size: 64, stringKind: "bytes64"}},
 		{"bytes[]", nil, Type{T: SliceTy, Elem: &Type{T: BytesTy, stringKind: "bytes"}, stringKind: "bytes[]"}},
 		{"bytes[2]", nil, Type{T: ArrayTy, Size: 2, Elem: &Type{T: BytesTy, stringKind: "bytes"}, stringKind: "bytes[2]"}},
 		{"bytes32[]", nil, Type{T: SliceTy, Elem: &Type{T: FixedBytesTy, Size: 32, stringKind: "bytes32"}, stringKind: "bytes32[]"}},
 		{"bytes32[2]", nil, Type{T: ArrayTy, Size: 2, Elem: &Type{T: FixedBytesTy, Size: 32, stringKind: "bytes32"}, stringKind: "bytes32[2]"}},
+		{"bytes64[]", nil, Type{T: SliceTy, Elem: &Type{T: FixedBytesTy, Size: 64, stringKind: "bytes64"}, stringKind: "bytes64[]"}},
+		{"bytes64[2]", nil, Type{T: ArrayTy, Size: 2, Elem: &Type{T: FixedBytesTy, Size: 64, stringKind: "bytes64"}, stringKind: "bytes64[2]"}},
 		{"string", nil, Type{T: StringTy, stringKind: "string"}},
 		{"string[]", nil, Type{T: SliceTy, Elem: &Type{T: StringTy, stringKind: "string"}, stringKind: "string[]"}},
 		{"string[2]", nil, Type{T: ArrayTy, Size: 2, Elem: &Type{T: StringTy, stringKind: "string"}, stringKind: "string[2]"}},
@@ -251,6 +255,10 @@ func TestTypeCheck(t *testing.T) {
 		{"bytes2", nil, [2]byte{}, ""},
 		{"bytes1", nil, [1]byte{}, ""},
 		{"bytes32", nil, [33]byte{}, "abi: cannot use [33]uint8 as type [32]uint8 as argument"},
+		{"bytes33", nil, [33]byte{}, ""},
+		{"bytes64", nil, [64]byte{}, ""},
+		{"bytes64", nil, common.Address{}, ""},
+		{"bytes64", nil, [65]byte{}, "abi: cannot use [65]uint8 as type [64]uint8 as argument"},
 		{"bytes32", nil, common.Hash{1}, ""},
 		{"bytes31", nil, common.Hash{1}, "abi: cannot use common.Hash as type [31]uint8 as argument"},
 		{"bytes31", nil, [32]byte{}, "abi: cannot use [32]uint8 as type [31]uint8 as argument"},
@@ -262,8 +270,8 @@ func TestTypeCheck(t *testing.T) {
 		{"string", nil, []byte{}, "abi: cannot use slice as type string as argument"},
 		{"bytes32[]", nil, [][32]byte{{}}, ""},
 		{"function", nil, [common.AddressLength + 4]byte{}, ""},
-		// Addresses are 64 bytes. `bytesN` caps at 32 so there's no fixed-bytes
-		// alias for an Address anymore; only the `address` ABI type matches.
+		// Addresses are 64 bytes. The address type and bytes64 share the same
+		// Go array width, but only the address ABI type carries address semantics.
 		{"address", nil, [64]byte{}, ""},
 		{"address", nil, common.Address{}, ""},
 		{"bytes32[]]", nil, "", "invalid arg type in abi"},
@@ -375,10 +383,12 @@ func TestGetTypeSize(t *testing.T) {
 	}
 }
 
-func TestNewFixedBytesOver32(t *testing.T) {
+func TestNewFixedBytesInvalidSize(t *testing.T) {
 	t.Parallel()
-	_, err := NewType("bytes4096", "", nil)
-	if err == nil {
-		t.Errorf("fixed bytes with size over 32 is not spec'd")
+	for _, typ := range []string{"bytes0", "bytes65", "bytes4096"} {
+		_, err := NewType(typ, "", nil)
+		if err == nil {
+			t.Errorf("fixed bytes type %s is not spec'd", typ)
+		}
 	}
 }
