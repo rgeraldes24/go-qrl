@@ -927,11 +927,6 @@
     }, ["callback error", "filter not found", "not found"]);
     return "object+raw log+raw latest";
   });
-  check("qrl.namereg", function () {
-    var nr = web3.qrl.namereg();
-    expect(nr && nr.address, "namereg contract missing");
-    return nr.address;
-  });
   expectedError("qrl.compile", function () { return web3.qrl.compile.hyperion("contract C {}"); }, ["does not exist", "not available", "method", "compile"]);
 
   if (hasDev) {

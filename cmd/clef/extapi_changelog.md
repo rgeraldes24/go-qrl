@@ -9,3 +9,7 @@ TL;DR: Given a version number MAJOR.MINOR.PATCH, increment the:
 * PATCH version when you make backwards-compatible bug fixes.
 
 Additional labels for pre-release and build metadata are available as extensions to the MAJOR.MINOR.PATCH format.
+
+### 1.0.0
+
+Initial QRL external API baseline. Typed-data signing is not supported because the legacy implementation used Ethereum 32-byte typed-data encoding assumptions.

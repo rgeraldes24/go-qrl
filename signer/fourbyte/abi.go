@@ -24,10 +24,8 @@ import (
 
 	"github.com/theQRL/go-qrl/accounts/abi"
 	"github.com/theQRL/go-qrl/common"
+	"github.com/theQRL/go-qrl/common/uint512"
 )
-
-// abiWordSize is the byte width of one ABI-encoded argument slot.
-const abiWordSize = 64
 
 // decodedCallData is an internal type to represent a method call parsed according
 // to an ABI method signature.
@@ -98,8 +96,8 @@ func parseCallData(calldata []byte, unescapedAbidata string) (*decodedCallData, 
 	sigdata := calldata[:4]
 
 	argdata := calldata[4:]
-	if len(argdata)%abiWordSize != 0 {
-		return nil, fmt.Errorf("invalid call data; length should be a multiple of %d bytes (was %d)", abiWordSize, len(argdata))
+	if len(argdata)%uint512.WordBytes != 0 {
+		return nil, fmt.Errorf("invalid call data; length should be a multiple of %d bytes (was %d)", uint512.WordBytes, len(argdata))
 	}
 	// Validate the called method and unpack the call data accordingly
 	abispec, err := abi.JSON(strings.NewReader(unescapedAbidata))

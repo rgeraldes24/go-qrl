@@ -53,8 +53,8 @@ INFO [07-01|11:00:46.391] Audit logs configured                    file=audit.lo
 DEBUG[07-01|11:00:46.392] IPC registered                           namespace=account
 INFO [07-01|11:00:46.392] IPC endpoint opened                      url=$HOME/.clef/clef.ipc
 ------- Signer info -------
-* intapi_version : 7.0.0
-* extapi_version : 6.0.0
+* intapi_version : 1.0.0
+* extapi_version : 1.0.0
 * extapi_http : n/a
 * extapi_ipc : $HOME/.clef/clef.ipc
 ```
@@ -139,8 +139,8 @@ INFO [07-01|13:39:49.728] Audit logs configured                    file=audit.lo
 DEBUG[07-01|13:39:49.728] IPC registered                           namespace=account
 INFO [07-01|13:39:49.728] IPC endpoint opened                      url=$HOME/.clef/clef.ipc
 ------- Signer info -------
-* intapi_version : 7.0.0
-* extapi_version : 6.0.0
+* intapi_version : 1.0.0
+* extapi_version : 1.0.0
 * extapi_http : n/a
 * extapi_ipc : $HOME/.clef/clef.ipc
 ```
@@ -250,8 +250,8 @@ INFO [07-01|14:12:41.638] Audit logs configured                    file=audit.lo
 DEBUG[07-01|14:12:41.638] IPC registered                           namespace=account
 INFO [07-01|14:12:41.638] IPC endpoint opened                      url=$HOME/.clef/clef.ipc
 ------- Signer info -------
-* intapi_version : 7.0.0
-* extapi_version : 6.0.0
+* intapi_version : 1.0.0
+* extapi_version : 1.0.0
 * extapi_http : n/a
 * extapi_ipc : $HOME/.clef/clef.ipc
 ```
@@ -259,10 +259,10 @@ INFO [07-01|14:12:41.638] IPC endpoint opened                      url=$HOME/.cl
 Then test signing, once with `bazonk` and once without:
 
 ```
-$ echo '{"id": 1, "jsonrpc":"2.0", "method":"account_signData", "params":["data/plain", "Q0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000d9c9cd5f6779558b6e0ed4e6acf6b1947e7fa1f3", "0x202062617a6f6e6b2062617a2067617a0a"]}' | nc -U ~/.clef/clef.ipc
+$ echo '{"id": 1, "jsonrpc":"2.0", "method":"account_signData", "params":["text/plain", "Q0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000d9c9cd5f6779558b6e0ed4e6acf6b1947e7fa1f3", "0x202062617a6f6e6b2062617a2067617a0a"]}' | nc -U ~/.clef/clef.ipc
 {"jsonrpc":"2.0","id":1,"result":"0x4f93e3457027f6be99b06b3392d0ebc60615ba448bb7544687ef1248dea4f5317f789002df783979c417d969836b6fda3710f5bffb296b4d51c8aaae6e2ac4831c"}
 
-$ echo '{"id": 1, "jsonrpc":"2.0", "method":"account_signData", "params":["data/plain", "Q0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000d9c9cd5f6779558b6e0ed4e6acf6b1947e7fa1f3", "0x2020626f6e6b2062617a2067617a0a"]}' | nc -U ~/.clef/clef.ipc
+$ echo '{"id": 1, "jsonrpc":"2.0", "method":"account_signData", "params":["text/plain", "Q0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000d9c9cd5f6779558b6e0ed4e6acf6b1947e7fa1f3", "0x2020626f6e6b2062617a2067617a0a"]}' | nc -U ~/.clef/clef.ipc
 {"jsonrpc":"2.0","id":1,"error":{"code":-32000,"message":"Request denied"}}
 ```
 
@@ -276,9 +276,9 @@ The signer also stores all traffic over the external API in a log file. The last
 
 ```text
 $ tail -n 4 audit.log
-t=2019-07-01T15:52:14+0300 lvl=info msg=SignData   api=signer type=request  metadata="{\"remote\":\"NA\",\"local\":\"NA\",\"scheme\":\"NA\",\"User-Agent\":\"\",\"Origin\":\"\"}" addr="Q0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000d9c9cd5f6779558b6e0ed4e6acf6b1947e7fa1f3 [chksum INVALID]" data=0x202062617a6f6e6b2062617a2067617a0a content-type=data/plain
+t=2019-07-01T15:52:14+0300 lvl=info msg=SignData   api=signer type=request  metadata="{\"remote\":\"NA\",\"local\":\"NA\",\"scheme\":\"NA\",\"User-Agent\":\"\",\"Origin\":\"\"}" addr="Q0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000d9c9cd5f6779558b6e0ed4e6acf6b1947e7fa1f3 [chksum INVALID]" data=0x202062617a6f6e6b2062617a2067617a0a content-type=text/plain
 t=2019-07-01T15:52:14+0300 lvl=info msg=SignData   api=signer type=response data=4f93e3457027f6be99b06b3392d0ebc60615ba448bb7544687ef1248dea4f5317f789002df783979c417d969836b6fda3710f5bffb296b4d51c8aaae6e2ac4831c error=nil
-t=2019-07-01T15:52:23+0300 lvl=info msg=SignData   api=signer type=request  metadata="{\"remote\":\"NA\",\"local\":\"NA\",\"scheme\":\"NA\",\"User-Agent\":\"\",\"Origin\":\"\"}" addr="Q0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000d9c9cd5f6779558b6e0ed4e6acf6b1947e7fa1f3 [chksum INVALID]" data=0x2020626f6e6b2062617a2067617a0a     content-type=data/plain
+t=2019-07-01T15:52:23+0300 lvl=info msg=SignData   api=signer type=request  metadata="{\"remote\":\"NA\",\"local\":\"NA\",\"scheme\":\"NA\",\"User-Agent\":\"\",\"Origin\":\"\"}" addr="Q0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000d9c9cd5f6779558b6e0ed4e6acf6b1947e7fa1f3 [chksum INVALID]" data=0x2020626f6e6b2062617a2067617a0a     content-type=text/plain
 t=2019-07-01T15:52:23+0300 lvl=info msg=SignData   api=signer type=response data=                                     error="Request denied"
 ```
 
@@ -313,7 +313,7 @@ $ gqrl --testnet --signer=~/.clef/clef.ipc console
         address: "Q0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000086278a6c067775f71d6b2bb1856db6e28c30418",
         url: "extapi://$HOME/.clef/clef.ipc"
     }],
-    status: "ok [version=6.0.0]",
+    status: "ok [version=1.0.0]",
     url: "extapi://$HOME/.clef/clef.ipc"
 }]
 

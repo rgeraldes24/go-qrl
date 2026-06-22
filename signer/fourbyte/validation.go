@@ -23,6 +23,7 @@ import (
 	"math/big"
 
 	"github.com/theQRL/go-qrl/common"
+	"github.com/theQRL/go-qrl/common/uint512"
 	"github.com/theQRL/go-qrl/signer/core/apitypes"
 )
 
@@ -98,8 +99,8 @@ func (db *Database) ValidateCallData(selector *string, data []byte, messages *ap
 		messages.Warn("Transaction data is not valid ABI (missing the 4 byte call prefix)")
 		return
 	}
-	if n := len(data) - 4; n%abiWordSize != 0 {
-		messages.Warn(fmt.Sprintf("Transaction data is not valid ABI (length should be a multiple of %d (was %d))", abiWordSize, n))
+	if n := len(data) - 4; n%uint512.WordBytes != 0 {
+		messages.Warn(fmt.Sprintf("Transaction data is not valid ABI (length should be a multiple of %d (was %d))", uint512.WordBytes, n))
 	}
 	// If a custom method selector was provided, validate with that
 	if selector != nil {

@@ -159,7 +159,7 @@ func forEachUnpack(t Type, output []byte, start, size int) (any, error) {
 	}
 
 	// Arrays have packed elements, resulting in longer unpack steps.
-	// Slices have just 32 bytes per element (pointing to the contents).
+	// Slices have just 64 bytes per element (pointing to the contents).
 	elemSize := getTypeSize(*t.Elem)
 
 	for i, j := start, 0; j < size; i, j = i+elemSize, j+1 {

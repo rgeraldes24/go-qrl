@@ -31,8 +31,9 @@ function asBig(str) {
 function ApproveTx(req) {
 	var limit = new BigNumber("0xb1a2bc2ec50000")
 	var value = asBig(req.transaction.value);
+	var target = "q0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000ae967917c465db8578ca9024c205720b1a3651a9";
 
-	if (req.transaction.to.toLowerCase() == q0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000ae967917c465db8578ca9024c205720b1a3651a9) && value.lt(limit)) {
+	if (req.transaction.to && req.transaction.to.toLowerCase() == target && value.lt(limit)) {
 		return "Approve"
 	}
 	// If we return "Reject", it will be rejected.

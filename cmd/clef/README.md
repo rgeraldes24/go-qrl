@@ -340,7 +340,7 @@ Bash example:
 
 #### Arguments
   - content type [string]: type of signed data
-     - `text/validator`: hex data with custom validator defined in a contract
+     - `data/validator`: hex data with custom validator defined in a contract
      - `text/plain`: simple hex data
   - account [address]: account to sign with
   - data [object]: data to sign
@@ -355,7 +355,7 @@ Bash example:
   "jsonrpc": "2.0",
   "method": "account_signData",
   "params": [
-    "data/plain",
+    "text/plain",
     "Q0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000201bdf510d5aa66d1b5db98dfb0f30d40b6ea47d",
     "0xaabbccdd"
   ]
@@ -400,7 +400,7 @@ Response
 {
     "jsonrpc": "2.0",
     "id": 0,
-    "result": "6.1.0"
+    "result": "1.0.0"
 }
 ```
 
@@ -730,8 +730,8 @@ Example call:
       "info": {
         "extapi_http": "http://localhost:8550",
         "extapi_ipc": null,
-        "extapi_version": "2.0.0",
-        "intapi_version": "1.2.0"
+        "extapi_version": "1.0.0",
+        "intapi_version": "1.0.0"
       }
     }
   ]
