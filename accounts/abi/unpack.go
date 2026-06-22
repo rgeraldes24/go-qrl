@@ -25,6 +25,7 @@ import (
 	"reflect"
 
 	"github.com/theQRL/go-qrl/common"
+	"github.com/theQRL/go-qrl/common/uint512"
 )
 
 var (
@@ -140,8 +141,8 @@ func forEachUnpack(t Type, output []byte, start, size int) (any, error) {
 	if size < 0 {
 		return nil, fmt.Errorf("cannot marshal input to array, size is negative (%d)", size)
 	}
-	if start+64*size > len(output) {
-		return nil, fmt.Errorf("abi: cannot marshal into go array: offset %d would go over slice boundary (len=%d)", len(output), start+64*size)
+	if start+uint512.WordBytes*size > len(output) {
+		return nil, fmt.Errorf("abi: cannot marshal into go array: offset %d would go over slice boundary (len=%d)", len(output), start+uint512.WordBytes*size)
 	}
 
 	// this value will become our slice or our array, depending on the type

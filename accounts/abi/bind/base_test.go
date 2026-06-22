@@ -245,6 +245,47 @@ func TestUnpackIndexedStringTyLogIntoMap(t *testing.T) {
 	unpackAndCheck(t, bc, expectedReceivedMap, mockLog)
 }
 
+func TestUnpackIndexedDynamicTyLogIntoStruct(t *testing.T) {
+	nameHash := crypto.Keccak256Hash([]byte("testName"))
+	contentHash := crypto.Keccak256Hash([]byte{1, 2, 3, 4, 5})
+	topics := []common.LogTopic{
+		common.BytesToEventSignatureLogTopic(crypto.Keccak256([]byte("received(string,bytes,address,uint256,bytes)"))),
+		common.BytesToLogTopic(nameHash.Bytes()),
+		common.BytesToLogTopic(contentHash.Bytes()),
+	}
+	mockLog := newMockLog(topics, common.HexToHash("0x0"))
+
+	abiString := `[{"anonymous":false,"inputs":[{"indexed":true,"name":"name","type":"string"},{"indexed":true,"name":"content","type":"bytes"},{"indexed":false,"name":"sender","type":"address"},{"indexed":false,"name":"amount","type":"uint256"},{"indexed":false,"name":"memo","type":"bytes"}],"name":"received","type":"event"}]`
+	parsedAbi, _ := abi.JSON(strings.NewReader(abiString))
+	bc := bind.NewBoundContract(common.Address{}, parsedAbi, nil, nil, nil)
+
+	var received struct {
+		Name    common.LogTopic
+		Content common.LogTopic
+		Sender  common.Address
+		Amount  *big.Int
+		Memo    []byte
+	}
+	if err := bc.UnpackLog(&received, "received", mockLog); err != nil {
+		t.Fatal(err)
+	}
+	if want := common.BytesToLogTopic(nameHash.Bytes()); received.Name != want {
+		t.Fatalf("name topic mismatch: have %v, want %v", received.Name, want)
+	}
+	if want := common.BytesToLogTopic(contentHash.Bytes()); received.Content != want {
+		t.Fatalf("content topic mismatch: have %v, want %v", received.Content, want)
+	}
+	if received.Sender != mockSender {
+		t.Fatalf("sender mismatch: have %v, want %v", received.Sender, mockSender)
+	}
+	if received.Amount.Cmp(big.NewInt(1)) != 0 {
+		t.Fatalf("amount mismatch: have %v, want 1", received.Amount)
+	}
+	if !reflect.DeepEqual(received.Memo, []byte{88}) {
+		t.Fatalf("memo mismatch: have %v, want %v", received.Memo, []byte{88})
+	}
+}
+
 func TestUnpackAnonymousLogIntoMap(t *testing.T) {
 	mockLog := newMockLog(nil, common.HexToHash("0x0"))
 

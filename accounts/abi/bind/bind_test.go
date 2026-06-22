@@ -17,6 +17,7 @@
 package bind
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -25,6 +26,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/theQRL/go-qrl/accounts/abi"
 	"github.com/theQRL/go-qrl/common"
 )
 
@@ -150,7 +152,7 @@ var bindTests = []struct {
 				res  bool
 					str  string
 					dat  []byte
-					hash common.Hash
+					topic common.LogTopic
 				)
 				_, err = e.FilterEmpty(nil)
 				_, err = e.FilterIndexed(nil, []common.Address{}, []*big.Int{})
@@ -169,8 +171,8 @@ var bindTests = []struct {
 
 				str  = dit.Event.Str    // Make sure non-indexed strings retain their type
 				dat  = dit.Event.Dat    // Make sure non-indexed bytes retain their type
-				hash = dit.Event.IdxStr // Make sure indexed strings turn into hashes
-				hash = dit.Event.IdxDat // Make sure indexed bytes turn into hashes
+				topic = dit.Event.IdxStr // Make sure indexed strings turn into topics containing hashes
+				topic = dit.Event.IdxDat // Make sure indexed bytes turn into topics containing hashes
 
 				sink := make(chan *EventCheckerMixed)
 				sub, err := e.WatchMixed(nil, sink, []common.Address{})
@@ -181,7 +183,7 @@ var bindTests = []struct {
 				fmt.Println(event.Num)           // Make sure the unpacked non-indexed fields are present
 				fmt.Println(event.Addr)          // Make sure the reconstructed indexed fields are present
 
-				fmt.Println(res, str, dat, hash, err)
+				fmt.Println(res, str, dat, topic, err)
 
 				oit, err := e.FilterUnnamed(nil, []*big.Int{}, []*big.Int{})
 
@@ -886,7 +888,7 @@ var bindTests = []struct {
 			if !dit.Next() {
 				t.Fatalf("dynamic log not found: %v", dit.Error())
 			}
-			if dit.Event.NonIndexedString != "Hello" || string(dit.Event.NonIndexedBytes) != "World" ||	dit.Event.IndexedString != common.HexToHash("0x06b3dfaec148fb1bb2b066f10ec285e7c9bf402ab32aa78a5d38e34566810cd2") || dit.Event.IndexedBytes != common.HexToHash("0xf2208c967df089f60420785795c0a9ba8896b0f6f1867fa7f1f12ad6f79c1a18") {
+			if dit.Event.NonIndexedString != "Hello" || string(dit.Event.NonIndexedBytes) != "World" || dit.Event.IndexedString != common.HexToLogTopic("0x06b3dfaec148fb1bb2b066f10ec285e7c9bf402ab32aa78a5d38e34566810cd2") || dit.Event.IndexedBytes != common.HexToLogTopic("0xf2208c967df089f60420785795c0a9ba8896b0f6f1867fa7f1f12ad6f79c1a18") {
 				t.Errorf("dynamic log content mismatch: have %v, want {'0x06b3dfaec148fb1bb2b066f10ec285e7c9bf402ab32aa78a5d38e34566810cd2, '0xf2208c967df089f60420785795c0a9ba8896b0f6f1867fa7f1f12ad6f79c1a18', 'Hello', 'World'}", dit.Event)
 			}
 			if dit.Next() {
@@ -1037,34 +1039,6 @@ var bindTests = []struct {
 			}
 		`,
 		nil,
-		nil,
-		nil,
-		nil,
-	},
-	{
-		`CallbackParam`,
-		`
-			contract FunctionPointerTest {
-				function test(function(uint256) external callback) external {
-					callback(1);
-				}
-			}
-		`,
-		[]string{`608060405234801561000f575f80fd5b5061024a8061001d5f395ff3fe608060405234801561000f575f80fd5b5060043610610029575f3560e01c8063d7a5aba21461002d575b5f80fd5b61004760048036038101906100429190610161565b610049565b005b818160016040518263ffffffff1660e01b815260040161006991906101db565b5f604051808303815f87803b158015610080575f80fd5b505af1158015610092573d5f803e3d5ffd5b505050505050565b5f80fd5b5f7fffffffffffffffffffffffffffffffffffffffffffffffff000000000000000082169050919050565b5f6100d38261009e565b9050919050565b6100e3816100c9565b81146100ed575f80fd5b50565b5f813590506100fe816100da565b92915050565b5f8160201c9050919050565b5f8160401c9050919050565b5f8061012783610110565b925063ffffffff8316905061013b83610104565b9150915091565b5f8061015661015185856100f0565b61011c565b915091509250929050565b5f80602083850312156101775761017661009a565b5b5f61018485828601610142565b92509250509250929050565b5f819050919050565b5f819050919050565b5f819050919050565b5f6101c56101c06101bb84610190565b6101a2565b610199565b9050919050565b6101d5816101ab565b82525050565b5f6020820190506101ee5f8301846101cc565b9291505056fea264697066735822122079b8deb9359e34c2904b5fc67d1190a6f0c72f03695d9f679a391f03d46906cd64687970637822302e312e302d63692e323032352e322e31372b636f6d6d69742e32333263333034320053`},
-		[]string{`[{"inputs":[{"internalType":"function (uint256) external","name":"callback","type":"function"}],"name":"test","outputs":[],"stateMutability":"nonpayable","type":"function"}]`},
-		`
-			"strings"
-		`,
-		`
-			if strings.Compare("test(function)", CallbackParamFuncSigs["d7a5aba2"]) != 0 {
-				t.Fatalf("")
-			}
-		`,
-		[]map[string]string{
-			{
-				"test(function)": "d7a5aba2",
-			},
-		},
 		nil,
 		nil,
 		nil,
@@ -1904,6 +1878,61 @@ var bindTests = []struct {
 			}
 		`,
 	},
+}
+
+func TestBindRejectsUnsupportedFunctionType(t *testing.T) {
+	tests := []struct {
+		name string
+		abi  string
+	}{
+		{
+			name: "method input",
+			abi:  `[{"inputs":[{"internalType":"function (uint256) external","name":"callback","type":"function"}],"name":"test","outputs":[],"stateMutability":"nonpayable","type":"function"}]`,
+		},
+		{
+			name: "method output",
+			abi:  `[{"inputs":[],"name":"test","outputs":[{"internalType":"function (uint256) external","name":"callback","type":"function"}],"stateMutability":"view","type":"function"}]`,
+		},
+		{
+			name: "constructor input",
+			abi:  `[{"inputs":[{"internalType":"function (uint256) external","name":"callback","type":"function"}],"stateMutability":"nonpayable","type":"constructor"}]`,
+		},
+		{
+			name: "event input",
+			abi:  `[{"anonymous":false,"inputs":[{"indexed":true,"internalType":"function (uint256) external","name":"callback","type":"function"}],"name":"Callback","type":"event"}]`,
+		},
+		{
+			name: "nested array input",
+			abi:  `[{"inputs":[{"internalType":"function (uint256) external[]","name":"callbacks","type":"function[]"}],"name":"test","outputs":[],"stateMutability":"nonpayable","type":"function"}]`,
+		},
+		{
+			name: "nested tuple input",
+			abi:  `[{"inputs":[{"components":[{"internalType":"function (uint256) external","name":"callback","type":"function"}],"internalType":"struct Callback","name":"callback","type":"tuple"}],"name":"test","outputs":[],"stateMutability":"nonpayable","type":"function"}]`,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := Bind([]string{"FunctionType"}, []string{tt.abi}, []string{"0x"}, nil, "bindtest", nil, nil)
+			if !errors.Is(err, abi.ErrUnsupportedFunctionType) {
+				t.Fatalf("Bind error = %v, want %v", err, abi.ErrUnsupportedFunctionType)
+			}
+		})
+	}
+}
+
+func TestBindTopicTypeUsesLogTopicForIndexedDynamicTypes(t *testing.T) {
+	tests := []string{"string", "bytes", "string[]", "address[2]"}
+	for _, tt := range tests {
+		t.Run(tt, func(t *testing.T) {
+			kind, err := abi.NewType(tt, "", nil)
+			if err != nil {
+				t.Fatalf("NewType(%q): %v", tt, err)
+			}
+			if got := bindTopicType(kind, nil); got != "common.LogTopic" {
+				t.Fatalf("bindTopicType(%q) = %q, want common.LogTopic", tt, got)
+			}
+		})
+	}
 }
 
 func TestBindAddressWidthLibraryPlaceholder(t *testing.T) {
