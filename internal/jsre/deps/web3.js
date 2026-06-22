@@ -2674,6 +2674,73 @@ HyperionEvent.prototype.signature = function () {
     return sha3(this._name);
 };
 
+var stripHexPrefix = function (value) {
+    value = String(value);
+    return value.indexOf('0x') === 0 ? value.slice(2) : value;
+};
+
+var padRightToWord = function (hex) {
+    var rem = hex.length % 128;
+    return rem === 0 ? hex : utils.padRight(hex, hex.length + 128 - rem);
+};
+
+var topicFromHash = function (hash) {
+    return '0x' + utils.padLeft(stripHexPrefix(hash), 128);
+};
+
+var isArrayType = function (type) {
+    return !!type.match(/(\[[0-9]*\])/);
+};
+
+var isIndexedHashOnlyType = function (type) {
+    return type === 'string' || type === 'bytes' || isArrayType(type);
+};
+
+var arraySuffix = function (type) {
+    var match = type.match(/(\[[0-9]*\])$/);
+    return match && match[0];
+};
+
+var arrayElementType = function (type) {
+    var suffix = arraySuffix(type);
+    return type.slice(0, type.length - suffix.length);
+};
+
+var indexedEventEncoding = function (type, value, nested) {
+    if (isArrayType(type)) {
+        if (!utils.isArray(value)) {
+            throw new Error('indexed event array value must be an array: ' + type);
+        }
+        var suffix = arraySuffix(type);
+        var expected = suffix === '[]' ? value.length : parseInt(suffix.slice(1, -1), 10);
+        if (value.length !== expected) {
+            throw new Error('indexed event array length mismatch for ' + type + ': got ' + value.length + ', want ' + expected);
+        }
+        var nestedType = arrayElementType(type);
+        var result = '';
+        value.forEach(function (v) {
+            result += indexedEventEncoding(nestedType, v, true);
+        });
+        return padRightToWord(result);
+    }
+    if (type === 'string') {
+        var stringHex = utils.fromUtf8(value).substr(2);
+        return nested ? padRightToWord(stringHex) : stringHex;
+    }
+    if (type === 'bytes') {
+        var bytesHex = utils.toHex(value).substr(2);
+        return nested ? padRightToWord(bytesHex) : bytesHex;
+    }
+    return padRightToWord(coder.encodeParam(type, value));
+};
+
+var encodeIndexedTopic = function (type, value) {
+    if (isIndexedHashOnlyType(type)) {
+        return topicFromHash(sha3(indexedEventEncoding(type, value, false), {encoding: 'hex'}));
+    }
+    return '0x' + coder.encodeParam(type, value);
+};
+
 /**
  * Should be used to encode indexed params and options to one final object
  *
@@ -2708,12 +2775,12 @@ HyperionEvent.prototype.encode = function (indexed, options) {
             return null;
         }
 
-        if (utils.isArray(value)) {
+        if (utils.isArray(value) && !isArrayType(i.type)) {
             return value.map(function (v) {
-                return '0x' + coder.encodeParam(i.type, v);
+                return encodeIndexedTopic(i.type, v);
             });
         }
-        return '0x' + coder.encodeParam(i.type, value);
+        return encodeIndexedTopic(i.type, value);
     });
 
     result.topics = result.topics.concat(indexedTopics);
@@ -2734,8 +2801,18 @@ HyperionEvent.prototype.decode = function (data) {
     data.topics = data.topics || [];
 
     var argTopics = this._anonymous ? data.topics : data.topics.slice(1);
-    var indexedData = argTopics.map(function (topics) { return topics.slice(2); }).join("");
-    var indexedParams = coder.decodeParams(this.types(true), indexedData);
+    var indexedParams = this._params.filter(function (i) {
+        return i.indexed === true;
+    }).map(function (i, index) {
+        var topic = argTopics[index];
+        if (topic === undefined || topic === null) {
+            return null;
+        }
+        if (isIndexedHashOnlyType(i.type)) {
+            return '0x' + stripHexPrefix(topic);
+        }
+        return coder.decodeParam(i.type, stripHexPrefix(topic));
+    });
 
     var notIndexedData = data.data.slice(2);
     var notIndexedParams = coder.decodeParams(this.types(false), notIndexedData);
