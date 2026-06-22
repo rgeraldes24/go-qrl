@@ -181,7 +181,7 @@ func forTupleUnpack(t Type, output []byte) (any, error) {
 	retval := reflect.New(t.GetType()).Elem()
 	virtualArgs := 0
 	for index, elem := range t.TupleElems {
-		marshalledValue, err := toGoType((index+virtualArgs)*64, *elem, output)
+		marshalledValue, err := toGoType((index+virtualArgs)*uint512.WordBytes, *elem, output)
 		if err != nil {
 			return nil, err
 		}
@@ -196,11 +196,11 @@ func forTupleUnpack(t Type, output []byte) (any, error) {
 			//
 			// Calculate the full array size to get the correct offset for the next argument.
 			// Decrement it by 1, as the normal index increment is still applied.
-			virtualArgs += getTypeSize(*elem)/64 - 1
+			virtualArgs += getTypeSize(*elem)/uint512.WordBytes - 1
 		} else if elem.T == TupleTy && !isDynamicType(*elem) {
 			// If we have a static tuple, like (uint256, bool, uint256), these are
 			// coded as just like uint256,bool,uint256
-			virtualArgs += getTypeSize(*elem)/64 - 1
+			virtualArgs += getTypeSize(*elem)/uint512.WordBytes - 1
 		}
 		retval.Field(index).Set(reflect.ValueOf(marshalledValue))
 	}
