@@ -155,10 +155,6 @@ var (
 		accounts.MimetypeDataWithValidator,
 		0x00,
 	}
-	DataTyped = SigFormat{
-		accounts.MimetypeTypedData,
-		0x01,
-	}
 	TextPlain = SigFormat{
 		accounts.MimetypeTextPlain,
 		0x45,

@@ -37,7 +37,6 @@ type Account struct {
 
 const (
 	MimetypeDataWithValidator = "data/validator"
-	MimetypeTypedData         = "data/typed"
 	MimetypeTextPlain         = "text/plain"
 )
 

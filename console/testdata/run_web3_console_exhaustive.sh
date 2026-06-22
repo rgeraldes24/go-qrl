@@ -2,11 +2,7 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-ENCLAVE="qrl-console-web3"
-QRL_PACKAGE_DIR="/private/tmp/qrl-package-pr13"
-ARGS_FILE="$ROOT_DIR/console/testdata/network_params.yaml"
-GO_QRL_IMAGE="local/go-qrl:console-web3-live"
-GO_QRL_ALLTOOLS_IMAGE="local/go-qrl:console-web3-live-alltools"
+NETWORK_SCRIPT="$ROOT_DIR/testdata/run_kurtosis_network.sh"
 
 usage() {
   cat >&2 <<'USAGE'
@@ -17,18 +13,8 @@ Usage:
 USAGE
 }
 
-remove_enclave() {
-  kurtosis enclave rm -f "$ENCLAVE"
-}
-
-run_kurtosis() {
-  if [[ "${BUILD_IMAGES:-0}" == 1 ]]; then
-    docker build -t "$GO_QRL_IMAGE" -f "$ROOT_DIR/Dockerfile" "$ROOT_DIR" >&2
-    docker build -t "$GO_QRL_ALLTOOLS_IMAGE" -f "$ROOT_DIR/Dockerfile.alltools" "$ROOT_DIR" >&2
-  fi
-  kurtosis enclave rm -f "$ENCLAVE" >/dev/null 2>&1 || true
-  kurtosis run --enclave "$ENCLAVE" "$QRL_PACKAGE_DIR" --args-file "$ARGS_FILE" >&2
-  kurtosis enclave inspect "$ENCLAVE" | awk '/rpc: 8545\/tcp ->/ { print "http://" $NF; exit }'
+remove_network() {
+  "$NETWORK_SCRIPT" stop
 }
 
 run_console_test() {
@@ -64,21 +50,21 @@ case "${1:-}" in
       usage
       exit 2
     fi
-    remove_enclave
+    remove_network
     exit 0
     ;;
   --kurtosis)
     shift
-    BUILD_IMAGES=0
+    network_args=()
     while (($# > 0)); do
       case "$1" in
-        --build) BUILD_IMAGES=1 ;;
-        --rm) trap remove_enclave EXIT ;;
+        --build) network_args+=(--build) ;;
+        --rm) trap remove_network EXIT ;;
         *) usage; exit 2 ;;
       esac
       shift
     done
-    endpoint="$(run_kurtosis)"
+    endpoint="$("$NETWORK_SCRIPT" start "${network_args[@]}")"
     debug_side_effects=true
     ;;
   "")

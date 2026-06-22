@@ -18,7 +18,6 @@ package core
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"mime"
@@ -123,13 +122,8 @@ func (api *SignerAPI) determineSignatureFormat(ctx context.Context, contentType 
 			},
 		}
 		req = &SignDataRequest{ContentType: mediaType, Rawdata: []byte(msg), Messages: messages, Hash: sighash}
-	case apitypes.DataTyped.Mime:
-		// EIP-712 conformant typed data
-		var err error
-		req, err = typedDataRequest(data)
-		if err != nil {
-			return nil, err
-		}
+	case "data/typed":
+		return nil, errors.New("typed data signing is not supported")
 	default: // also case TextPlain.Mime:
 		// Calculates a QRL ML-DSA-87 signature for:
 		// hash = keccak256("\x19QRL Signed Message:\n${message length}${message}")
@@ -161,37 +155,6 @@ func SignTextValidator(validatorData apitypes.ValidatorData) (hexutil.Bytes, str
 	return crypto.Keccak256([]byte(msg)), msg
 }
 
-// SignTypedData signs EIP-712 conformant typed data
-// hash = keccak256("\x19${byteVersion}${domainSeparator}${hashStruct(message)}")
-// It returns
-// - the signature,
-// - and/or any error
-func (api *SignerAPI) SignTypedData(ctx context.Context, addr common.MixedcaseAddress, typedData apitypes.TypedData) (hexutil.Bytes, error) {
-	signature, _, err := api.signTypedData(ctx, addr, typedData, nil)
-	return signature, err
-}
-
-// signTypedData is identical to the capitalized version, except that it also returns the hash (preimage)
-// - the signature preimage (hash)
-func (api *SignerAPI) signTypedData(ctx context.Context, addr common.MixedcaseAddress,
-	typedData apitypes.TypedData, validationMessages *apitypes.ValidationMessages) (hexutil.Bytes, hexutil.Bytes, error) {
-	req, err := typedDataRequest(typedData)
-	if err != nil {
-		return nil, nil, err
-	}
-	req.Address = addr
-	req.Meta = MetadataFromContext(ctx)
-	if validationMessages != nil {
-		req.Callinfo = validationMessages.Messages
-	}
-	signature, err := api.sign(req)
-	if err != nil {
-		api.UI.ShowError(err.Error())
-		return nil, nil, err
-	}
-	return signature, req.Hash, nil
-}
-
 // fromHex tries to interpret the data as type string, and convert from
 // hexadecimal to []byte
 func fromHex(data any) ([]byte, error) {
@@ -200,35 +163,6 @@ func fromHex(data any) ([]byte, error) {
 		return binary, err
 	}
 	return nil, fmt.Errorf("wrong type %T", data)
-}
-
-// typedDataRequest tries to convert the data into a SignDataRequest.
-func typedDataRequest(data any) (*SignDataRequest, error) {
-	var typedData apitypes.TypedData
-	if td, ok := data.(apitypes.TypedData); ok {
-		typedData = td
-	} else { // Hex-encoded data
-		jsonData, err := fromHex(data)
-		if err != nil {
-			return nil, err
-		}
-		if err = json.Unmarshal(jsonData, &typedData); err != nil {
-			return nil, err
-		}
-	}
-	messages, err := typedData.Format()
-	if err != nil {
-		return nil, err
-	}
-	sighash, rawData, err := apitypes.TypedDataAndHash(typedData)
-	if err != nil {
-		return nil, err
-	}
-	return &SignDataRequest{
-		ContentType: apitypes.DataTyped.Mime,
-		Rawdata:     []byte(rawData),
-		Messages:    messages,
-		Hash:        sighash}, nil
 }
 
 // UnmarshalValidatorData converts the bytes input to typed data

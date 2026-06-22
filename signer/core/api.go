@@ -54,8 +54,6 @@ type ExternalAPI interface {
 	SignTransaction(ctx context.Context, args apitypes.SendTxArgs, methodSelector *string) (*qrlapi.SignTransactionResult, error)
 	// SignData - request to sign the given data (plus prefix)
 	SignData(ctx context.Context, contentType string, addr common.MixedcaseAddress, data any) (hexutil.Bytes, error)
-	// SignTypedData - request to sign the given structured data (plus prefix)
-	SignTypedData(ctx context.Context, addr common.MixedcaseAddress, data apitypes.TypedData) (hexutil.Bytes, error)
 	// Version info about the APIs
 	Version(ctx context.Context) (string, error)
 }
