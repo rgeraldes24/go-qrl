@@ -41,8 +41,6 @@ import (
 )
 
 var (
-	// u: unlock, s: signXX, sendXX, n: newAccount, i: importXX
-	passwordRegexp = regexp.MustCompile(`personal.[nusi]`)
 	onlyWhitespace = regexp.MustCompile(`^\s*$`)
 	exit           = regexp.MustCompile(`^\s*exit\s*;*\s*$`)
 )
@@ -450,7 +448,7 @@ func (c *Console) Interactive() {
 			}
 			// If all the needed lines are present, save the command and run it.
 			if indents <= 0 {
-				if len(input) > 0 && input[0] != ' ' && !passwordRegexp.MatchString(input) {
+				if len(input) > 0 && input[0] != ' ' {
 					if command := strings.TrimSpace(input); len(c.history) == 0 || command != c.history[len(c.history)-1] {
 						c.history = append(c.history, command)
 						if c.prompter != nil {

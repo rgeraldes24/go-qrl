@@ -21,7 +21,6 @@ var Modules = map[string]string{
 	"admin":  AdminJs,
 	"debug":  DebugJs,
 	"qrl":    QRLJs,
-	"miner":  MinerJs,
 	"net":    NetJs,
 	"rpc":    RpcJs,
 	"txpool": TxpoolJs,
@@ -394,6 +393,43 @@ web3._extend({
 `
 
 const QRLJs = `
+var qrlLogTopicFormatter = function(topic) {
+	if (topic === null || typeof topic === 'undefined') {
+		return null;
+	}
+	topic = String(topic);
+	return topic.indexOf('0x') === 0 ? topic : web3._extend.utils.fromUtf8(topic);
+};
+
+var qrlInputLogFormatter = function(options) {
+	options = options || {};
+	if (options.fromBlock !== undefined) {
+		options.fromBlock = web3._extend.formatters.inputBlockNumberFormatter(options.fromBlock);
+	}
+	if (options.toBlock !== undefined) {
+		options.toBlock = web3._extend.formatters.inputBlockNumberFormatter(options.toBlock);
+	}
+	if (options.address !== undefined) {
+		if (web3._extend.utils.isArray(options.address)) {
+			options.address = options.address.map(web3._extend.formatters.inputAddressFormatter);
+		} else {
+			options.address = web3._extend.formatters.inputAddressFormatter(options.address);
+		}
+	}
+	options.topics = options.topics || [];
+	options.topics = options.topics.map(function(topic) {
+		return web3._extend.utils.isArray(topic) ? topic.map(qrlLogTopicFormatter) : qrlLogTopicFormatter(topic);
+	});
+	return options;
+};
+
+var qrlOutputLogArrayFormatter = function(logs) {
+	if (!web3._extend.utils.isArray(logs)) {
+		return logs;
+	}
+	return logs.map(web3._extend.formatters.outputLogFormatter);
+};
+
 web3._extend({
 	property: 'qrl',
 	methods: [
@@ -497,6 +533,8 @@ web3._extend({
 			name: 'getLogs',
 			call: 'qrl_getLogs',
 			params: 1,
+			inputFormatter: [qrlInputLogFormatter],
+			outputFormatter: qrlOutputLogArrayFormatter,
 		}),
 		new web3._extend.Method({
 			name: 'call',
@@ -529,32 +567,6 @@ web3._extend({
 			outputFormatter: web3._extend.utils.toBigNumber
 		}),
 	]
-});
-`
-
-const MinerJs = `
-web3._extend({
-	property: 'miner',
-	methods: [
-		new web3._extend.Method({
-			name: 'setExtra',
-			call: 'miner_setExtra',
-			params: 1
-		}),
-		new web3._extend.Method({
-			name: 'setGasPrice',
-			call: 'miner_setGasPrice',
-			params: 1,
-			inputFormatter: [web3._extend.utils.fromDecimal]
-		}),
-		new web3._extend.Method({
-			name: 'setGasLimit',
-			call: 'miner_setGasLimit',
-			params: 1,
-			inputFormatter: [web3._extend.utils.fromDecimal]
-		}),
-	],
-	properties: []
 });
 `
 

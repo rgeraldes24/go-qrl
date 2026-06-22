@@ -8,6 +8,6 @@ import (
 )
 
 type Test struct {
-    A qrl1.MinerAPI
+    A qrl1.AdminAPI
     B qrl2.GetReceiptsPacket
 }

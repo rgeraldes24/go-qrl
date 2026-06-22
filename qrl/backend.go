@@ -278,9 +278,6 @@ func (s *QRL) APIs() []rpc.API {
 	// Append all the local APIs and return
 	return append(apis, []rpc.API{
 		{
-			Namespace: "miner",
-			Service:   NewMinerAPI(s),
-		}, {
 			Namespace: "qrl",
 			Service:   downloader.NewDownloaderAPI(s.handler.downloader, s.eventMux),
 		}, {

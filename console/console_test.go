@@ -21,6 +21,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"os/exec"
 	"strings"
 	"testing"
 	"time"
@@ -319,4 +320,20 @@ func TestIndenting(t *testing.T) {
 			t.Errorf("test %d: invalid indenting: have %d, want %d", i, counted, tt.expectedIndentCount)
 		}
 	}
+}
+
+func TestWeb3ConsoleExhaustiveLive(t *testing.T) {
+	endpoint := os.Getenv("GQRL_ENDPOINT")
+	if endpoint == "" {
+		t.Skip("set GQRL_ENDPOINT to run the live exhaustive web3.js console test")
+	}
+
+	args := []string{"testdata/run_web3_console_exhaustive.sh", endpoint}
+	cmd := exec.Command("bash", args...)
+	cmd.Env = os.Environ()
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("exhaustive web3.js console test failed: %v\n%s", err, output)
+	}
+	t.Logf("\n%s", output)
 }

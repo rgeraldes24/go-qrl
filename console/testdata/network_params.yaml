@@ -1,0 +1,49 @@
+participants:
+  - el_type: gqrl
+    el_image: local/go-qrl:console-web3-live
+    el_extra_params:
+      - "--gcmode=archive"
+      - "--cache.preimages"
+      - "--vmdebug"
+      - "--http.api=admin,engine,net,qrl,rpc,web3,debug,txpool"
+      - "--ws.api=admin,engine,net,qrl,rpc,web3,debug,txpool"
+    cl_type: qrysm
+    cl_image: cyyber/qrysm-beacon:64-byte-words
+    use_separate_vc: true
+    vc_type: qrysm
+    vc_image: cyyber/qrysm-validator:64-byte-words
+    use_remote_signer: true
+    remote_signer_type: clef
+    remote_signer_image: local/go-qrl:console-web3-live-alltools
+    remote_signer_extra_env_vars:
+      CLEF_TEST_ACCOUNT: "Q738a3bdbcd5e0924d4923ebedfc378dd9111c977bb36116394e900761c741636cb1b9eff5fba549af1f624fed38d628aa1cc1d8f158def9e58eae84d3645a7a7"
+      CLEF_TEST_PASSWORD: "passwordpassword"
+      CLEF_MASTER_PASSWORD: "passwordpassword"
+    count: 1
+network_params:
+  preset: mainnet
+  seconds_per_slot: 15
+  genesis_delay: 15
+  prefunded_accounts:
+    "Q738a3bdbcd5e0924d4923ebedfc378dd9111c977bb36116394e900761c741636cb1b9eff5fba549af1f624fed38d628aa1cc1d8f158def9e58eae84d3645a7a7":
+      balance: "1000000QRL"
+  withdrawal_address: "Q738a3bdbcd5e0924d4923ebedfc378dd9111c977bb36116394e900761c741636cb1b9eff5fba549af1f624fed38d628aa1cc1d8f158def9e58eae84d3645a7a7"
+  deposit_contract_address: "Q42424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242"
+qrl_genesis_generator_params:
+  image: cyyber/qrl-genesis-generator:64-byte-words
+port_publisher:
+  el:
+    enabled: true
+    public_port_start: 32000
+  cl:
+    enabled: false
+    public_port_start: 33000
+  vc:
+    enabled: false
+    public_port_start: 34000
+  remote_signer:
+    enabled: false
+    public_port_start: 35000
+  additional_services:
+    enabled: false
+    public_port_start: 36000

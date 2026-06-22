@@ -30,7 +30,7 @@ func (obj *Test) DecodeRLP(dec *rlp.Stream) error {
 			return err
 		}
 		// A:
-		var _tmp1 qrl.MinerAPI
+		var _tmp1 qrl.AdminAPI
 		{
 			if _, err := dec.List(); err != nil {
 				return err
