@@ -165,7 +165,7 @@ func fromHex(data any) ([]byte, error) {
 	return nil, fmt.Errorf("wrong type %T", data)
 }
 
-// UnmarshalValidatorData converts the bytes input to typed data
+// UnmarshalValidatorData converts the request input to validator data.
 func UnmarshalValidatorData(data any) (apitypes.ValidatorData, error) {
 	raw, ok := data.(map[string]any)
 	if !ok {
