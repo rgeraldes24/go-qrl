@@ -57,9 +57,8 @@ var (
 )
 
 // Minimal constructor that emits a LOG0 event and deploys a 1-byte STOP
-// runtime. Every opcode (PUSH1, LOG0=0xc0, CODECOPY, RETURN, STOP) is stable
-// across the 512-bit opcode shift, so these tests do not depend on a Solidity
-// recompile.
+// runtime. The bytecode uses current QRVM opcode values directly, so these
+// tests do not depend on a Solidity recompile.
 const logContractCodeHex = "60006000c06001601160003960016000f300"
 
 func generateChain(n int) (*core.Genesis, []*types.Block) {

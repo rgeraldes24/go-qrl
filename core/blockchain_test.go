@@ -26,6 +26,7 @@ import (
 	"time"
 
 	"github.com/theQRL/go-qrl/common"
+	"github.com/theQRL/go-qrl/common/uint512"
 	"github.com/theQRL/go-qrl/consensus"
 	"github.com/theQRL/go-qrl/consensus/beacon"
 	"github.com/theQRL/go-qrl/core/rawdb"
@@ -2368,7 +2369,7 @@ func testInitThenFailCreateContract(t *testing.T, scheme string) {
 		byte(vm.PUSH1), 0x0, // offset
 		byte(vm.RETURN), // return 2 bytes of zero-code
 	}
-	if l := len(initCode); l > 32 {
+	if l := len(initCode); l > uint512.WordBytes {
 		t.Fatalf("init code is too long for a pushx, need a more elaborate deployer")
 	}
 	bbCode := []byte{
@@ -2380,7 +2381,7 @@ func testInitThenFailCreateContract(t *testing.T, scheme string) {
 		byte(vm.MSTORE),
 		byte(vm.PUSH1), 0x00, // salt
 		byte(vm.PUSH1), byte(len(initCode)), // size
-		byte(vm.PUSH1), byte(32 - len(initCode)), // offset
+		byte(vm.PUSH1), byte(uint512.WordBytes - len(initCode)), // offset
 		byte(vm.PUSH1), 0x00, // endowment
 		byte(vm.CREATE2),
 	}...)

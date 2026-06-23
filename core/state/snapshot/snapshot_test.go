@@ -41,6 +41,14 @@ func randomHash() common.Hash {
 	return hash
 }
 
+func randomStorageValue() []byte {
+	value := make([]byte, common.StorageValue64Length)
+	if n, err := crand.Read(value); n != common.StorageValue64Length || err != nil {
+		panic(err)
+	}
+	return value
+}
+
 // randomAccount generates a random account and returns it RLP encoded.
 func randomAccount() []byte {
 	a := &types.StateAccount{
@@ -73,7 +81,7 @@ func randomStorageSet(accounts []string, hashes [][]string, nilStorage [][]strin
 		if index < len(hashes) {
 			hashes := hashes[index]
 			for _, hash := range hashes {
-				storages[common.HexToHash(account)][common.HexToHash(hash)] = randomHash().Bytes()
+				storages[common.HexToHash(account)][common.HexToHash(hash)] = randomStorageValue()
 			}
 		}
 		if index < len(nilStorage) {

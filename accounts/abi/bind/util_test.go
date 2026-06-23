@@ -127,7 +127,7 @@ func TestWaitDeployedCornerCases(t *testing.T) {
 	gasFeeCap := new(big.Int).Add(head.BaseFee, big.NewInt(1))
 
 	// Create a transaction to an account.
-	code := "6060604052600a8060106000396000f360606040526008565b00"
+	code := "6060604052600aa060106000396000f360606040526008565b00"
 	to := common.MustParseAddress("Q00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001")
 	tx := types.NewTx(&types.DynamicFeeTx{
 		Nonce:     0,

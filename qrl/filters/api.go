@@ -547,7 +547,7 @@ func (args *FilterCriteria) UnmarshalJSON(data []byte) error {
 	}
 
 	// topics is an array consisting of strings and/or arrays of strings.
-	// JSON null values are converted to common.Hash{} and ignored by the filter manager.
+	// JSON null values are treated as wildcards and ignored by the filter manager.
 	if len(raw.Topics) > 0 {
 		args.Topics = make([][]common.LogTopic, len(raw.Topics))
 		for i, t := range raw.Topics {

@@ -88,7 +88,7 @@ class StdIOHandler:
         """
         Example request:
 
-        {"jsonrpc":"2.0","id":20,"method":"ui_approveTx","params":[{"transaction":{"from":"Q0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000dEaDbeeF000000000000000000000000deADBEef","to":"Q0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000dEaDbeeF000000000000000000000000deADBEef","gas":"0x3e8","maxFeePerGas":"0x5","maxPriorityFeePerGas":"0x0","value":"0x6","nonce":"0x1","data":"0x"},"call_info":null,"meta":{"remote":"clef binary","local":"main","scheme":"in-proc","User-Agent":"","Origin":""}}]}
+        {"jsonrpc":"2.0","id":20,"method":"ui_approveTx","params":[{"transaction":{"from":"Q0F1E2D3C4b5a69788796a5B4c3d2e1F00F1E2d3C4b5a69788796a5b4c3D2e1F0F0e1D2c3b4a5968778695A4b3c2d1e0f0f0e1d2C3b4a5968778695A4B3c2D1e0","to":"Q0F1E2D3C4b5a69788796a5B4c3d2e1F00F1E2d3C4b5a69788796a5b4c3D2e1F0F0e1D2c3b4a5968778695A4b3c2d1e0f0f0e1d2C3b4a5968778695A4B3c2D1e0","gas":"0x3e8","maxFeePerGas":"0x5","maxPriorityFeePerGas":"0x0","value":"0x6","nonce":"0x1","data":"0x"},"call_info":null,"meta":{"remote":"clef binary","local":"main","scheme":"in-proc","User-Agent":"","Origin":""}}]}
 
         :param transaction: transaction info
         :param call_info: info about the call, e.g. if ABI info could not be
@@ -128,7 +128,7 @@ class StdIOHandler:
           "method": "ui_approveSignData",
           "params": [{
             "content_type": "text/plain",
-            "address": "Q00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000011223344556677889900112233445566778899",
+            "address": "QfEDcbA9876543210FEdCba9876543210FEDCba9876543210fEDcBA987654321076543210fEdCBa9876543210fedcBa9876543210FedCba9876543210fedCba98",
             "raw_data": "GVFSTCBTaWduZWQgTWVzc2FnZToKMTFoZWxsbyB3b3JsZA==",
             "messages": [{
               "name": "message",

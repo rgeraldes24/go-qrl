@@ -104,6 +104,8 @@ func TestExecute(t *testing.T) {
 func TestCall(t *testing.T) {
 	state, _ := state.New(types.EmptyRootHash, state.NewDatabase(rawdb.NewMemoryDatabase()), nil)
 	address := common.MustParseAddress("Q0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000a")
+	// Same low-word extraction as TestExecute: MSTORE writes a 64-byte word
+	// with the value right-aligned, so RETURN reads bytes [32:64].
 	state.SetCode(address, []byte{
 		byte(vm.PUSH1), 10,
 		byte(vm.PUSH1), 0,

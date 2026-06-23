@@ -857,7 +857,7 @@ func TestDeriveLogFields(t *testing.T) {
 }
 
 func BenchmarkDecodeRLPLogs(b *testing.B) {
-	// Encoded receipts from block 0x14ee094309fbe8f70b65f45ebcc08fb33f126942d97464aad5eb91cfd1e2d269
+	// Encoded receipt corpus with 64-byte log addresses, topics, and data.
 	buf, err := os.ReadFile("testdata/stored_receipts.bin")
 	if err != nil {
 		b.Fatal(err)

@@ -277,7 +277,7 @@ func TestGraphQLHTTPOnSamePort_GQLRequest_Unsuccessful(t *testing.T) {
 func TestGraphQLConcurrentResolvers(t *testing.T) {
 	var (
 		wallet, _ = wallet.Generate(wallet.ML_DSA_87)
-		// A 64-byte address with the "dad" marker at the lowest three
+		// A 64-byte address with the "dad" marker at the lowest two
 		// bytes so the test logs have an identifiable address.
 		dad     = common.BytesToAddress([]byte{0x0d, 0xad})
 		dadStr  = dad.Hex()

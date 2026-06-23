@@ -909,7 +909,7 @@ func testExternalUI(api *core.SignerAPI) {
 	ctx = context.WithValue(ctx, "local", "main")
 	errs := make([]string, 0)
 
-	a := common.MustParseAddress("Q0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000deadbeef000000000000000000000000deadbeef")
+	a := common.MustParseAddress("Q0F1E2D3C4b5a69788796a5B4c3d2e1F00F1E2d3C4b5a69788796a5b4c3D2e1F0F0e1D2c3b4a5968778695A4b3c2d1e0f0f0e1d2C3b4a5968778695A4B3c2D1e0")
 	addErr := func(errStr string) {
 		log.Info("Test error", "err", errStr)
 		errs = append(errs, errStr)
@@ -954,14 +954,14 @@ func testExternalUI(api *core.SignerAPI) {
 	{ // Sign data test - plain text
 		api.UI.ShowInfo("Please approve the next request for signing text")
 		time.Sleep(delay)
-		addr, _ := common.NewMixedcaseAddressFromString("Q00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000011223344556677889900112233445566778899")
+		addr, _ := common.NewMixedcaseAddressFromString("QfEDcbA9876543210FEdCba9876543210FEDCba9876543210fEDcBA987654321076543210fEdCBa9876543210fedcBa9876543210FedCba9876543210fedCba98")
 		_, err := api.SignData(ctx, accounts.MimetypeTextPlain, *addr, hexutil.Encode([]byte("hello world")))
 		expectApprove("signdata - text", err)
 	}
 	{ // Sign data test - plain text reject
 		api.UI.ShowInfo("Please deny the next request for signing text")
 		time.Sleep(delay)
-		addr, _ := common.NewMixedcaseAddressFromString("Q00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000011223344556677889900112233445566778899")
+		addr, _ := common.NewMixedcaseAddressFromString("QfEDcbA9876543210FEdCba9876543210FEDCba9876543210fEDcBA987654321076543210fEdCBa9876543210fedcBa9876543210FedCba9876543210fedCba98")
 		_, err := api.SignData(ctx, accounts.MimetypeTextPlain, *addr, hexutil.Encode([]byte("hello world")))
 		expectDeny("signdata - text", err)
 	}
@@ -1045,15 +1045,15 @@ func decryptSeed(keyjson []byte, auth string) ([]byte, error) {
 
 // GenDoc outputs examples of all structures used in json-rpc communication
 func GenDoc(ctx *cli.Context) error {
-	a, err := common.NewAddressFromString("Q0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000deadbeef000000000000000000000000deadbeef")
+	a, err := common.NewAddressFromString("Q0F1E2D3C4b5a69788796a5B4c3d2e1F00F1E2d3C4b5a69788796a5b4c3D2e1F0F0e1D2c3b4a5968778695A4b3c2d1e0f0f0e1d2C3b4a5968778695A4B3c2D1e0")
 	if err != nil {
 		return err
 	}
-	b, err := common.NewAddressFromString("Q00000000000000000000000000000000000000000000000000000000000000000000000000000000000000001111111122222222222233333333334444444444")
+	b, err := common.NewAddressFromString("QaAAaaAAAaaAaAAAAAAAAaAAAaAAAAaAa55555555555555555555555555555555CCCcCcCCcCcCCCccccccCCcccccccCcC33333333333333333333333333333333")
 	if err != nil {
 		return err
 	}
-	c, err := common.NewAddressFromString("Q" + strings.Repeat("0", 112) + "c0ffee0000decafe")
+	c, err := common.NewAddressFromString("Q111122223333444455556666777788889999AaaAbbBBCCCcDDDDEeEeffff00000000FFfFEeEedDDdcCcCBBbBAAaa999988887777666655554444333322221111")
 	if err != nil {
 		return err
 	}

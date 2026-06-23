@@ -538,12 +538,12 @@ func (a Address) MarshalText() ([]byte, error) {
 	return []byte(a.Hex()), nil
 }
 
-// UnmarshalText parses a hash in hex syntax.
+// UnmarshalText parses a fixed-width Q-prefixed address.
 func (a *Address) UnmarshalText(input []byte) error {
 	return hexutil.UnmarshalFixedTextQ("Address", input, a[:])
 }
 
-// UnmarshalJSON parses a address in hex syntax.
+// UnmarshalJSON parses a fixed-width Q-prefixed address.
 func (a *Address) UnmarshalJSON(input []byte) error {
 	return hexutil.UnmarshalFixedJSONQ(addressT, input, a[:])
 }

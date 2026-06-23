@@ -105,6 +105,14 @@
     return "9f" + body;
   }
 
+  function word64FromSeed(seed) {
+    var body = "";
+    for (var i = 0; i < 64; i++) {
+      body += hexByte((seed + i * 17) % 256);
+    }
+    return "0x" + body;
+  }
+
   function expect(condition, message) {
     if (!condition) throw new Error(message);
   }
@@ -139,6 +147,8 @@
     expect(sameAddress(log.address, eventContractAddress), "decoded event address mismatch: " + stringify(log.address));
     if (txHash) expect(sameHex(log.transactionHash, txHash), "decoded event tx hash mismatch: " + stringify(log.transactionHash));
     expect(log.args && sameAddress(log.args.from, account), "decoded from mismatch: " + stringify(log.args));
+    expect(web3.isChecksumAddress(log.args.from), "decoded from is not canonical: " + stringify(log.args.from));
+    expect(log.args.from === web3.toChecksumAddress(log.args.from), "decoded from checksum mismatch: " + stringify(log.args.from));
     expect(log.args.amount && log.args.amount.toString(10) === "1", "decoded amount mismatch: " + stringify(log.args));
   }
 
@@ -160,6 +170,10 @@
     var init = push1(runtimeLen) + push1(runtimeOffset) + push1(0) + "39" + push1(runtimeLen) + push1(0) + "f3";
     expect(init.length / 2 === runtimeOffset, "bad init offset");
     return "0x" + init + runtime;
+  }
+
+  function storageWriterInitCode(value) {
+    return "0x" + push64(value) + push1(0) + "55" + "00";
   }
 
   function emitTransferFromEventContract() {
@@ -330,6 +344,8 @@
   var eventTopics = null;
   var eventTxHash = null;
   var eventReceipt = null;
+  var storageProofContractAddress = null;
+  var storageProofValue = word64FromSeed(128);
   var networkId = null;
   var chainId = null;
   var hasDev = typeof web3.dev !== "undefined";
@@ -858,6 +874,26 @@
     expect(all.stopWatching() === true, "allEvents stop failed");
     covered["qrl.filter"] = true;
     return "abi/function/event ok at " + eventContractAddress;
+  });
+  check("qrl.getProof.storageValue", function () {
+    var deployHash = web3.qrl.sendTransaction({from: account, data: storageWriterInitCode(storageProofValue), gas: "0x4c4b40"});
+    expect(isHexBytes(deployHash, 32), "bad storage contract deploy hash");
+    var deployReceipt = waitReceipt(deployHash, receiptWaitSeconds);
+    expect(deployReceipt && toNumber(deployReceipt.status) === 1, "storage contract deploy failed");
+    expect(typeof deployReceipt.contractAddress === "string" && web3.isAddress(deployReceipt.contractAddress), "missing storage contract address");
+    storageProofContractAddress = deployReceipt.contractAddress;
+
+    var storage = web3.qrl.getStorageAt(storageProofContractAddress, "0x0", "latest");
+    expect(isHexBytes(storage, 64), "storage value is not fixed 64-byte hex: " + stringify(storage));
+    expect(sameHex(storage, storageProofValue), "storage value mismatch: " + stringify(storage));
+
+    var proof = web3.qrl.getProof(storageProofContractAddress, ["0x0"], "latest");
+    expect(proof && sameAddress(proof.address, storageProofContractAddress), "proof address mismatch");
+    expect(proof.storageProof instanceof Array && proof.storageProof.length === 1, "storage proof missing");
+    expect(proof.storageProof[0].key === "0x0", "storage proof key mismatch: " + stringify(proof.storageProof[0].key));
+    expect(isHexBytes(proof.storageProof[0].value, 64), "proof value is not a full-width U512 quantity: " + stringify(proof.storageProof[0].value));
+    expect(sameHex(proof.storageProof[0].value, storageProofValue), "proof value mismatch: " + stringify(proof.storageProof[0].value));
+    return "value=" + proof.storageProof[0].value;
   });
   check("qrl.getCode.contract", function () {
     var code = web3.qrl.getCode(eventContractAddress);
