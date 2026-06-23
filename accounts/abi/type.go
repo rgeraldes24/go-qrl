@@ -254,7 +254,7 @@ func (t Type) GetType() reflect.Type {
 	case BytesTy:
 		return reflect.TypeFor[[]byte]()
 	case HashTy, FixedPointTy: // currently not used
-		return reflect.TypeFor[[64]byte]()
+		return reflect.TypeFor[[uint512.WordBytes]byte]()
 	case FunctionTy:
 		return reflect.TypeFor[[common.AddressLength + 4]byte]()
 	default:
@@ -399,7 +399,7 @@ func isDynamicType(t Type) bool {
 // current block.
 // So for a static variable, the size returned represents the size that the
 // variable actually occupies.
-// For a dynamic variable, the returned size is fixed 64 bytes, which is used
+// For a dynamic variable, the returned size is fixed at one ABI word, which is used
 // to store the location reference for actual value storage.
 func getTypeSize(t Type) int {
 	if t.T == ArrayTy && !isDynamicType(*t.Elem) {
@@ -407,7 +407,7 @@ func getTypeSize(t Type) int {
 		if t.Elem.T == ArrayTy || t.Elem.T == TupleTy {
 			return t.Size * getTypeSize(*t.Elem)
 		}
-		return t.Size * 64
+		return t.Size * uint512.WordBytes
 	} else if t.T == TupleTy && !isDynamicType(t) {
 		total := 0
 		for _, elem := range t.TupleElems {
@@ -415,7 +415,7 @@ func getTypeSize(t Type) int {
 		}
 		return total
 	}
-	return 64
+	return uint512.WordBytes
 }
 
 // isLetter reports whether a given 'rune' is classified as a Letter.

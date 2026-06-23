@@ -41,14 +41,13 @@ You should treat 'masterseed.json' with utmost secrecy and make a backup of it!
 
 ## Remote interactions
 
-Clef is capable of managing both key-file based accounts as well as hardware wallets. To evaluate clef, we're going to point it to our QRL testnet keystore and specify the testnet chain ID for signing (Clef doesn't have a backing chain, so it doesn't know what network it runs on).
+Clef manages keystore-backed accounts. To evaluate clef, we're going to point it to our QRL testnet keystore and specify the testnet chain ID for signing (Clef doesn't have a backing chain, so it doesn't know what network it runs on).
 
 ```text
 $ clef --keystore ~/.qrl/testnet/keystore --chainid 4
 
 INFO [07-01|11:00:46.385] Starting signer                          chainid=4 keystore=$HOME/.qrl/testnet/keystore light-kdf=false advanced=false
 DEBUG[07-01|11:00:46.389] FS scan times                            list=3.521941ms set=9.017µs diff=4.112µs
-DEBUG[07-01|11:00:46.391] Ledger support enabled
 INFO [07-01|11:00:46.391] Audit logs configured                    file=audit.log
 DEBUG[07-01|11:00:46.392] IPC registered                           namespace=account
 INFO [07-01|11:00:46.392] IPC endpoint opened                      url=$HOME/.clef/clef.ipc
@@ -134,7 +133,6 @@ $ clef --keystore ~/.qrl/testnet/keystore --chainid 4 --rules rules.js
 INFO [07-01|13:39:49.726] Rule engine configured                   file=rules.js
 INFO [07-01|13:39:49.726] Starting signer                          chainid=4 keystore=$HOME/.qrl/testnet/keystore light-kdf=false advanced=false
 DEBUG[07-01|13:39:49.726] FS scan times                            list=35.15µs set=4.251µs diff=2.766µs
-DEBUG[07-01|13:39:49.727] Ledger support enabled
 INFO [07-01|13:39:49.728] Audit logs configured                    file=audit.log
 DEBUG[07-01|13:39:49.728] IPC registered                           namespace=account
 INFO [07-01|13:39:49.728] IPC endpoint opened                      url=$HOME/.clef/clef.ipc
@@ -245,7 +243,6 @@ $ clef --keystore ~/.qrl/testnet/keystore --chainid 4 --rules rules.js
 INFO [07-01|14:12:41.636] Rule engine configured                   file=rules.js
 INFO [07-01|14:12:41.636] Starting signer                          chainid=4 keystore=$HOME/.qrl/testnet/keystore light-kdf=false advanced=false
 DEBUG[07-01|14:12:41.636] FS scan times                            list=46.722µs set=4.47µs diff=2.157µs
-DEBUG[07-01|14:12:41.637] Ledger support enabled
 INFO [07-01|14:12:41.638] Audit logs configured                    file=audit.log
 DEBUG[07-01|14:12:41.638] IPC registered                           namespace=account
 INFO [07-01|14:12:41.638] IPC endpoint opened                      url=$HOME/.clef/clef.ipc

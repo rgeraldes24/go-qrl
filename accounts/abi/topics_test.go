@@ -304,7 +304,7 @@ func setupTopicsTests() []topicTest {
 
 	tests := []topicTest{
 		{
-			name: "support fixed byte types, right padded to 32 bytes",
+			name: "support fixed byte types, right padded to 64 bytes",
 			args: args{
 				createObj: func() any { return &bytesStruct{} },
 				resultObj: func() any { return &bytesStruct{StaticBytes: [5]byte{1, 2, 3, 4, 5}} },

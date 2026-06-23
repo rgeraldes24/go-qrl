@@ -2219,7 +2219,7 @@ func testSkipStaleTxIndicesInSnapSync(t *testing.T, scheme string) {
 // Benchmarks large blocks with value transfers to non-existing accounts
 func benchmarkLargeNumberOfValueToNonexisting(b *testing.B, numTxs, numBlocks int, recipientFn func(uint64) common.Address) {
 	var (
-		address, _      = common.NewAddressFromString("Q0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000c0de")
+		address         = common.MustParseAddress("Q0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000c0de")
 		signer          = types.ZondSigner{}
 		testBankWallet  = testutil.LoadAccount(b, "alice").Wallet(b)
 		testBankAddress = testBankWallet.GetAddress()
@@ -2321,14 +2321,14 @@ func BenchmarkBlockChain_1x1000Executions(b *testing.B) {
 
 // TestInitThenFailCreateContract tests a pretty notorious case that happened
 // on mainnet over blocks 7338108, 7338110 and 7338115.
-//   - Block 7338108: address Q00000000000000000000000000000000000000000000000000000000e771789f5cccac282f23bb7add5690e1f6ca467c is initiated
-//     with 0.001 quanta (thus created but no code)
+//   - Block 7338108: address
+//     Q0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000e771789f5cccac282f23bb7add5690e1f6ca467c
+//     is initiated with 0.001 quanta (thus created but no code)
 //   - Block 7338110: a CREATE2 is attempted. The CREATE2 would deploy code on
-//     the same address Q00000000000000000000000000000000000000000000000000000000e771789f5cccac282f23bb7add5690e1f6ca467c. However, the
-//     deployment fails due to OOG during initcode execution
+//     the same address. However, the deployment fails due to OOG during initcode
+//     execution
 //   - Block 7338115: another tx checks the balance of
-//     Q00000000000000000000000000000000000000000000000000000000e771789f5cccac282f23bb7add5690e1f6ca467c, and the snapshotter returned it as
-//     zero.
+//     the same address, and the snapshotter returned it as zero.
 //
 // The problem being that the snapshotter maintains a destructset, and adds items
 // to the destructset in case something is created "onto" an existing item.
@@ -2348,7 +2348,7 @@ func testInitThenFailCreateContract(t *testing.T, scheme string) {
 		wallet  = testutil.LoadAccount(t, "alice").Wallet(t)
 		address = wallet.GetAddress()
 		funds   = big.NewInt(1000000000000000000)
-		bb, _   = common.NewAddressFromString("Q0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000bbbb")
+		bb      = common.MustParseAddress("Q0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000bbbb")
 	)
 
 	// The bb-code needs to CREATE2 the aa contract. It consists of
@@ -2463,7 +2463,7 @@ func TestEIP2718Transition(t *testing.T) {
 
 func testEIP2718Transition(t *testing.T, scheme string) {
 	var (
-		aa, _  = common.NewAddressFromString("Q0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000aaaa")
+		aa     = common.MustParseAddress("Q0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000aaaa")
 		engine = beacon.NewFaker()
 
 		// A sender who makes transactions, has some funds
@@ -2545,7 +2545,7 @@ func TestEIP1559Transition(t *testing.T) {
 
 func testEIP1559Transition(t *testing.T, scheme string) {
 	var (
-		aa, _  = common.NewAddressFromString("Q0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000aaaa")
+		aa     = common.MustParseAddress("Q0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000aaaa")
 		engine = beacon.NewFaker()
 
 		// A sender who makes transactions, has some funds
@@ -2905,7 +2905,7 @@ func TestTxIndexer(t *testing.T) {
 		nonce  = uint64(0)
 	)
 	_, blocks, receipts := GenerateChainWithGenesis(gspec, engine, 128, func(i int, gen *BlockGen) {
-		to, _ := common.NewAddressFromString("Q000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000deadbeef")
+		to := common.MustParseAddress("Q000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000deadbeef")
 		tx := types.NewTx(&types.DynamicFeeTx{
 			Nonce:     nonce,
 			To:        &to,

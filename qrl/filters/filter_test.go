@@ -60,7 +60,7 @@ func BenchmarkFilters(b *testing.B) {
 		addr2   = common.BytesToAddress([]byte("jeff"))
 		addr3   = common.BytesToAddress([]byte("ethereum"))
 		addr4   = common.BytesToAddress([]byte("random addresses please"))
-		to, _   = common.NewAddressFromString("Q00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000999")
+		to      = common.MustParseAddress("Q00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000999")
 
 		gspec = &core.Genesis{
 			Alloc:   core.GenesisAlloc{addr1: {Balance: big.NewInt(1000000)}},

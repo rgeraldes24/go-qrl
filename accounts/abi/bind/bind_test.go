@@ -1902,6 +1902,10 @@ func TestBindRejectsUnsupportedFunctionType(t *testing.T) {
 			abi:  `[{"anonymous":false,"inputs":[{"indexed":true,"internalType":"function (uint256) external","name":"callback","type":"function"}],"name":"Callback","type":"event"}]`,
 		},
 		{
+			name: "error input",
+			abi:  `[{"inputs":[{"internalType":"function (uint256) external","name":"callback","type":"function"}],"name":"CallbackError","type":"error"}]`,
+		},
+		{
 			name: "nested array input",
 			abi:  `[{"inputs":[{"internalType":"function (uint256) external[]","name":"callbacks","type":"function[]"}],"name":"test","outputs":[],"stateMutability":"nonpayable","type":"function"}]`,
 		},

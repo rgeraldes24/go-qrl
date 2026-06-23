@@ -24,13 +24,14 @@ import (
 
 	"github.com/theQRL/go-qrl/common"
 	"github.com/theQRL/go-qrl/common/math"
+	"github.com/theQRL/go-qrl/common/uint512"
 )
 
 // packBytesSlice packs the given bytes as [L, V] as the canonical representation
 // bytes slice. Bytes payloads are padded to a multiple of the 64-byte ABI slot.
 func packBytesSlice(bytes []byte, l int) []byte {
 	len := packNum(reflect.ValueOf(l))
-	return append(len, common.RightPadBytes(bytes, (l+63)/64*64)...)
+	return append(len, common.RightPadBytes(bytes, (l+uint512.WordBytes-1)/uint512.WordBytes*uint512.WordBytes)...)
 }
 
 // packElement packs the given reflect value according to the abi specification in
@@ -55,12 +56,12 @@ func packElement(t Type, reflectValue reflect.Value) ([]byte, error) {
 			reflectValue = mustArrayToByteSlice(reflectValue)
 		}
 
-		return common.LeftPadBytes(reflectValue.Bytes(), 64), nil
+		return common.LeftPadBytes(reflectValue.Bytes(), uint512.WordBytes), nil
 	case BoolTy:
 		if reflectValue.Bool() {
-			return math.PaddedBigBytes(common.Big1, 64), nil
+			return math.PaddedBigBytes(common.Big1, uint512.WordBytes), nil
 		}
-		return math.PaddedBigBytes(common.Big0, 64), nil
+		return math.PaddedBigBytes(common.Big0, uint512.WordBytes), nil
 	case BytesTy:
 		if reflectValue.Kind() == reflect.Array {
 			reflectValue = mustArrayToByteSlice(reflectValue)
@@ -73,7 +74,7 @@ func packElement(t Type, reflectValue reflect.Value) ([]byte, error) {
 		if reflectValue.Kind() == reflect.Array {
 			reflectValue = mustArrayToByteSlice(reflectValue)
 		}
-		return common.RightPadBytes(reflectValue.Bytes(), 64), nil
+		return common.RightPadBytes(reflectValue.Bytes(), uint512.WordBytes), nil
 	case FunctionTy:
 		return nil, ErrUnsupportedFunctionType
 	default:

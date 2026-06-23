@@ -55,7 +55,10 @@ var (
 
 func TestToFilterArg(t *testing.T) {
 	blockHashErr := errors.New("cannot specify both BlockHash and FromBlock/ToBlock")
-	address, _ := common.NewAddressFromString("Q00000000000000000000000000000000000000000000000000000000D36722ADeC3EdCB29c8e7b5a47f352D701393462")
+	address, err := common.NewAddressFromString("Q0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000D36722ADeC3EdCB29c8e7b5a47f352D701393462")
+	if err != nil {
+		t.Fatalf("invalid test address: %v", err)
+	}
 	addresses := []common.Address{
 		address,
 	}

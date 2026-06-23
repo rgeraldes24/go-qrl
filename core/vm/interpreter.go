@@ -19,6 +19,7 @@ package vm
 import (
 	"github.com/theQRL/go-qrl/common"
 	"github.com/theQRL/go-qrl/common/math"
+	"github.com/theQRL/go-qrl/common/uint512"
 	"github.com/theQRL/go-qrl/crypto"
 	"github.com/theQRL/go-qrl/log"
 )
@@ -173,9 +174,9 @@ func (in *QRVMInterpreter) Run(contract *Contract, input []byte, readOnly bool) 
 				if overflow {
 					return nil, ErrGasUintOverflow
 				}
-				// memory is expanded in words of 64 bytes. Gas
+				// memory is expanded in VM words. Gas
 				// is also calculated in words.
-				if memorySize, overflow = math.SafeMul(toWordSize(memSize), 64); overflow {
+				if memorySize, overflow = math.SafeMul(toWordSize(memSize), uint64(uint512.WordBytes)); overflow {
 					return nil, ErrGasUintOverflow
 				}
 			}

@@ -163,7 +163,7 @@ func TestPassingBlockNumber(t *testing.T) {
 			codeAtBytes: []byte{1, 2, 3},
 		},
 	}
-	contractAddr, _ := common.NewAddressFromString("Q00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000")
+	contractAddr := common.MustParseAddress("Q00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000")
 	bc := bind.NewBoundContract(contractAddr, abi.ABI{
 		Methods: map[string]abi.Method{
 			"something": {
@@ -291,7 +291,7 @@ func TestUnpackAnonymousLogIntoMap(t *testing.T) {
 
 	abiString := `[{"anonymous":false,"inputs":[{"indexed":false,"name":"amount","type":"uint256"}],"name":"received","type":"event"}]`
 	parsedAbi, _ := abi.JSON(strings.NewReader(abiString))
-	contractAddr, _ := common.NewAddressFromString("Q00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000")
+	contractAddr := common.MustParseAddress("Q00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000")
 	bc := bind.NewBoundContract(contractAddr, parsedAbi, nil, nil, nil)
 
 	var received map[string]any
@@ -459,7 +459,7 @@ func newMockLog(topics []common.LogTopic, txHash common.Hash) types.Log {
 }
 
 func TestCall(t *testing.T) {
-	contractAddr, _ := common.NewAddressFromString("Q00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000")
+	contractAddr := common.MustParseAddress("Q00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000")
 	var method, methodWithArg = "something", "somethingArrrrg"
 	tests := []struct {
 		name, method string

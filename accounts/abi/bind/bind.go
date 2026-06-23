@@ -364,6 +364,11 @@ func rejectUnsupportedFunctionTypes(contractName string, contractABI abi.ABI) er
 			return err
 		}
 	}
+	for _, errABI := range contractABI.Errors {
+		if err := rejectUnsupportedFunctionArgs(contractName, fmt.Sprintf("error %q inputs", errABI.Name), errABI.Inputs); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 

@@ -62,7 +62,7 @@ func TestSimulatedBackend(t *testing.T) {
 	head, _ := sim.HeaderByNumber(t.Context(), nil) // Should be child's, good enough
 	gasFeeCap := new(big.Int).Add(head.BaseFee, big.NewInt(1))
 
-	code := `6060604052600a8060106000396000f360606040526008565b00`
+	code := `6060604052600aa060106000396000f360606040526008565b00`
 	var gas uint64 = 3000000
 	tx := types.NewTx(&types.DynamicFeeTx{
 		Nonce:     0,
@@ -636,7 +636,7 @@ func TestEstimateGasWithPrice(t *testing.T) {
 	sim := NewSimulatedBackend(core.GenesisAlloc{addr: {Balance: big.NewInt(params.Quanta*2 + 2e17)}}, 10000000)
 	defer sim.Close()
 
-	recipient, _ := common.NewAddressFromString("Q000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000deadbeef")
+	recipient := common.MustParseAddress("Q000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000deadbeef")
 	var cases = []struct {
 		name        string
 		message     qrl.CallMsg
@@ -1204,11 +1204,11 @@ contract Reverter {
 	function noRevert() public pure {
 		assembly {
 			// Assembles something that looks like require(false, "some error") but is not reverted
-			mstore(0x0, 0x08c379a000000000000000000000000000000000000000000000000000000000)
-			mstore(0x4, 0x0000000000000000000000000000000000000000000000000000000000000020)
-			mstore(0x24, 0x000000000000000000000000000000000000000000000000000000000000000a)
-			mstore(0x44, 0x736f6d65206572726f7200000000000000000000000000000000000000000000)
-			return(0x0, 0x64)
+			mstore(0x0, 0x08c379a000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000)
+			mstore(0x4, 0x40)
+			mstore(0x44, 0x0a)
+			mstore(0x84, 0x736f6d65206572726f720000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000)
+			return(0x0, 0xc4)
 		}
 	}
 }*/
@@ -1227,7 +1227,7 @@ func TestCallContractRevert(t *testing.T) {
 	//   revertString()   → 0x9bd61037  (Error("some error"))
 	//   revertNoString() → 0x4b409e01  (Error(""))
 	//   revertASM()      → 0x9b340e36  (REVERT(0,0))
-	//   noRevert()       → 0xb7246fc1  (RETURN 32 zero bytes)
+	//   noRevert()       → 0xb7246fc1  (RETURN 64 zero bytes)
 	// 12-byte init copies a 137-byte runtime that dispatches on the top 4
 	// bytes of the 64-byte CALLDATALOAD word (SHR 480) and falls through
 	// to a bare REVERT for unknown selectors.
@@ -1247,7 +1247,7 @@ func TestCallContractRevert(t *testing.T) {
 		"6040600452" + // offset=0x40
 		"60846000fd" + // REVERT(0, 132)  (length slot stays zero from fresh memory)
 		"5b60006000fd" + // 0x7d revertASM: REVERT(0,0)
-		"5b60206000f3" //    0x83 noRevert:  RETURN(0, 32)
+		"5b60406000f3" //    0x83 noRevert:  RETURN(0, 64)
 
 	parsed, err := abi.JSON(strings.NewReader(reverterABI))
 	if err != nil {
@@ -1321,6 +1321,9 @@ func TestCallContractRevert(t *testing.T) {
 		}
 		if res == nil {
 			t.Errorf("result from noRevert was nil")
+		}
+		if len(res) != 64 {
+			t.Errorf("result from noRevert had length %d, want 64", len(res))
 		}
 		sim.Commit()
 	}

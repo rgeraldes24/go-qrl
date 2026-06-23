@@ -36,8 +36,6 @@ import (
 )
 
 const (
-	// numberOfAccountsToDerive For hardware wallets, the number of accounts to derive
-	// numberOfAccountsToDerive = 10
 	// ExternalAPIVersion -- see extapi_changelog.md
 	ExternalAPIVersion = "1.0.0"
 	// InternalAPIVersion -- see intapi_changelog.md
@@ -80,8 +78,7 @@ type UIClientAPI interface {
 	// OnSignerStartup is invoked when the signer boots, and tells the UI info about external API location and version
 	// information
 	OnSignerStartup(info StartupInfo)
-	// OnInputRequired is invoked when clef requires user input, for example master password or
-	// pin-code for unlocking hardware wallets
+	// OnInputRequired is invoked when clef requires user input, for example the master password.
 	OnInputRequired(info UserInputRequest) (UserInputResponse, error)
 	// RegisterUIServer tells the UI to use the given UIServerAPI for ui->clef communication
 	RegisterUIServer(api *UIServerAPI)
@@ -260,9 +257,9 @@ func (api *SignerAPI) List(ctx context.Context) ([]common.Address, error) {
 	return addresses, nil
 }
 
-// New creates a new password protected Account. The private key is protected with
-// the given password. Users are responsible to backup the private key that is stored
-// in the keystore location that was specified when this API was created.
+// New creates a new password-protected account. The wallet seed/key material is
+// protected with the given password. Users are responsible for backing up the
+// keystore file in the keystore location specified when this API was created.
 func (api *SignerAPI) New(ctx context.Context) (common.Address, error) {
 	if be := api.am.Backends(keystore.KeyStoreType); len(be) == 0 {
 		return common.Address{}, errors.New("password based accounts not supported")

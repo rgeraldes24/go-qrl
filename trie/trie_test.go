@@ -1185,8 +1185,8 @@ func TestDecodeNode(t *testing.T) {
 	t.Parallel()
 
 	var (
-		hash  = make([]byte, 20)
-		elems = make([]byte, 20)
+		hash  = make([]byte, common.HashLength)
+		elems = make([]byte, common.HashLength)
 	)
 	for range 5000000 {
 		prng.Read(hash)

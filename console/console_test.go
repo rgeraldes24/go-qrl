@@ -38,7 +38,7 @@ import (
 
 const (
 	testInstance = "console-tester"
-	testAddress  = "Q000000000000000000000000000000000000000000000000000000008605cdbbdb6d264aa742e77020dcbc58fcdce182"
+	testAddress  = "Q00000000000000000000000000000000000000000000000000000000000000000000000000000000000000008605cdbbdb6d264aa742e77020dcbc58fcdce182"
 )
 
 // hookedPrompter implements UserPrompter to simulate use input via channels.
@@ -94,7 +94,10 @@ func newTester(t *testing.T, confOverride func(*qrlconfig.Config)) *tester {
 	if err != nil {
 		t.Fatalf("failed to create node: %v", err)
 	}
-	feeRecipient, _ := common.NewAddressFromString(testAddress)
+	feeRecipient, err := common.NewAddressFromString(testAddress)
+	if err != nil {
+		t.Fatalf("invalid test address: %v", err)
+	}
 	qrlConf := &qrlconfig.Config{
 		Genesis: core.DeveloperGenesisBlock(11_500_000, common.Address{}),
 		Miner: miner.Config{

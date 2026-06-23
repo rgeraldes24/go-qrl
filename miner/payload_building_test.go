@@ -134,8 +134,8 @@ func newTestWorker(t *testing.T, chainConfig *params.ChainConfig, engine consens
 
 func TestBuildPayload(t *testing.T) {
 	var (
-		db           = rawdb.NewMemoryDatabase()
-		recipient, _ = common.NewAddressFromString("Q0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000deadbeef")
+		db        = rawdb.NewMemoryDatabase()
+		recipient = mustTestAddress(t, "Q000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000deadbeef")
 	)
 	w, b := newTestWorker(t, params.TestChainConfig, beacon.NewFaker(), db, 0)
 

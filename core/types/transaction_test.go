@@ -35,7 +35,7 @@ import (
 // The values in those tests are from the Transaction Tests
 // at github.com/ethereum/tests.
 var (
-	testAddr, _ = common.NewAddressFromString("Q00000000000000000000000000000000000000000000000000000000b94f5374fce5edbc8e2a8697c15331677e6ebf0b99aabbccddeeff001122334455667788")
+	testAddr = common.MustParseAddress("Q00000000000000000000000000000000000000000000000000000000b94f5374fce5edbc8e2a8697c15331677e6ebf0b99aabbccddeeff001122334455667788")
 
 	emptyEip2718Tx = NewTx(&DynamicFeeTx{
 		ChainID:   big.NewInt(1),
@@ -315,7 +315,7 @@ func TestRecipientNormal(t *testing.T) {
 	// signer reproduces the same address from the signed bytes.
 	w, addr := defaultTestWallet()
 	signer := NewZondSigner(big.NewInt(1))
-	to := common.BytesToAddress([]byte{0xb9, 0x4f, 0x53, 0x74, 0xfc, 0xe5, 0xed, 0xbc, 0x8e, 0x2a, 0x86, 0x97, 0xc1, 0x53, 0x31, 0x67, 0x7e, 0x6e, 0xbf, 0x0b})
+	to := common.BytesToAddress(bytes.Repeat([]byte{0xb9}, common.AddressLength))
 	signed, err := SignNewTx(w, signer, &DynamicFeeTx{
 		ChainID:   big.NewInt(1),
 		Nonce:     3,
@@ -344,10 +344,10 @@ func TestTransactionCoding(t *testing.T) {
 		t.Fatalf("could not generate wallet: %v", err)
 	}
 	var (
-		signer       = NewZondSigner(common.Big1)
-		addr, _      = common.NewAddressFromString("Q00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000199aabbccddeeff001122334455667788")
-		recipient, _ = common.NewAddressFromString("Q00000000000000000000000000000000000000000000000000000000095e7baea6a6c7c4c2dfeb977efac326af552d8799aabbccddeeff001122334455667788")
-		accesses     = AccessList{{Address: addr, StorageKeys: []common.Hash{{0}}}}
+		signer    = NewZondSigner(common.Big1)
+		addr      = common.MustParseAddress("Q00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000199aabbccddeeff001122334455667788")
+		recipient = common.MustParseAddress("Q00000000000000000000000000000000000000000000000000000000095e7baea6a6c7c4c2dfeb977efac326af552d8799aabbccddeeff001122334455667788")
+		accesses  = AccessList{{Address: addr, StorageKeys: []common.Hash{{0}}}}
 	)
 	for i := range uint64(500) {
 		var txdata TxData
@@ -471,7 +471,7 @@ func assertEqual(orig *Transaction, cpy *Transaction) error {
 func TestTransactionSizes(t *testing.T) {
 	signer := NewZondSigner(big.NewInt(123))
 	wallet := testutil.LoadAccount(t, "alice").Wallet(t)
-	to, _ := common.NewAddressFromString("Q00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000199aabbccddeeff001122334455667788")
+	to := common.MustParseAddress("Q00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000199aabbccddeeff001122334455667788")
 	for i, txdata := range []TxData{
 		&DynamicFeeTx{
 			ChainID:   big.NewInt(123),

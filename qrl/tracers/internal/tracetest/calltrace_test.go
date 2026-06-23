@@ -493,9 +493,9 @@ func TestInternals(t *testing.T) {
 		},
 		{
 			// 4byteTracer with inner CALL: the outer call has empty calldata
-			// so it contributes nothing; the inner CALL uses 36 bytes of
+			// so it contributes nothing; the inner CALL uses 68 bytes of
 			// (mostly zero) memory as args, so the tracer keys off the
-			// first four memory bytes and the 32-byte tail length.
+			// first four memory bytes and the 64-byte ABI tail length.
 			name: "FourByteTracer - inner CALL",
 			code: []byte{
 				// MSTORE8 writes the low byte of val at mem[0]. Writing
@@ -505,7 +505,7 @@ func TestInternals(t *testing.T) {
 				byte(vm.MSTORE8),
 				byte(vm.PUSH1), 0x00, // retSize
 				byte(vm.PUSH1), 0x00, // retOffset
-				byte(vm.PUSH1), 0x24, // argSize = 36
+				byte(vm.PUSH1), 0x44, // argSize = 68
 				byte(vm.PUSH1), 0x00, // argOffset
 				byte(vm.PUSH1), 0x00, // value = 0
 				byte(vm.PUSH1), 0xcc, // address 0xcc
@@ -513,7 +513,7 @@ func TestInternals(t *testing.T) {
 				byte(vm.CALL),
 			},
 			tracer: mkTracer("4byteTracer", nil),
-			want:   `{"0xef000000-32":1}`,
+			want:   `{"0xef000000-64":1}`,
 		},
 		{
 			// callTracer withLog: LOG2 with two topics and non-empty data.

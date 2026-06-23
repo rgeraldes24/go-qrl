@@ -567,7 +567,7 @@ func TestMultiReturnWithStringArray(t *testing.T) {
 	}
 	temp, _ := new(big.Int).SetString("30000000000000000000", 10)
 	ret1Exp := [3]*big.Int{big.NewInt(1545304298), big.NewInt(6), temp}
-	ret2Exp, _ := common.NewAddressFromString("Q0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000ab1257528b3782fb40d7ed5f72e624b744dffb2f")
+	ret2Exp := common.MustParseAddress("Q0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000ab1257528b3782fb40d7ed5f72e624b744dffb2f")
 	ret3Exp := [2]string{"Ethereum", "Hello, Ethereum!"}
 	ret4Exp := false
 	packed, err := inAbi.Pack("multi", ret1Exp, ret2Exp, ret3Exp, ret4Exp)
@@ -750,7 +750,7 @@ func TestUnmarshal(t *testing.T) {
 		t.Error("expected Bool to be true")
 	}
 
-	// marshal dynamic bytes, length equal to one slot (32 bytes)
+	// marshal dynamic bytes, length equal to 32 bytes
 	bytesOut := common.RightPadBytes([]byte("hello"), 32)
 	packed, err = inAbi.Pack("bytes", bytesOut)
 	if err != nil {

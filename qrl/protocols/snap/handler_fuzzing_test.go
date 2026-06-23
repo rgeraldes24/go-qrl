@@ -90,7 +90,7 @@ var trieRoot common.Hash
 
 func getChain() *core.BlockChain {
 	ga := make(core.GenesisAlloc, 1000)
-	var a = make([]byte, 20)
+	var a = make([]byte, common.AddressLength)
 	var mkStorage = func(k, v int) (common.Hash, common.StorageValue64) {
 		var kB = make([]byte, 32)
 		var vB = make([]byte, 64)

@@ -160,6 +160,53 @@ func TestTracer(t *testing.T) {
 	}
 }
 
+func TestQRVMDisTracerOpcodeRanges(t *testing.T) {
+	tracer, err := tracers.DefaultDirectory.New("qrvmdisTracer", new(tracers.Context), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	contract := []byte{byte(vm.PUSH33)}
+	contract = append(contract, make([]byte, 32)...)
+	contract = append(contract, 0x01, byte(vm.PUSH1), 0x02, byte(vm.DUP2), byte(vm.SWAP1), byte(vm.STOP))
+
+	ret, err := runTrace(tracer, testCtx(), params.TestChainConfig, contract)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var ops []struct {
+		Op     int      `json:"op"`
+		Len    int      `json:"len"`
+		Result []string `json:"result"`
+	}
+	if err := json.Unmarshal(ret, &ops); err != nil {
+		t.Fatal(err)
+	}
+	if len(ops) != 5 {
+		t.Fatalf("unexpected qrvmdis op count: have %d want 5, result %s", len(ops), ret)
+	}
+	if ops[0].Op != int(vm.PUSH33) || ops[0].Len != 34 || !equalStringSlices(ops[0].Result, []string{"1"}) {
+		t.Fatalf("unexpected PUSH33 trace result: %+v", ops[0])
+	}
+	if ops[2].Op != int(vm.DUP2) || !equalStringSlices(ops[2].Result, []string{"1", "2", "1"}) {
+		t.Fatalf("unexpected DUP2 trace result: %+v", ops[2])
+	}
+	if ops[3].Op != int(vm.SWAP1) || !equalStringSlices(ops[3].Result, []string{"2", "1"}) {
+		t.Fatalf("unexpected SWAP1 trace result: %+v", ops[3])
+	}
+}
+
+func equalStringSlices(a, b []string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+	return true
+}
+
 func TestHalt(t *testing.T) {
 	timeout := errors.New("stahp")
 	tracer, err := newJsTracer("{step: function() { while(1); }, result: function() { return null; }, fault: function(){}}", nil, nil)

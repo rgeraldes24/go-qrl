@@ -1727,7 +1727,7 @@ var toTwosComplement = function (number) {
  * @return {Boolean}
 */
 var isStrictAddress = function (address) {
-    return /^Q[0-9a-f]{128}$/i.test(address);
+    return /^Q[0-9a-fA-F]{128}$/.test(address);
 };
 
 /**
@@ -1738,7 +1738,7 @@ var isStrictAddress = function (address) {
  * @return {Boolean}
 */
 var isAddress = function (address) {
-    return /^Q[0-9a-f]{128}$/i.test(address);
+    return /^Q[0-9a-fA-F]{128}$/.test(address);
 };
 
 /**
@@ -2997,6 +2997,11 @@ var getOptions = function (options, type) {
             options.topics = options.topics.map(function(topic){
                 return (utils.isArray(topic)) ? topic.map(toTopic) : toTopic(topic);
             });
+            if (options.address !== undefined) {
+                options.address = utils.isArray(options.address) ?
+                    options.address.map(formatters.inputAddressFormatter) :
+                    formatters.inputAddressFormatter(options.address);
+            }
 
             return {
                 topics: options.topics,
@@ -3385,8 +3390,6 @@ var outputLogFormatter = function(log) {
 var inputAddressFormatter = function (address) {
     if (utils.isStrictAddress(address)) {
         return address;
-    } else if (utils.isAddress(address)) {
-        return 'Q' + address;
     }
     throw new Error('invalid address');
 };

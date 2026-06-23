@@ -34,7 +34,7 @@ var (
 	// MaxInt256 is the maximum value that can be represented by a int256.
 	MaxInt256 = new(big.Int).Sub(new(big.Int).Lsh(common.Big1, 255), common.Big1)
 	// MaxUint512 is the maximum value that can be represented by a uint512.
-	MaxUint512 = new(big.Int).Sub(new(big.Int).Lsh(common.Big1, 512), common.Big1)
+	MaxUint512 = new(big.Int).Sub(new(big.Int).Lsh(common.Big1, uint512.WordBits), common.Big1)
 )
 
 // ReadInteger reads the integer based on its kind and returns the appropriate value.
@@ -71,9 +71,9 @@ func ReadInteger(typ Type, b []byte) (any, error) {
 	}
 
 	// big.SetBytes can't tell if a number is negative or positive in itself.
-	// Signed integers are sign-extended to fill the full 64-byte ABI slot,
-	// so a value occupies the slot's MSB (bit 511) iff it is negative.
-	if ret.Bit(511) == 1 {
+	// Signed integers are sign-extended to fill the full ABI slot,
+	// so a value occupies the slot's MSB iff it is negative.
+	if ret.Bit(uint512.WordBits-1) == 1 {
 		ret.Add(MaxUint512, new(big.Int).Neg(ret))
 		ret.Add(ret, common.Big1)
 		ret.Neg(ret)
@@ -109,12 +109,12 @@ func ReadInteger(typ Type, b []byte) (any, error) {
 
 // readBool reads a bool.
 func readBool(word []byte) (bool, error) {
-	for _, b := range word[:63] {
+	for _, b := range word[:uint512.WordBytes-1] {
 		if b != 0 {
 			return false, errBadBool
 		}
 	}
-	switch word[63] {
+	switch word[uint512.WordBytes-1] {
 	case 0:
 		return false, nil
 	case 1:
@@ -160,7 +160,7 @@ func forEachUnpack(t Type, output []byte, start, size int) (any, error) {
 	}
 
 	// Arrays have packed elements, resulting in longer unpack steps.
-	// Slices have just 64 bytes per element (pointing to the contents).
+	// Slices have one ABI word per element (pointing to the contents).
 	elemSize := getTypeSize(*t.Elem)
 
 	for i, j := start, 0; j < size; i, j = i+elemSize, j+1 {
@@ -213,8 +213,8 @@ func toGoType(index int, t Type, output []byte) (any, error) {
 	if containsFunctionType(t) {
 		return nil, ErrUnsupportedFunctionType
 	}
-	if index+64 > len(output) {
-		return nil, fmt.Errorf("abi: cannot marshal in to go type: length insufficient %d require %d", len(output), index+64)
+	if index+uint512.WordBytes > len(output) {
+		return nil, fmt.Errorf("abi: cannot marshal in to go type: length insufficient %d require %d", len(output), index+uint512.WordBytes)
 	}
 
 	var (
@@ -230,7 +230,7 @@ func toGoType(index int, t Type, output []byte) (any, error) {
 			return nil, err
 		}
 	} else {
-		returnOutput = output[index : index+64]
+		returnOutput = output[index : index+uint512.WordBytes]
 	}
 
 	switch t.T {
@@ -275,10 +275,10 @@ func toGoType(index int, t Type, output []byte) (any, error) {
 	}
 }
 
-// lengthPrefixPointsTo interprets a 64 byte slice as an offset and then determines which indices to look to decode the type.
+// lengthPrefixPointsTo interprets an ABI word as an offset and then determines which indices to look to decode the type.
 func lengthPrefixPointsTo(index int, output []byte) (start int, length int, err error) {
-	bigOffsetEnd := new(big.Int).SetBytes(output[index : index+64])
-	bigOffsetEnd.Add(bigOffsetEnd, common.Big64)
+	bigOffsetEnd := new(big.Int).SetBytes(output[index : index+uint512.WordBytes])
+	bigOffsetEnd.Add(bigOffsetEnd, big.NewInt(int64(uint512.WordBytes)))
 	outputLength := big.NewInt(int64(len(output)))
 
 	if bigOffsetEnd.Cmp(outputLength) > 0 {
@@ -290,7 +290,7 @@ func lengthPrefixPointsTo(index int, output []byte) (start int, length int, err 
 	}
 
 	offsetEnd := int(bigOffsetEnd.Uint64())
-	lengthBig := new(big.Int).SetBytes(output[offsetEnd-64 : offsetEnd])
+	lengthBig := new(big.Int).SetBytes(output[offsetEnd-uint512.WordBytes : offsetEnd])
 
 	totalSize := new(big.Int).Add(bigOffsetEnd, lengthBig)
 	if totalSize.BitLen() > 63 {
@@ -307,7 +307,7 @@ func lengthPrefixPointsTo(index int, output []byte) (start int, length int, err 
 
 // tuplePointsTo resolves the location reference for dynamic tuple.
 func tuplePointsTo(index int, output []byte) (start int, err error) {
-	offset := new(big.Int).SetBytes(output[index : index+64])
+	offset := new(big.Int).SetBytes(output[index : index+uint512.WordBytes])
 	outputLen := big.NewInt(int64(len(output)))
 
 	if offset.Cmp(outputLen) > 0 {

@@ -181,6 +181,81 @@ JSON.stringify({
 	}
 }
 
+func TestEmbeddedWeb3FilterAddressFormatting(t *testing.T) {
+	t.Parallel()
+
+	re := New("", os.Stdout)
+	defer re.Stop(false)
+
+	if err := re.Compile("bignumber.js", deps.BigNumberJS); err != nil {
+		t.Fatalf("compile bignumber.js: %v", err)
+	}
+	if err := re.Compile("web3.js", deps.Web3JS); err != nil {
+		t.Fatalf("compile web3.js: %v", err)
+	}
+
+	address := "Q00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+	lowerPrefix := "q" + address[1:]
+	script := fmt.Sprintf(`
+var capturedOptions = null;
+var provider = {
+  send: function(payload) {
+    return {jsonrpc: "2.0", id: payload.id, result: null};
+  },
+  sendAsync: function(payload, cb) {
+    if (payload.method === "qrl_newFilter") {
+      capturedOptions = payload.params[0];
+    }
+    cb(null, {jsonrpc: "2.0", id: payload.id, result: "0x1"});
+  },
+  isConnected: function() { return true; }
+};
+var Web3 = require("web3");
+var web3 = new Web3(provider);
+var lowerError = null;
+try {
+  web3._extend.formatters.inputAddressFormatter(%q);
+} catch (err) {
+  lowerError = err.message;
+}
+var filter = web3.qrl.filter({fromBlock: "0x0", toBlock: "latest", address: %q, topics: []});
+JSON.stringify({
+  validUpper: web3.isAddress(%q),
+  validLower: web3.isAddress(%q),
+  lowerError: lowerError,
+  optionAddress: filter.options.address,
+  capturedAddress: capturedOptions.address
+});
+`, lowerPrefix, address, address, lowerPrefix)
+
+	value, err := re.Run(script)
+	if err != nil {
+		t.Fatalf("run filter address script: %v", err)
+	}
+	var got struct {
+		ValidUpper      bool   `json:"validUpper"`
+		ValidLower      bool   `json:"validLower"`
+		LowerError      string `json:"lowerError"`
+		OptionAddress   string `json:"optionAddress"`
+		CapturedAddress string `json:"capturedAddress"`
+	}
+	if err := json.Unmarshal([]byte(value.String()), &got); err != nil {
+		t.Fatalf("decode script result %q: %v", value.String(), err)
+	}
+	if !got.ValidUpper {
+		t.Fatalf("uppercase Q address should be valid")
+	}
+	if got.ValidLower {
+		t.Fatalf("lowercase q address should not pass console validation")
+	}
+	if got.LowerError != "invalid address" {
+		t.Fatalf("lowercase q address formatter error mismatch: have %q", got.LowerError)
+	}
+	if got.OptionAddress != address || got.CapturedAddress != address {
+		t.Fatalf("filter address mismatch: options=%q captured=%q want=%q", got.OptionAddress, got.CapturedAddress, address)
+	}
+}
+
 func TestEmbeddedWeb3UnsupportedWrappersRemoved(t *testing.T) {
 	t.Parallel()
 

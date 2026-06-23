@@ -56,6 +56,12 @@ var (
 	testBalance = new(big.Int).Mul(big.NewInt(200), big.NewInt(params.Quanta))
 )
 
+// Minimal constructor that emits a LOG0 event and deploys a 1-byte STOP
+// runtime. Every opcode (PUSH1, LOG0=0xc0, CODECOPY, RETURN, STOP) is stable
+// across the 512-bit opcode shift, so these tests do not depend on a Solidity
+// recompile.
+const logContractCodeHex = "60006000c06001601160003960016000f300"
+
 func generateChain(n int) (*core.Genesis, []*types.Block) {
 	config := *params.AllBeaconProtocolChanges
 	engine := beaconConsensus.NewFaker()
@@ -72,7 +78,7 @@ func generateChain(n int) (*core.Genesis, []*types.Block) {
 	generate := func(i int, g *core.BlockGen) {
 		g.OffsetTime(5)
 		g.SetExtra([]byte("test"))
-		to, _ := common.NewAddressFromString("Q00000000000000000000000000000000000000000000000000000000000000000000000000000000000000009a9070028361F7AAbeB3f2F2Dc07F82C4a98A02a")
+		to := common.MustParseAddress("Q00000000000000000000000000000000000000000000000000000000000000000000000000000000000000009a9070028361F7AAbeB3f2F2Dc07F82C4a98A02a")
 		tx, _ := types.SignTx(types.NewTx(&types.DynamicFeeTx{
 			Nonce:     testNonce,
 			To:        &to,
@@ -266,11 +272,7 @@ func TestNewBlock(t *testing.T) {
 		api    = NewConsensusAPI(qrlservice)
 		parent = blocks[len(blocks)-1]
 
-		// Minimal constructor that emits a LOG0 event and deploys a 1-byte
-		// STOP runtime. Every opcode (PUSH1, LOG0=0xc0, CODECOPY, RETURN,
-		// STOP) is stable across the 512-bit opcode shift, so the test
-		// does not depend on a Solidity recompile.
-		logCode = common.Hex2Bytes("60006000c06001601160003960016000f300")
+		logCode = common.Hex2Bytes(logContractCodeHex)
 	)
 	// The event channels.
 	newLogCh := make(chan []*types.Log, 10)
@@ -451,9 +453,8 @@ func TestFullAPI(t *testing.T) {
 	n, qrlservice := startQRLService(t, genesis, blocks)
 	defer n.Close()
 	var (
-		parent = qrlservice.BlockChain().CurrentBlock()
-		// This QRVM code generates a log when the contract is created.
-		logCode = common.Hex2Bytes("60606040525b7f24ec1d3ff24c2f6ff210738839dbc339cd45a5294d85c79361016243157aae7b60405180905060405180910390a15b600a8060416000396000f360606040526008565b00")
+		parent  = qrlservice.BlockChain().CurrentBlock()
+		logCode = common.Hex2Bytes(logContractCodeHex)
 	)
 
 	callback := func(parent *types.Header) {
@@ -534,11 +535,10 @@ func TestNewPayloadOnInvalidChain(t *testing.T) {
 	defer n.Close()
 
 	var (
-		api    = NewConsensusAPI(qrlservice)
-		parent = qrlservice.BlockChain().CurrentBlock()
-		signer = types.LatestSigner(qrlservice.BlockChain().Config())
-		// This QRVM code generates a log when the contract is created.
-		logCode = common.Hex2Bytes("60606040525b7f24ec1d3ff24c2f6ff210738839dbc339cd45a5294d85c79361016243157aae7b60405180905060405180910390a15b600a8060416000396000f360606040526008565b00")
+		api     = NewConsensusAPI(qrlservice)
+		parent  = qrlservice.BlockChain().CurrentBlock()
+		signer  = types.LatestSigner(qrlservice.BlockChain().Config())
+		logCode = common.Hex2Bytes(logContractCodeHex)
 	)
 	for i := range 10 {
 		statedb, _ := qrlservice.BlockChain().StateAt(parent.Root)
@@ -1110,9 +1110,8 @@ func setupBodies(t *testing.T) (*node.Node, *qrl.QRL, []*types.Block) {
 	n, qrlservice := startQRLService(t, genesis, blocks)
 
 	var (
-		parent = qrlservice.BlockChain().CurrentBlock()
-		// This QRVM code generates a log when the contract is created.
-		logCode = common.Hex2Bytes("60606040525b7f24ec1d3ff24c2f6ff210738839dbc339cd45a5294d85c79361016243157aae7b60405180905060405180910390a15b600a8060416000396000f360606040526008565b00")
+		parent  = qrlservice.BlockChain().CurrentBlock()
+		logCode = common.Hex2Bytes(logContractCodeHex)
 	)
 
 	callback := func(parent *types.Header) {
@@ -1133,7 +1132,7 @@ func setupBodies(t *testing.T) (*node.Node, *qrl.QRL, []*types.Block) {
 	withdrawals[0] = nil // should be filtered out by miner
 	withdrawals[1] = make([]*types.Withdrawal, 0)
 	for i := 2; i < len(withdrawals); i++ {
-		addr := make([]byte, 20)
+		addr := make([]byte, common.AddressLength)
 		crand.Read(addr)
 		withdrawals[i] = []*types.Withdrawal{
 			{Index: rand.Uint64(), Validator: rand.Uint64(), Amount: rand.Uint64(), Address: common.BytesToAddress(addr)},
