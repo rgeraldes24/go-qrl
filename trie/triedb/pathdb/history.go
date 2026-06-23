@@ -170,7 +170,7 @@ func (i *accountIndex) decode(blob []byte) {
 // slotIndex describes the metadata belonging to a storage slot.
 type slotIndex struct {
 	hash   common.Hash // The hash of slot key
-	length uint8       // The length of storage slot value, up to 64 bytes defined in protocol
+	length uint8       // The length of serialized storage slot payload
 	offset uint32      // The offset of item in storage slot data table
 }
 

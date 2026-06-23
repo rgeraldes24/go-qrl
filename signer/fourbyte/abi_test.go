@@ -25,6 +25,7 @@ import (
 
 	"github.com/theQRL/go-qrl/accounts/abi"
 	"github.com/theQRL/go-qrl/common"
+	"github.com/theQRL/go-qrl/common/uint512"
 )
 
 // mustPack packs the given ABI method using the provided JSON spec and returns
@@ -41,6 +42,18 @@ func mustPack(t *testing.T, jsondata, name string, args ...any) string {
 		t.Fatal(err)
 	}
 	return hex.EncodeToString(packed)
+}
+
+func fullTestAddress(seed byte) common.Address {
+	var addr common.Address
+	for i := range addr {
+		addr[i] = seed + byte(i)
+	}
+	return addr
+}
+
+func abiWordHex(hexValue string) string {
+	return common.Bytes2Hex(common.LeftPadBytes(common.FromHex(hexValue), uint512.WordBytes))
 }
 
 func verify(t *testing.T, jsondata, calldata string, exp []any) {
@@ -75,8 +88,7 @@ func TestNewUnpacker(t *testing.T) {
 		calldata string
 		exp      []any
 	}
-	addrRaw, _ := hex.DecodeString("00000133700000deadbeef00000000000000000000000133700000deadbeef0000000000000000000011223344556677")
-	address := common.BytesToAddress(addrRaw)
+	address := fullTestAddress(0x10)
 
 	const (
 		specF                 = `[{"type":"function","name":"f", "inputs":[{"type":"uint256"},{"type":"uint32[]"},{"type":"bytes10"},{"type":"bytes"}]}]`
@@ -137,13 +149,13 @@ func TestCalldataDecoding(t *testing.T) {
 	// abi.Pack, then derive the corresponding failure cases (truncations,
 	// illegal bool values, mis-aligned lengths) by mutating those payloads.
 	const (
-		sendSpec              = `[{"type":"function","name":"send","inputs":[{"name":"a","type":"uint256"}]}]`
-		compareSpec           = `[{"type":"function","name":"compareAndApprove","inputs":[{"name":"a","type":"address"},{"name":"a","type":"uint256"},{"name":"a","type":"uint256"}]}]`
-		issueSpec             = `[{"type":"function","name":"issue","inputs":[{"name":"a","type":"address[]"},{"name":"a","type":"uint256"}]}]`
-		samSpec               = `[{"type":"function","name":"sam","inputs":[{"name":"a","type":"bytes"},{"name":"a","type":"bool"},{"name":"a","type":"uint256[]"}]}]`
+		sendSpec    = `[{"type":"function","name":"send","inputs":[{"name":"a","type":"uint256"}]}]`
+		compareSpec = `[{"type":"function","name":"compareAndApprove","inputs":[{"name":"a","type":"address"},{"name":"a","type":"uint256"},{"name":"a","type":"uint256"}]}]`
+		issueSpec   = `[{"type":"function","name":"issue","inputs":[{"name":"a","type":"address[]"},{"name":"a","type":"uint256"}]}]`
+		samSpec     = `[{"type":"function","name":"sam","inputs":[{"name":"a","type":"bytes"},{"name":"a","type":"bool"},{"name":"a","type":"uint256[]"}]}]`
 	)
-	addrA := common.Address{0xde, 0xad}
-	addrB := common.Address{0xbe, 0xef}
+	addrA := fullTestAddress(0x20)
+	addrB := fullTestAddress(0x80)
 
 	sendOK := mustPack(t, sendSpec, "send", big.NewInt(0x12))
 	compareOK := mustPack(t, compareSpec, "compareAndApprove", common.Address{}, big.NewInt(0), big.NewInt(0))
@@ -152,23 +164,23 @@ func TestCalldataDecoding(t *testing.T) {
 	// Tamper the bool slot in samOK to an illegal value (0x11) to produce a
 	// decoder failure. samOK layout: 4-byte selector + [bytes offset][bool][uint256[] offset]...
 	// The second head slot (bytes 132..260 of the hex, i.e. 8 + 128..8 + 256) is the bool.
-	samBadBool := samOK[:8+128] + "00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000011" + samOK[8+256+128:]
+	samBadBool := samOK[:8+128] + abiWordHex("11") + samOK[8+256:]
 
 	// Expected failures
 	for i, hexdata := range []string{
-		sendOK + "0000000000000000000000000000000000000000000000000000000000000042", // extra trailing bytes
-		sendOK + "00", // extra single byte
-		sendOK[:len(sendOK)-2], // truncated final byte
-		sendOK[:8],     // selector only
+		sendOK + abiWordHex("42"), // extra aligned trailing word
+		sendOK + "00",             // extra single byte
+		sendOK[:len(sendOK)-2],    // truncated final byte
+		sendOK[:8],                // selector only
 		"a52c10",
 		"",
 		// Too short
-		"751e10790000000000000000000000000000000000000000000000000000000000000012",
+		"751e1079" + abiWordHex("12"),
 		"751e1079FFffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
 		// Not valid multiple of 64-byte slot width
 		"deadbeef" + "00000000000000000000000000000000000000000000000000000000000000",
 		// Too short 'issue'
-		"42958b54" + "00000000000000000000000000000000000000000000000000000000000000120000000000000000000000000000000000000000000000000000000000000042",
+		"42958b54" + abiWordHex("12") + abiWordHex("42"),
 		// Too short compareAndApprove (2 slots of 64 bytes instead of 3)
 		"751e1079" +
 			"00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000" +
@@ -205,7 +217,7 @@ func TestMaliciousABIStrings(t *testing.T) {
 		"func(uint256,uint256,uint256,)",
 		"func(,uint256,uint256,uint256)",
 	}
-	data := common.Hex2Bytes("4401a6e40000000000000000000000000000000000000000000000000000000000000012")
+	data := common.Hex2Bytes("4401a6e4" + abiWordHex("12"))
 	for i, tt := range tests {
 		_, err := verifySelector(tt, data)
 		if err == nil {

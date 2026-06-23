@@ -619,8 +619,8 @@ var formatOutputString = function (param) {
  * Should be used to format output address
  *
  * @method formatOutputAddress
- * @param {HyperionParam} right-aligned input bytes
- * @returns {String} address
+ * @param {HyperionParam} ABI word containing a 64-byte address
+ * @returns {String} checksummed Q-address
  */
 var formatOutputAddress = function (param) {
     var value = param.staticPart();

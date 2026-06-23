@@ -617,6 +617,7 @@ web3._extend({
 			name: 'contentFrom',
 			call: 'txpool_contentFrom',
 			params: 1,
+			inputFormatter: [web3._extend.formatters.inputAddressFormatter],
 		}),
 	]
 });

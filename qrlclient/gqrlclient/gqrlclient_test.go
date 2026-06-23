@@ -42,8 +42,8 @@ var (
 	testWallet   = testutil.MustLoadAccount("alice").MustWallet()
 	testAddr     = testWallet.GetAddress()
 	zeroAddr     = common.Address{}
-	testContract = common.BytesToAddress(common.FromHex("000000000000000000000000000000000000beef000000000000000000000000000000000000beef11223344556677"))
-	testEmpty    = common.BytesToAddress(common.FromHex("000000000000000000000000000000000000eeee000000000000000000000000000000000000eeee11223344556677"))
+	testContract = common.BytesToAddress(bytes.Repeat([]byte{0xbe}, common.AddressLength))
+	testEmpty    = common.BytesToAddress(bytes.Repeat([]byte{0xee}, common.AddressLength))
 	testSlot     = common.HexToHash("0xdeadbeef")
 	testValue    = common.BytesToStorageValue64(bytes.Repeat([]byte{0x42}, common.StorageValue64Length))
 	testBalance  = big.NewInt(2e18)
@@ -302,7 +302,7 @@ func testGetProofCanonicalizeKeys(t *testing.T, client *rpc.Client) {
 }
 
 func testGetProofNonExistent(t *testing.T, client *rpc.Client) {
-	addr := common.MustParseAddress("Q00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001")
+	addr := common.MustParseAddress("Q0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef")
 	ec := New(client)
 	result, err := ec.GetProof(t.Context(), addr, nil, nil)
 	if err != nil {

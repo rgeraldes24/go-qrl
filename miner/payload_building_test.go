@@ -135,7 +135,7 @@ func newTestWorker(t *testing.T, chainConfig *params.ChainConfig, engine consens
 func TestBuildPayload(t *testing.T) {
 	var (
 		db        = rawdb.NewMemoryDatabase()
-		recipient = mustTestAddress(t, "Q000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000deadbeef")
+		recipient = mustTestAddress(t, "Q0123456789ABcDEf0123456789abcDEF0123456789aBcdEF0123456789AbcDEf0123456789ABCDEF0123456789aBCDef0123456789ABCdeF0123456789ABCDEF")
 	)
 	w, b := newTestWorker(t, params.TestChainConfig, beacon.NewFaker(), db, 0)
 
@@ -185,48 +185,50 @@ func TestBuildPayload(t *testing.T) {
 
 func TestPayloadId(t *testing.T) {
 	t.Parallel()
+	feeRecipientA := fullTestAddress(0x10)
+	feeRecipientB := fullTestAddress(0x80)
 	ids := make(map[string]int)
 	for i, tt := range []*BuildPayloadArgs{
 		{
 			Parent:       common.Hash{1},
 			Timestamp:    1,
 			Random:       common.Hash{0x1},
-			FeeRecipient: common.Address{0x1},
+			FeeRecipient: feeRecipientA,
 		},
 		// Different parent
 		{
 			Parent:       common.Hash{2},
 			Timestamp:    1,
 			Random:       common.Hash{0x1},
-			FeeRecipient: common.Address{0x1},
+			FeeRecipient: feeRecipientA,
 		},
 		// Different timestamp
 		{
 			Parent:       common.Hash{2},
 			Timestamp:    2,
 			Random:       common.Hash{0x1},
-			FeeRecipient: common.Address{0x1},
+			FeeRecipient: feeRecipientA,
 		},
 		// Different Random
 		{
 			Parent:       common.Hash{2},
 			Timestamp:    2,
 			Random:       common.Hash{0x2},
-			FeeRecipient: common.Address{0x1},
+			FeeRecipient: feeRecipientA,
 		},
 		// Different fee-recipient
 		{
 			Parent:       common.Hash{2},
 			Timestamp:    2,
 			Random:       common.Hash{0x2},
-			FeeRecipient: common.Address{0x2},
+			FeeRecipient: feeRecipientB,
 		},
 		// Different withdrawals (non-empty)
 		{
 			Parent:       common.Hash{2},
 			Timestamp:    2,
 			Random:       common.Hash{0x2},
-			FeeRecipient: common.Address{0x2},
+			FeeRecipient: feeRecipientB,
 			Withdrawals: []*types.Withdrawal{
 				{
 					Index:     0,
@@ -241,7 +243,7 @@ func TestPayloadId(t *testing.T) {
 			Parent:       common.Hash{2},
 			Timestamp:    2,
 			Random:       common.Hash{0x2},
-			FeeRecipient: common.Address{0x2},
+			FeeRecipient: feeRecipientB,
 			Withdrawals: []*types.Withdrawal{
 				{
 					Index:     2,
@@ -258,4 +260,12 @@ func TestPayloadId(t *testing.T) {
 		}
 		ids[id] = i
 	}
+}
+
+func fullTestAddress(seed byte) common.Address {
+	var addr common.Address
+	for i := range addr {
+		addr[i] = seed + byte(i)
+	}
+	return addr
 }

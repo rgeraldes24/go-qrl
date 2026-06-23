@@ -30,6 +30,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"github.com/theQRL/go-qrl/common"
+	"github.com/theQRL/go-qrl/common/uint512"
 )
 
 func BenchmarkUnpack(b *testing.B) {
@@ -39,14 +40,14 @@ func BenchmarkUnpack(b *testing.B) {
 	}{
 		{
 			def:    `[{"type": "uint32"}]`,
-			packed: "0000000000000000000000000000000000000000000000000000000000000001",
+			packed: abiWord("01"),
 		},
 		{
 			def: `[{"type": "uint32[]"}]`,
-			packed: "0000000000000000000000000000000000000000000000000000000000000020" +
-				"0000000000000000000000000000000000000000000000000000000000000002" +
-				"0000000000000000000000000000000000000000000000000000000000000001" +
-				"0000000000000000000000000000000000000000000000000000000000000002",
+			packed: abiWord("40") +
+				abiWord("02") +
+				abiWord("01") +
+				abiWord("02"),
 		},
 	}
 	for i, test := range testCases {
@@ -62,8 +63,15 @@ func BenchmarkUnpack(b *testing.B) {
 			}
 
 			var result any
+			if _, err := abi.Unpack("method", encb); err != nil {
+				b.Fatalf("invalid packed fixture %s: %v", test.packed, err)
+			}
+			b.ResetTimer()
 			for b.Loop() {
-				result, _ = abi.Unpack("method", encb)
+				result, err = abi.Unpack("method", encb)
+				if err != nil {
+					b.Fatal(err)
+				}
 			}
 			_ = result
 		})
@@ -156,6 +164,13 @@ func (test unpackTest) checkError(err error) error {
 // z32 is a 32-byte (64 hex chars) zero prefix used to left-pad the legacy
 // 32-byte slot hex fixtures below to the 64-byte slot width.
 const z32 = "0000000000000000000000000000000000000000000000000000000000000000"
+
+func abiWord(hexValue string) string {
+	if len(hexValue) > 2*uint512.WordBytes {
+		panic("abi test word is too wide")
+	}
+	return strings.Repeat("0", 2*uint512.WordBytes-len(hexValue)) + hexValue
+}
 
 var unpackTests = []unpackTest{
 	// Bools
@@ -1082,53 +1097,53 @@ func TestOOMMaliciousInput(t *testing.T) {
 	oomTests := []unpackTest{
 		{
 			def: `[{"type": "uint8[]"}]`,
-			enc: "0000000000000000000000000000000000000000000000000000000000000020" + // offset
-				"0000000000000000000000000000000000000000000000000000000000000003" + // num elems
-				"0000000000000000000000000000000000000000000000000000000000000001" + // elem 1
-				"0000000000000000000000000000000000000000000000000000000000000002", // elem 2
+			enc: abiWord("40") + // offset
+				abiWord("03") + // num elems
+				abiWord("01") + // elem 1
+				abiWord("02"), // elem 2
 		},
 		{ // Length larger than 64 bits
 			def: `[{"type": "uint8[]"}]`,
-			enc: "0000000000000000000000000000000000000000000000000000000000000020" + // offset
-				"00ffffffffffffffffffffffffffffffffffffffffffffff0000000000000002" + // num elems
-				"0000000000000000000000000000000000000000000000000000000000000001" + // elem 1
-				"0000000000000000000000000000000000000000000000000000000000000002", // elem 2
+			enc: abiWord("40") + // offset
+				abiWord("010000000000000000") + // num elems
+				abiWord("01") + // elem 1
+				abiWord("02"), // elem 2
 		},
 		{ // Offset very large (over 64 bits)
 			def: `[{"type": "uint8[]"}]`,
-			enc: "00ffffffffffffffffffffffffffffffffffffffffffffff0000000000000020" + // offset
-				"0000000000000000000000000000000000000000000000000000000000000002" + // num elems
-				"0000000000000000000000000000000000000000000000000000000000000001" + // elem 1
-				"0000000000000000000000000000000000000000000000000000000000000002", // elem 2
+			enc: abiWord("010000000000000000") + // offset
+				abiWord("02") + // num elems
+				abiWord("01") + // elem 1
+				abiWord("02"), // elem 2
 		},
 		{ // Offset very large (below 64 bits)
 			def: `[{"type": "uint8[]"}]`,
-			enc: "0000000000000000000000000000000000000000000000007ffffffffff00020" + // offset
-				"0000000000000000000000000000000000000000000000000000000000000002" + // num elems
-				"0000000000000000000000000000000000000000000000000000000000000001" + // elem 1
-				"0000000000000000000000000000000000000000000000000000000000000002", // elem 2
+			enc: abiWord("7ffffffffff00020") + // offset
+				abiWord("02") + // num elems
+				abiWord("01") + // elem 1
+				abiWord("02"), // elem 2
 		},
-		{ // Offset negative (as 64 bit)
+		{ // Offset greater than max int64
 			def: `[{"type": "uint8[]"}]`,
-			enc: "000000000000000000000000000000000000000000000000f000000000000020" + // offset
-				"0000000000000000000000000000000000000000000000000000000000000002" + // num elems
-				"0000000000000000000000000000000000000000000000000000000000000001" + // elem 1
-				"0000000000000000000000000000000000000000000000000000000000000002", // elem 2
+			enc: abiWord("f000000000000020") + // offset
+				abiWord("02") + // num elems
+				abiWord("01") + // elem 1
+				abiWord("02"), // elem 2
 		},
 
-		{ // Negative length
+		{ // Length greater than max int64
 			def: `[{"type": "uint8[]"}]`,
-			enc: "0000000000000000000000000000000000000000000000000000000000000020" + // offset
-				"000000000000000000000000000000000000000000000000f000000000000002" + // num elems
-				"0000000000000000000000000000000000000000000000000000000000000001" + // elem 1
-				"0000000000000000000000000000000000000000000000000000000000000002", // elem 2
+			enc: abiWord("40") + // offset
+				abiWord("f000000000000002") + // num elems
+				abiWord("01") + // elem 1
+				abiWord("02"), // elem 2
 		},
 		{ // Very large length
 			def: `[{"type": "uint8[]"}]`,
-			enc: "0000000000000000000000000000000000000000000000000000000000000020" + // offset
-				"0000000000000000000000000000000000000000000000007fffffffff000002" + // num elems
-				"0000000000000000000000000000000000000000000000000000000000000001" + // elem 1
-				"0000000000000000000000000000000000000000000000000000000000000002", // elem 2
+			enc: abiWord("40") + // offset
+				abiWord("7fffffffff000002") + // num elems
+				abiWord("01") + // elem 1
+				abiWord("02"), // elem 2
 		},
 	}
 	for i, test := range oomTests {

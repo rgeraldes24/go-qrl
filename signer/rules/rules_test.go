@@ -73,6 +73,12 @@ func mixAddr(a string) (*common.MixedcaseAddress, error) {
 	return common.NewMixedcaseAddressFromString(a)
 }
 
+const (
+	ruleApproveAddr  = "Q0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+	ruleRejectAddr   = "Qfedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210"
+	ruleSignDataAddr = "Qaabbccddeeff0011aabbccddeeff0011aabbccddeeff0011aabbccddeeff0011aabbccddeeff0011aabbccddeeff0011aabbccddeeff0011aabbccddeeff0011"
+)
+
 type alwaysDenyUI struct{}
 
 func (alwaysDenyUI) OnInputRequired(info core.UserInputRequest) (core.UserInputResponse, error) {
@@ -128,9 +134,12 @@ func TestListRequest(t *testing.T) {
 	accs := make([]accounts.Account, 5)
 
 	for i := range accs {
-		addr := fmt.Sprintf("000000000000000000000000000000000000000%x", i)
+		var addr common.Address
+		for j := range addr {
+			addr[j] = byte(i + 1)
+		}
 		acc := accounts.Account{
-			Address: common.BytesToAddress(common.Hex2Bytes(addr)),
+			Address: addr,
 			URL:     accounts.URL{Scheme: "test", Path: fmt.Sprintf("acc-%d", i)},
 		}
 		accs[i] = acc
@@ -154,27 +163,27 @@ func TestListRequest(t *testing.T) {
 
 func TestSignTxRequest(t *testing.T) {
 	t.Parallel()
-	js := `
-	function ApproveTx(r){
-		console.log("transaction.from", r.transaction.from);
-		console.log("transaction.to", r.transaction.to);
-		console.log("transaction.value", r.transaction.value);
-		console.log("transaction.nonce", r.transaction.nonce);
-		if(r.transaction.from.toLowerCase()=="q00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001337"){ return "Approve"}
-		if(r.transaction.from.toLowerCase()=="q0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000dead"){ return "Reject"}
-	}`
+	js := fmt.Sprintf(`
+		function ApproveTx(r){
+			console.log("transaction.from", r.transaction.from);
+			console.log("transaction.to", r.transaction.to);
+			console.log("transaction.value", r.transaction.value);
+			console.log("transaction.nonce", r.transaction.nonce);
+			if(r.transaction.from.toLowerCase()=="%s"){ return "Approve"}
+			if(r.transaction.from.toLowerCase()=="%s"){ return "Reject"}
+		}`, strings.ToLower(ruleApproveAddr), strings.ToLower(ruleRejectAddr))
 
 	r, err := initRuleEngine(js)
 	if err != nil {
 		t.Errorf("Couldn't create evaluator %v", err)
 		return
 	}
-	to, err := mixAddr("Q0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000dead")
+	to, err := mixAddr(ruleRejectAddr)
 	if err != nil {
 		t.Error(err)
 		return
 	}
-	from, err := mixAddr("Q00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001337")
+	from, err := mixAddr(ruleApproveAddr)
 
 	if err != nil {
 		t.Error(err)
@@ -423,8 +432,8 @@ const ExampleTxWindow = `
 `
 
 func dummyTx(value hexutil.Big) *core.SignTxRequest {
-	to, _ := mixAddr("Q0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000dead")
-	from, _ := mixAddr("Q0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000dead")
+	to, _ := mixAddr(ruleRejectAddr)
+	from, _ := mixAddr(ruleRejectAddr)
 	n := hexutil.Uint64(3)
 	gas := hexutil.Uint64(21000)
 	maxFeePerGas := hexutil.Big(*big.NewInt(2000000))
@@ -452,7 +461,7 @@ func dummyTxWithV(value uint64) *core.SignTxRequest {
 }
 
 func dummySigned(value *big.Int) *types.Transaction {
-	to := common.MustParseAddress("Q0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000dead")
+	to := common.MustParseAddress(ruleRejectAddr)
 	gas := uint64(21000)
 	gasFeeCap := big.NewInt(2000000)
 	data := make([]byte, 0)
@@ -586,11 +595,11 @@ func TestContextIsCleared(t *testing.T) {
 
 func TestSignData(t *testing.T) {
 	t.Parallel()
-	js := `function ApproveListing(){
+	js := fmt.Sprintf(`function ApproveListing(){
     return "Approve"
 }
 function ApproveSignData(r){
-    if( r.address.toLowerCase() == "q0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000694267f14675d7e1b9494fd8d72fefe1755710fa")
+    if( r.address.toLowerCase() == "%s")
     {
         if(r.messages[0].value.indexOf("bazonk") >= 0){
             return "Approve"
@@ -598,7 +607,7 @@ function ApproveSignData(r){
         return "Reject"
     }
     // Otherwise goes to manual processing
-}`
+}`, strings.ToLower(ruleSignDataAddr))
 	r, err := initRuleEngine(js)
 	if err != nil {
 		t.Errorf("Couldn't create evaluator %v", err)
@@ -606,7 +615,7 @@ function ApproveSignData(r){
 	}
 	message := "baz bazonk foo"
 	hash, rawdata := accounts.TextAndHash([]byte(message))
-	addr, _ := mixAddr("Q0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000694267f14675d7e1b9494fd8d72fefe1755710fa")
+	addr, _ := mixAddr(ruleSignDataAddr)
 
 	t.Logf("address %v %v\n", addr.String(), addr.Original())
 

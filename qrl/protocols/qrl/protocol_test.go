@@ -141,9 +141,8 @@ func TestMessages(t *testing.T) {
 		Extra:           []byte{0x77, 0x88},
 		WithdrawalsHash: &withdrawalsHash,
 	}
-	// Init the transactions by freshly signing them — the original hex
-	// blobs were for 20-byte addresses, and we only need the txs to
-	// exercise qrl-protocol message encoding below.
+	// Init the transactions by freshly signing them. This test only needs
+	// valid transactions to exercise qrl-protocol message encoding below.
 	{
 		genWallet, werr := wallet.Generate(wallet.ML_DSA_87)
 		if werr != nil {

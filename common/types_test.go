@@ -170,7 +170,7 @@ func TestAddressHexQIP55Checksum(t *testing.T) {
 }
 
 func BenchmarkAddressHex(b *testing.B) {
-	testAddr := MustParseAddress("Q" + strings.Repeat("0", 88) + "5aaeb6053f3e94c9b9a09f33669435e7ef1beaed")
+	testAddr := MustParseAddress("Q0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef")
 	for b.Loop() {
 		testAddr.Hex()
 	}
@@ -414,20 +414,14 @@ func TestAddress_Value(t *testing.T) {
 }
 
 func TestAddress_Format(t *testing.T) {
-	b := []byte{
-		0xb2, 0x6f, 0x2b, 0x34, 0x2a, 0xab, 0x24, 0xbc, 0xf6, 0x3e,
-		0xa2, 0x18, 0xc6, 0xa9, 0x27, 0x4d, 0x30, 0xab, 0x9a, 0x15,
-	}
+	const rawHex = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+	b := Hex2Bytes(rawHex)
 	var addr Address
 	addr.SetBytes(b)
 
-	// The 20-byte seed is right-aligned in the 64-byte Address, so the
-	// canonical forms carry a 44-byte (88 hex char) zero prefix before the
-	// familiar suffix.
 	const (
-		suffixLow  = "b26f2b342aab24bcf63ea218c6a9274d30ab9a15"
-		suffixUp   = "B26F2B342AAB24BCF63EA218C6A9274D30AB9A15"
-		zeroPrefix = "0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+		rawHexLow = rawHex
+		rawHexUp  = "0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF"
 	)
 	checksum := addr.Hex()
 
@@ -463,17 +457,17 @@ func TestAddress_Format(t *testing.T) {
 		{
 			name: "printf-x",
 			out:  fmt.Sprintf("%x", addr),
-			want: zeroPrefix + suffixLow,
+			want: rawHexLow,
 		},
 		{
 			name: "printf-X",
 			out:  fmt.Sprintf("%X", addr),
-			want: zeroPrefix + suffixUp,
+			want: rawHexUp,
 		},
 		{
 			name: "printf-#x",
 			out:  fmt.Sprintf("%#x", addr),
-			want: "Q" + zeroPrefix + suffixLow,
+			want: "Q" + rawHexLow,
 		},
 		{
 			name: "printf-v",
@@ -490,7 +484,7 @@ func TestAddress_Format(t *testing.T) {
 		{
 			name: "printf-t",
 			out:  fmt.Sprintf("%t", addr),
-			want: "%!t(address=" + zeroPrefix + suffixLow + ")",
+			want: "%!t(address=" + rawHexLow + ")",
 		},
 	}
 	for _, tt := range tests {

@@ -57,8 +57,8 @@ const (
 	maxRequestSize = 512 * 1024
 
 	// storageRangeEntrySize is the pessimistic size of one storage range result:
-	// a 32-byte storage key and a 64-byte storage value.
-	storageRangeEntrySize = common.HashLength + common.StorageValue64Length
+	// a 32-byte storage key and an RLP-encoded full-width 64-byte storage value.
+	storageRangeEntrySize = common.HashLength + common.StorageValue64Length + 2
 
 	// maxCodeRequestCount is the maximum number of bytecode blobs to request in a
 	// single query. If this number is too low, we're not filling responses fully
@@ -1977,8 +1977,8 @@ func (s *Syncer) processStorageResponse(res *storageResponse) {
 					}
 					// If the number of slots remaining is low, decrease the
 					// number of chunks. Somewhere on the order of 5K slots fit
-					// into a packet of 500KB. A key/value pair is maximum 96
-					// bytes, so pessimistically maxRequestSize/96 = 5K.
+					// into a packet of 500KB. A key/value pair is maximum 98
+					// bytes, so pessimistically maxRequestSize/98 = 5K.
 					//
 					// Chunk so that at least 2 packets are needed to fill a task.
 					if estimate, err := estimateRemainingSlots(len(keys), lastKey); err == nil {
