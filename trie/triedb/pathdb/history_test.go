@@ -41,7 +41,7 @@ func randomStateSet(n int) *triestate.Set {
 		addr := testutil.RandomAddress()
 		storages[addr] = make(map[common.Hash][]byte)
 		for range 3 {
-			v, _ := rlp.EncodeToBytes(common.TrimLeftZeroes(testutil.RandBytes(32)))
+			v, _ := rlp.EncodeToBytes(common.TrimLeftZeroes(testutil.RandBytes(common.StorageValue64Length)))
 			storages[addr][testutil.RandomHash()] = v
 		}
 		account := generateAccount(types.EmptyRootHash)

@@ -1029,6 +1029,23 @@ func TestABI_EventById(t *testing.T) {
 			t.Errorf("Event id %s does not match topic %s, test #%d", event.ID.Hex(), topicID.Hex(), testnum)
 		}
 
+		topic0 := common.BytesToEventSignatureLogTopic(topicID.Bytes())
+		topicEvent, err := abi.EventByTopic(topic0)
+		if err != nil {
+			t.Fatalf("Failed to look up ABI event by topic: %v, test #%d", err, testnum)
+		}
+		if topicEvent == nil {
+			t.Errorf("We should find an event for topic %s, test #%d", topic0.Hex(), testnum)
+		} else if topicEvent.Topic() != topic0 {
+			t.Errorf("Event topic %s does not match topic %s, test #%d", topicEvent.Topic().Hex(), topic0.Hex(), testnum)
+		}
+
+		malformedTopic := topic0
+		malformedTopic[0] = 0x01
+		if malformedEvent, err := abi.EventByTopic(malformedTopic); err == nil {
+			t.Errorf("EventByTopic should reject malformed topic %s, matched %v, test #%d", malformedTopic.Hex(), malformedEvent, testnum)
+		}
+
 		unknowntopicID := crypto.Keccak256Hash([]byte("unknownEvent"))
 		unknownEvent, err := abi.EventByID(unknowntopicID)
 		if err == nil {
@@ -1036,6 +1053,15 @@ func TestABI_EventById(t *testing.T) {
 		}
 		if unknownEvent != nil {
 			t.Errorf("We should not find any event for topic %s, test #%d", unknowntopicID.Hex(), testnum)
+		}
+
+		unknownTopic := common.BytesToEventSignatureLogTopic(unknowntopicID.Bytes())
+		unknownTopicEvent, err := abi.EventByTopic(unknownTopic)
+		if err == nil {
+			t.Errorf("EventByTopic should return an error if a topic is not found, test #%d", testnum)
+		}
+		if unknownTopicEvent != nil {
+			t.Errorf("We should not find any event for topic %s, test #%d", unknownTopic.Hex(), testnum)
 		}
 	}
 }

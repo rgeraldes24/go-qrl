@@ -137,8 +137,8 @@ func TestByteOp(t *testing.T) {
 
 func TestSHL(t *testing.T) {
 	// SHL on the 512-bit VM word: the shift limit is 512 and shifts that
-	// previously wrapped past the 256-bit boundary now settle in the upper
-	// half of the word, so the 64-byte expected values expose the full
+	// previously wrapped past the legacy 32-byte word boundary now settle in
+	// the upper half of the word, so the 64-byte expected values expose the full
 	// 512-bit result.
 	tests := []TwoOperandTestcase{
 		{"0000000000000000000000000000000000000000000000000000000000000001", "01", "00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000002"},
@@ -220,7 +220,7 @@ func TestAddMod(t *testing.T) {
 		},
 	}
 	// x + y = 0x1fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffd
-	// in 256 bit repr, fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffd
+	// modulo z, this reduces to fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffe.
 
 	for i, test := range tests {
 		x := new(uint512.Int).SetBytes(common.Hex2Bytes(test.x))

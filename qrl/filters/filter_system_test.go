@@ -23,6 +23,7 @@ import (
 	"math/rand"
 	"reflect"
 	"runtime"
+	"strings"
 	"testing"
 	"time"
 
@@ -479,9 +480,9 @@ func TestLogFilter(t *testing.T) {
 		secondAddr   = common.MustParseAddress("Q22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222")
 		thirdAddr    = common.MustParseAddress("Q33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333")
 		notUsedAddr  = common.MustParseAddress("Q99999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999")
-		firstTopic   = common.HexToLogTopic("0x1111111111111111111111111111111111111111111111111111111111111111")
-		secondTopic  = common.HexToLogTopic("0x2222222222222222222222222222222222222222222222222222222222222222")
-		notUsedTopic = common.HexToLogTopic("0x9999999999999999999999999999999999999999999999999999999999999999")
+		firstTopic   = common.HexToLogTopic("0x" + strings.Repeat("11", common.LogTopicLength))
+		secondTopic  = common.HexToLogTopic("0x" + strings.Repeat("22", common.LogTopicLength))
+		notUsedTopic = common.HexToLogTopic("0x" + strings.Repeat("99", common.LogTopicLength))
 
 		// posted twice, once as regular logs and once as pending logs.
 		allLogs = []*types.Log{

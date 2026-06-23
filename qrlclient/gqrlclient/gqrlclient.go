@@ -78,46 +78,13 @@ type StorageResult struct {
 	Proof []string `json:"proof"`
 }
 
-type storageValue64Quantity common.StorageValue64
-
-func (q *storageValue64Quantity) UnmarshalJSON(input []byte) error {
-	if len(input) < 2 || input[0] != '"' || input[len(input)-1] != '"' {
-		return fmt.Errorf("storage value must be a JSON string")
-	}
-	raw := string(input[1 : len(input)-1])
-	if len(raw) < 2 || (raw[:2] != "0x" && raw[:2] != "0X") {
-		return fmt.Errorf("hex string without 0x prefix")
-	}
-	raw = raw[2:]
-	if len(raw) == 0 {
-		return fmt.Errorf("hex string \"0x\"")
-	}
-	if len(raw) > 1 && raw[0] == '0' {
-		return fmt.Errorf("hex number with leading zero digits")
-	}
-	if len(raw) > common.StorageValue64Length*2 {
-		return fmt.Errorf("hex number > %d bits", common.StorageValue64Length*8)
-	}
-	value, ok := new(big.Int).SetString(raw, 16)
-	if !ok {
-		return fmt.Errorf("invalid hex string")
-	}
-	*q = storageValue64Quantity(common.BytesToStorageValue64(value.Bytes()))
-	return nil
-}
-
-func (q storageValue64Quantity) ToInt() *big.Int {
-	value := common.StorageValue64(q)
-	return value.Big()
-}
-
 // GetProof returns the account and storage values of the specified account including the Merkle-proof.
 // The block number can be nil, in which case the value is taken from the latest known block.
 func (qc *Client) GetProof(ctx context.Context, account common.Address, keys []string, blockNumber *big.Int) (*AccountResult, error) {
 	type storageResult struct {
-		Key   string                 `json:"key"`
-		Value storageValue64Quantity `json:"value"`
-		Proof []string               `json:"proof"`
+		Key   string        `json:"key"`
+		Value *hexutil.U512 `json:"value"`
+		Proof []string      `json:"proof"`
 	}
 
 	type accountResult struct {

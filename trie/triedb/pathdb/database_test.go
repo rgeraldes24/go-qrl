@@ -142,7 +142,7 @@ func (t *tester) generateStorage(ctx *genctx, addr common.Address) common.Hash {
 		origin   = make(map[common.Hash][]byte)
 	)
 	for range 10 {
-		v, _ := rlp.EncodeToBytes(common.TrimLeftZeroes(testutil.RandBytes(32)))
+		v, _ := rlp.EncodeToBytes(common.TrimLeftZeroes(testutil.RandBytes(common.StorageValue64Length)))
 		hash := testutil.RandomHash()
 
 		storage[hash] = v
@@ -171,7 +171,7 @@ func (t *tester) mutateStorage(ctx *genctx, addr common.Address, root common.Has
 		}
 	}
 	for range 3 {
-		v, _ := rlp.EncodeToBytes(common.TrimLeftZeroes(testutil.RandBytes(32)))
+		v, _ := rlp.EncodeToBytes(common.TrimLeftZeroes(testutil.RandBytes(common.StorageValue64Length)))
 		hash := testutil.RandomHash()
 
 		storage[hash] = v

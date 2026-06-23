@@ -319,9 +319,9 @@ type AccountResult struct {
 }
 
 type StorageResult struct {
-	Key   string       `json:"key"`
-	Value *hexutil.Big `json:"value"`
-	Proof []string     `json:"proof"`
+	Key   string        `json:"key"`
+	Value *hexutil.U512 `json:"value"`
+	Proof []string      `json:"proof"`
 }
 
 // proofList implements qrldb.KeyValueWriter and collects the proofs as
@@ -382,14 +382,14 @@ func (api *BlockChainAPI) GetProof(ctx context.Context, address common.Address, 
 				outputKey = hexutil.Encode(key[:])
 			}
 			if storageTrie == nil {
-				storageProof[i] = StorageResult{outputKey, &hexutil.Big{}, []string{}}
+				storageProof[i] = StorageResult{outputKey, &hexutil.U512{}, []string{}}
 				continue
 			}
 			var proof proofList
 			if err := storageTrie.Prove(crypto.Keccak256(key.Bytes()), &proof); err != nil {
 				return nil, err
 			}
-			value := (*hexutil.Big)(statedb.GetState(address, key).Big())
+			value := (*hexutil.U512)(statedb.GetState(address, key).Big())
 			storageProof[i] = StorageResult{outputKey, value, proof}
 		}
 	}

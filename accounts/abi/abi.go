@@ -209,7 +209,7 @@ func (abi *ABI) MethodById(sigdata []byte) (*Method, error) {
 }
 
 // EventByID looks an event up by its 32-byte ABI event ID and returns nil if
-// none found.
+// none found. Use EventByTopic for VM64 log topic lookups.
 func (abi *ABI) EventByID(topic common.Hash) (*Event, error) {
 	for _, event := range abi.Events {
 		if bytes.Equal(event.ID.Bytes(), topic.Bytes()) {
@@ -217,6 +217,17 @@ func (abi *ABI) EventByID(topic common.Hash) (*Event, error) {
 		}
 	}
 	return nil, fmt.Errorf("no event with id: %#x", topic.Hex())
+}
+
+// EventByTopic looks an event up by its full VM64 topic0 and returns nil if
+// none found.
+func (abi *ABI) EventByTopic(topic common.LogTopic) (*Event, error) {
+	for _, event := range abi.Events {
+		if event.Topic() == topic {
+			return &event, nil
+		}
+	}
+	return nil, fmt.Errorf("no event with topic: %s", topic.Hex())
 }
 
 // ErrorByID looks up an error by the 4-byte id,

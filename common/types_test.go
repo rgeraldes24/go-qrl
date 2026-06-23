@@ -155,10 +155,10 @@ func TestAddressHexQIP55Checksum(t *testing.T) {
 		Input  string
 		Output string
 	}{
-		{"Q" + strings.Repeat("0", 88) + "5AAEB6053F3E94C9B9A09F33669435E7EF1BEAED", "Q" + strings.Repeat("0", 88) + "5AAeb6053F3e94c9b9A09f33669435e7EF1BEaEd"},
-		{"Q" + strings.Repeat("0", 88) + "fb6916095CA1dF60bB79CE92ce3eA74c37c5d359", "Q" + strings.Repeat("0", 88) + "Fb6916095Ca1df60BB79CE92CE3ea74c37c5d359"},
-		{"Q" + strings.Repeat("0", 88) + "DBf03B407C01e7CD3cBEa99509D93F8ddDc8C6FB", "Q" + strings.Repeat("0", 88) + "DBf03B407c01E7cD3Cbea99509D93f8DDdc8c6FB"},
-		{"Q" + strings.Repeat("0", 88) + "D1220a0cf47c7B9bE7a2e6bA89F429762E7b9ADb", "Q" + strings.Repeat("0", 88) + "d1220A0cf47c7B9BE7a2e6BA89f429762e7B9AdB"},
+		{"Q0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef", "Q0123456789ABcDEf0123456789abcDEF0123456789aBcdEF0123456789AbcDEf0123456789ABCDEF0123456789aBCDef0123456789ABCdeF0123456789ABCDEF"},
+		{"Qfedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210", "QFedcBA9876543210FEDCbA9876543210FEdCBa9876543210fedCbA9876543210fEdCBA9876543210FedCBa9876543210FeDcbA9876543210fEDcba9876543210"},
+		{"Qaabbccddeeff0011aabbccddeeff0011aabbccddeeff0011aabbccddeeff0011aabbccddeeff0011aabbccddeeff0011aabbccddeeff0011aabbccddeeff0011", "QAabBccDDeEfF0011aaBbcCdDeEff0011AABbcCddeefF0011AaBbCcDDeEFf0011aAbBCcDDeEFF0011AaBbccdDeEfF0011AaBBccddEEFf0011aaBbcCdDEefF0011"},
+		{"Q1234abcd5678ef901234abcd5678ef901234abcd5678ef901234abcd5678ef901234abcd5678ef901234abcd5678ef901234abcd5678ef901234abcd5678ef90", "Q1234abcd5678EF901234ABCd5678ef901234Abcd5678eF901234aBCD5678EF901234aBcd5678ef901234aBCd5678ef901234aBcd5678eF901234aBCd5678eF90"},
 	}
 	for i, test := range tests {
 		addr := MustParseAddress(test.Input)
@@ -185,7 +185,7 @@ func BenchmarkAddressHex(b *testing.B) {
 func TestMixedcaseAddressMarshal(t *testing.T) {
 	var (
 		output string
-		input  = "Q" + strings.Repeat("0", 88) + "ae967917c465db8578ca9024c205720b1a3651A9"
+		input  = "Q0123456789ABcDEf0123456789abcDEF0123456789aBcdEF0123456789AbcDEf0123456789ABCDEF0123456789aBCDef0123456789ABCdeF0123456789ABCDEF"
 	)
 	addr, err := NewMixedcaseAddressFromString(input)
 	if err != nil {
@@ -206,7 +206,7 @@ func TestMixedcaseAccount_Address(t *testing.T) {
 		A     MixedcaseAddress
 		Valid bool
 	}
-	lowercase := "Q" + strings.Repeat("0", 88) + "ae967917c465db8578ca9024c205720b1a3651a9"
+	lowercase := "Qaabbccddeeff0011aabbccddeeff0011aabbccddeeff0011aabbccddeeff0011aabbccddeeff0011aabbccddeeff0011aabbccddeeff0011aabbccddeeff0011"
 	addr, err := NewAddressFromString(lowercase)
 	if err != nil {
 		t.Fatal(err)

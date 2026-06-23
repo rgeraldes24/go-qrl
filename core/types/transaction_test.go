@@ -26,6 +26,7 @@ import (
 	"testing"
 
 	"github.com/theQRL/go-qrl/common"
+	"github.com/theQRL/go-qrl/common/uint512"
 	"github.com/theQRL/go-qrl/crypto/pqcrypto/wallet"
 	"github.com/theQRL/go-qrl/internal/testutil"
 	"github.com/theQRL/go-qrl/rlp"
@@ -58,6 +59,14 @@ var (
 		[]byte{},
 	)
 )
+
+func vm64ApproveData(spender common.Address) []byte {
+	data := make([]byte, 4+2*uint512.WordBytes)
+	copy(data[:4], common.Hex2Bytes("095ea7b3"))
+	copy(data[4:4+uint512.WordBytes], spender[:])
+	copy(data[4+uint512.WordBytes+uint512.WordBytes-common.HashLength:], bytes.Repeat([]byte{0xff}, common.HashLength))
+	return data
+}
 
 func TestDecodeEmptyTypedTx(t *testing.T) {
 	input := []byte{0x80}
@@ -114,9 +123,10 @@ func TestEIP2930Signer(t *testing.T) {
 				},
 			},
 		})
-		to2    = common.BytesToAddress(common.FromHex("c02aaa39b223fe8d0a0e5c4f27ead9083c756cc2c02aaa39b223fe8d0a0e5c4f27ead9083c756cc211223344556677aa"))
-		tx4, _ = SignNewTx(wallet, signer1, &DynamicFeeTx{
-			Data:       common.Hex2Bytes("095ea7b30000000000000000000000001111111254eeb25477b68fb85ed929f73a960582ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"),
+		to2     = common.BytesToAddress(common.FromHex("c02aaa39b223fe8d0a0e5c4f27ead9083c756cc2c02aaa39b223fe8d0a0e5c4f27ead9083c756cc211223344556677aa"))
+		spender = common.BytesToAddress(bytes.Repeat([]byte{0x11}, common.AddressLength))
+		tx4, _  = SignNewTx(wallet, signer1, &DynamicFeeTx{
+			Data:       vm64ApproveData(spender),
 			Value:      big.NewInt(0),
 			ChainID:    big.NewInt(1),
 			Nonce:      47,
@@ -194,7 +204,7 @@ func TestEIP2930Signer(t *testing.T) {
 			// qrvmone example
 			tx:             tx4,
 			signer:         signer1,
-			wantSignerHash: common.HexToHash("eb090eac470fc6383e3f4b070af7204751c322152d67d4a99d90c7e6a77e146e"),
+			wantSignerHash: common.HexToHash("a627738d0ca3a6a2933dff4d592e2c4aa986374214377c0f74b56794df6cc419"),
 		},
 		{
 			// qrvmone example

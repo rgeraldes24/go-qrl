@@ -575,7 +575,7 @@ func TestCopyCommitCopy(t *testing.T) {
 		t.Fatalf("initial non-committed storage slot mismatch: have %x, want %x", val, sval)
 	}
 	if val := state.GetCommittedState(addr, skey); val != (common.StorageValue64{}) {
-		t.Fatalf("initial committed storage slot mismatch: have %x, want %x", val, common.Hash{})
+		t.Fatalf("initial committed storage slot mismatch: have %x, want %x", val, common.StorageValue64{})
 	}
 	// Copy the non-committed state database and check pre/post commit balance
 	copyOne := state.Copy()
@@ -589,7 +589,7 @@ func TestCopyCommitCopy(t *testing.T) {
 		t.Fatalf("first copy pre-commit non-committed storage slot mismatch: have %x, want %x", val, sval)
 	}
 	if val := copyOne.GetCommittedState(addr, skey); val != (common.StorageValue64{}) {
-		t.Fatalf("first copy pre-commit committed storage slot mismatch: have %x, want %x", val, common.Hash{})
+		t.Fatalf("first copy pre-commit committed storage slot mismatch: have %x, want %x", val, common.StorageValue64{})
 	}
 	// Copy the copy and check the balance once more
 	copyTwo := copyOne.Copy()
@@ -603,7 +603,7 @@ func TestCopyCommitCopy(t *testing.T) {
 		t.Fatalf("second copy non-committed storage slot mismatch: have %x, want %x", val, sval)
 	}
 	if val := copyTwo.GetCommittedState(addr, skey); val != (common.StorageValue64{}) {
-		t.Fatalf("second copy committed storage slot mismatch: have %x, want %x", val, sval)
+		t.Fatalf("second copy committed storage slot mismatch: have %x, want %x", val, common.StorageValue64{})
 	}
 	// Commit state, ensure states can be loaded from disk
 	root, _ := state.Commit(0, false)
@@ -648,7 +648,7 @@ func TestCopyCopyCommitCopy(t *testing.T) {
 		t.Fatalf("initial non-committed storage slot mismatch: have %x, want %x", val, sval)
 	}
 	if val := state.GetCommittedState(addr, skey); val != (common.StorageValue64{}) {
-		t.Fatalf("initial committed storage slot mismatch: have %x, want %x", val, common.Hash{})
+		t.Fatalf("initial committed storage slot mismatch: have %x, want %x", val, common.StorageValue64{})
 	}
 	// Copy the non-committed state database and check pre/post commit balance
 	copyOne := state.Copy()
@@ -662,7 +662,7 @@ func TestCopyCopyCommitCopy(t *testing.T) {
 		t.Fatalf("first copy non-committed storage slot mismatch: have %x, want %x", val, sval)
 	}
 	if val := copyOne.GetCommittedState(addr, skey); val != (common.StorageValue64{}) {
-		t.Fatalf("first copy committed storage slot mismatch: have %x, want %x", val, common.Hash{})
+		t.Fatalf("first copy committed storage slot mismatch: have %x, want %x", val, common.StorageValue64{})
 	}
 	// Copy the copy and check the balance once more
 	copyTwo := copyOne.Copy()
@@ -676,7 +676,7 @@ func TestCopyCopyCommitCopy(t *testing.T) {
 		t.Fatalf("second copy pre-commit non-committed storage slot mismatch: have %x, want %x", val, sval)
 	}
 	if val := copyTwo.GetCommittedState(addr, skey); val != (common.StorageValue64{}) {
-		t.Fatalf("second copy pre-commit committed storage slot mismatch: have %x, want %x", val, common.Hash{})
+		t.Fatalf("second copy pre-commit committed storage slot mismatch: have %x, want %x", val, common.StorageValue64{})
 	}
 	// Copy the copy-copy and check the balance once more
 	copyThree := copyTwo.Copy()
@@ -690,7 +690,7 @@ func TestCopyCopyCommitCopy(t *testing.T) {
 		t.Fatalf("third copy non-committed storage slot mismatch: have %x, want %x", val, sval)
 	}
 	if val := copyThree.GetCommittedState(addr, skey); val != (common.StorageValue64{}) {
-		t.Fatalf("third copy committed storage slot mismatch: have %x, want %x", val, sval)
+		t.Fatalf("third copy committed storage slot mismatch: have %x, want %x", val, common.StorageValue64{})
 	}
 }
 
@@ -717,7 +717,7 @@ func TestCommitCopy(t *testing.T) {
 		t.Fatalf("initial non-committed storage slot mismatch: have %x, want %x", val, sval)
 	}
 	if val := state.GetCommittedState(addr, skey); val != (common.StorageValue64{}) {
-		t.Fatalf("initial committed storage slot mismatch: have %x, want %x", val, common.Hash{})
+		t.Fatalf("initial committed storage slot mismatch: have %x, want %x", val, common.StorageValue64{})
 	}
 	// Copy the committed state database, the copied one is not functional.
 	state.Commit(0, true)

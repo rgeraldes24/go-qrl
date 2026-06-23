@@ -321,7 +321,7 @@ web3._extend({
 			name: 'traceCall',
 			call: 'debug_traceCall',
 			params: 3,
-			inputFormatter: [null, null, null]
+			inputFormatter: [web3._extend.formatters.inputCallFormatter, web3._extend.formatters.inputBlockNumberFormatter, null]
 		}),
 		new web3._extend.Method({
 			name: 'preimage',
@@ -338,6 +338,7 @@ web3._extend({
 			name: 'storageRangeAt',
 			call: 'debug_storageRangeAt',
 			params: 5,
+			inputFormatter: [web3._extend.formatters.inputBlockNumberFormatter, null, web3._extend.formatters.inputAddressFormatter, null, null]
 		}),
 		new web3._extend.Method({
 			name: 'getModifiedAccountsByNumber',
@@ -514,7 +515,7 @@ web3._extend({
 			name: 'createAccessList',
 			call: 'qrl_createAccessList',
 			params: 2,
-			inputFormatter: [null, web3._extend.formatters.inputBlockNumberFormatter],
+			inputFormatter: [web3._extend.formatters.inputCallFormatter, web3._extend.formatters.inputBlockNumberFormatter],
 		}),
 		new web3._extend.Method({
 			name: 'feeHistory',
@@ -622,6 +623,13 @@ web3._extend({
 `
 
 const DevJs = `
+var qrlWithdrawalFormatter = function(withdrawal) {
+	if (withdrawal.address !== undefined) {
+		withdrawal.address = web3._extend.formatters.inputAddressFormatter(withdrawal.address);
+	}
+	return withdrawal;
+};
+
 web3._extend({
 	property: 'dev',
 	methods:
@@ -629,12 +637,14 @@ web3._extend({
 		new web3._extend.Method({
 			name: 'addWithdrawal',
 			call: 'dev_addWithdrawal',
-			params: 1
+			params: 1,
+			inputFormatter: [qrlWithdrawalFormatter]
 		}),
 		new web3._extend.Method({
 			name: 'setFeeRecipient',
 			call: 'dev_setFeeRecipient',
-			params: 1
+			params: 1,
+			inputFormatter: [web3._extend.formatters.inputAddressFormatter]
 		}),
 	],
 });

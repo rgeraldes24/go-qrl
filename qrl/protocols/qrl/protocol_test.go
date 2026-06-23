@@ -20,6 +20,7 @@ import (
 	"bytes"
 	"math/big"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/theQRL/go-qrl/common"
@@ -195,8 +196,11 @@ func TestMessages(t *testing.T) {
 				Logs: []*types.Log{
 					{
 						Address: common.BytesToAddress([]byte{0x11}),
-						Topics:  []common.LogTopic{common.HexToLogTopic("dead"), common.HexToLogTopic("beef")},
-						Data:    []byte{0x01, 0x00, 0xff},
+						Topics: []common.LogTopic{
+							common.HexToLogTopic("0x" + strings.Repeat("de", common.LogTopicLength)),
+							common.HexToLogTopic("0x" + strings.Repeat("be", common.LogTopicLength)),
+						},
+						Data: []byte{0x01, 0x00, 0xff},
 					},
 				},
 				TxHash:          hashes[0],
