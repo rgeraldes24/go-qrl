@@ -1899,9 +1899,9 @@ var isBloom = function (bloom) {
  * @return {Boolean}
  */
 var isTopic = function (topic) {
-    if (!/^(0x)?[0-9a-f]{64}$/i.test(topic)) {
+    if (!/^(0x)?[0-9a-f]{128}$/i.test(topic)) {
         return false;
-    } else if (/^(0x)?[0-9a-f]{64}$/.test(topic) || /^(0x)?[0-9A-F]{64}$/.test(topic)) {
+    } else if (/^(0x)?[0-9a-f]{128}$/.test(topic) || /^(0x)?[0-9A-F]{128}$/.test(topic)) {
         return true;
     }
     return false;
@@ -1975,7 +1975,6 @@ module.exports={
 
 var RequestManager = require('./web3/requestmanager');
 var QRL = require('./web3/methods/qrl');
-var DB = require('./web3/methods/db');
 var Net = require('./web3/methods/net');
 var Settings = require('./web3/settings');
 var version = require('./version.json');
@@ -1994,7 +1993,6 @@ function Web3 (provider) {
     this._requestManager = new RequestManager(provider);
     this.currentProvider = provider;
     this.qrl = new QRL(this);
-    this.db = new DB(this);
     this.net = new Net(this);
     this.settings = new Settings();
     this.version = {
@@ -2073,7 +2071,7 @@ Web3.prototype.createBatch = function () {
 module.exports = Web3;
 
 
-},{"./utils/sha3":19,"./utils/utils":20,"./version.json":21,"./web3/batch":24,"./web3/extend":28,"./web3/httpprovider":32,"./web3/ipcprovider":34,"./web3/methods/db":37,"./web3/methods/qrl":38,"./web3/methods/net":39,"./web3/methods/swarm":42,"./web3/property":45,"./web3/requestmanager":46,"./web3/settings":47,"bignumber.js":"bignumber.js"}],23:[function(require,module,exports){
+},{"./utils/sha3":19,"./utils/utils":20,"./version.json":21,"./web3/batch":24,"./web3/extend":28,"./web3/httpprovider":32,"./web3/ipcprovider":34,"./web3/methods/qrl":38,"./web3/methods/net":39,"./web3/methods/swarm":42,"./web3/property":45,"./web3/requestmanager":46,"./web3/settings":47,"bignumber.js":"bignumber.js"}],23:[function(require,module,exports){
 /*
     This file is part of web3.js.
 
@@ -2968,10 +2966,14 @@ var toTopic = function(value){
 
     value = String(value);
 
-    if(value.indexOf('0x') === 0)
-        return value;
-    else
-        return utils.fromUtf8(value);
+    if(value.slice(0, 2).toLowerCase() !== '0x')
+        value = utils.fromUtf8(value);
+
+    var hex = value.slice(0, 2).toLowerCase() === '0x' ? value.slice(2) : value;
+    if (hex.length > 128) {
+        throw new Error('invalid topic length');
+    }
+    return '0x' + utils.padLeft(hex, 128);
 };
 
 /// This method should be called on options object, to verify deprecated properties && lazy load dynamic ones
@@ -4362,75 +4364,7 @@ Method.prototype.request = function () {
 
 module.exports = Method;
 
-},{"../utils/utils":20,"./errors":26}],37:[function(require,module,exports){
-/*
-    This file is part of web3.js.
-
-    web3.js is free software: you can redistribute it and/or modify
-    it under the terms of the GNU Lesser General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
-
-    web3.js is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU Lesser General Public License for more details.
-
-    You should have received a copy of the GNU Lesser General Public License
-    along with web3.js.  If not, see <http://www.gnu.org/licenses/>.
-*/
-/** @file db.js
- * @authors:
- *   Marek Kotewicz <marek@ethdev.com>
- * @date 2015
- */
-
-var Method = require('../method');
-
-var DB = function (web3) {
-    this._requestManager = web3._requestManager;
-
-    var self = this;
-    
-    methods().forEach(function(method) { 
-        method.attachToObject(self);
-        method.setRequestManager(web3._requestManager);
-    });
-};
-
-var methods = function () {
-    var putString = new Method({
-        name: 'putString',
-        call: 'db_putString',
-        params: 3
-    });
-
-    var getString = new Method({
-        name: 'getString',
-        call: 'db_getString',
-        params: 2
-    });
-
-    var putHex = new Method({
-        name: 'putHex',
-        call: 'db_putHex',
-        params: 3
-    });
-
-    var getHex = new Method({
-        name: 'getHex',
-        call: 'db_getHex',
-        params: 2
-    });
-
-    return [
-        putString, getString, putHex, getHex
-    ];
-};
-
-module.exports = DB;
-
-},{"../method":36}],38:[function(require,module,exports){
+},{"../utils/utils":20,"./errors":26}],38:[function(require,module,exports){
 /*
     This file is part of web3.js.
 
@@ -4627,12 +4561,6 @@ var methods = function () {
         outputFormatter: utils.toDecimal
     });
 
-    var compileHyperion = new Method({
-        name: 'compile.hyperion',
-        call: 'qrl_compileHyperion',
-        params: 1
-    });
-
     return [
         getBalance,
         getStorageAt,
@@ -4648,8 +4576,7 @@ var methods = function () {
         sendRawTransaction,
         signTransaction,
         sendTransaction,
-        sign,
-        compileHyperion
+        sign
     ];
 };
 

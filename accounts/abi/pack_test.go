@@ -62,14 +62,35 @@ func TestPack(t *testing.T) {
 func TestPackUnsupportedFunctionType(t *testing.T) {
 	t.Parallel()
 
-	abi, err := JSON(strings.NewReader(`[{"name":"method","type":"function","inputs":[{"type":"function"}]}]`))
-	if err != nil {
-		t.Fatalf("invalid ABI definition: %v", err)
+	tests := []struct {
+		name  string
+		abi   string
+		value any
+	}{
+		{
+			name:  "direct",
+			abi:   `[{"name":"method","type":"function","inputs":[{"type":"function"}]}]`,
+			value: [common.AddressLength + 4]byte{},
+		},
+		{
+			name:  "empty slice",
+			abi:   `[{"name":"method","type":"function","inputs":[{"type":"function[]"}]}]`,
+			value: [][common.AddressLength + 4]byte{},
+		},
 	}
-	var fn [common.AddressLength + 4]byte
-	_, err = abi.Pack("method", fn)
-	if !errors.Is(err, ErrUnsupportedFunctionType) {
-		t.Fatalf("pack function type error = %v, want %v", err, ErrUnsupportedFunctionType)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			abi, err := JSON(strings.NewReader(tt.abi))
+			if err != nil {
+				t.Fatalf("invalid ABI definition: %v", err)
+			}
+			_, err = abi.Pack("method", tt.value)
+			if !errors.Is(err, ErrUnsupportedFunctionType) {
+				t.Fatalf("pack function type error = %v, want %v", err, ErrUnsupportedFunctionType)
+			}
+		})
 	}
 }
 

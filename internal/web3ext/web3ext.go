@@ -398,7 +398,12 @@ var qrlLogTopicFormatter = function(topic) {
 		return null;
 	}
 	topic = String(topic);
-	return topic.indexOf('0x') === 0 ? topic : web3._extend.utils.fromUtf8(topic);
+	topic = topic.slice(0, 2).toLowerCase() === '0x' ? topic : web3._extend.utils.fromUtf8(topic);
+	var hex = topic.slice(0, 2).toLowerCase() === '0x' ? topic.slice(2) : topic;
+	if (hex.length > 128) {
+		throw new Error('invalid topic length');
+	}
+	return '0x' + web3._extend.utils.padLeft(hex, 128);
 };
 
 var qrlInputLogFormatter = function(options) {
@@ -445,12 +450,6 @@ web3._extend({
 			inputFormatter: [web3._extend.formatters.inputAddressFormatter, null]
 		}),
 		new web3._extend.Method({
-			name: 'resend',
-			call: 'qrl_resend',
-			params: 3,
-			inputFormatter: [web3._extend.formatters.inputTransactionFormatter, web3._extend.utils.fromDecimal, web3._extend.utils.fromDecimal]
-		}),
-		new web3._extend.Method({
 			name: 'signTransaction',
 			call: 'qrl_signTransaction',
 			params: 1,
@@ -462,12 +461,6 @@ web3._extend({
 			params: 2,
 			inputFormatter: [web3._extend.formatters.inputCallFormatter, web3._extend.formatters.inputBlockNumberFormatter],
 			outputFormatter: web3._extend.utils.toDecimal
-		}),
-		new web3._extend.Method({
-			name: 'submitTransaction',
-			call: 'qrl_submitTransaction',
-			params: 1,
-			inputFormatter: [web3._extend.formatters.inputTransactionFormatter]
 		}),
 		new web3._extend.Method({
 			name: 'fillTransaction',

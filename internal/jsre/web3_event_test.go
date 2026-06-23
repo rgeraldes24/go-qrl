@@ -109,3 +109,121 @@ JSON.stringify({topics: filter.options.topics, captured: capturedOptions.topics,
 		t.Fatalf("decoded indexed args mismatch: have %#v want name=%s data=%s nums=%s", got.Args, expected[1], expected[2], expected[3])
 	}
 }
+
+func TestEmbeddedWeb3RawFilterTopicPadding(t *testing.T) {
+	t.Parallel()
+
+	re := New("", os.Stdout)
+	defer re.Stop(false)
+
+	if err := re.Compile("bignumber.js", deps.BigNumberJS); err != nil {
+		t.Fatalf("compile bignumber.js: %v", err)
+	}
+	if err := re.Compile("web3.js", deps.Web3JS); err != nil {
+		t.Fatalf("compile web3.js: %v", err)
+	}
+
+	expected := common.BytesToEventSignatureLogTopic(crypto.Keccak256([]byte("Transfer(address,uint512)"))).Hex()
+	script := `
+var capturedOptions = null;
+var provider = {
+  send: function(payload) {
+    return {jsonrpc: "2.0", id: payload.id, result: null};
+  },
+  sendAsync: function(payload, cb) {
+    if (payload.method === "qrl_newFilter") {
+      capturedOptions = payload.params[0];
+    }
+    cb(null, {jsonrpc: "2.0", id: payload.id, result: "0x1"});
+  },
+  isConnected: function() { return true; }
+};
+var Web3 = require("web3");
+var web3 = new Web3(provider);
+var rawTopic = web3.sha3("Transfer(address,uint512)");
+var filter = web3.qrl.filter({fromBlock: "0x0", toBlock: "latest", topics: [rawTopic]});
+JSON.stringify({
+  raw: rawTopic,
+  rawIsTopic: web3._extend.utils.isTopic(rawTopic),
+  paddedIsTopic: web3._extend.utils.isTopic(filter.options.topics[0]),
+  options: filter.options.topics,
+  captured: capturedOptions.topics
+});
+`
+	value, err := re.Run(script)
+	if err != nil {
+		t.Fatalf("run raw topic script: %v", err)
+	}
+	var got struct {
+		Raw           string   `json:"raw"`
+		RawIsTopic    bool     `json:"rawIsTopic"`
+		PaddedIsTopic bool     `json:"paddedIsTopic"`
+		Options       []string `json:"options"`
+		Captured      []string `json:"captured"`
+	}
+	if err := json.Unmarshal([]byte(value.String()), &got); err != nil {
+		t.Fatalf("decode script result %q: %v", value.String(), err)
+	}
+	if len(got.Raw) != 66 {
+		t.Fatalf("raw topic should be 32 bytes, have %q", got.Raw)
+	}
+	if got.RawIsTopic {
+		t.Fatalf("raw 32-byte topic should not pass VM64 topic validation")
+	}
+	if !got.PaddedIsTopic {
+		t.Fatalf("padded 64-byte topic should pass VM64 topic validation")
+	}
+	if !reflect.DeepEqual(got.Options, []string{expected}) {
+		t.Fatalf("filter options topic mismatch: have %#v want %#v", got.Options, []string{expected})
+	}
+	if !reflect.DeepEqual(got.Captured, []string{expected}) {
+		t.Fatalf("captured filter topic mismatch: have %#v want %#v", got.Captured, []string{expected})
+	}
+}
+
+func TestEmbeddedWeb3UnsupportedWrappersRemoved(t *testing.T) {
+	t.Parallel()
+
+	re := New("", os.Stdout)
+	defer re.Stop(false)
+
+	if err := re.Compile("bignumber.js", deps.BigNumberJS); err != nil {
+		t.Fatalf("compile bignumber.js: %v", err)
+	}
+	if err := re.Compile("web3.js", deps.Web3JS); err != nil {
+		t.Fatalf("compile web3.js: %v", err)
+	}
+
+	script := `
+var Web3 = require("web3");
+var web3 = new Web3({
+  send: function(payload) {
+    return {jsonrpc: "2.0", id: payload.id, result: null};
+  },
+  sendAsync: function(payload, cb) {
+    cb(null, {jsonrpc: "2.0", id: payload.id, result: null});
+  },
+  isConnected: function() { return true; }
+});
+JSON.stringify({
+  resend: typeof web3.qrl.resend,
+  submitTransaction: typeof web3.qrl.submitTransaction,
+  compileHyperion: typeof web3.qrl.compile === "undefined" ? "undefined" : typeof web3.qrl.compile.hyperion
+});
+`
+	value, err := re.Run(script)
+	if err != nil {
+		t.Fatalf("run unsupported wrapper script: %v", err)
+	}
+	var got struct {
+		Resend            string `json:"resend"`
+		SubmitTransaction string `json:"submitTransaction"`
+		CompileHyperion   string `json:"compileHyperion"`
+	}
+	if err := json.Unmarshal([]byte(value.String()), &got); err != nil {
+		t.Fatalf("decode script result %q: %v", value.String(), err)
+	}
+	if got.Resend != "undefined" || got.SubmitTransaction != "undefined" || got.CompileHyperion != "undefined" {
+		t.Fatalf("unsupported wrappers should be absent, got %#v", got)
+	}
+}

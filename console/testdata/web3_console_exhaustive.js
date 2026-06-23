@@ -370,7 +370,6 @@
   });
   skip("qrl._requestManager", "internal request manager; covered via web3._requestManager");
   skip("net._requestManager", "internal request manager; covered via web3._requestManager");
-  skip("db._requestManager", "internal request manager; covered via web3._requestManager");
   check("web3.providers", function () {
     expect(typeof web3.providers.HttpProvider === "function", "HttpProvider missing");
     expect(typeof web3.providers.IpcProvider === "function", "IpcProvider missing");
@@ -430,11 +429,26 @@
     expect(typeof web3.qrl.getProtocolVersion === "undefined", "qrl.getProtocolVersion should not be exported");
     return "absent";
   });
+  check("qrl.resend", function () {
+    expect(typeof web3.qrl.resend === "undefined", "qrl.resend should not be exported");
+    return "absent";
+  });
+  check("qrl.submitTransaction", function () {
+    expect(typeof web3.qrl.submitTransaction === "undefined", "qrl.submitTransaction should not be exported");
+    return "absent";
+  });
+  check("qrl.compile.hyperion", function () {
+    expect(typeof web3.qrl.compile === "undefined" || typeof web3.qrl.compile.hyperion === "undefined", "qrl.compile.hyperion should not be exported");
+    return "absent";
+  });
   check("web3.net", function () { expect(net === web3.net, "net alias mismatch"); return "alias"; });
   check("web3.qrl", function () { expect(qrl === web3.qrl, "qrl alias mismatch"); return "alias"; });
   check("web3.rpc", function () { expect(rpc === web3.rpc, "rpc alias mismatch"); return "alias"; });
   check("web3.txpool", function () { expect(txpool === web3.txpool, "txpool alias mismatch"); return "alias"; });
-  check("web3.db", function () { expect(web3.db && typeof web3.db === "object", "db missing"); return "present"; });
+  check("web3.db", function () {
+    expect(typeof web3.db === "undefined", "web3.db should not be exported");
+    return "absent";
+  });
   check("web3.version", function () {
     expect(web3.version.api, "api version missing");
     networkId = String(web3.version.network);
@@ -657,11 +671,6 @@
     return "ok";
   });
 
-  expectedError("db.putString", function () { return web3.db.putString("test", "key", "value"); }, ["does not exist", "not available", "method"]);
-  expectedError("db.getString", function () { return web3.db.getString("test", "key"); }, ["does not exist", "not available", "method"]);
-  expectedError("db.putHex", function () { return web3.db.putHex("test", "key", "0x1234"); }, ["does not exist", "not available", "method"]);
-  expectedError("db.getHex", function () { return web3.db.getHex("test", "key"); }, ["does not exist", "not available", "method"]);
-
   check("qrl.getBalance", function () { expect(web3.qrl.getBalance(account).gt(0), "balance missing"); return web3.qrl.getBalance(account).toString(10); });
   check("qrl.getCode", function () { expect(web3.qrl.getCode(account) === "0x", "code mismatch"); return "0x"; });
   check("qrl.getStorageAt", function () { expect(isHexBytes(web3.qrl.getStorageAt(account, "0x0", "latest"), 64), "storage not 64-byte hex"); return "64-byte"; });
@@ -740,9 +749,6 @@
     expect(sentBlock.transactions.length > 0, "sent block has no transactions");
     return sentTxHash + " mined";
   });
-  expectedError("qrl.submitTransaction", function () { return web3.qrl.submitTransaction({from: account, to: account, value: "0x1"}); }, ["does not exist", "not available", "method"]);
-  expectedError("qrl.resend", function () { return web3.qrl.resend({from: account, to: account, value: "0x1", nonce: "0x0"}, "0x1", "0x5208"); }, ["does not exist", "not available", "method"]);
-
   check("qrl.getTransaction", function () {
     var tx = web3.qrl.getTransaction(sentTxHash);
     expect(tx.hash === sentTxHash, "tx hash mismatch");
@@ -873,8 +879,11 @@
   });
   check("qrl.getLogs.emittedEvent", function () {
     var base = {fromBlock: eventReceipt.blockNumber, toBlock: eventReceipt.blockNumber, address: eventContractAddress};
+    var rawSignatureTopic = web3.sha3("Transfer(address,uint512)");
     var exact = web3.qrl.getLogs({fromBlock: base.fromBlock, toBlock: base.toBlock, address: base.address, topics: eventTopics});
     expect(findRawTransferLog(exact, eventTxHash), "exact topic getLogs missed emitted log");
+    var rawSignature = web3.qrl.getLogs({fromBlock: base.fromBlock, toBlock: base.toBlock, address: base.address, topics: [rawSignatureTopic, null, eventTopics[2]]});
+    expect(findRawTransferLog(rawSignature, eventTxHash), "raw signature topic getLogs missed emitted log");
     var wildcard = web3.qrl.getLogs({fromBlock: base.fromBlock, toBlock: base.toBlock, address: base.address, topics: [eventTopics[0], null, eventTopics[2]]});
     expect(findRawTransferLog(wildcard, eventTxHash), "wildcard topic getLogs missed emitted log");
     var orTopics = web3.qrl.getLogs({fromBlock: base.fromBlock, toBlock: base.toBlock, address: base.address, topics: [eventTopics[0], ["0x" + zeros(127) + "2", eventTopics[1]], eventTopics[2]]});
@@ -895,12 +904,19 @@
     return "receipts=" + receipts.length;
   });
   check("qrl.filter", function () {
+    var rawSignatureTopic = web3.sha3("Transfer(address,uint512)");
     var objectFilter = web3.qrl.filter({fromBlock: eventReceipt.blockNumber, toBlock: eventReceipt.blockNumber, address: eventContractAddress, topics: eventTopics});
     callbackResult(function (cb) { objectFilter.get(cb); }, function (value) {
       expect(value instanceof Array, "object filter get failed");
       expect(findRawTransferLog(value, eventTxHash), "object filter get missed emitted log");
     });
     expect(objectFilter.stopWatching() === true, "object filter stop failed");
+    var rawSignatureFilter = web3.qrl.filter({fromBlock: eventReceipt.blockNumber, toBlock: eventReceipt.blockNumber, address: eventContractAddress, topics: [rawSignatureTopic, null, eventTopics[2]]});
+    callbackResult(function (cb) { rawSignatureFilter.get(cb); }, function (value) {
+      expect(value instanceof Array, "raw signature filter get failed");
+      expect(findRawTransferLog(value, eventTxHash), "raw signature filter missed emitted log");
+    });
+    expect(rawSignatureFilter.stopWatching() === true, "raw signature filter stop failed");
     var logFilterId = rpcCall("qrl_newFilter", [{fromBlock: "latest", toBlock: "latest", address: eventContractAddress, topics: eventTopics}]);
     var liveEmitted = emitTransferFromEventContract();
     var logChanges = [];
@@ -927,8 +943,6 @@
     }, ["callback error", "filter not found", "not found"]);
     return "object+raw log+raw latest";
   });
-  expectedError("qrl.compile", function () { return web3.qrl.compile.hyperion("contract C {}"); }, ["does not exist", "not available", "method", "compile"]);
-
   if (hasDev) {
     check("dev.setFeeRecipient", function () { dev.setFeeRecipient(account); return "ok"; });
     check("dev.addWithdrawal", function () {
@@ -1086,7 +1100,6 @@
   assertCovered("web3", web3);
   assertCovered("qrl", web3.qrl);
   assertCovered("net", web3.net);
-  assertCovered("db", web3.db);
   assertCovered("version", web3.version);
   assertCovered("providers", web3.providers);
   assertCovered("admin", admin);

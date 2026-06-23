@@ -268,7 +268,7 @@ func (t Type) String() (out string) {
 }
 
 func (t Type) pack(v reflect.Value) ([]byte, error) {
-	if t.T == FunctionTy {
+	if containsFunctionType(t) {
 		return nil, ErrUnsupportedFunctionType
 	}
 
