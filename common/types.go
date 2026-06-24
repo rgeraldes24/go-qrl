@@ -426,12 +426,12 @@ func NewAddressFromString(hexaddr string) (Address, error) {
 	return BytesToAddress(rawAddr), nil
 }
 
-// MustParseAddress returns Address with byte values of s, panicking if s is not
-// a valid QRL address.
+// MustParseAddress calls NewAddressFromString and panics on error.
+// It is intended for tests and package-level initializations with hard-coded strings.
 func MustParseAddress(hexaddr string) Address {
 	addr, err := NewAddressFromString(hexaddr)
 	if err != nil {
-		panic(err)
+		panic(fmt.Errorf("invalid QRL address %q: %w", hexaddr, err))
 	}
 	return addr
 }

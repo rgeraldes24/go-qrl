@@ -156,7 +156,7 @@ func TestAddressHexQIP55Checksum(t *testing.T) {
 		{"Q" + strings.Repeat("0", 88) + "D1220a0cf47c7B9bE7a2e6bA89F429762E7b9ADb", "Q" + strings.Repeat("0", 88) + "d1220A0cf47c7B9BE7a2e6BA89f429762e7B9AdB"},
 	}
 	for i, test := range tests {
-		addr, _ := NewAddressFromString(test.Input)
+		addr := MustParseAddress(test.Input)
 		output := addr.Hex()
 		if output != test.Output {
 			t.Errorf("test #%d: failed to match when it should (%s != %s)", i, output, test.Output)
@@ -165,7 +165,7 @@ func TestAddressHexQIP55Checksum(t *testing.T) {
 }
 
 func BenchmarkAddressHex(b *testing.B) {
-	testAddr, _ := NewAddressFromString("Q" + strings.Repeat("0", 88) + "5aaeb6053f3e94c9b9a09f33669435e7ef1beaed")
+	testAddr := MustParseAddress("Q" + strings.Repeat("0", 88) + "5aaeb6053f3e94c9b9a09f33669435e7ef1beaed")
 	for b.Loop() {
 		testAddr.Hex()
 	}
