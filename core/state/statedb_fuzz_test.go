@@ -129,7 +129,7 @@ func (*stateTest) Generate(r *rand.Rand, size int) reflect.Value {
 	}
 	actions := make([][]testAction, rand.Intn(5)+1)
 
-	addr, _ := common.NewAddressFromString("Q0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000deadbeef99aabbccddeeff001122334455667788")
+	addr := common.MustParseAddress("Q0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000deadbeef99aabbccddeeff001122334455667788")
 	for i := range actions {
 		actions[i] = make([]testAction, size)
 		for j := range actions[i] {
