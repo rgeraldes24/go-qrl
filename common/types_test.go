@@ -68,6 +68,20 @@ func TestIsAddress(t *testing.T) {
 	}
 }
 
+func TestMustParseAddress(t *testing.T) {
+	input := "Q" + strings.Repeat("5a", AddressLength)
+	if got, want := MustParseAddress(input), BytesToAddress(Hex2Bytes(strings.TrimPrefix(input, "Q"))); got != want {
+		t.Fatalf("unexpected address: got %s want %s", got, want)
+	}
+
+	defer func() {
+		if recover() == nil {
+			t.Fatal("expected panic for invalid address")
+		}
+	}()
+	MustParseAddress("Q" + strings.Repeat("0", 40))
+}
+
 func TestHashJsonValidation(t *testing.T) {
 	var tests = []struct {
 		Prefix string
