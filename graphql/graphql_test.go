@@ -17,6 +17,7 @@
 package graphql
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -254,6 +255,77 @@ func TestGraphQLBlockSerializationEIP2718(t *testing.T) {
 		if tt.code != resp.StatusCode {
 			t.Errorf("testcase %d %s,\nwrong statuscode, have: %v, want: %v", i, tt.body, resp.StatusCode, tt.code)
 		}
+	}
+}
+
+func TestGraphQLVM64StorageAndLogOutput(t *testing.T) {
+	var (
+		wallet, _ = wallet.Generate(wallet.ML_DSA_87)
+		address   = wallet.GetAddress()
+		funds     = big.NewInt(params.Quanta)
+		contract  = common.BytesToAddress(bytes.Repeat([]byte{0xc3}, common.AddressLength))
+		slot      = common.HexToHash("0x01")
+		storage   = common.BytesToStorageValue64(bytes.Repeat([]byte{0xab}, common.StorageValue64Length))
+		topicA    = common.BytesToLogTopic([]byte{0xbb})
+		topicB    = common.BytesToLogTopic([]byte{0xcc})
+		logData   = common.BytesToStorageValue64([]byte{0x12, 0x34, 0x56, 0x78})
+		genesis   = &core.Genesis{
+			Config:   params.AllBeaconProtocolChanges,
+			GasLimit: 11500000,
+			Alloc: core.GenesisAlloc{
+				address: {Balance: funds},
+				contract: {
+					Code: []byte{
+						byte(vm.PUSH4), 0x12, 0x34, 0x56, 0x78,
+						byte(vm.PUSH1), 0x00,
+						byte(vm.MSTORE),
+						byte(vm.PUSH1), 0xcc,
+						byte(vm.PUSH1), 0xbb,
+						byte(vm.PUSH1), byte(common.StorageValue64Length),
+						byte(vm.PUSH1), 0x00,
+						byte(vm.LOG2),
+						byte(vm.PUSH1), 0x00,
+						byte(vm.PUSH1), 0x00,
+						byte(vm.RETURN),
+					},
+					Storage: map[common.Hash]common.StorageValue64{slot: storage},
+				},
+			},
+			BaseFee: big.NewInt(params.InitialBaseFee),
+		}
+		signer = types.LatestSigner(genesis.Config)
+		stack  = createNode(t)
+	)
+	defer stack.Close()
+
+	handler, _ := newGQLService(t, stack, genesis, 1, func(i int, gen *core.BlockGen) {
+		tx, _ := types.SignNewTx(wallet, signer, &types.DynamicFeeTx{
+			ChainID:   genesis.Config.ChainID,
+			To:        &contract,
+			Gas:       100000,
+			GasFeeCap: big.NewInt(params.InitialBaseFee),
+		})
+		gen.AddTx(tx)
+	})
+	if err := stack.Start(); err != nil {
+		t.Fatalf("could not start node: %v", err)
+	}
+
+	query := fmt.Sprintf(`{block{account(address:"%s"){storage(slot:"%s")}logs(filter:{}){account{address}topics data}}}`, contract.Hex(), slot.Hex())
+	res := handler.Schema.Exec(t.Context(), query, "", map[string]any{})
+	if res.Errors != nil {
+		t.Fatalf("failed to execute query: %v", res.Errors)
+	}
+	have, err := json.Marshal(res.Data)
+	if err != nil {
+		t.Fatalf("failed to encode graphql response: %v", err)
+	}
+	want := fmt.Sprintf(
+		`{"block":{"account":{"storage":"%s"},"logs":[{"account":{"address":"%s"},"topics":["%s","%s"],"data":"%s"}]}}`,
+		storage.Hex(), contract.Hex(), topicA.Hex(), topicB.Hex(), logData.Hex(),
+	)
+	if string(have) != want {
+		t.Fatalf("response mismatch:\nhave %s\nwant %s", have, want)
 	}
 }
 

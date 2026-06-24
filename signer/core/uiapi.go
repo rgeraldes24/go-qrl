@@ -133,7 +133,7 @@ func (api *UIServerAPI) ImportRawWallet(seed string, password string) (accounts.
 	return fetchKeystore(api.am).ImportWallet(wallet, password)
 }
 
-// ChainId returns the chainid in use for Eip-155 replay protection
+// ChainId returns the chain ID in use for replay protection.
 // Example call
 // {"jsonrpc":"2.0","method":"clef_chainId","params":[], "id":8}
 func (api *UIServerAPI) ChainId() math.HexOrDecimal64 {
@@ -141,7 +141,7 @@ func (api *UIServerAPI) ChainId() math.HexOrDecimal64 {
 }
 
 // SetChainId sets the chain id to use when signing transactions.
-// Example call to set Ropsten:
+// Example call to set chain ID 3:
 // {"jsonrpc":"2.0","method":"clef_setChainId","params":["3"], "id":8}
 func (api *UIServerAPI) SetChainId(id math.HexOrDecimal64) math.HexOrDecimal64 {
 	api.extApi.chainID = new(big.Int).SetUint64(uint64(id))
@@ -165,7 +165,7 @@ func (api *UIServerAPI) Export(ctx context.Context, addr common.Address) (json.R
 }
 
 // Import tries to import the given keyJSON in the local keystore. The keyJSON data is expected to be
-// in web3 keystore format. It will decrypt the keyJSON with the given passphrase and on successful
+// in QRL keystore format. It will decrypt the keyJSON with the given passphrase and on successful
 // decryption it will encrypt the key with the given newPassphrase and store it in the keystore.
 // Example:
 // {"jsonrpc":"2.0","method":"clef_import","params":[{"address":"Q000000000000000000000000000000000000000000000000000000000000000000000000000000000000000031Fec69eCE96b8CDaC5814FF9dd92759E7c6018b","crypto":{"cipher":"aes-256-gcm","ciphertext":"f833f12f6cb57f6961fb34bbf4ff5019c9fd70e1ab98bf0f1ba164f1b4bc773e853f973b708a4ec1b5e1148de96437ac5fc75da87c6b7293628e9d45b4bc2ab7","cipherparams":{"iv":"4c2275c4a14a5e984bfaec2b"},"kdf":"argon2id","kdfparams":{"dklen":32,"m":262144,"p":1,"salt":"2c2f566f38f5b79634d17267d95a0914ed47a44fe91f9cbb0b8765ebaa0b7ddd","r":8}},"id":"216c7eac-e8c1-49af-a215-fa0036f29141","version":1},"test","yaddayadda"], "id":4}
