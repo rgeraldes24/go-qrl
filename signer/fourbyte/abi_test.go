@@ -174,6 +174,9 @@ func TestCalldataDecoding(t *testing.T) {
 		sendOK[:8],                // selector only
 		"a52c10",
 		"",
+		// uint256 with non-zero high 256 bits in the 64-byte ABI slot.
+		"a52c101e" + "FFffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff" +
+			"FFffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
 		// Too short
 		"751e1079" + abiWordHex("12"),
 		"751e1079FFffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
@@ -197,9 +200,8 @@ func TestCalldataDecoding(t *testing.T) {
 	for i, hexdata := range []string{
 		samOK,
 		sendOK,
-		// sendOK with high bits set in the uint256 slot (still a valid encoding).
-		"a52c101e" + "FFffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff" +
-			"FFffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+		// Max uint256 is still valid when right-aligned inside a 64-byte ABI slot.
+		"a52c101e" + abiWordHex(strings.Repeat("f", 64)),
 		compareOK,
 		issueOK,
 	} {

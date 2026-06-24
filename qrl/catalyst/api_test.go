@@ -163,7 +163,11 @@ func TestPrepareAndGetPayload(t *testing.T) {
 
 	// Put the 10th block's tx in the pool and produce a new block
 	txs := blocks[9].Transactions()
-	qrlservice.TxPool().Add(txs, true, false)
+	for _, err := range qrlservice.TxPool().Add(txs, false, true) {
+		if err != nil {
+			t.Fatalf("failed to add transaction to pool: %v", err)
+		}
+	}
 	blockParams := engine.PayloadAttributes{
 		Timestamp:   blocks[8].Time() + 5,
 		Withdrawals: []*types.Withdrawal{},
@@ -173,19 +177,15 @@ func TestPrepareAndGetPayload(t *testing.T) {
 		SafeBlockHash:      common.Hash{},
 		FinalizedBlockHash: common.Hash{},
 	}
-	_, err := api.ForkchoiceUpdatedV2(fcState, &blockParams)
+	resp, err := api.ForkchoiceUpdatedV2(fcState, &blockParams)
 	if err != nil {
 		t.Fatalf("error preparing payload, err=%v", err)
 	}
-	// give the payload some time to be built
-	time.Sleep(100 * time.Millisecond)
-	payloadID := (&miner.BuildPayloadArgs{
-		Parent:       fcState.HeadBlockHash,
-		Timestamp:    blockParams.Timestamp,
-		FeeRecipient: blockParams.SuggestedFeeRecipient,
-		Random:       blockParams.Random,
-	}).Id()
-	execData, err := api.GetPayloadV2(payloadID)
+	if resp.PayloadID == nil {
+		t.Fatal("missing payload id")
+	}
+	payloadID := *resp.PayloadID
+	execData, err := api.getPayload(payloadID, true)
 	if err != nil {
 		t.Fatalf("error getting payload, err=%v", err)
 	}
