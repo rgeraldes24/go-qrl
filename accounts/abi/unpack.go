@@ -65,7 +65,9 @@ func ReadInteger(typ Type, b []byte) (any, error) {
 			}
 			return u64, nil
 		default:
-			// the only case left for unsigned integer is uint256.
+			if !fitsUnsignedInteger(ret, typ.Size) {
+				return nil, errBadUint(typ.Size)
+			}
 			return ret, nil
 		}
 	}
@@ -101,8 +103,9 @@ func ReadInteger(typ Type, b []byte) (any, error) {
 		}
 		return i64, nil
 	default:
-		// the only case left for integer is int256
-
+		if !fitsSignedInteger(ret, typ.Size) {
+			return nil, errBadInt(typ.Size)
+		}
 		return ret, nil
 	}
 }

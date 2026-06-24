@@ -211,7 +211,7 @@ func TestPassingBlockNumber(t *testing.T) {
 // replaces the 20-byte hex literals that used to be parsed via
 // NewAddressFromString.
 var mockSender = func() common.Address {
-	raw, _ := hex.DecodeString("978271565f56deb45495afa69e59c16ab2376c47978271565f56deb45495afa69e59c16ab2112233445566778899aabb")
+	raw, _ := hex.DecodeString("978271565f56deb45495afa69e59c16ab2376c47978271565f56deb45495afa69e59c16ab2112233445566778899aabbc0ffee00010203040506070809")
 	return common.BytesToAddress(raw)
 }()
 

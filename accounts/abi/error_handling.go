@@ -28,10 +28,12 @@ var (
 	errBadUint16   = errors.New("abi: improperly encoded uint16 value")
 	errBadUint32   = errors.New("abi: improperly encoded uint32 value")
 	errBadUint64   = errors.New("abi: improperly encoded uint64 value")
+	errBadUint256  = errors.New("abi: improperly encoded uint256 value")
 	errBadInt8     = errors.New("abi: improperly encoded int8 value")
 	errBadInt16    = errors.New("abi: improperly encoded int16 value")
 	errBadInt32    = errors.New("abi: improperly encoded int32 value")
 	errBadInt64    = errors.New("abi: improperly encoded int64 value")
+	errBadInt256   = errors.New("abi: improperly encoded int256 value")
 	errInvalidSign = errors.New("abi: negatively-signed value cannot be packed into uint parameter")
 
 	// ErrUnsupportedFunctionType is returned when an ABI value uses Solidity's
@@ -39,6 +41,40 @@ var (
 	// address plus a 4-byte selector, which does not fit in one 64-byte ABI slot.
 	ErrUnsupportedFunctionType = errors.New("abi: function type is unsupported in VM64 because address64 + selector4 is 68 bytes")
 )
+
+func errBadUint(size int) error {
+	switch size {
+	case 8:
+		return errBadUint8
+	case 16:
+		return errBadUint16
+	case 32:
+		return errBadUint32
+	case 64:
+		return errBadUint64
+	case 256:
+		return errBadUint256
+	default:
+		return fmt.Errorf("abi: improperly encoded uint%d value", size)
+	}
+}
+
+func errBadInt(size int) error {
+	switch size {
+	case 8:
+		return errBadInt8
+	case 16:
+		return errBadInt16
+	case 32:
+		return errBadInt32
+	case 64:
+		return errBadInt64
+	case 256:
+		return errBadInt256
+	default:
+		return fmt.Errorf("abi: improperly encoded int%d value", size)
+	}
+}
 
 // formatSliceString formats the reflection kind with the given slice size
 // and returns a formatted string representation.
