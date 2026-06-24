@@ -202,10 +202,7 @@ func TestMixedcaseAccount_Address(t *testing.T) {
 		Valid bool
 	}
 	lowercase := "Q" + strings.Repeat("0", 88) + "ae967917c465db8578ca9024c205720b1a3651a9"
-	addr, err := NewAddressFromString(lowercase)
-	if err != nil {
-		t.Fatal(err)
-	}
+	addr := MustParseAddress(lowercase)
 	canonical := addr.Hex()
 	if err := json.Unmarshal([]byte(fmt.Sprintf(`[
 			{"A" : "%s", "Valid": true},
