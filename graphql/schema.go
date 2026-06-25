@@ -22,7 +22,7 @@ const schema string = `
     # Bytes64 is a 64 byte binary string, represented as 0x-prefixed hexadecimal.
     # Used for storage slot values and log topics, which carry 512-bit VM words.
     scalar Bytes64
-    # Address is a 64 byte QRL address, represented as 0x-prefixed hexadecimal.
+    # Address is a 64 byte QRL address, represented as Q-prefixed hexadecimal.
     scalar Address
     # Bytes is an arbitrary length binary string, represented as 0x-prefixed hexadecimal.
     # An empty byte string is represented as '0x'. Byte strings must have an even number of hexadecimal nybbles.
