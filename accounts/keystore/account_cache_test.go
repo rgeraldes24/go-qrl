@@ -176,6 +176,51 @@ func TestCacheInitialReload(t *testing.T) {
 	}
 }
 
+func TestCacheInitialReloadIgnoresInvalidFiles(t *testing.T) {
+	t.Parallel()
+
+	_, srcAccounts := makeCachetestAccounts(t)
+	dir := t.TempDir()
+	want := []accounts.Account{{
+		Address: srcAccounts[0].Address,
+		URL:     accounts.URL{Scheme: KeyStoreScheme, Path: filepath.Join(dir, "aaa")},
+	}}
+	if err := cp.CopyFile(want[0].URL.Path, srcAccounts[0].URL.Path); err != nil {
+		t.Fatal(err)
+	}
+	if err := cp.CopyFile(filepath.Join(dir, ".hiddenfile"), srcAccounts[1].URL.Path); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Mkdir(filepath.Join(dir, "foo"), 0700); err != nil {
+		t.Fatal(err)
+	}
+	if err := cp.CopyFile(filepath.Join(dir, "foo", "nested"), srcAccounts[1].URL.Path); err != nil {
+		t.Fatal(err)
+	}
+	if err := cp.CopyFile(filepath.Join(dir, "swapfile~"), srcAccounts[1].URL.Path); err != nil {
+		t.Fatal(err)
+	}
+
+	invalidFiles := map[string]string{
+		"README":     "This directory contains accounts for testing.",
+		"empty":      "",
+		"garbage":    "\x00\xffnot json",
+		"no-address": `{"version":1}`,
+		"zero":       fmt.Sprintf(`{"address":%q}`, fmt.Sprintf("%#x", common.Address{})),
+	}
+	for name, content := range invalidFiles {
+		if err := os.WriteFile(filepath.Join(dir, name), []byte(content), 0600); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	cache, _ := newAccountCache(dir)
+	accts := cache.accounts()
+	if !reflect.DeepEqual(accts, want) {
+		t.Fatalf("got initial accounts: %swant %s", spew.Sdump(accts), spew.Sdump(want))
+	}
+}
+
 func TestCacheAddDeleteOrder(t *testing.T) {
 	t.Parallel()
 	cache, _ := newAccountCache("testdata/no-such-dir")
@@ -210,7 +255,7 @@ func TestCacheAddDeleteOrder(t *testing.T) {
 		},
 		{
 			Address: address5,
-			URL:     accounts.URL{Scheme: KeyStoreScheme, Path: "UTC--2016-03-22T12-57-55.920751759Z--Q000000000000000000000000000000000000000000000000000000007ef5a6135f1fd6a02593eedc869c6d41d934aef8"},
+			URL:     accounts.URL{Scheme: KeyStoreScheme, Path: "UTC--2016-03-22T12-57-55.920751759Z--Q00000000000000000000000000000000000000000000000000000000000000000000000000000000000000007ef5a6135f1fd6a02593eedc869c6d41d934aef8"},
 		},
 		{
 			Address: address6,
