@@ -25,6 +25,7 @@ import (
 
 	"github.com/theQRL/go-qrl/accounts/abi"
 	"github.com/theQRL/go-qrl/common"
+	"github.com/theQRL/go-qrl/signer/core/apitypes"
 )
 
 // mustPack packs the given ABI method using the provided JSON spec and returns
@@ -137,10 +138,10 @@ func TestCalldataDecoding(t *testing.T) {
 	// abi.Pack, then derive the corresponding failure cases (truncations,
 	// illegal bool values, mis-aligned lengths) by mutating those payloads.
 	const (
-		sendSpec              = `[{"type":"function","name":"send","inputs":[{"name":"a","type":"uint256"}]}]`
-		compareSpec           = `[{"type":"function","name":"compareAndApprove","inputs":[{"name":"a","type":"address"},{"name":"a","type":"uint256"},{"name":"a","type":"uint256"}]}]`
-		issueSpec             = `[{"type":"function","name":"issue","inputs":[{"name":"a","type":"address[]"},{"name":"a","type":"uint256"}]}]`
-		samSpec               = `[{"type":"function","name":"sam","inputs":[{"name":"a","type":"bytes"},{"name":"a","type":"bool"},{"name":"a","type":"uint256[]"}]}]`
+		sendSpec    = `[{"type":"function","name":"send","inputs":[{"name":"a","type":"uint256"}]}]`
+		compareSpec = `[{"type":"function","name":"compareAndApprove","inputs":[{"name":"a","type":"address"},{"name":"a","type":"uint256"},{"name":"a","type":"uint256"}]}]`
+		issueSpec   = `[{"type":"function","name":"issue","inputs":[{"name":"a","type":"address[]"},{"name":"a","type":"uint256"}]}]`
+		samSpec     = `[{"type":"function","name":"sam","inputs":[{"name":"a","type":"bytes"},{"name":"a","type":"bool"},{"name":"a","type":"uint256[]"}]}]`
 	)
 	addrA := common.Address{0xde, 0xad}
 	addrB := common.Address{0xbe, 0xef}
@@ -157,9 +158,9 @@ func TestCalldataDecoding(t *testing.T) {
 	// Expected failures
 	for i, hexdata := range []string{
 		sendOK + "0000000000000000000000000000000000000000000000000000000000000042", // extra trailing bytes
-		sendOK + "00", // extra single byte
+		sendOK + "00",          // extra single byte
 		sendOK[:len(sendOK)-2], // truncated final byte
-		sendOK[:8],     // selector only
+		sendOK[:8],             // selector only
 		"a52c10",
 		"",
 		// Too short
@@ -196,6 +197,24 @@ func TestCalldataDecoding(t *testing.T) {
 			t.Errorf("test %d: unexpected failure on input %s:\n %v (%d bytes) ", i, hexdata, err, len(common.Hex2Bytes(hexdata)))
 		}
 	}
+}
+
+func TestValidateCallDataRequiresABIWordAlignment(t *testing.T) {
+	t.Parallel()
+
+	selector := "send(uint256)"
+	data := common.Hex2Bytes("a52c101e" + strings.Repeat("00", 32))
+	messages := new(apitypes.ValidationMessages)
+
+	newEmpty().ValidateCallData(&selector, data, messages)
+
+	want := "Transaction data is not valid ABI (length should be a multiple of 64 (was 32))"
+	for _, msg := range messages.Messages {
+		if msg.Typ == apitypes.WARN && msg.Message == want {
+			return
+		}
+	}
+	t.Fatalf("missing ABI word alignment warning %q in %#v", want, messages.Messages)
 }
 
 func TestMaliciousABIStrings(t *testing.T) {
