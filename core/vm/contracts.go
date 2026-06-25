@@ -89,10 +89,10 @@ func (c *depositroot) RequiredGas(input []byte) uint64 {
 
 func (c *depositroot) Run(input []byte) ([]byte, error) {
 	var (
-		pkBytes     = getData(input, 0, 2592)    // 2592 bytes
-		credsBytes  = getData(input, 2592, 64)   // 64 bytes
-		amountBytes = getData(input, 2656, 8)    // 8 bytes
-		sigBytes    = getData(input, 2664, 4627) // 4627 bytes
+		pkBytes             = getData(input, 0, 2592)    // 2592 bytes
+		withdrawalRecipient = getData(input, 2592, 64)   // 64 bytes
+		amountBytes         = getData(input, 2656, 8)    // 8 bytes
+		sigBytes            = getData(input, 2664, 4627) // 4627 bytes
 	)
 
 	var amountUint uint64
@@ -103,10 +103,10 @@ func (c *depositroot) Run(input []byte) ([]byte, error) {
 	}
 
 	data := &depositdata{
-		PublicKey:             pkBytes,
-		WithdrawalCredentials: credsBytes,
-		Amount:                amountUint,
-		Signature:             sigBytes,
+		PublicKey:           pkBytes,
+		WithdrawalRecipient: withdrawalRecipient,
+		Amount:              amountUint,
+		Signature:           sigBytes,
 	}
 	h, err := data.HashTreeRoot()
 	if err != nil {
@@ -117,10 +117,10 @@ func (c *depositroot) Run(input []byte) ([]byte, error) {
 }
 
 type depositdata struct {
-	PublicKey             []byte
-	WithdrawalCredentials []byte
-	Amount                uint64
-	Signature             []byte
+	PublicKey           []byte
+	WithdrawalRecipient []byte
+	Amount              uint64
+	Signature           []byte
 }
 
 // HashTreeRoot ssz hashes the Deposit_Data object
@@ -139,12 +139,12 @@ func (d *depositdata) HashTreeRootWith(hh *ssz.Hasher) (err error) {
 	}
 	hh.PutBytes(d.PublicKey)
 
-	// Field (1) 'WithdrawalCredentials'
-	if size := len(d.WithdrawalCredentials); size != 64 {
-		err = ssz.ErrBytesLengthFn("--.WithdrawalCredentials", size, 64)
+	// Field (1) 'WithdrawalRecipient'
+	if size := len(d.WithdrawalRecipient); size != 64 {
+		err = ssz.ErrBytesLengthFn("--.WithdrawalRecipient", size, 64)
 		return
 	}
-	hh.PutBytes(d.WithdrawalCredentials)
+	hh.PutBytes(d.WithdrawalRecipient)
 
 	// Field (2) 'Amount'
 	hh.PutUint64(d.Amount)
