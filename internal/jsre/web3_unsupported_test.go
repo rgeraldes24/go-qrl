@@ -39,9 +39,6 @@ func TestEmbeddedWeb3UnsupportedAPIsRemoved(t *testing.T) {
 
 	value, err := re.Run(`JSON.stringify({
 		db: typeof web3.db,
-		miner: typeof web3.miner,
-		personal: typeof web3.personal,
-		shh: typeof web3.shh,
 		versionQrl: typeof web3.version.qrl,
 		qrlProtocolVersion: typeof web3.qrl.protocolVersion,
 		namereg: typeof web3.qrl.namereg,

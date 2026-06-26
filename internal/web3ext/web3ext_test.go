@@ -18,10 +18,7 @@ import (
 	"testing"
 )
 
-func TestUnsupportedConsoleExtensionsRemoved(t *testing.T) {
-	if _, ok := Modules["miner"]; ok {
-		t.Fatal("miner extension should not be exported")
-	}
+func TestUnsupportedQRLSubmitTransactionRemoved(t *testing.T) {
 	for _, needle := range []string{"submitTransaction", "qrl_submitTransaction"} {
 		if strings.Contains(QRLJs, needle) {
 			t.Fatalf("qrl extension still contains %q", needle)

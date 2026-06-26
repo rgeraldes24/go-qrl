@@ -21,6 +21,7 @@ var Modules = map[string]string{
 	"admin":  AdminJs,
 	"debug":  DebugJs,
 	"qrl":    QRLJs,
+	"miner":  MinerJs,
 	"net":    NetJs,
 	"rpc":    RpcJs,
 	"txpool": TxpoolJs,
@@ -522,6 +523,32 @@ web3._extend({
 			outputFormatter: web3._extend.utils.toBigNumber
 		}),
 	]
+});
+`
+
+const MinerJs = `
+web3._extend({
+	property: 'miner',
+	methods: [
+		new web3._extend.Method({
+			name: 'setExtra',
+			call: 'miner_setExtra',
+			params: 1
+		}),
+		new web3._extend.Method({
+			name: 'setGasPrice',
+			call: 'miner_setGasPrice',
+			params: 1,
+			inputFormatter: [web3._extend.utils.fromDecimal]
+		}),
+		new web3._extend.Method({
+			name: 'setGasLimit',
+			call: 'miner_setGasLimit',
+			params: 1,
+			inputFormatter: [web3._extend.utils.fromDecimal]
+		}),
+	],
+	properties: []
 });
 `
 
