@@ -203,18 +203,44 @@ func TestValidateCallDataRequiresABIWordAlignment(t *testing.T) {
 	t.Parallel()
 
 	selector := "send(uint256)"
-	data := common.Hex2Bytes("a52c101e" + strings.Repeat("00", 32))
-	messages := new(apitypes.ValidationMessages)
-
-	newEmpty().ValidateCallData(&selector, data, messages)
-
+	sendSpec := `[{"type":"function","name":"send","inputs":[{"name":"a","type":"uint256"}]}]`
 	want := "Transaction data is not valid ABI (length should be a multiple of 64 (was 32))"
-	for _, msg := range messages.Messages {
-		if msg.Typ == apitypes.WARN && msg.Message == want {
-			return
-		}
+	tests := []struct {
+		name string
+		data []byte
+		warn bool
+	}{
+		{
+			name: "32 byte tail is not aligned",
+			data: common.Hex2Bytes("a52c101e" + strings.Repeat("00", 32)),
+			warn: true,
+		},
+		{
+			name: "64 byte tail is aligned",
+			data: common.Hex2Bytes(mustPack(t, sendSpec, "send", big.NewInt(0))),
+			warn: false,
+		},
 	}
-	t.Fatalf("missing ABI word alignment warning %q in %#v", want, messages.Messages)
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			messages := new(apitypes.ValidationMessages)
+			newEmpty().ValidateCallData(&selector, tt.data, messages)
+
+			var gotWarn bool
+			for _, msg := range messages.Messages {
+				if msg.Typ == apitypes.WARN && msg.Message == want {
+					gotWarn = true
+					break
+				}
+			}
+			if gotWarn != tt.warn {
+				t.Fatalf("alignment warning = %t, want %t in %#v", gotWarn, tt.warn, messages.Messages)
+			}
+		})
+	}
 }
 
 func TestMaliciousABIStrings(t *testing.T) {
