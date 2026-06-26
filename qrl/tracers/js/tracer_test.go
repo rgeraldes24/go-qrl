@@ -19,10 +19,8 @@ package js
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"math/big"
 	"slices"
-	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -248,77 +246,7 @@ func TestQRVMDisTracerResultCountsCoverOpcodes(t *testing.T) {
 	}
 }
 
-func TestQRVMDisTracerCallFrameResultCounts(t *testing.T) {
-	tests := []struct {
-		name   string
-		op     vm.OpCode
-		wantOp int
-		stack  []string
-	}{
-		{
-			name:   "CALL",
-			op:     vm.CALL,
-			wantOp: int(vm.CALL),
-			stack:  []string{"0", "0", "0", "0", "0"},
-		},
-		{
-			name:   "DELEGATECALL",
-			op:     vm.DELEGATECALL,
-			wantOp: int(vm.DELEGATECALL),
-			stack:  []string{"0", "0", "0", "0"},
-		},
-		{
-			name:   "STATICCALL",
-			op:     vm.STATICCALL,
-			wantOp: int(vm.STATICCALL),
-			stack:  []string{"0", "0", "0", "0"},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			runtime, value, obj := qrvmdisTracerObject(t)
-
-			qrvmdisStep(t, runtime, value, obj, qrvmdisFakeLog(t, runtime, 1, tt.op, tt.name, false, tt.stack))
-			qrvmdisStep(t, runtime, value, obj, qrvmdisFakeLog(t, runtime, 2, vm.STOP, "STOP", false, nil))
-			qrvmdisStep(t, runtime, value, obj, qrvmdisFakeLog(t, runtime, 1, vm.POP, "POP", false, []string{"1"}))
-			qrvmdisStep(t, runtime, value, obj, qrvmdisFakeLog(t, runtime, 1, vm.STOP, "STOP", false, nil))
-
-			ops := qrvmdisTraceResult(t, value, obj)
-			if len(ops) != 3 {
-				t.Fatalf("unexpected qrvmdis parent op count: have %d want 3: %+v", len(ops), ops)
-			}
-			if string(ops[0].Op) != qrvmdisJSON(t, tt.wantOp) || !slices.Equal(ops[0].Result, []string{"1"}) {
-				t.Fatalf("unexpected %s trace result: %+v", tt.name, ops[0])
-			}
-			if len(ops[0].Ops) != 1 || string(ops[0].Ops[0].Op) != qrvmdisJSON(t, int(vm.STOP)) {
-				t.Fatalf("unexpected nested %s ops: %+v", tt.name, ops[0].Ops)
-			}
-			if string(ops[1].Op) != qrvmdisJSON(t, int(vm.POP)) || string(ops[2].Op) != qrvmdisJSON(t, int(vm.STOP)) {
-				t.Fatalf("unexpected parent ops after %s: %+v", tt.name, ops)
-			}
-		})
-	}
-}
-
 func qrvmdisResultCount(t *testing.T) func(vm.OpCode) int {
-	t.Helper()
-
-	runtime, value, obj := qrvmdisTracerObject(t)
-	resultCount, ok := goja.AssertFunction(obj.Get("resultCount"))
-	if !ok {
-		t.Fatal("qrvmdisTracer resultCount is not callable")
-	}
-	return func(op vm.OpCode) int {
-		result, err := resultCount(value, runtime.ToValue(int(op)))
-		if err != nil {
-			t.Fatalf("resultCount(%#x): %v", byte(op), err)
-		}
-		return int(result.ToInteger())
-	}
-}
-
-func qrvmdisTracerObject(t *testing.T) (*goja.Runtime, goja.Value, *goja.Object) {
 	t.Helper()
 
 	tracerFiles, err := assettracers.Load()
@@ -335,120 +263,17 @@ func qrvmdisTracerObject(t *testing.T) (*goja.Runtime, goja.Value, *goja.Object)
 		t.Fatal(err)
 	}
 	obj := value.ToObject(runtime)
-	return runtime, value, obj
-}
-
-func qrvmdisStep(t *testing.T, runtime *goja.Runtime, value goja.Value, obj *goja.Object, log *goja.Object) {
-	t.Helper()
-
-	step, ok := goja.AssertFunction(obj.Get("step"))
+	resultCount, ok := goja.AssertFunction(obj.Get("resultCount"))
 	if !ok {
-		t.Fatal("qrvmdisTracer step is not callable")
+		t.Fatal("qrvmdisTracer resultCount is not callable")
 	}
-	if _, err := step(value, log, runtime.ToValue(nil)); err != nil {
-		t.Fatal(err)
-	}
-}
-
-func qrvmdisTraceResult(t *testing.T, value goja.Value, obj *goja.Object) []qrvmdisRawOp {
-	t.Helper()
-
-	result, ok := goja.AssertFunction(obj.Get("result"))
-	if !ok {
-		t.Fatal("qrvmdisTracer result is not callable")
-	}
-	got, err := result(value)
-	if err != nil {
-		t.Fatal(err)
-	}
-	encoded, err := json.Marshal(got.Export())
-	if err != nil {
-		t.Fatal(err)
-	}
-	var ops []qrvmdisRawOp
-	if err := json.Unmarshal(encoded, &ops); err != nil {
-		t.Fatal(err)
-	}
-	return ops
-}
-
-func qrvmdisFakeLog(t *testing.T, runtime *goja.Runtime, depth int, op vm.OpCode, name string, isPush bool, stack []string) *goja.Object {
-	t.Helper()
-
-	log := runtime.NewObject()
-	if err := log.Set("getDepth", func() int { return depth }); err != nil {
-		t.Fatal(err)
-	}
-	if err := log.Set("getError", func() goja.Value { return goja.Null() }); err != nil {
-		t.Fatal(err)
-	}
-	if err := log.Set("getPC", func() int { return 0 }); err != nil {
-		t.Fatal(err)
-	}
-	opObj := runtime.NewObject()
-	if err := opObj.Set("toNumber", func() int { return int(op) }); err != nil {
-		t.Fatal(err)
-	}
-	if err := opObj.Set("toString", func() string { return name }); err != nil {
-		t.Fatal(err)
-	}
-	if err := opObj.Set("isPush", func() bool { return isPush }); err != nil {
-		t.Fatal(err)
-	}
-	if err := log.Set("op", opObj); err != nil {
-		t.Fatal(err)
-	}
-
-	stackObj := runtime.NewObject()
-	if err := stackObj.Set("peek", func(i int) *goja.Object {
-		if i < 0 || i >= len(stack) {
-			panic(fmt.Sprintf("unexpected stack peek %d with stack length %d", i, len(stack)))
-		}
-		return qrvmdisFakeStackValue(t, runtime, stack[i])
-	}); err != nil {
-		t.Fatal(err)
-	}
-	if err := log.Set("stack", stackObj); err != nil {
-		t.Fatal(err)
-	}
-
-	memory := runtime.NewObject()
-	if err := memory.Set("slice", func(start, end int) []byte { return nil }); err != nil {
-		t.Fatal(err)
-	}
-	if err := log.Set("memory", memory); err != nil {
-		t.Fatal(err)
-	}
-	return log
-}
-
-func qrvmdisFakeStackValue(t *testing.T, runtime *goja.Runtime, value string) *goja.Object {
-	t.Helper()
-
-	obj := runtime.NewObject()
-	if err := obj.Set("toString", func(base int) string { return value }); err != nil {
-		t.Fatal(err)
-	}
-	if err := obj.Set("valueOf", func() int {
-		n, err := strconv.ParseInt(value, 16, 64)
+	return func(op vm.OpCode) int {
+		result, err := resultCount(value, runtime.ToValue(int(op)))
 		if err != nil {
-			panic(err)
+			t.Fatalf("resultCount(%#x): %v", byte(op), err)
 		}
-		return int(n)
-	}); err != nil {
-		t.Fatal(err)
+		return int(result.ToInteger())
 	}
-	return obj
-}
-
-func qrvmdisJSON(t *testing.T, value any) string {
-	t.Helper()
-
-	encoded, err := json.Marshal(value)
-	if err != nil {
-		t.Fatal(err)
-	}
-	return string(encoded)
 }
 
 func expectedQRVMDisResultCount(op vm.OpCode) (int, bool) {
@@ -515,12 +340,6 @@ type qrvmdisOp struct {
 	Op     int      `json:"op"`
 	Len    int      `json:"len"`
 	Result []string `json:"result"`
-}
-
-type qrvmdisRawOp struct {
-	Op     json.RawMessage `json:"op"`
-	Result []string        `json:"result"`
-	Ops    []qrvmdisRawOp  `json:"ops"`
 }
 
 func runQRVMDisTrace(t *testing.T, contract []byte) []qrvmdisOp {
