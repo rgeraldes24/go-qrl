@@ -1,6 +1,6 @@
 # Rules
 
-The `signer` binary contains a ruleset engine, implemented with [OttoVM](https://github.com/robertkrimen/otto)
+The `signer` binary contains a ruleset engine, implemented with [goja](https://github.com/dop251/goja).
 
 It enables usecases like the following:
 
@@ -31,8 +31,9 @@ function asBig(str) {
 function ApproveTx(req) {
 	var limit = new BigNumber("0xb1a2bc2ec50000")
 	var value = asBig(req.transaction.value);
+	var target = "Q0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000AE967917c465db8578Ca9024C205720b1A3651A9";
 
-	if (req.transaction.to.toLowerCase() == "qae967917c465db8578ca9024c205720b1a3651a9") && value.lt(limit)) {
+	if (req.transaction.to && req.transaction.to == target && value.lt(limit)) {
 		return "Approve"
 	}
 	// If we return "Reject", it will be rejected.
@@ -41,7 +42,7 @@ function ApproveTx(req) {
 
 // Approve listings if request made from IPC
 function ApproveListing(req){
-    if (req.metadata.scheme == "ipc"){ return "Approve"}
+    if (req.meta.scheme == "ipc"){ return "Approve"}
 }
 ```
 
@@ -57,15 +58,14 @@ invokes the corresponding method. In doing so, there are three possible outcomes
 
 A more advanced example can be found below, "Example 1: ruleset for a rate-limited window", using `storage` to `Put` and `Get` `string`s by key.
 
-* At the time of writing, storage only exists as an ephemeral unencrypted implementation, to be used during testing.
+* Rule storage is persisted through Clef's encrypted JavaScript storage.
 
 ### Things to note
 
-The Otto vm has a few [caveats](https://github.com/robertkrimen/otto):
+The goja VM has a few caveats:
 
-* "use strict" will parse, but does nothing.
-* The regular expression engine (re2/regexp) is not fully compatible with the ECMA5 specification.
-* Otto targets ES5. ES6 features (eg: Typed Arrays) are not supported.
+* The regular expression engine follows Go's regexp behavior where it is exposed through host-side helpers.
+* Support for JavaScript features follows the embedded goja runtime.
 
 Additionally, a few more have been added
 
@@ -133,7 +133,7 @@ imagine leveraging OS-level keychains where supported. The setup is however, in 
 
 # Implementation status
 
-This is now implemented (with ephemeral non-encrypted storage for now, so not yet enabled).
+This is now implemented with encrypted storage for ruleset metadata and JavaScript rule state.
 
 ## Example 1: ruleset for a rate-limited window
 
@@ -215,10 +215,10 @@ function OnApprovedTx(resp) {
 
 ```js
 function ApproveTx(r) {
-	if (r.transaction.from.toLowerCase() == "q0000000000000000000000000000000000001337") {
+	if (r.transaction.from == "Q00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001337") {
 		return "Approve"
 	}
-	if (r.transaction.from.toLowerCase() == "q000000000000000000000000000000000000dead") {
+	if (r.transaction.from == "Q0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000dEaD") {
 		return "Reject"
 	}
 	// Otherwise goes to manual processing

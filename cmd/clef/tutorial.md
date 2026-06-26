@@ -41,14 +41,13 @@ You should treat 'masterseed.json' with utmost secrecy and make a backup of it!
 
 ## Remote interactions
 
-Clef is capable of managing both key-file based accounts as well as hardware wallets. To evaluate clef, we're going to point it to our Rinkeby testnet keystore and specify the Rinkeby chain ID for signing (Clef doesn't have a backing chain, so it doesn't know what network it runs on).
+Clef manages keystore-backed accounts. To evaluate clef, we're going to point it to our QRL testnet keystore and specify the testnet chain ID for signing (Clef doesn't have a backing chain, so it doesn't know what network it runs on).
 
 ```text
-$ clef --keystore ~/.qrl/rinkeby/keystore --chainid 4
+$ clef --keystore ~/.qrl/testnet/keystore --chainid 4
 
-INFO [07-01|11:00:46.385] Starting signer                          chainid=4 keystore=$HOME/.qrl/rinkeby/keystore light-kdf=false advanced=false
+INFO [07-01|11:00:46.385] Starting signer                          chainid=4 keystore=$HOME/.qrl/testnet/keystore light-kdf=false advanced=false
 DEBUG[07-01|11:00:46.389] FS scan times                            list=3.521941ms set=9.017µs diff=4.112µs
-DEBUG[07-01|11:00:46.391] Ledger support enabled
 INFO [07-01|11:00:46.391] Audit logs configured                    file=audit.log
 DEBUG[07-01|11:00:46.392] IPC registered                           namespace=account
 INFO [07-01|11:00:46.392] IPC endpoint opened                      url=$HOME/.clef/clef.ipc
@@ -73,10 +72,10 @@ This will prompt the user within the Clef CLI to confirm or deny the request:
 -------- List Account request--------------
 A request has been made to list all accounts.
 You can select which accounts the caller can see
-  [x] Q00000000000000000000000000000000000000000000000000000000D9C9Cd5f6779558b6e0eD4e6Acf6b1947E7fA1F3
-    URL: keystore://$HOME/.qrl/rinkeby/keystore/UTC--2017-04-14T15-15-00.327614556Z--Q00000000000000000000000000000000000000000000000000000000d9c9cd5f6779558b6e0ed4e6acf6b1947e7fa1f3
-  [x] Q00000000000000000000000000000000000000000000000000000000086278A6C067775F71d6B2BB1856Db6E28c30418
-    URL: keystore://$HOME/.qrl/rinkeby/keystore/UTC--2018-02-06T22-53-11.211657239Z--Q00000000000000000000000000000000000000000000000000000000086278a6c067775f71d6b2bb1856db6e28c30418
+  [x] Q0123456789ABcdEF0123456789abcDEF0123456789AbCdef0123456789abcDeF89aBCDeF0123456789AbcdeF0123456789AbCdeF0123456789aBCDef01234567
+    URL: keystore://$HOME/.qrl/testnet/keystore/UTC--2017-04-14T15-15-00.327614556Z--Q0123456789ABcdEF0123456789abcDEF0123456789AbCdef0123456789abcDeF89aBCDeF0123456789AbcdeF0123456789AbCdeF0123456789aBCDef01234567
+  [x] QfEDcbA9876543210FEdCba9876543210FEDCba9876543210fEDcBA987654321076543210fEdCBa9876543210fedcBa9876543210FedCba9876543210fedCba98
+    URL: keystore://$HOME/.qrl/testnet/keystore/UTC--2018-02-06T22-53-11.211657239Z--QfEDcbA9876543210FEdCba9876543210FEDCba9876543210fEDcBA987654321076543210fEdCBa9876543210fedcBa9876543210FedCba9876543210fedCba98
 -------------------------------------------
 Request context:
 	NA -> NA -> NA
@@ -91,7 +90,7 @@ Approve? [y/N]:
 Depending on whether we approve or deny the request, the original NetCat process will get:
 
 ```text
-{"jsonrpc":"2.0","id":1,"result":["Q00000000000000000000000000000000000000000000000000000000d9c9cd5f6779558b6e0ed4e6acf6b1947e7fa1f3","Q00000000000000000000000000000000000000000000000000000000086278a6c067775f71d6b2bb1856db6e28c30418"]}
+{"jsonrpc":"2.0","id":1,"result":["Q0123456789ABcdEF0123456789abcDEF0123456789AbCdef0123456789abcDeF89aBCDeF0123456789AbcdeF0123456789AbCdeF0123456789aBCDef01234567","QfEDcbA9876543210FEdCba9876543210FEDCba9876543210fEDcBA987654321076543210fEdCBa9876543210fedcBa9876543210FedCba9876543210fedCba98"]}
 
 or
 
@@ -104,7 +103,7 @@ Apart from listing accounts, you can also *request* creating a new account and s
 
 ## Automatic rules
 
-For most users, manually confirming every transaction is the way to go. However, there are cases when it makes sense to set up some rules which permit Clef to sign a transaction without prompting the user. One such example would be running a signer on Rinkeby or other PoA networks.
+For most users, manually confirming every transaction is the way to go. However, there are cases when it makes sense to set up some rules which permit Clef to sign a transaction without prompting the user. One such example would be running a signer on a QRL testnet.
 
 For starters, we can create a rule file that automatically permits anyone to list our available accounts without user confirmation. The rule file is a tiny JavaScript snippet that you can program however you want:
 
@@ -129,12 +128,11 @@ INFO [07-01|13:25:03.290] Ruleset attestation updated              sha256=645b58
 At this point, we can start Clef with the rule file:
 
 ```text
-$ clef --keystore ~/.qrl/rinkeby/keystore --chainid 4 --rules rules.js
+$ clef --keystore ~/.qrl/testnet/keystore --chainid 4 --rules rules.js
 
 INFO [07-01|13:39:49.726] Rule engine configured                   file=rules.js
-INFO [07-01|13:39:49.726] Starting signer                          chainid=4 keystore=$HOME/.qrl/rinkeby/keystore light-kdf=false advanced=false
+INFO [07-01|13:39:49.726] Starting signer                          chainid=4 keystore=$HOME/.qrl/testnet/keystore light-kdf=false advanced=false
 DEBUG[07-01|13:39:49.726] FS scan times                            list=35.15µs set=4.251µs diff=2.766µs
-DEBUG[07-01|13:39:49.727] Ledger support enabled
 INFO [07-01|13:39:49.728] Audit logs configured                    file=audit.log
 DEBUG[07-01|13:39:49.728] IPC registered                           namespace=account
 INFO [07-01|13:39:49.728] IPC endpoint opened                      url=$HOME/.clef/clef.ipc
@@ -149,7 +147,7 @@ Any account listing *request* will now be auto-approved by the rule file:
 
 ```text
 $ echo '{"id": 1, "jsonrpc": "2.0", "method": "account_list"}' | nc -U ~/.clef/clef.ipc
-{"jsonrpc":"2.0","id":1,"result":["Q00000000000000000000000000000000000000000000000000000000d9c9cd5f6779558b6e0ed4e6acf6b1947e7fa1f3","Q00000000000000000000000000000000000000000000000000000000086278a6c067775f71d6b2bb1856db6e28c30418"]}
+{"jsonrpc":"2.0","id":1,"result":["Q0123456789ABcdEF0123456789abcDEF0123456789AbCdef0123456789abcDeF89aBCDeF0123456789AbcdeF0123456789AbCdeF0123456789aBCDef01234567","QfEDcbA9876543210FEdCba9876543210FEDCba9876543210fEDcBA987654321076543210fEdCBa9876543210fedcBa9876543210FedCba9876543210fedCba98"]}
 ```
 
 ## Under the hood
@@ -187,7 +185,7 @@ In `$HOME/.clef`, the `masterseed.json` file was created, containing the master 
 In order to make more useful rules - like signing transactions - the signer needs access to the passwords needed to unlock keys from the keystore. You can inject an unlock password via `clef setpw`.
 
 ```text
-$ clef setpw Q00000000000000000000000000000000000000000000000000000000d9c9cd5f6779558b6e0ed4e6acf6b1947e7fa1f3
+$ clef setpw Q0123456789ABcdEF0123456789abcDEF0123456789AbCdef0123456789abcDeF89aBCDeF0123456789AbcdeF0123456789AbCdeF0123456789aBCDef01234567
 
 Please enter a password to store for this address:
 Password:
@@ -195,7 +193,7 @@ Repeat password:
 
 Decrypt master seed of clef
 Password:
-INFO [07-01|14:05:56.031] Credential store updated                 key=Q00000000000000000000000000000000000000000000000000000000d9c9cd5f6779558b6e0ed4e6acf6b1947e7fa1f3
+INFO [07-01|14:05:56.031] Credential store updated                 key=Q0123456789ABcdEF0123456789abcDEF0123456789AbCdef0123456789abcDeF89aBCDeF0123456789AbcdeF0123456789AbCdeF0123456789aBCDef01234567
 ```
 
 Now let's update the rules to make use of the new credentials:
@@ -206,7 +204,7 @@ function ApproveListing() {
 }
 
 function ApproveSignData(req) {
-    if (req.address.toLowerCase() == "qd9c9cd5f6779558b6e0ed4e6acf6b1947e7fa1f3") {
+    if (req.address == "Q0123456789ABcdEF0123456789abcDEF0123456789AbCdef0123456789abcDeF89aBCDeF0123456789AbcdeF0123456789AbCdeF0123456789aBCDef01234567") {
         if (req.messages[0].value.indexOf("bazonk") >= 0) {
             return "Approve"
         }
@@ -218,7 +216,7 @@ function ApproveSignData(req) {
 
 In this example:
 
-- Any requests to sign data with the account `Qd9c9...` will be:
+- Any requests to sign data with the account shown above will be:
     - Auto-approved if the message contains `bazonk`,
     - Auto-rejected if the message does not contain `bazonk`,
 - Any other requests will be passed along for manual confirmation.
@@ -240,12 +238,11 @@ INFO [07-01|14:11:28.509] Ruleset attestation updated              sha256=f163a1
 Restart Clef with the new rules in place:
 
 ```
-$ clef --keystore ~/.qrl/rinkeby/keystore --chainid 4 --rules rules.js
+$ clef --keystore ~/.qrl/testnet/keystore --chainid 4 --rules rules.js
 
 INFO [07-01|14:12:41.636] Rule engine configured                   file=rules.js
-INFO [07-01|14:12:41.636] Starting signer                          chainid=4 keystore=$HOME/.qrl/rinkeby/keystore light-kdf=false advanced=false
+INFO [07-01|14:12:41.636] Starting signer                          chainid=4 keystore=$HOME/.qrl/testnet/keystore light-kdf=false advanced=false
 DEBUG[07-01|14:12:41.636] FS scan times                            list=46.722µs set=4.47µs diff=2.157µs
-DEBUG[07-01|14:12:41.637] Ledger support enabled
 INFO [07-01|14:12:41.638] Audit logs configured                    file=audit.log
 DEBUG[07-01|14:12:41.638] IPC registered                           namespace=account
 INFO [07-01|14:12:41.638] IPC endpoint opened                      url=$HOME/.clef/clef.ipc
@@ -259,10 +256,10 @@ INFO [07-01|14:12:41.638] IPC endpoint opened                      url=$HOME/.cl
 Then test signing, once with `bazonk` and once without:
 
 ```
-$ echo '{"id": 1, "jsonrpc":"2.0", "method":"account_signData", "params":["data/plain", "Q00000000000000000000000000000000000000000000000000000000d9c9cd5f6779558b6e0ed4e6acf6b1947e7fa1f3", "0x202062617a6f6e6b2062617a2067617a0a"]}' | nc -U ~/.clef/clef.ipc
+$ echo '{"id": 1, "jsonrpc":"2.0", "method":"account_signData", "params":["text/plain", "Q0123456789ABcdEF0123456789abcDEF0123456789AbCdef0123456789abcDeF89aBCDeF0123456789AbcdeF0123456789AbCdeF0123456789aBCDef01234567", "0x202062617a6f6e6b2062617a2067617a0a"]}' | nc -U ~/.clef/clef.ipc
 {"jsonrpc":"2.0","id":1,"result":"0x4f93e3457027f6be99b06b3392d0ebc60615ba448bb7544687ef1248dea4f5317f789002df783979c417d969836b6fda3710f5bffb296b4d51c8aaae6e2ac4831c"}
 
-$ echo '{"id": 1, "jsonrpc":"2.0", "method":"account_signData", "params":["data/plain", "Q00000000000000000000000000000000000000000000000000000000d9c9cd5f6779558b6e0ed4e6acf6b1947e7fa1f3", "0x2020626f6e6b2062617a2067617a0a"]}' | nc -U ~/.clef/clef.ipc
+$ echo '{"id": 1, "jsonrpc":"2.0", "method":"account_signData", "params":["text/plain", "Q0123456789ABcdEF0123456789abcDEF0123456789AbCdef0123456789abcDeF89aBCDeF0123456789AbcdeF0123456789AbCdeF0123456789aBCDef01234567", "0x2020626f6e6b2062617a2067617a0a"]}' | nc -U ~/.clef/clef.ipc
 {"jsonrpc":"2.0","id":1,"error":{"code":-32000,"message":"Request denied"}}
 ```
 
@@ -276,9 +273,9 @@ The signer also stores all traffic over the external API in a log file. The last
 
 ```text
 $ tail -n 4 audit.log
-t=2019-07-01T15:52:14+0300 lvl=info msg=SignData   api=signer type=request  metadata="{\"remote\":\"NA\",\"local\":\"NA\",\"scheme\":\"NA\",\"User-Agent\":\"\",\"Origin\":\"\"}" addr="Q00000000000000000000000000000000000000000000000000000000d9c9cd5f6779558b6e0ed4e6acf6b1947e7fa1f3 [chksum INVALID]" data=0x202062617a6f6e6b2062617a2067617a0a content-type=data/plain
+t=2019-07-01T15:52:14+0300 lvl=info msg=SignData   api=signer type=request  metadata="{\"remote\":\"NA\",\"local\":\"NA\",\"scheme\":\"NA\",\"User-Agent\":\"\",\"Origin\":\"\"}" addr="Q0123456789ABcdEF0123456789abcDEF0123456789AbCdef0123456789abcDeF89aBCDeF0123456789AbcdeF0123456789AbCdeF0123456789aBCDef01234567 [chksum ok]" data=0x202062617a6f6e6b2062617a2067617a0a content-type=text/plain
 t=2019-07-01T15:52:14+0300 lvl=info msg=SignData   api=signer type=response data=4f93e3457027f6be99b06b3392d0ebc60615ba448bb7544687ef1248dea4f5317f789002df783979c417d969836b6fda3710f5bffb296b4d51c8aaae6e2ac4831c error=nil
-t=2019-07-01T15:52:23+0300 lvl=info msg=SignData   api=signer type=request  metadata="{\"remote\":\"NA\",\"local\":\"NA\",\"scheme\":\"NA\",\"User-Agent\":\"\",\"Origin\":\"\"}" addr="Q00000000000000000000000000000000000000000000000000000000d9c9cd5f6779558b6e0ed4e6acf6b1947e7fa1f3 [chksum INVALID]" data=0x2020626f6e6b2062617a2067617a0a     content-type=data/plain
+t=2019-07-01T15:52:23+0300 lvl=info msg=SignData   api=signer type=request  metadata="{\"remote\":\"NA\",\"local\":\"NA\",\"scheme\":\"NA\",\"User-Agent\":\"\",\"Origin\":\"\"}" addr="Q0123456789ABcdEF0123456789abcDEF0123456789AbCdef0123456789abcDeF89aBCDeF0123456789AbcdeF0123456789AbCdeF0123456789aBCDef01234567 [chksum ok]" data=0x2020626f6e6b2062617a2067617a0a     content-type=text/plain
 t=2019-07-01T15:52:23+0300 lvl=info msg=SignData   api=signer type=response data=                                     error="Request denied"
 ```
 
@@ -286,31 +283,31 @@ For more details on writing automatic rules, please see the [rules spec](https:/
 
 ## Gqrl integration
 
-Of course, as awesome as Clef is, it's not feasible to interact with it via JSON RPC by hand. Long term, we're hoping to convince the general Ethereum community to support Clef as a general signer (it's only 3-5 methods), thus allowing your favorite DApp, Metamask, MyCrypto, etc to request signatures directly.
+Of course, as useful as Clef is, it's not feasible to interact with it via JSON RPC by hand. Long term, QRL/Hyperion wallets and DApps should integrate Clef as a general signer (it's only 3-5 methods), allowing applications to request signatures directly.
 
-Until then however, we're trying to pave the way via Gqrl. Gqrl v1.9.0 has built in support via `--signer <API endpoint>` for using a local or remote Clef instance as an account backend!
+Until then however, we're trying to pave the way via Gqrl. Gqrl has built in support via `--signer <API endpoint>` for using a local or remote Clef instance as an account backend!
 
-We can try this by running Clef with our previous rules on Rinkeby (for now it's a good idea to allow auto-listing accounts, since Gqrl likes to retrieve them once in a while).
+We can try this by running Clef with our previous rules on a QRL testnet (for now it's a good idea to allow auto-listing accounts, since Gqrl likes to retrieve them once in a while).
 
 ```text
-$ clef --keystore ~/.qrl/rinkeby/keystore --chainid 4 --rules rules.js
+$ clef --keystore ~/.qrl/testnet/keystore --chainid 4 --rules rules.js
 ```
 
 In a different window we can start Gqrl, list our accounts, even list our wallets to see where the accounts originate from:
 
 ```text
-$ gqrl --rinkeby --signer=~/.clef/clef.ipc console
+$ gqrl --testnet --signer=~/.clef/clef.ipc console
 
 > qrl.accounts
-["Q00000000000000000000000000000000000000000000000000000000d9c9cd5f6779558b6e0ed4e6acf6b1947e7fa1f3", "Q00000000000000000000000000000000000000000000000000000000086278a6c067775f71d6b2bb1856db6e28c30418"]
+["Q0123456789ABcdEF0123456789abcDEF0123456789AbCdef0123456789abcDeF89aBCDeF0123456789AbcdeF0123456789AbCdeF0123456789aBCDef01234567", "QfEDcbA9876543210FEdCba9876543210FEDCba9876543210fEDcBA987654321076543210fEdCBa9876543210fedcBa9876543210FedCba9876543210fedCba98"]
 
 > personal.listWallets
 [{
     accounts: [{
-        address: "Q00000000000000000000000000000000000000000000000000000000d9c9cd5f6779558b6e0ed4e6acf6b1947e7fa1f3",
+        address: "Q0123456789ABcdEF0123456789abcDEF0123456789AbCdef0123456789abcDeF89aBCDeF0123456789AbcdeF0123456789AbCdeF0123456789aBCDef01234567",
         url: "extapi://$HOME/.clef/clef.ipc"
     }, {
-        address: "Q00000000000000000000000000000000000000000000000000000000086278a6c067775f71d6b2bb1856db6e28c30418",
+        address: "QfEDcbA9876543210FEdCba9876543210FEDCba9876543210fEDcBA987654321076543210fEdCBa9876543210fedcBa9876543210FedCba9876543210fedCba98",
         url: "extapi://$HOME/.clef/clef.ipc"
     }],
     status: "ok [version=6.0.0]",
@@ -324,8 +321,8 @@ Lastly, when we requested a transaction to be sent, Clef prompted us in the orig
 
 ```text
 --------- Transaction request-------------
-to:           Q00000000000000000000000000000000000000000000000000000000D9C9Cd5f6779558b6e0eD4e6Acf6b1947E7fA1F3
-from:         Q00000000000000000000000000000000000000000000000000000000D9C9Cd5f6779558b6e0eD4e6Acf6b1947E7fA1F3 [chksum ok]
+to:           Q0123456789ABcdEF0123456789abcDEF0123456789AbCdef0123456789abcDeF89aBCDeF0123456789AbcdeF0123456789AbCdeF0123456789aBCDef01234567
+from:         Q0123456789ABcdEF0123456789abcDEF0123456789AbCdef0123456789abcDeF89aBCDeF0123456789AbcdeF0123456789AbCdeF0123456789aBCDef01234567 [chksum ok]
 value:        0 planck
 gas:          0x5208 (21000)
 maxFeePerGas: 1000000000 planck
