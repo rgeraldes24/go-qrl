@@ -4128,11 +4128,6 @@ module.exports = HttpProvider;
  * @date 2015
  */
 
-module.exports = function () {
-    throw new Error('IBAN/ICAP is unsupported for VM64 QRL addresses');
-};
-
-
 },{}],34:[function(require,module,exports){
 /*
     This file is part of web3.js.
@@ -5674,11 +5669,6 @@ module.exports = IsSyncing;
  * @author Marek Kotewicz <marek@ethdev.com>
  * @date 2015
  */
-
-module.exports = function () {
-    throw new Error('IBAN/ICAP transfers are unsupported for VM64 QRL addresses');
-};
-
 
 },{}],50:[function(require,module,exports){
 
