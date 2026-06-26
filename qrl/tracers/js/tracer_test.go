@@ -20,6 +20,7 @@ import (
 	"encoding/json"
 	"errors"
 	"math/big"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -167,7 +168,7 @@ func TestQRVMDisTracerOpcodeRanges(t *testing.T) {
 	if len(push0Ops) != 2 {
 		t.Fatalf("unexpected qrvmdis PUSH0 op count: have %d want 2", len(push0Ops))
 	}
-	if push0Ops[0].Op != int(vm.PUSH0) || push0Ops[0].Len != 1 || !equalStringSlices(push0Ops[0].Result, []string{"0"}) {
+	if push0Ops[0].Op != int(vm.PUSH0) || push0Ops[0].Len != 1 || !slices.Equal(push0Ops[0].Result, []string{"0"}) {
 		t.Fatalf("unexpected PUSH0 trace result: %+v", push0Ops[0])
 	}
 
@@ -175,10 +176,10 @@ func TestQRVMDisTracerOpcodeRanges(t *testing.T) {
 	if len(currentOps) != 5 {
 		t.Fatalf("unexpected qrvmdis current op count: have %d want 5", len(currentOps))
 	}
-	if currentOps[2].Op != int(vm.SHL) || !equalStringSlices(currentOps[2].Result, []string{"2"}) {
+	if currentOps[2].Op != int(vm.SHL) || !slices.Equal(currentOps[2].Result, []string{"2"}) {
 		t.Fatalf("unexpected SHL trace result: %+v", currentOps[2])
 	}
-	if currentOps[3].Op != int(vm.RETURNDATASIZE) || !equalStringSlices(currentOps[3].Result, []string{"0"}) {
+	if currentOps[3].Op != int(vm.RETURNDATASIZE) || !slices.Equal(currentOps[3].Result, []string{"0"}) {
 		t.Fatalf("unexpected RETURNDATASIZE trace result: %+v", currentOps[3])
 	}
 
@@ -190,13 +191,13 @@ func TestQRVMDisTracerOpcodeRanges(t *testing.T) {
 	if len(ops) != 5 {
 		t.Fatalf("unexpected qrvmdis op count: have %d want 5", len(ops))
 	}
-	if ops[0].Op != int(vm.PUSH33) || ops[0].Len != 34 || !equalStringSlices(ops[0].Result, []string{"1"}) {
+	if ops[0].Op != int(vm.PUSH33) || ops[0].Len != 34 || !slices.Equal(ops[0].Result, []string{"1"}) {
 		t.Fatalf("unexpected PUSH33 trace result: %+v", ops[0])
 	}
-	if ops[2].Op != int(vm.DUP2) || !equalStringSlices(ops[2].Result, []string{"1", "2", "1"}) {
+	if ops[2].Op != int(vm.DUP2) || !slices.Equal(ops[2].Result, []string{"1", "2", "1"}) {
 		t.Fatalf("unexpected DUP2 trace result: %+v", ops[2])
 	}
-	if ops[3].Op != int(vm.SWAP1) || !equalStringSlices(ops[3].Result, []string{"2", "1"}) {
+	if ops[3].Op != int(vm.SWAP1) || !slices.Equal(ops[3].Result, []string{"2", "1"}) {
 		t.Fatalf("unexpected SWAP1 trace result: %+v", ops[3])
 	}
 
@@ -212,13 +213,13 @@ func TestQRVMDisTracerOpcodeRanges(t *testing.T) {
 	if len(endpointOps) != 21 {
 		t.Fatalf("unexpected qrvmdis endpoint op count: have %d want 21", len(endpointOps))
 	}
-	if endpointOps[0].Op != int(vm.PUSH64) || endpointOps[0].Len != 65 || !equalStringSlices(endpointOps[0].Result, []string{"3"}) {
+	if endpointOps[0].Op != int(vm.PUSH64) || endpointOps[0].Len != 65 || !slices.Equal(endpointOps[0].Result, []string{"3"}) {
 		t.Fatalf("unexpected PUSH64 trace result: %+v", endpointOps[0])
 	}
-	if endpointOps[17].Op != int(vm.DUP16) || !equalStringSlices(endpointOps[17].Result, []string{"1", "10", "f", "e", "d", "c", "b", "a", "9", "8", "7", "6", "5", "4", "3", "2", "1"}) {
+	if endpointOps[17].Op != int(vm.DUP16) || !slices.Equal(endpointOps[17].Result, []string{"1", "10", "f", "e", "d", "c", "b", "a", "9", "8", "7", "6", "5", "4", "3", "2", "1"}) {
 		t.Fatalf("unexpected DUP16 trace result: %+v", endpointOps[17])
 	}
-	if endpointOps[19].Op != int(vm.SWAP16) || !equalStringSlices(endpointOps[19].Result, []string{"2", "1", "10", "f", "e", "d", "c", "b", "a", "9", "8", "7", "6", "5", "4", "3", "11"}) {
+	if endpointOps[19].Op != int(vm.SWAP16) || !slices.Equal(endpointOps[19].Result, []string{"2", "1", "10", "f", "e", "d", "c", "b", "a", "9", "8", "7", "6", "5", "4", "3", "11"}) {
 		t.Fatalf("unexpected SWAP16 trace result: %+v", endpointOps[19])
 	}
 }
@@ -357,18 +358,6 @@ func runQRVMDisTrace(t *testing.T, contract []byte) []qrvmdisOp {
 		t.Fatal(err)
 	}
 	return ops
-}
-
-func equalStringSlices(a, b []string) bool {
-	if len(a) != len(b) {
-		return false
-	}
-	for i := range a {
-		if a[i] != b[i] {
-			return false
-		}
-	}
-	return true
 }
 
 func TestHalt(t *testing.T) {
