@@ -74,9 +74,8 @@ const libraryPlaceholderPatternLength = 2*common.AddressLength - len("__$") - le
 
 func libraryPlaceholderPattern(name string) string {
 	hash := common.Bytes2Hex(crypto.Keccak256([]byte(name)))
-	for len(hash) < libraryPlaceholderPatternLength {
-		hash += common.Bytes2Hex(crypto.Keccak256([]byte(hash)))
-	}
+	// A Keccak hash gives 64 hex chars; the VM64 library placeholder needs 122.
+	hash += common.Bytes2Hex(crypto.Keccak256([]byte(hash)))
 	return hash[:libraryPlaceholderPatternLength]
 }
 
