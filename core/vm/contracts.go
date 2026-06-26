@@ -27,6 +27,7 @@ import (
 	ssz "github.com/prysmaticlabs/fastssz"
 	"github.com/theQRL/go-qrl/common"
 	"github.com/theQRL/go-qrl/common/math"
+	"github.com/theQRL/go-qrl/crypto/pqcrypto"
 	"github.com/theQRL/go-qrl/params"
 )
 
@@ -80,10 +81,10 @@ func RunPrecompiledContract(p PrecompiledContract, input []byte, suppliedGas uin
 type depositroot struct{}
 
 const (
-	depositPublicKeyLength           = 2592
-	depositWithdrawalRecipientLength = 64
+	depositPublicKeyLength           = pqcrypto.MLDSA87PublicKeyLength
+	depositWithdrawalRecipientLength = common.AddressLength
 	depositAmountLength              = 8
-	depositSignatureLength           = 4627
+	depositSignatureLength           = pqcrypto.MLDSA87SignatureLength
 	depositPublicKeyOffset           = 0
 	depositWithdrawalRecipientOffset = depositPublicKeyOffset + depositPublicKeyLength
 	depositAmountOffset              = depositWithdrawalRecipientOffset + depositWithdrawalRecipientLength
