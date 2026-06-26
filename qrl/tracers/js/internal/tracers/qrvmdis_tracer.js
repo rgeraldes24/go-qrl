@@ -19,17 +19,24 @@
 {
 	stack: [{ops: []}],
 
-	// Number of top stack entries to record as the previous opcode's result.
+	// Fixed result counts for non-range opcodes.
 	resultCounts: {1: 1, 2: 1, 3: 1, 4: 1, 5: 1, 6: 1, 7: 1, 8: 1, 9: 1, 10: 1, 11: 1, 16: 1, 17: 1, 18: 1, 19: 1, 20: 1, 21: 1, 22: 1, 23: 1, 24: 1, 25: 1, 26: 1, 32: 1, 48: 1, 49: 1, 50: 1, 51: 1, 52: 1, 53: 1, 54: 1, 56: 1, 58: 1, 59: 1, 64: 1, 65: 1, 66: 1, 67: 1, 68: 1, 69: 1, 81: 1, 84: 1, 88: 1, 89: 1, 90: 1, 240: 1, 241: 1, 242: 1},
 
-	// QRVM extends PUSH through 0x9f and shifts DUP/SWAP to 0xa0/0xb0.
+	// Number of top stack entries to record as the previous opcode's result.
 	resultCount: function(op) {
+		// PUSH0.
+		if (op == 0x5f) {
+			return 1;
+		}
+		// PUSH1..PUSH64.
 		if (op >= 0x60 && op <= 0x9f) {
 			return 1;
 		}
+		// DUP1..DUP16.
 		if (op >= 0xa0 && op <= 0xaf) {
 			return op - 0xa0 + 2;
 		}
+		// SWAP1..SWAP16.
 		if (op >= 0xb0 && op <= 0xbf) {
 			return op - 0xb0 + 2;
 		}
