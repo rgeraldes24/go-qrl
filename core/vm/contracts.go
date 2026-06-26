@@ -79,6 +79,17 @@ func RunPrecompiledContract(p PrecompiledContract, input []byte, suppliedGas uin
 
 type depositroot struct{}
 
+const (
+	depositPublicKeyLength           = 2592
+	depositWithdrawalRecipientLength = 64
+	depositAmountLength              = 8
+	depositSignatureLength           = 4627
+	depositPublicKeyOffset           = 0
+	depositWithdrawalRecipientOffset = depositPublicKeyOffset + depositPublicKeyLength
+	depositAmountOffset              = depositWithdrawalRecipientOffset + depositWithdrawalRecipientLength
+	depositSignatureOffset           = depositAmountOffset + depositAmountLength
+)
+
 // TODO(now.youtrack.cloud/issue/TGZ-5)
 func (c *depositroot) RequiredGas(input []byte) uint64 {
 	// NOTE(rgeraldes): number of sha256 ops below does not include the number of zero
@@ -89,10 +100,10 @@ func (c *depositroot) RequiredGas(input []byte) uint64 {
 
 func (c *depositroot) Run(input []byte) ([]byte, error) {
 	var (
-		pkBytes             = getData(input, 0, 2592)    // 2592 bytes
-		withdrawalRecipient = getData(input, 2592, 64)   // 64 bytes
-		amountBytes         = getData(input, 2656, 8)    // 8 bytes
-		sigBytes            = getData(input, 2664, 4627) // 4627 bytes
+		pkBytes                  = getData(input, depositPublicKeyOffset, depositPublicKeyLength)
+		withdrawalRecipientBytes = getData(input, depositWithdrawalRecipientOffset, depositWithdrawalRecipientLength)
+		amountBytes              = getData(input, depositAmountOffset, depositAmountLength)
+		sigBytes                 = getData(input, depositSignatureOffset, depositSignatureLength)
 	)
 
 	var amountUint uint64
@@ -104,7 +115,7 @@ func (c *depositroot) Run(input []byte) ([]byte, error) {
 
 	data := &depositdata{
 		PublicKey:           pkBytes,
-		WithdrawalRecipient: withdrawalRecipient,
+		WithdrawalRecipient: withdrawalRecipientBytes,
 		Amount:              amountUint,
 		Signature:           sigBytes,
 	}
@@ -133,15 +144,15 @@ func (d *depositdata) HashTreeRootWith(hh *ssz.Hasher) (err error) {
 	indx := hh.Index()
 
 	// Field (0) 'Pubkey'
-	if size := len(d.PublicKey); size != 2592 {
-		err = ssz.ErrBytesLengthFn("--.Pubkey", size, 2592)
+	if size := len(d.PublicKey); size != depositPublicKeyLength {
+		err = ssz.ErrBytesLengthFn("--.Pubkey", size, depositPublicKeyLength)
 		return
 	}
 	hh.PutBytes(d.PublicKey)
 
 	// Field (1) 'WithdrawalRecipient'
-	if size := len(d.WithdrawalRecipient); size != 64 {
-		err = ssz.ErrBytesLengthFn("--.WithdrawalRecipient", size, 64)
+	if size := len(d.WithdrawalRecipient); size != depositWithdrawalRecipientLength {
+		err = ssz.ErrBytesLengthFn("--.WithdrawalRecipient", size, depositWithdrawalRecipientLength)
 		return
 	}
 	hh.PutBytes(d.WithdrawalRecipient)
@@ -150,8 +161,8 @@ func (d *depositdata) HashTreeRootWith(hh *ssz.Hasher) (err error) {
 	hh.PutUint64(d.Amount)
 
 	// Field (3) 'Signature'
-	if size := len(d.Signature); size != 4627 {
-		err = ssz.ErrBytesLengthFn("--.Signature", size, 4627)
+	if size := len(d.Signature); size != depositSignatureLength {
+		err = ssz.ErrBytesLengthFn("--.Signature", size, depositSignatureLength)
 		return
 	}
 	hh.PutBytes(d.Signature)
