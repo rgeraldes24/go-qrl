@@ -82,7 +82,7 @@ type Alloc map[common.Address]Account
 // Genesis account. Each field is optional.
 type Account struct {
     Code       []byte                           `json:"code"`
-    Storage    map[common.Hash]common.Hash      `json:"storage"`
+    Storage    map[common.Hash]common.StorageValue64 `json:"storage"`
     Balance    *big.Int                         `json:"balance"`
     Nonce      uint64                           `json:"nonce"`
     Seed       []byte                           `json:"seed"`
@@ -230,8 +230,8 @@ echo "$ticks"
 echo "#### Future QIPS"
 echo ""
 echo "It is also possible to experiment with future qips that are not yet defined in a hard fork."
-echo "Example, putting QIP-1344 into Frontier: "
-cmd="./qrvm t8n --state.fork=Frontier+1344 --input.pre=./testdata/1/pre.json --input.txs=./testdata/1/txs.json --input.env=/testdata/1/env.json"
+echo "Example, putting QIP-1344 into Zond: "
+cmd="./qrvm t8n --state.fork=Zond+1344 --input.pre=./testdata/1/pre.json --input.txs=./testdata/1/txs.json --input.env=/testdata/1/env.json"
 tick;echo "$cmd"; tick
 echo ""
 
@@ -395,9 +395,11 @@ type BlockInfo struct {
 
 The encoding of values for `qrvm` utility attempts to be relatively flexible. It
 generally supports hex-encoded or decimal-encoded numeric values, and
-hex-encoded byte values (like `common.Address`, `common.Hash`, etc). When in
-doubt, the [`execution-apis`](https://github.com/ethereum/execution-apis) way
-of encoding should always be accepted.
+hex-encoded byte values where applicable. Numeric and generic hex encodings may
+follow the [`execution-apis`](https://github.com/ethereum/execution-apis)
+conventions where they still apply, but VM64 fixed-width fields must use QRL
+widths: Q-prefixed 64-byte addresses, 64-byte topics/storage values, and
+32-byte hashes/storage keys.
 
 ## Testing
 
