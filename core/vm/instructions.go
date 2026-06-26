@@ -584,7 +584,7 @@ func opCreate(pc *uint64, interpreter *QRVMInterpreter, scope *ScopeContext) ([]
 	stackvalue := size
 
 	scope.Contract.UseGas(gas)
-	//TODO: use uint256.Int instead of converting with toBig()
+	// TODO: thread uint512.Int through create value handling instead of converting with ToBig.
 	var bigVal = big0
 	if !value.IsZero() {
 		bigVal = value.ToBig()
@@ -629,7 +629,7 @@ func opCreate2(pc *uint64, interpreter *QRVMInterpreter, scope *ScopeContext) ([
 	scope.Contract.UseGas(gas)
 	// reuse size int for stackvalue
 	stackvalue := size
-	//TODO: use uint256.Int instead of converting with toBig()
+	// TODO: thread uint512.Int through create value handling instead of converting with ToBig.
 	bigEndowment := big0
 	if !endowment.IsZero() {
 		bigEndowment = endowment.ToBig()
@@ -669,9 +669,9 @@ func opCall(pc *uint64, interpreter *QRVMInterpreter, scope *ScopeContext) ([]by
 		return nil, ErrWriteProtection
 	}
 	var bigVal = big0
-	//TODO: use uint256.Int instead of converting with toBig()
+	// TODO: thread uint512.Int through call value handling instead of converting with ToBig.
 	// By using big0 here, we save an alloc for the most common case (non-ether-transferring contract calls),
-	// but it would make more sense to extend the usage of uint256.Int
+	// but it would make more sense to keep the value in uint512.Int form throughout.
 	if !value.IsZero() {
 		gas += params.CallStipend
 		bigVal = value.ToBig()

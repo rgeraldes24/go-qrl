@@ -24,6 +24,7 @@ import (
 
 	"github.com/theQRL/go-qrl/common"
 	"github.com/theQRL/go-qrl/common/hexutil"
+	"github.com/theQRL/go-qrl/common/uint512"
 	"github.com/theQRL/go-qrl/core/rawdb"
 	"github.com/theQRL/go-qrl/core/state"
 	"github.com/theQRL/go-qrl/core/types"
@@ -59,15 +60,15 @@ var createGasTests = []struct {
 	minimumGas uint64
 }{
 	// legacy create(0, 0, 0xc000) _with_ 3860
-	{"0x61C00060006000f0" + "600052" + "60206000F3", 37013, 37013},
+	{"0x61C00060006000f0" + "600052" + "60406000F3", 37013, 37013},
 	// create2(0, 0, 0xc001, 0) (too large), with 3860
-	{"0x600061C00160006000f5" + "600052" + "60206000F3", 32012, 100_000},
+	{"0x600061C00160006000f5" + "600052" + "60406000F3", 32012, 100_000},
 	// create2(0, 0, 0xc000, 0)
 	// This case is trying to deploy code at (within) the limit
-	{"0x600061C00060006000f5" + "600052" + "60206000F3", 41624, 41624},
+	{"0x600061C00060006000f5" + "600052" + "60406000F3", 41624, 41624},
 	// create2(0, 0, 0xc001, 0)
 	// This case is trying to deploy code exceeding the limit
-	{"0x600061C00160006000f5" + "600052" + "60206000F3", 32024, 100000},
+	{"0x600061C00160006000f5" + "600052" + "60406000F3", 32024, 100000},
 }
 
 func TestCreateGas(t *testing.T) {
@@ -93,10 +94,10 @@ func TestCreateGas(t *testing.T) {
 				return false
 			}
 			gasUsed = startGas - gas
-			if len(ret) != 32 {
-				t.Fatalf("test %d: expected 32 bytes returned, have %d", i, len(ret))
+			if len(ret) != uint512.WordBytes {
+				t.Fatalf("test %d: expected %d bytes returned, have %d", i, uint512.WordBytes, len(ret))
 			}
-			if bytes.Equal(ret, make([]byte, 32)) {
+			if bytes.Equal(ret, make([]byte, uint512.WordBytes)) {
 				// Failure
 				return false
 			}

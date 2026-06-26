@@ -109,8 +109,8 @@ func (in *QRVMInterpreter) Run(contract *Contract, input []byte, readOnly bool) 
 			Contract: contract,
 		}
 		// For optimisation reason we're using uint64 as the program counter.
-		// It's theoretically possible to go above 2^64. The YP defines the PC
-		// to be uint256. Practically much less so feasible.
+		// The PC cannot practically exceed the bytecode length, and bytecode
+		// lengths above 2^64 are not feasible.
 		pc   = uint64(0) // program counter
 		cost uint64
 		// copies used by tracer

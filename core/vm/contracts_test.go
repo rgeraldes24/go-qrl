@@ -52,8 +52,8 @@ type precompiledFailureTest struct {
 var allPrecompiles = map[common.Address]PrecompiledContract{
 	common.BytesToAddress([]byte{1}): &depositroot{},
 	common.BytesToAddress([]byte{2}): &sha256hash{},
-	common.BytesToAddress([]byte{3}): &dataCopy{},
-	common.BytesToAddress([]byte{4}): &bigModExp{},
+	common.BytesToAddress([]byte{4}): &dataCopy{},
+	common.BytesToAddress([]byte{5}): &bigModExp{},
 }
 
 func precompileAddress(n string) string {
@@ -193,10 +193,10 @@ func BenchmarkPrecompiledIdentity(bench *testing.B) {
 
 // Tests the sample inputs from the ModExp.
 func TestPrecompiledModExp(t *testing.T) {
-	testJson("modexp", precompileAddress("04"), t)
+	testJson("modexp", precompileAddress("05"), t)
 }
 func BenchmarkPrecompiledModExp(b *testing.B) {
-	benchJson("modexp", precompileAddress("04"), b)
+	benchJson("modexp", precompileAddress("05"), b)
 }
 
 // Tests OOG
@@ -206,7 +206,7 @@ func TestPrecompiledModExpOOG(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, test := range modexpTests {
-		testPrecompiledOOG(precompileAddress("04"), test, t)
+		testPrecompiledOOG(precompileAddress("05"), test, t)
 	}
 }
 
