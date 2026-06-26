@@ -68,12 +68,18 @@
 
 	// step is invoked for every opcode that the VM executes.
 	step: function(log, db) {
+		if (log.getDepth() < this.stack.length) {
+			this.stack = this.stack.slice(0, log.getDepth());
+		}
+		if (log.getDepth() != this.stack.length) {
+			return;
+		}
 		var frame = this.stack[this.stack.length - 1];
 
 		var error = log.getError();
 		if (error) {
 			frame["error"] = error;
-		} else if (log.getDepth() == this.stack.length) {
+		} else {
 			opinfo = {
 				op:     log.op.toNumber(),
 				depth : log.getDepth(),
@@ -100,7 +106,6 @@
 			case "DELEGATECALL": case "STATICCALL":
 				var instart = log.stack.peek(2).valueOf();
 				var insize = log.stack.peek(3).valueOf();
-				opinfo["op"] =  log.op.toString();
 				opinfo["gas"] =  log.stack.peek(0).valueOf();
 				opinfo["to"] =  log.stack.peek(1).toString(16);
 				opinfo["input"] =  log.memory.slice(instart, instart + insize);
@@ -124,8 +129,6 @@
 				opinfo["len"] = log.op.toNumber() - 0x5e;
 			}
 			frame.ops.push(opinfo);
-		} else {
-			this.stack = this.stack.slice(0, log.getDepth());
 		}
 	}
 }
