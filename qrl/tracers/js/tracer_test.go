@@ -24,11 +24,13 @@ import (
 	"testing"
 	"time"
 
+	"github.com/dop251/goja"
 	"github.com/theQRL/go-qrl/common"
 	"github.com/theQRL/go-qrl/core/state"
 	"github.com/theQRL/go-qrl/core/vm"
 	"github.com/theQRL/go-qrl/params"
 	"github.com/theQRL/go-qrl/qrl/tracers"
+	assettracers "github.com/theQRL/go-qrl/qrl/tracers/js/internal/tracers"
 )
 
 type account struct{}
@@ -218,6 +220,118 @@ func TestQRVMDisTracerOpcodeRanges(t *testing.T) {
 	}
 	if endpointOps[19].Op != int(vm.SWAP16) || !equalStringSlices(endpointOps[19].Result, []string{"2", "1", "10", "f", "e", "d", "c", "b", "a", "9", "8", "7", "6", "5", "4", "3", "11"}) {
 		t.Fatalf("unexpected SWAP16 trace result: %+v", endpointOps[19])
+	}
+}
+
+func TestQRVMDisTracerResultCountsCoverOpcodes(t *testing.T) {
+	resultCount := qrvmdisResultCount(t)
+	for i := 0; i <= 0xff; i++ {
+		op := vm.OpCode(byte(i))
+		name := op.String()
+		got := resultCount(op)
+		want, ok := expectedQRVMDisResultCount(op)
+		if strings.Contains(name, "not defined") {
+			if got != 0 {
+				t.Fatalf("undefined opcode %#x result count = %d, want 0", i, got)
+			}
+			continue
+		}
+		if !ok {
+			t.Fatalf("missing qrvmdis result-count expectation for %s (%#x)", name, i)
+		}
+		if got != want {
+			t.Fatalf("%s (%#x) result count = %d, want %d", name, i, got, want)
+		}
+	}
+}
+
+func qrvmdisResultCount(t *testing.T) func(vm.OpCode) int {
+	t.Helper()
+
+	tracerFiles, err := assettracers.Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	code, ok := tracerFiles["qrvmdisTracer"]
+	if !ok {
+		t.Fatal("missing qrvmdisTracer asset")
+	}
+	runtime := goja.New()
+	value, err := runtime.RunString("(" + code + ")")
+	if err != nil {
+		t.Fatal(err)
+	}
+	obj := value.ToObject(runtime)
+	resultCount, ok := goja.AssertFunction(obj.Get("resultCount"))
+	if !ok {
+		t.Fatal("qrvmdisTracer resultCount is not callable")
+	}
+	return func(op vm.OpCode) int {
+		result, err := resultCount(value, runtime.ToValue(int(op)))
+		if err != nil {
+			t.Fatalf("resultCount(%#x): %v", byte(op), err)
+		}
+		return int(result.ToInteger())
+	}
+}
+
+func expectedQRVMDisResultCount(op vm.OpCode) (int, bool) {
+	switch {
+	case op >= vm.ADD && op <= vm.SIGNEXTEND:
+		return 1, true
+	case op >= vm.LT && op <= vm.SAR:
+		return 1, true
+	case op >= vm.ADDRESS && op <= vm.CALLDATASIZE:
+		return 1, true
+	case op >= vm.BLOCKHASH && op <= vm.BASEFEE:
+		return 1, true
+	case op == vm.PUSH0:
+		return 1, true
+	case op >= vm.PUSH1 && op <= vm.PUSH64:
+		return 1, true
+	case op >= vm.DUP1 && op <= vm.DUP16:
+		return int(op-vm.DUP1) + 2, true
+	case op >= vm.SWAP1 && op <= vm.SWAP16:
+		return int(op-vm.SWAP1) + 2, true
+	case op >= vm.LOG0 && op <= vm.LOG4:
+		return 0, true
+	}
+	switch op {
+	case vm.STOP,
+		vm.CALLDATACOPY,
+		vm.CODECOPY,
+		vm.EXTCODECOPY,
+		vm.RETURNDATACOPY,
+		vm.POP,
+		vm.MSTORE,
+		vm.MSTORE8,
+		vm.SSTORE,
+		vm.JUMP,
+		vm.JUMPI,
+		vm.JUMPDEST,
+		vm.RETURN,
+		vm.REVERT,
+		vm.INVALID:
+		return 0, true
+	case vm.KECCAK256,
+		vm.CODESIZE,
+		vm.GASPRICE,
+		vm.EXTCODESIZE,
+		vm.RETURNDATASIZE,
+		vm.EXTCODEHASH,
+		vm.MLOAD,
+		vm.SLOAD,
+		vm.PC,
+		vm.MSIZE,
+		vm.GAS,
+		vm.CREATE,
+		vm.CALL,
+		vm.DELEGATECALL,
+		vm.CREATE2,
+		vm.STATICCALL:
+		return 1, true
+	default:
+		return 0, false
 	}
 }
 
