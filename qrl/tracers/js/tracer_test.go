@@ -224,7 +224,7 @@ func TestQRVMDisTracerOpcodeRanges(t *testing.T) {
 	}
 }
 
-func TestQRVMDisTracerResultCountsCoverOpcodes(t *testing.T) {
+func TestQRVMDisTracerResultCounts(t *testing.T) {
 	resultCount := qrvmdisResultCount(t)
 	for i := 0; i <= 0xff; i++ {
 		op := vm.OpCode(byte(i))
