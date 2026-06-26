@@ -169,6 +169,17 @@ func TestQRVMDisTracerOpcodeRanges(t *testing.T) {
 		t.Fatalf("unexpected PUSH0 trace result: %+v", push0Ops[0])
 	}
 
+	currentOps := runQRVMDisTrace(t, []byte{byte(vm.PUSH1), 0x01, byte(vm.PUSH1), 0x01, byte(vm.SHL), byte(vm.RETURNDATASIZE), byte(vm.STOP)})
+	if len(currentOps) != 5 {
+		t.Fatalf("unexpected qrvmdis current op count: have %d want 5", len(currentOps))
+	}
+	if currentOps[2].Op != int(vm.SHL) || !equalStringSlices(currentOps[2].Result, []string{"2"}) {
+		t.Fatalf("unexpected SHL trace result: %+v", currentOps[2])
+	}
+	if currentOps[3].Op != int(vm.RETURNDATASIZE) || !equalStringSlices(currentOps[3].Result, []string{"0"}) {
+		t.Fatalf("unexpected RETURNDATASIZE trace result: %+v", currentOps[3])
+	}
+
 	contract := []byte{byte(vm.PUSH33)}
 	contract = append(contract, make([]byte, 32)...)
 	contract = append(contract, 0x01, byte(vm.PUSH1), 0x02, byte(vm.DUP2), byte(vm.SWAP1), byte(vm.STOP))
