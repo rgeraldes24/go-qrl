@@ -288,6 +288,14 @@ Output:
 }
 ```
 
+#### Future QIPS
+
+When experimenting with changes before an extra QIP activator is registered, use
+the active fork directly:
+```
+./qrvm t8n --state.fork=Zond --input.alloc=./testdata/1/alloc.json --input.txs=./testdata/1/txs.json --input.env=./testdata/1/env.json
+```
+
 #### Block history
 
 The `BLOCKHASH` opcode requires blockhashes to be provided by the caller, inside the `env`.

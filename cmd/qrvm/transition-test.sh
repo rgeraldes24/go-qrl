@@ -227,6 +227,14 @@ echo "${ticks}json"
 echo "$output"
 echo "$ticks"
 
+echo "#### Future QIPS"
+echo ""
+echo "When experimenting with changes before an extra QIP activator is registered, use"
+echo "the active fork directly:"
+cmd="./qrvm t8n --state.fork=Zond --input.alloc=./testdata/1/alloc.json --input.txs=./testdata/1/txs.json --input.env=./testdata/1/env.json"
+tick;echo "$cmd"; tick
+echo ""
+
 echo "#### Block history"
 echo ""
 echo "The \`BLOCKHASH\` opcode requires blockhashes to be provided by the caller, inside the \`env\`."
