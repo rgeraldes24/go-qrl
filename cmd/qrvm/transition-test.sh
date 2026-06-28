@@ -227,14 +227,6 @@ echo "${ticks}json"
 echo "$output"
 echo "$ticks"
 
-echo "#### Future QIPS"
-echo ""
-echo "It is also possible to experiment with future qips that are not yet defined in a hard fork."
-echo "Example, putting QIP-1344 into Zond: "
-cmd="./qrvm t8n --state.fork=Zond+1344 --input.pre=./testdata/1/pre.json --input.txs=./testdata/1/txs.json --input.env=/testdata/1/env.json"
-tick;echo "$cmd"; tick
-echo ""
-
 echo "#### Block history"
 echo ""
 echo "The \`BLOCKHASH\` opcode requires blockhashes to be provided by the caller, inside the \`env\`."
