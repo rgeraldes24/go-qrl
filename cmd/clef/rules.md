@@ -82,8 +82,8 @@ Some security precautions can be made, such as:
 
 * Never load `ruleset.js` unless the file is `readonly` (`r-??-??-?`). If the user wishes to modify the ruleset, he must make it writeable and then set back to readonly.
   * This is to prevent attacks where files are dropped on the users disk.
-* Since we're going to have to have some form of secure storage (not defined in this section), we could also store the `sha3` of the `ruleset.js` file in there.
-  * If the user wishes to modify the ruleset, he'd then have to perform e.g. `signer --attest /path/to/ruleset --credential <creds>`
+* Clef stores the attested `sha256` of the `ruleset.js` file in encrypted rule metadata.
+  * If the user wishes to modify the ruleset, he must hash the updated file and run e.g. `clef attest <sha256sum>` before using it again.
 
 ##### Security of implementation
 
@@ -185,9 +185,9 @@ function ApproveTx(r) {
 }
 
 /**
-* OnApprovedTx(str) is called when a transaction has been approved and signed. The parameter
-	* 'response_str' contains the return value that will be sent to the external caller.
-* The return value from this method is ignore - the reason for having this callback is to allow the
+* OnApprovedTx(resp) is called when a transaction has been approved and signed. The `resp`
+* parameter is the signed transaction result object that will be sent to the external caller.
+* The return value from this method is ignored - the reason for having this callback is to allow the
 * ruleset to keep track of approved transactions.
 *
 * When implementing rate-limited rules, this callback should be used.
