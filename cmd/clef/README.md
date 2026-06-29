@@ -52,7 +52,7 @@ GLOBAL OPTIONS:
 Example:
 
 ```
-$ clef -keystore /my/keystore -chainid 4
+$ clef -keystore /my/keystore -chainid 1337
 ```
 
 ## Security model

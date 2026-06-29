@@ -64,7 +64,6 @@ A more advanced example can be found below, "Example 1: ruleset for a rate-limit
 
 The goja VM has a few caveats:
 
-* The regular expression engine follows Go's regexp behavior where it is exposed through host-side helpers.
 * Support for JavaScript features follows the embedded goja runtime.
 
 Additionally, a few more have been added
