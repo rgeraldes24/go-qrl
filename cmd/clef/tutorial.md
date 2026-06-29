@@ -52,8 +52,8 @@ INFO [07-01|11:00:46.391] Audit logs configured                    file=audit.lo
 DEBUG[07-01|11:00:46.392] IPC registered                           namespace=account
 INFO [07-01|11:00:46.392] IPC endpoint opened                      url=$HOME/.clef/clef.ipc
 ------- Signer info -------
-* intapi_version : 7.0.0
-* extapi_version : 6.0.0
+* intapi_version : 7.0.1
+* extapi_version : 6.1.0
 * extapi_http : n/a
 * extapi_ipc : $HOME/.clef/clef.ipc
 ```
@@ -137,8 +137,8 @@ INFO [07-01|13:39:49.728] Audit logs configured                    file=audit.lo
 DEBUG[07-01|13:39:49.728] IPC registered                           namespace=account
 INFO [07-01|13:39:49.728] IPC endpoint opened                      url=$HOME/.clef/clef.ipc
 ------- Signer info -------
-* intapi_version : 7.0.0
-* extapi_version : 6.0.0
+* intapi_version : 7.0.1
+* extapi_version : 6.1.0
 * extapi_http : n/a
 * extapi_ipc : $HOME/.clef/clef.ipc
 ```
@@ -247,8 +247,8 @@ INFO [07-01|14:12:41.638] Audit logs configured                    file=audit.lo
 DEBUG[07-01|14:12:41.638] IPC registered                           namespace=account
 INFO [07-01|14:12:41.638] IPC endpoint opened                      url=$HOME/.clef/clef.ipc
 ------- Signer info -------
-* intapi_version : 7.0.0
-* extapi_version : 6.0.0
+* intapi_version : 7.0.1
+* extapi_version : 6.1.0
 * extapi_http : n/a
 * extapi_ipc : $HOME/.clef/clef.ipc
 ```
@@ -310,7 +310,7 @@ $ gqrl --testnet --signer=~/.clef/clef.ipc console
         address: "QfEDcbA9876543210FEdCba9876543210FEDCba9876543210fEDcBA987654321076543210fEdCBa9876543210fedcBa9876543210FedCba9876543210fedCba98",
         url: "extapi://$HOME/.clef/clef.ipc"
     }],
-    status: "ok [version=6.0.0]",
+    status: "ok [version=6.1.0]",
     url: "extapi://$HOME/.clef/clef.ipc"
 }]
 

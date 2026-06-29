@@ -80,8 +80,7 @@ Additionally, a few more have been added
 
 Some security precautions can be made, such as:
 
-* Never load `ruleset.js` unless the file is `readonly` (`r-??-??-?`). If the user wishes to modify the ruleset, he must make it writeable and then set back to readonly.
-  * This is to prevent attacks where files are dropped on the users disk.
+* Keep `ruleset.js` in a trusted location and review any file changes before attesting a new hash.
 * Clef stores the attested `sha256` of the `ruleset.js` file in encrypted rule metadata.
   * If the user wishes to modify the ruleset, he must hash the updated file and run e.g. `clef attest <sha256sum>` before using it again.
 
