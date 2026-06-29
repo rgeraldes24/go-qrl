@@ -44,9 +44,9 @@ You should treat 'masterseed.json' with utmost secrecy and make a backup of it!
 Clef manages keystore-backed accounts. To evaluate clef, we're going to point it to our QRL testnet keystore and specify the testnet chain ID for signing (Clef doesn't have a backing chain, so it doesn't know what network it runs on).
 
 ```text
-$ clef --keystore ~/.qrl/testnet/keystore --chainid 4
+$ clef --keystore ~/.qrl/testnet/keystore --chainid 1337
 
-INFO [07-01|11:00:46.385] Starting signer                          chainid=4 keystore=$HOME/.qrl/testnet/keystore light-kdf=false advanced=false
+INFO [07-01|11:00:46.385] Starting signer                          chainid=1337 keystore=$HOME/.qrl/testnet/keystore light-kdf=false advanced=false
 DEBUG[07-01|11:00:46.389] FS scan times                            list=3.521941ms set=9.017µs diff=4.112µs
 INFO [07-01|11:00:46.391] Audit logs configured                    file=audit.log
 DEBUG[07-01|11:00:46.392] IPC registered                           namespace=account
@@ -128,10 +128,10 @@ INFO [07-01|13:25:03.290] Ruleset attestation updated              sha256=645b58
 At this point, we can start Clef with the rule file:
 
 ```text
-$ clef --keystore ~/.qrl/testnet/keystore --chainid 4 --rules rules.js
+$ clef --keystore ~/.qrl/testnet/keystore --chainid 1337 --rules rules.js
 
 INFO [07-01|13:39:49.726] Rule engine configured                   file=rules.js
-INFO [07-01|13:39:49.726] Starting signer                          chainid=4 keystore=$HOME/.qrl/testnet/keystore light-kdf=false advanced=false
+INFO [07-01|13:39:49.726] Starting signer                          chainid=1337 keystore=$HOME/.qrl/testnet/keystore light-kdf=false advanced=false
 DEBUG[07-01|13:39:49.726] FS scan times                            list=35.15µs set=4.251µs diff=2.766µs
 INFO [07-01|13:39:49.728] Audit logs configured                    file=audit.log
 DEBUG[07-01|13:39:49.728] IPC registered                           namespace=account
@@ -238,10 +238,10 @@ INFO [07-01|14:11:28.509] Ruleset attestation updated              sha256=f163a1
 Restart Clef with the new rules in place:
 
 ```
-$ clef --keystore ~/.qrl/testnet/keystore --chainid 4 --rules rules.js
+$ clef --keystore ~/.qrl/testnet/keystore --chainid 1337 --rules rules.js
 
 INFO [07-01|14:12:41.636] Rule engine configured                   file=rules.js
-INFO [07-01|14:12:41.636] Starting signer                          chainid=4 keystore=$HOME/.qrl/testnet/keystore light-kdf=false advanced=false
+INFO [07-01|14:12:41.636] Starting signer                          chainid=1337 keystore=$HOME/.qrl/testnet/keystore light-kdf=false advanced=false
 DEBUG[07-01|14:12:41.636] FS scan times                            list=46.722µs set=4.47µs diff=2.157µs
 INFO [07-01|14:12:41.638] Audit logs configured                    file=audit.log
 DEBUG[07-01|14:12:41.638] IPC registered                           namespace=account
@@ -290,7 +290,7 @@ Until then however, we're trying to pave the way via Gqrl. Gqrl has built in sup
 We can try this by running Clef with our previous rules on a QRL testnet (for now it's a good idea to allow auto-listing accounts, since Gqrl likes to retrieve them once in a while).
 
 ```text
-$ clef --keystore ~/.qrl/testnet/keystore --chainid 4 --rules rules.js
+$ clef --keystore ~/.qrl/testnet/keystore --chainid 1337 --rules rules.js
 ```
 
 In a different window we can start Gqrl, list our accounts, even list our wallets to see where the accounts originate from:
