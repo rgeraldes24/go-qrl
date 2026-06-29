@@ -106,33 +106,20 @@ It's unclear whether any other DSL could be more secure; since there's always th
 
 The ability to auto-approve transactions means that the signer needs to have the necessary credentials to decrypt keyfiles. These passwords are hereafter called `ksp` (keystore pass).
 
-### Example implementation
+### Current implementation
 
-Upon startup of the signer, the signer is given a switch: `--seed <path/to/masterseed>`
-The `seed` contains a blob of bytes, which is the master seed for the `signer`.
+`clef init` creates `masterseed.json` in the Clef config directory. The optional `--signersecret` flag can point Clef at a different encrypted master seed.
 
-The `signer` uses the `seed` to:
+When rules are enabled, Clef decrypts the master seed and uses it to derive:
 
-* Generate the `path` where the settings are stored.
-  * `./settings/1df094eb-c2b1-4689-90dd-790046d38025/vault.dat`
-  * `./settings/1df094eb-c2b1-4689-90dd-790046d38025/rules.js`
-* Generate the encryption password for `vault.dat`.
-
-The `vault.dat` would be an encrypted container storing the following information:
-
-* `ksp` entries
-* `sha256` hash of `rules.js`
-* Information about pair:ed callers (not yet specified)
+* the vault directory under the Clef config directory
+* the encryption key for `credentials.json`, used by `clef setpw <address>` to store keystore unlock passwords
+* the encryption key for `config.json`, used by `clef attest <sha256sum>` to store `ruleset_sha256`
+* the encryption key for `jsstorage.json`, used by JavaScript rules through `storage.put` and `storage.get`
 
 ### Security considerations
 
-This would leave it up to the user to ensure that the `path/to/masterseed` is handled securely. It's difficult to get around this, although one could
-imagine leveraging OS-level keychains where supported. The setup is however, in general, similar to how ssh-keys are stored in `.ssh/`.
-
-
-# Implementation status
-
-This is now implemented with encrypted storage for ruleset metadata and JavaScript rule state.
+The master seed and its password protect stored keystore credentials, ruleset attestation metadata, and JavaScript rule state. Treat `masterseed.json` as secret material and back it up. Using a different master seed derives a different vault location, which lets separate Clef instances keep separate rules and credentials.
 
 ## Example 1: ruleset for a rate-limited window
 
