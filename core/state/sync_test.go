@@ -40,6 +40,15 @@ type testAccount struct {
 	code    []byte
 }
 
+func testStorageValue(seed byte) common.StorageValue64 {
+	var value common.StorageValue64
+	for i := range value {
+		value[i] = seed + byte(i*17) + 1
+	}
+	value[0] |= 0x80
+	return value
+}
+
 // makeTestState create a sample test state to test node-wise reconstruction.
 func makeTestState(scheme string) (qrldb.Database, Database, *trie.Database, common.Hash, []*testAccount) {
 	// Create an empty state
@@ -73,7 +82,7 @@ func makeTestState(scheme string) (qrldb.Database, Database, *trie.Database, com
 		if i%5 == 0 {
 			for j := range byte(5) {
 				hash := crypto.Keccak256Hash([]byte{i, i, i, i, i, j, j})
-				obj.SetState(hash, common.BytesToStorageValue64(hash.Bytes()))
+				obj.SetState(hash, testStorageValue(i+j))
 			}
 		}
 		accounts = append(accounts, acc)

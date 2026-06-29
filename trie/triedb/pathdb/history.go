@@ -76,7 +76,7 @@ const (
 // # metadata
 //  This object contains a few meta fields, such as the associated state root,
 //  block number, version tag and so on. This object may contain an extra
-//  accountHash list which means the storage changes belong to these accounts
+//  account address list which means the storage changes belong to these accounts
 //  are not complete due to large contract destruction. The incomplete history
 //  can not be used for rollback and serving archive state request.
 //
@@ -170,7 +170,7 @@ func (i *accountIndex) decode(blob []byte) {
 // slotIndex describes the metadata belonging to a storage slot.
 type slotIndex struct {
 	hash   common.Hash // The hash of slot key
-	length uint8       // The length of storage slot, up to 32 bytes defined in protocol
+	length uint8       // The length of serialized storage slot payload
 	offset uint32      // The offset of item in storage slot data table
 }
 
@@ -246,9 +246,9 @@ func (m *meta) decode(blob []byte) error {
 // in order to control the storage size.
 type history struct {
 	meta        *meta                                     // Meta data of history
-	accounts    map[common.Address][]byte                 // Account data keyed by its address hash
-	accountList []common.Address                          // Sorted account hash list
-	storages    map[common.Address]map[common.Hash][]byte // Storage data keyed by its address hash and slot hash
+	accounts    map[common.Address][]byte                 // Account data keyed by its address
+	accountList []common.Address                          // Sorted account address list
+	storages    map[common.Address]map[common.Hash][]byte // Storage data keyed by its address and slot hash
 	storageList map[common.Address][]common.Hash          // Sorted slot hash list
 }
 

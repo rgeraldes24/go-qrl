@@ -56,6 +56,10 @@ const (
 	// Bytecode and trienode are limited more explicitly by the caps below.
 	maxRequestSize = 512 * 1024
 
+	// storageRangeEntrySize is the pessimistic size of one storage range result:
+	// a 32-byte storage key and an RLP-encoded full-width 64-byte storage value.
+	storageRangeEntrySize = common.HashLength + common.StorageValue64Length + 2
+
 	// maxCodeRequestCount is the maximum number of bytecode blobs to request in a
 	// single query. If this number is too low, we're not filling responses fully
 	// and waste round trip times. If it's too high, we're capping responses and
@@ -1972,13 +1976,13 @@ func (s *Syncer) processStorageResponse(res *storageResponse) {
 						lastKey = keys[len(keys)-1]
 					}
 					// If the number of slots remaining is low, decrease the
-					// number of chunks. Somewhere on the order of 10-15K slots
-					// fit into a packet of 500KB. A key/slot pair is maximum 64
-					// bytes, so pessimistically maxRequestSize/64 = 8K.
+					// number of chunks. Somewhere on the order of 5K slots fit
+					// into a packet of 500KB. A key/value pair is maximum 98
+					// bytes, so pessimistically maxRequestSize/98 = 5K.
 					//
 					// Chunk so that at least 2 packets are needed to fill a task.
 					if estimate, err := estimateRemainingSlots(len(keys), lastKey); err == nil {
-						if n := estimate / (2 * (maxRequestSize / 64)); n+1 < chunks {
+						if n := estimate / (2 * (maxRequestSize / storageRangeEntrySize)); n+1 < chunks {
 							chunks = n + 1
 						}
 						log.Debug("Chunked large contract", "initiators", len(keys), "tail", lastKey, "remaining", estimate, "chunks", chunks)
@@ -3002,7 +3006,7 @@ func estimateRemainingSlots(hashes int, last common.Hash) (uint64, error) {
 	space := new(big.Int).Mul(math.MaxBig256, big.NewInt(int64(hashes)))
 	space.Div(space, last.Big())
 	if !space.IsUint64() {
-		// Gigantic address space probably due to too few or malicious slots
+		// Gigantic hash space probably due to too few or malicious slots
 		return 0, errors.New("too few slots for estimation")
 	}
 	return space.Uint64() - uint64(hashes), nil

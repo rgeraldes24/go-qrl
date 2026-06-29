@@ -39,6 +39,8 @@ type fuzzer struct {
 	exhausted bool
 }
 
+var valueSizes = [...]int{1, 20, common.StorageValue64Length, common.StorageValue64Length + 2}
+
 func (f *fuzzer) randBytes(n int) []byte {
 	r := make([]byte, n)
 	if _, err := f.input.Read(r); err != nil {
@@ -55,18 +57,34 @@ func (f *fuzzer) readInt() uint64 {
 	return x
 }
 
+func (f *fuzzer) randValue() []byte {
+	size := valueSizes[f.readInt()%uint64(len(valueSizes))]
+	return f.randBytes(size)
+}
+
+func seededValue(seed byte, size int) []byte {
+	value := make([]byte, size)
+	for i := range value {
+		value[i] = seed + byte(i)
+	}
+	return value
+}
+
 func (f *fuzzer) randomTrie(n int) (*trie.Trie, map[string]*kv) {
 	trie := trie.NewEmpty(trie.NewDatabase(rawdb.NewMemoryDatabase(), nil))
 	vals := make(map[string]*kv)
 	size := f.readInt()
 	// Fill it with some fluff
 	for i := byte(0); i < byte(size); i++ {
-		value := &kv{common.LeftPadBytes([]byte{i}, 32), []byte{i}, false}
-		value2 := &kv{common.LeftPadBytes([]byte{i + 10}, 32), []byte{i}, false}
+		value := &kv{common.LeftPadBytes([]byte{i}, 32), seededValue(i+1, 1), false}
+		value2 := &kv{common.LeftPadBytes([]byte{i + 10}, 32), seededValue(i+1, common.StorageValue64Length), false}
+		value3 := &kv{common.LeftPadBytes([]byte{i + 20}, 32), seededValue(i+1, common.StorageValue64Length+2), false}
 		trie.MustUpdate(value.k, value.v)
 		trie.MustUpdate(value2.k, value2.v)
+		trie.MustUpdate(value3.k, value3.v)
 		vals[string(value.k)] = value
 		vals[string(value2.k)] = value2
+		vals[string(value3.k)] = value3
 	}
 	if f.exhausted {
 		return nil, nil
@@ -74,7 +92,7 @@ func (f *fuzzer) randomTrie(n int) (*trie.Trie, map[string]*kv) {
 	// And now fill with some random
 	for range n {
 		k := f.randBytes(32)
-		v := f.randBytes(20)
+		v := f.randValue()
 		value := &kv{k, v, false}
 		trie.MustUpdate(k, v)
 		vals[string(k)] = value
@@ -136,7 +154,7 @@ func (f *fuzzer) fuzz() int {
 			keys[index%len(keys)] = f.randBytes(32) // In theory it can't be same
 		case 1:
 			// Modified val
-			vals[index%len(vals)] = f.randBytes(20) // In theory it can't be same
+			vals[index%len(vals)] = f.randValue() // In theory it can't be same
 		case 2:
 			// Gapped entry slice
 			index = index % len(keys)

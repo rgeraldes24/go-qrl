@@ -1727,9 +1727,9 @@ func makeStorageTrieWithSeed(owner common.Hash, n, seed uint64, db *trie.Databas
 	trie, _ := trie.New(trie.StorageTrieID(types.EmptyRootHash, owner, types.EmptyRootHash), db)
 	var entries []*kv
 	for i := uint64(1); i <= n; i++ {
-		// store 'x' at slot 'x'
-		slotValue := key32(i + seed)
-		rlpSlotValue, _ := rlp.EncodeToBytes(common.TrimLeftZeroes(slotValue[:]))
+		// Store a full-width VM64 value at slot 'x'.
+		slotValue := storageValue64(i + seed)
+		rlpSlotValue, _ := rlpStorageValue(slotValue)
 
 		slotKey := key32(i)
 		key := crypto.Keccak256Hash(slotKey[:])
@@ -1741,6 +1741,19 @@ func makeStorageTrieWithSeed(owner common.Hash, n, seed uint64, db *trie.Databas
 	slices.SortFunc(entries, (*kv).cmp)
 	root, nodes, _ := trie.Commit(false)
 	return root, nodes, entries
+}
+
+func storageValue64(seed uint64) []byte {
+	value := make([]byte, common.StorageValue64Length)
+	for i := range value {
+		value[i] = byte(seed + uint64(i*17) + 1)
+	}
+	value[0] |= 0x80
+	return value
+}
+
+func rlpStorageValue(value []byte) ([]byte, error) {
+	return rlp.EncodeToBytes(common.TrimLeftZeroes(value))
 }
 
 // makeBoundaryStorageTrie constructs a storage trie. Instead of filling
@@ -1771,7 +1784,8 @@ func makeBoundaryStorageTrie(owner common.Hash, n int, db *trie.Database) (commo
 	// Fill boundary slots
 	for i := 0; i < len(boundaries); i++ {
 		key := boundaries[i]
-		val := []byte{0xde, 0xad, 0xbe, 0xef}
+		slotValue := storageValue64(uint64(i) + 0xdead)
+		val, _ := rlpStorageValue(slotValue)
 
 		elem := &kv{key[:], val}
 		trie.MustUpdate(elem.k, elem.v)
@@ -1782,8 +1796,8 @@ func makeBoundaryStorageTrie(owner common.Hash, n int, db *trie.Database) (commo
 		slotKey := key32(i)
 		key := crypto.Keccak256Hash(slotKey[:])
 
-		slotValue := key32(i)
-		rlpSlotValue, _ := rlp.EncodeToBytes(common.TrimLeftZeroes(slotValue[:]))
+		slotValue := storageValue64(i)
+		rlpSlotValue, _ := rlpStorageValue(slotValue)
 
 		elem := &kv{key[:], rlpSlotValue}
 		trie.MustUpdate(elem.k, elem.v)
@@ -1814,7 +1828,9 @@ func makeUnevenStorageTrie(owner common.Hash, slots int, db *trie.Database) (com
 		}
 		for j := 0; j < slots/3; j++ {
 			key := append([]byte{byte(n)}, testutil.RandBytes(31)...)
-			val, _ := rlp.EncodeToBytes(testutil.RandBytes(32))
+			slotValue := testutil.RandBytes(common.StorageValue64Length)
+			slotValue[0] |= 0x80
+			val, _ := rlpStorageValue(slotValue)
 
 			elem := &kv{key, val}
 			tr.MustUpdate(elem.k, elem.v)

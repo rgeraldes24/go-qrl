@@ -41,7 +41,7 @@ func randomStateSet(n int) *triestate.Set {
 		addr := testutil.RandomAddress()
 		storages[addr] = make(map[common.Hash][]byte)
 		for range 3 {
-			v, _ := rlp.EncodeToBytes(common.TrimLeftZeroes(testutil.RandBytes(32)))
+			v, _ := rlp.EncodeToBytes(common.TrimLeftZeroes(testutil.RandBytes(common.StorageValue64Length)))
 			storages[addr][testutil.RandomHash()] = v
 		}
 		account := generateAccount(types.EmptyRootHash)
@@ -99,6 +99,48 @@ func TestEncodeDecodeHistory(t *testing.T) {
 	}
 	if !compareStorageList(dec.storageList, obj.storageList) {
 		t.Fatal("storage list is mismatched")
+	}
+}
+
+func TestHistoryFullWidthStoragePayload(t *testing.T) {
+	var (
+		addr     = common.BytesToAddress(bytes.Repeat([]byte{0x11}, common.AddressLength))
+		slot     = common.HexToHash("0x01")
+		value    = bytes.Repeat([]byte{0xff}, common.StorageValue64Length)
+		encoded  []byte
+		decoded  history
+		storages = map[common.Address]map[common.Hash][]byte{
+			addr: {},
+		}
+		accounts = map[common.Address][]byte{
+			addr: types.SlimAccountRLP(generateAccount(types.EmptyRootHash)),
+		}
+	)
+	var err error
+	encoded, err = rlp.EncodeToBytes(common.TrimLeftZeroes(value))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := common.StorageValue64Length + 2; len(encoded) != want {
+		t.Fatalf("encoded full-width storage payload length mismatch: have %d, want %d", len(encoded), want)
+	}
+	storages[addr][slot] = encoded
+
+	obj := newHistory(testutil.RandomHash(), types.EmptyRootHash, 1, triestate.New(accounts, storages, nil))
+	accountData, storageData, accountIndexes, storageIndexes := obj.encode()
+	if len(storageData) != len(encoded) {
+		t.Fatalf("storage data length mismatch: have %d, want %d", len(storageData), len(encoded))
+	}
+	var index slotIndex
+	index.decode(storageIndexes)
+	if int(index.length) != len(encoded) {
+		t.Fatalf("slot index length mismatch: have %d, want %d", index.length, len(encoded))
+	}
+	if err := decoded.decode(accountData, storageData, accountIndexes, storageIndexes); err != nil {
+		t.Fatalf("decode history: %v", err)
+	}
+	if have := decoded.storages[addr][slot]; !bytes.Equal(have, encoded) {
+		t.Fatalf("decoded storage payload mismatch:\nhave %x\nwant %x", have, encoded)
 	}
 }
 
