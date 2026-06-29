@@ -555,7 +555,7 @@ Results in the following invocation on the UI:
       "call_info": [
           {
             "type": "Info",
-            "message": "safeSend(address: QfEDcbA9876543210FEdCba9876543210FEDCba9876543210fEDcBA987654321076543210fEdCBa9876543210fedcBa9876543210FedCba9876543210fedCba98)"
+            "message": "Transaction invokes the following method: \"safeSend(address: QfEDcbA9876543210FEdCba9876543210FEDCba9876543210fEDcBA987654321076543210fEdCBa9876543210fedcBa9876543210FedCba9876543210fedCba98)\""
           }
         ],
       "meta": {
@@ -637,7 +637,7 @@ One which has missing `to`, but with no `data`:
       "call_info": [
           {
             "type": "CRITICAL",
-            "message": "Tx will create contract with empty code!"
+            "message": "Transaction will create a contract with empty code"
           }
         ],
       "meta": {
