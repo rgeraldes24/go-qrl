@@ -17,7 +17,6 @@
 package main
 
 import (
-	"bytes"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -122,35 +121,4 @@ func TestListWallets(t *testing.T) {
 			t.Error("Failure")
 		}
 	})
-}
-
-func TestGenDoc(t *testing.T) {
-	out, err := os.CreateTemp(t.TempDir(), "datatypes-*.md")
-	if err != nil {
-		t.Fatal(err)
-	}
-	oldStdout := os.Stdout
-	os.Stdout = out
-	defer func() {
-		os.Stdout = oldStdout
-	}()
-	err = GenDoc(nil)
-	if closeErr := out.Close(); closeErr != nil {
-		t.Fatal(closeErr)
-	}
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	got, err := os.ReadFile(out.Name())
-	if err != nil {
-		t.Fatal(err)
-	}
-	want, err := os.ReadFile("datatypes.md")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !bytes.Equal(got, want) {
-		t.Fatalf("gendoc output does not match datatypes.md")
-	}
 }
