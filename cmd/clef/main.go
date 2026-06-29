@@ -1152,7 +1152,7 @@ func GenDoc(ctx *cli.Context) error {
 		add("SignTxRequest", desc, &core.SignTxRequest{
 			Meta: meta,
 			Callinfo: []apitypes.ValidationInfo{
-				{Typ: "Warning", Message: "Something looks odd, show this message as a warning"},
+				{Typ: apitypes.WARN, Message: "Something looks odd, show this message as a warning"},
 				{Typ: "Info", Message: "User should see this as well"},
 			},
 			Transaction: apitypes.SendTxArgs{

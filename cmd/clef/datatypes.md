@@ -72,7 +72,7 @@ Example:
   },
   "call_info": [
     {
-      "type": "Warning",
+      "type": "WARNING",
       "message": "Something looks odd, show this message as a warning"
     },
     {
