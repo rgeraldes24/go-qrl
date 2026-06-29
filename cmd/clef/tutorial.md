@@ -283,7 +283,7 @@ For more details on writing automatic rules, please see the [rules spec](https:/
 
 ## Gqrl integration
 
-Of course, as useful as Clef is, it's not feasible to interact with it via JSON RPC by hand. Long term, QRL/Hyperion wallets and DApps should integrate Clef as a general signer (it's only 3-5 methods), allowing applications to request signatures directly.
+Of course, as useful as Clef is, it's not feasible to interact with it via JSON RPC by hand. Long term, QRL wallets and DApps should integrate Clef as a general signer (it's only 3-5 methods), allowing applications to request signatures directly.
 
 Until then however, we're trying to pave the way via Gqrl. Gqrl has built in support via `--signer <API endpoint>` for using a local or remote Clef instance as an account backend!
 
