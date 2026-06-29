@@ -81,8 +81,8 @@ Request context:
 	NA -> NA -> NA
 
 Additional HTTP header data, provided by the external caller:
-	User-Agent:
-	Origin:
+	User-Agent: ""
+	Origin: ""
 Approve? [y/N]:
 >
 ```
@@ -334,8 +334,8 @@ Request context:
 	NA -> NA -> NA
 
 Additional HTTP header data, provided by the external caller:
-	User-Agent:
-	Origin:
+	User-Agent: ""
+	Origin: ""
 -------------------------------------------
 Approve? [y/N]:
 > y
