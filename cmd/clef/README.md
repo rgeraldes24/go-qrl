@@ -569,7 +569,7 @@ Results in the following invocation on the UI:
 
 ```
 
-The same method invocation, but with invalid data:
+The same method invocation, but with invalid data. By default, Clef rejects this request before calling the UI. When `--advanced` is enabled, Clef forwards it to the UI with a warning:
 ```bash
 
 curl -i -H "Content-Type: application/json" -X POST --data '{"jsonrpc":"2.0","method":"account_signTransaction","params":[{"from":"Q111122223333444455556666777788889999AaaAbbBBCCCcDDDDEeEeffff00000000FFfFEeEedDDdcCcCBBbBAAaa999988887777666655554444333322221111","gas":"0x333","maxFeePerGas":"0x1","maxPriorityFeePerGas":"0x1","nonce":"0x0","to":"QaAAaaAAAaaAaAAAAAAAAaAAAaAAAAaAa55555555555555555555555555555555CCCcCcCCcCcCCCccccccCCcccccccCcC33333333333333333333333333333333", "value":"0x0", "data":"0x4401a6e4fedcba9876543210fedcba9876543210fedcba9876543210fedcba987654321076543210fedcba9876543210fedcba9876543210fedcba9876543210fedcba9800000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000042"},"safeSend(address)"],"id":67}' http://localhost:8550/
@@ -612,7 +612,7 @@ curl -i -H "Content-Type: application/json" -X POST --data '{"jsonrpc":"2.0","me
 
 ```
 
-One which has missing `to`, but with no `data`:
+One which has missing `to`, but with no `data`. By default, Clef rejects this request before calling the UI. When `--advanced` is enabled, Clef forwards it to the UI as a critical warning:
 
 
 ```json
