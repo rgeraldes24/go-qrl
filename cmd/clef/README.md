@@ -561,7 +561,9 @@ Results in the following invocation on the UI:
       "meta": {
         "remote": "127.0.0.1:48486",
         "local": "localhost:8550",
-        "scheme": "http"
+        "scheme": "http",
+        "User-Agent": "",
+        "Origin": ""
       }
     }
   ]
@@ -603,7 +605,9 @@ curl -i -H "Content-Type: application/json" -X POST --data '{"jsonrpc":"2.0","me
       "meta": {
         "remote": "127.0.0.1:48492",
         "local": "localhost:8550",
-        "scheme": "http"
+        "scheme": "http",
+        "User-Agent": "",
+        "Origin": ""
       }
     }
   ]
@@ -643,7 +647,9 @@ One which has missing `to`, but with no `data`. By default, Clef rejects this re
       "meta": {
         "remote": "NA",
         "local": "NA",
-        "scheme": "NA"
+        "scheme": "NA",
+        "User-Agent": "",
+        "Origin": ""
       }
     }
   ]
@@ -677,7 +683,9 @@ Invoked when a request for account listing has been made.
       "meta": {
         "remote": "NA",
         "local": "NA",
-        "scheme": "NA"
+        "scheme": "NA",
+        "User-Agent": "",
+        "Origin": ""
       }
     }
   ]
@@ -712,7 +720,9 @@ Invoked when a request for account listing has been made.
       "meta": {
         "remote": "NA",
         "local": "NA",
-        "scheme": "NA"
+        "scheme": "NA",
+        "User-Agent": "",
+        "Origin": ""
       }
     }
   ]
@@ -735,7 +745,9 @@ Invoked when a request for creating a new account has been made.
       "meta": {
         "remote": "NA",
         "local": "NA",
-        "scheme": "NA"
+        "scheme": "NA",
+        "User-Agent": "",
+        "Origin": ""
       }
     }
   ]
