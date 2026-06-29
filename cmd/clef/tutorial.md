@@ -44,7 +44,7 @@ You should treat 'masterseed.json' with utmost secrecy and make a backup of it!
 Clef manages keystore-backed accounts. To evaluate clef, we're going to point it to our QRL testnet keystore and specify the testnet chain ID for signing (Clef doesn't have a backing chain, so it doesn't know what network it runs on).
 
 ```text
-$ clef --keystore ~/.qrl/testnet/keystore --chainid 1337
+$ clef --keystore ~/.qrl/testnet/keystore --chainid 1337 --loglevel 4
 
 INFO [07-01|11:00:46.385] Starting signer                          chainid=1337 keystore=$HOME/.qrl/testnet/keystore light-kdf=false advanced=false
 DEBUG[07-01|11:00:46.389] FS scan times                            list=3.521941ms set=9.017µs diff=4.112µs
@@ -128,7 +128,7 @@ INFO [07-01|13:25:03.290] Ruleset attestation updated              sha256=645b58
 At this point, we can start Clef with the rule file:
 
 ```text
-$ clef --keystore ~/.qrl/testnet/keystore --chainid 1337 --rules rules.js
+$ clef --keystore ~/.qrl/testnet/keystore --chainid 1337 --rules rules.js --loglevel 4
 
 INFO [07-01|13:39:49.726] Rule engine configured                   file=rules.js
 INFO [07-01|13:39:49.726] Starting signer                          chainid=1337 keystore=$HOME/.qrl/testnet/keystore light-kdf=false advanced=false
@@ -238,7 +238,7 @@ INFO [07-01|14:11:28.509] Ruleset attestation updated              sha256=f163a1
 Restart Clef with the new rules in place:
 
 ```
-$ clef --keystore ~/.qrl/testnet/keystore --chainid 1337 --rules rules.js
+$ clef --keystore ~/.qrl/testnet/keystore --chainid 1337 --rules rules.js --loglevel 4
 
 INFO [07-01|14:12:41.636] Rule engine configured                   file=rules.js
 INFO [07-01|14:12:41.636] Starting signer                          chainid=1337 keystore=$HOME/.qrl/testnet/keystore light-kdf=false advanced=false
