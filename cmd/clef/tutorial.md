@@ -204,7 +204,7 @@ function ApproveListing() {
 }
 
 function ApproveSignData(req) {
-    if (req.address == "Q0123456789ABcdEF0123456789abcDEF0123456789AbCdef0123456789abcDeF89aBCDeF0123456789AbcdeF0123456789AbCdeF0123456789aBCDef01234567") {
+    if (req.address.toLowerCase() == "q0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef89abcdef0123456789abcdef0123456789abcdef0123456789abcdef01234567") {
         if (req.messages[0].value.indexOf("bazonk") >= 0) {
             return "Approve"
         }
