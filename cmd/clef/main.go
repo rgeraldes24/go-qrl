@@ -911,10 +911,41 @@ func testExternalUI(api *core.SignerAPI) {
 	ctx = context.WithValue(ctx, "local", "main")
 	errs := make([]string, 0)
 
-	a := common.MustParseAddress("Q0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000deadbeef000000000000000000000000deadbeef")
+	const (
+		testAddress         = "Q0123456789ABcdEF0123456789abcDEF0123456789AbCdef0123456789abcDeF89aBCDeF0123456789AbcdeF0123456789AbCdeF0123456789aBCDef01234567"
+		testRecipient       = "QfEDcbA9876543210FEdCba9876543210FEDCba9876543210fEDcBA987654321076543210fEdCBa9876543210fedcBa9876543210FedCba9876543210fedCba98"
+		testContractAddress = "QaAAaaAAAaaAaAAAAAAAAaAAAaAAAAaAa55555555555555555555555555555555CCCcCcCCcCcCCCccccccCCcccccccCcC33333333333333333333333333333333"
+	)
+
 	addErr := func(errStr string) {
 		log.Info("Test error", "err", errStr)
 		errs = append(errs, errStr)
+	}
+	abortInvalidAddress := func(name, raw string, err error) {
+		addErr(fmt.Sprintf("invalid %s test address %q: %v", name, raw, err))
+		api.UI.ShowError(fmt.Sprintf("UI test aborted: invalid %s test address", name))
+	}
+	a, err := common.NewAddressFromString(testAddress)
+	if err != nil {
+		abortInvalidAddress("signer", testAddress, err)
+		return
+	}
+	testMixedAddress, err := common.NewMixedcaseAddressFromString(testAddress)
+	if err != nil {
+		abortInvalidAddress("mixedcase signer", testAddress, err)
+		return
+	}
+	for _, tt := range []struct {
+		name string
+		raw  string
+	}{
+		{"recipient", testRecipient},
+		{"contract", testContractAddress},
+	} {
+		if _, err := common.NewAddressFromString(tt.raw); err != nil {
+			abortInvalidAddress(tt.name, tt.raw, err)
+			return
+		}
 	}
 
 	queryUser := func(q string) string {
@@ -956,26 +987,26 @@ func testExternalUI(api *core.SignerAPI) {
 	{ // Sign data test - typed data
 		api.UI.ShowInfo("Please approve the next request for signing EIP-712 typed data")
 		time.Sleep(delay)
-		addr, _ := common.NewMixedcaseAddressFromString("Q000000000000000000000000000000000000000000000000000000000011223344556677889900112233445566778899")
-		data := `{"types":{"EIP712Domain":[{"name":"name","type":"string"},{"name":"version","type":"string"},{"name":"chainId","type":"uint256"},{"name":"verifyingContract","type":"address"}],"Person":[{"name":"name","type":"string"},{"name":"test","type":"uint8"},{"name":"wallet","type":"address"}],"Mail":[{"name":"from","type":"Person"},{"name":"to","type":"Person"},{"name":"contents","type":"string"}]},"primaryType":"Mail","domain":{"name":"Ether Mail","version":"1","chainId":"1","verifyingContract":"Q00000000000000000000000000000000000000000000000000000000CCCcccccCCCCcCCCCCCcCcCccCcCCCcCcccccccC"},"message":{"from":{"name":"Cow","test":"3","wallet":"Q00000000000000000000000000000000000000000000000000000000cD2a3d9F938E13CD947Ec05AbC7FE734Df8DD826"},"to":{"name":"Bob","wallet":"Q00000000000000000000000000000000000000000000000000000000bBbBBBBbbBBBbbbBbbBbbbbBBbBbbbbBbBbbBBbB","test":"2"},"contents":"Hello, Bob!"}}`
-		// _, err := api.SignData(ctx, accounts.MimetypeTypedData, *addr, hexutil.Encode([]byte(data)))
+		data := fmt.Sprintf(`{"types":{"EIP712Domain":[{"name":"name","type":"string"},{"name":"version","type":"string"},{"name":"chainId","type":"uint256"},{"name":"verifyingContract","type":"address"}],"Person":[{"name":"name","type":"string"},{"name":"test","type":"uint8"},{"name":"wallet","type":"address"}],"Mail":[{"name":"from","type":"Person"},{"name":"to","type":"Person"},{"name":"contents","type":"string"}]},"primaryType":"Mail","domain":{"name":"Ether Mail","version":"1","chainId":"1","verifyingContract":%q},"message":{"from":{"name":"Cow","test":"3","wallet":%q},"to":{"name":"Bob","wallet":%q,"test":"2"},"contents":"Hello, Bob!"}}`, testContractAddress, testAddress, testRecipient)
+		// _, err := api.SignData(ctx, accounts.MimetypeTypedData, *testMixedAddress, hexutil.Encode([]byte(data)))
 		var typedData apitypes.TypedData
-		json.Unmarshal([]byte(data), &typedData)
-		_, err := api.SignTypedData(ctx, *addr, typedData)
+		if err := json.Unmarshal([]byte(data), &typedData); err != nil {
+			addErr(fmt.Sprintf("sign 712 typed data: invalid typed data JSON: %v", err))
+			return
+		}
+		_, err := api.SignTypedData(ctx, *testMixedAddress, typedData)
 		expectApprove("sign 712 typed data", err)
 	}
 	{ // Sign data test - plain text
 		api.UI.ShowInfo("Please approve the next request for signing text")
 		time.Sleep(delay)
-		addr, _ := common.NewMixedcaseAddressFromString("Q000000000000000000000000000000000000000000000000000000000011223344556677889900112233445566778899")
-		_, err := api.SignData(ctx, accounts.MimetypeTextPlain, *addr, hexutil.Encode([]byte("hello world")))
+		_, err := api.SignData(ctx, accounts.MimetypeTextPlain, *testMixedAddress, hexutil.Encode([]byte("hello world")))
 		expectApprove("signdata - text", err)
 	}
 	{ // Sign data test - plain text reject
 		api.UI.ShowInfo("Please deny the next request for signing text")
 		time.Sleep(delay)
-		addr, _ := common.NewMixedcaseAddressFromString("Q000000000000000000000000000000000000000000000000000000000011223344556677889900112233445566778899")
-		_, err := api.SignData(ctx, accounts.MimetypeTextPlain, *addr, hexutil.Encode([]byte("hello world")))
+		_, err := api.SignData(ctx, accounts.MimetypeTextPlain, *testMixedAddress, hexutil.Encode([]byte("hello world")))
 		expectDeny("signdata - text", err)
 	}
 	{ // Sign transaction
