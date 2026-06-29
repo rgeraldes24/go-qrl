@@ -95,6 +95,9 @@ func Bind(types []string, abis []string, bytecodes []string, fsigs []map[string]
 		if err != nil {
 			return "", err
 		}
+		if err := rejectUnsupportedFunctionTypes(types[i], qrvmABI); err != nil {
+			return "", err
+		}
 		// Strip any whitespace from the JSON ABI
 		strippedABI := strings.Map(func(r rune) rune {
 			if unicode.IsSpace(r) {
@@ -277,10 +280,11 @@ func Bind(types []string, abis []string, bytecodes []string, fsigs []map[string]
 	buffer := new(bytes.Buffer)
 
 	funcs := map[string]any{
-		"bindtype":      bindType,
-		"bindtopictype": bindTopicType,
-		"capitalise":    abi.ToCamelCase,
-		"decapitalise":  decapitalise,
+		"bindtype":          bindType,
+		"bindtopictype":     bindTopicType,
+		"bindtopicruletype": bindTopicRuleType,
+		"capitalise":        abi.ToCamelCase,
+		"decapitalise":      decapitalise,
 	}
 	tmpl := template.Must(template.New("").Funcs(funcs).Parse(tmplSource))
 	if err := tmpl.Execute(buffer, data); err != nil {
@@ -311,7 +315,7 @@ func bindBasicType(kind abi.Type) string {
 	case abi.BytesTy:
 		return "[]byte"
 	case abi.FunctionTy:
-		return "[24]byte"
+		panic(abi.ErrUnsupportedFunctionType)
 	default:
 		// string, bool types
 		return kind.String()
@@ -334,21 +338,76 @@ func bindType(kind abi.Type, structs map[string]*tmplStruct) string {
 	}
 }
 
-// bindTopicType converts a Hyperion topic type to a Go one. It is almost the same
-// functionality as for simple types, but dynamic types get converted to hashes.
+// bindTopicType converts a Hyperion indexed topic type to a Go event field type.
 func bindTopicType(kind abi.Type, structs map[string]*tmplStruct) string {
-	bound := bindType(kind, structs)
-
-	// todo(rjl493456442) according hyperion documentation, indexed event
-	// parameters that are not value types i.e. arrays and structs are not
-	// stored directly but instead a keccak256-hash of an encoding is stored.
-	//
-	// We only convert strings and bytes to hash, still need to deal with
-	// array(both fixed-size and dynamic-size) and struct.
-	if bound == "string" || bound == "[]byte" {
-		bound = "common.Hash"
+	switch kind.T {
+	case abi.StringTy, abi.BytesTy, abi.SliceTy, abi.ArrayTy:
+		return "common.LogTopic"
+	default:
+		return bindType(kind, structs)
 	}
-	return bound
+}
+
+// bindTopicRuleType converts an indexed topic type to the Go filter/watch
+// parameter element type. Strings and bytes remain preimage types because
+// abi.MakeTopics can hash them; arrays and slices require precomputed topics.
+func bindTopicRuleType(kind abi.Type, structs map[string]*tmplStruct) string {
+	switch kind.T {
+	case abi.SliceTy, abi.ArrayTy:
+		return "common.LogTopic"
+	default:
+		return bindType(kind, structs)
+	}
+}
+
+func rejectUnsupportedFunctionTypes(contractName string, contractABI abi.ABI) error {
+	if err := rejectUnsupportedFunctionArgs(contractName, "constructor", contractABI.Constructor.Inputs); err != nil {
+		return err
+	}
+	for _, method := range contractABI.Methods {
+		if err := rejectUnsupportedFunctionArgs(contractName, fmt.Sprintf("method %q inputs", method.RawName), method.Inputs); err != nil {
+			return err
+		}
+		if err := rejectUnsupportedFunctionArgs(contractName, fmt.Sprintf("method %q outputs", method.RawName), method.Outputs); err != nil {
+			return err
+		}
+	}
+	for _, event := range contractABI.Events {
+		if err := rejectUnsupportedFunctionArgs(contractName, fmt.Sprintf("event %q inputs", event.RawName), event.Inputs); err != nil {
+			return err
+		}
+	}
+	for _, errABI := range contractABI.Errors {
+		if err := rejectUnsupportedFunctionArgs(contractName, fmt.Sprintf("error %q inputs", errABI.Name), errABI.Inputs); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func rejectUnsupportedFunctionArgs(contractName, context string, args abi.Arguments) error {
+	for _, arg := range args {
+		if bindContainsFunctionType(arg.Type) {
+			return fmt.Errorf("cannot generate binding for %s %s argument %q: %w", contractName, context, arg.Name, abi.ErrUnsupportedFunctionType)
+		}
+	}
+	return nil
+}
+
+func bindContainsFunctionType(t abi.Type) bool {
+	switch t.T {
+	case abi.FunctionTy:
+		return true
+	case abi.SliceTy, abi.ArrayTy:
+		return bindContainsFunctionType(*t.Elem)
+	case abi.TupleTy:
+		for _, elem := range t.TupleElems {
+			if bindContainsFunctionType(*elem) {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // bindStructType converts a Hyperion tuple type to a Go one and records the mapping

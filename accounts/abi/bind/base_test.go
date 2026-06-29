@@ -114,6 +114,49 @@ func (mc *mockPendingCaller) PendingCallContract(ctx context.Context, call qrl.C
 	return mc.pendingCallContractBytes, mc.pendingCallContractErr
 }
 
+type mockFilterer struct {
+	query qrl.FilterQuery
+	logs  []types.Log
+}
+
+func (mf *mockFilterer) FilterLogs(ctx context.Context, query qrl.FilterQuery) ([]types.Log, error) {
+	mf.query = query
+	return mf.logs, nil
+}
+
+func (mf *mockFilterer) SubscribeFilterLogs(ctx context.Context, query qrl.FilterQuery, ch chan<- types.Log) (qrl.Subscription, error) {
+	mf.query = query
+	return nil, nil
+}
+
+func TestEventFilterTopicMatchesUnpackTopic(t *testing.T) {
+	parsed, err := abi.JSON(strings.NewReader(`[{"anonymous":false,"inputs":[],"name":"Called","type":"event"}]`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	filterer := new(mockFilterer)
+	bc := bind.NewBoundContract(common.Address{}, parsed, nil, nil, filterer)
+
+	_, sub, err := bc.FilterLogs(new(bind.FilterOpts), "Called")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer sub.Unsubscribe()
+
+	if len(filterer.query.Topics) != 1 || len(filterer.query.Topics[0]) != 1 {
+		t.Fatalf("unexpected topic filter shape: %#v", filterer.query.Topics)
+	}
+	expected := parsed.Events["Called"].Topic()
+	if got := filterer.query.Topics[0][0]; got != expected {
+		t.Fatalf("filter topic mismatch: got %x want %x", got, expected)
+	}
+
+	log := types.Log{Topics: []common.LogTopic{filterer.query.Topics[0][0]}}
+	if err := bc.UnpackLogIntoMap(make(map[string]any), "Called", log); err != nil {
+		t.Fatalf("filter topic should unpack as event topic: %v", err)
+	}
+}
+
 func TestPassingBlockNumber(t *testing.T) {
 	mc := &mockPendingCaller{
 		mockCaller: &mockCaller{
@@ -168,7 +211,7 @@ func TestPassingBlockNumber(t *testing.T) {
 // replaces the 20-byte hex literals that used to be parsed via
 // NewAddressFromString.
 var mockSender = func() common.Address {
-	raw, _ := hex.DecodeString("978271565f56deb45495afa69e59c16ab2376c47978271565f56deb45495afa69e59c16ab2112233445566778899aabb")
+	raw, _ := hex.DecodeString("978271565f56deb45495afa69e59c16ab2376c47978271565f56deb45495afa69e59c16ab2112233445566778899aabbc0ffee00010203040506070809")
 	return common.BytesToAddress(raw)
 }()
 
@@ -200,6 +243,47 @@ func TestUnpackIndexedStringTyLogIntoMap(t *testing.T) {
 		"memo":   []byte{88},
 	}
 	unpackAndCheck(t, bc, expectedReceivedMap, mockLog)
+}
+
+func TestUnpackIndexedDynamicTyLogIntoStruct(t *testing.T) {
+	nameHash := crypto.Keccak256Hash([]byte("testName"))
+	contentHash := crypto.Keccak256Hash([]byte{1, 2, 3, 4, 5})
+	topics := []common.LogTopic{
+		common.BytesToEventSignatureLogTopic(crypto.Keccak256([]byte("received(string,bytes,address,uint256,bytes)"))),
+		common.BytesToLogTopic(nameHash.Bytes()),
+		common.BytesToLogTopic(contentHash.Bytes()),
+	}
+	mockLog := newMockLog(topics, common.HexToHash("0x0"))
+
+	abiString := `[{"anonymous":false,"inputs":[{"indexed":true,"name":"name","type":"string"},{"indexed":true,"name":"content","type":"bytes"},{"indexed":false,"name":"sender","type":"address"},{"indexed":false,"name":"amount","type":"uint256"},{"indexed":false,"name":"memo","type":"bytes"}],"name":"received","type":"event"}]`
+	parsedAbi, _ := abi.JSON(strings.NewReader(abiString))
+	bc := bind.NewBoundContract(common.Address{}, parsedAbi, nil, nil, nil)
+
+	var received struct {
+		Name    common.LogTopic
+		Content common.LogTopic
+		Sender  common.Address
+		Amount  *big.Int
+		Memo    []byte
+	}
+	if err := bc.UnpackLog(&received, "received", mockLog); err != nil {
+		t.Fatal(err)
+	}
+	if want := common.BytesToLogTopic(nameHash.Bytes()); received.Name != want {
+		t.Fatalf("name topic mismatch: have %v, want %v", received.Name, want)
+	}
+	if want := common.BytesToLogTopic(contentHash.Bytes()); received.Content != want {
+		t.Fatalf("content topic mismatch: have %v, want %v", received.Content, want)
+	}
+	if received.Sender != mockSender {
+		t.Fatalf("sender mismatch: have %v, want %v", received.Sender, mockSender)
+	}
+	if received.Amount.Cmp(big.NewInt(1)) != 0 {
+		t.Fatalf("amount mismatch: have %v, want 1", received.Amount)
+	}
+	if !reflect.DeepEqual(received.Memo, []byte{88}) {
+		t.Fatalf("memo mismatch: have %v, want %v", received.Memo, []byte{88})
+	}
 }
 
 func TestUnpackAnonymousLogIntoMap(t *testing.T) {
@@ -291,7 +375,7 @@ func TestUnpackIndexedFuncTyLogIntoMap(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected indexed function topic to be rejected")
 	}
-	if !strings.Contains(err.Error(), "function type does not fit") {
+	if !errors.Is(err, abi.ErrUnsupportedFunctionType) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 }

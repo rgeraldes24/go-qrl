@@ -27,6 +27,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/theQRL/go-qrl/common"
+	"github.com/theQRL/go-qrl/common/uint512"
 )
 
 // Type enumerator
@@ -153,10 +154,10 @@ func NewType(t string, internalType string, components []ArgumentMarshaling) (ty
 	case "string":
 		typ.T = StringTy
 	case "bytes":
-		if varSize == 0 {
+		if len(parsedType[3]) == 0 {
 			typ.T = BytesTy
 		} else {
-			if varSize > 32 {
+			if varSize == 0 || varSize > uint512.WordBytes {
 				return Type{}, fmt.Errorf("unsupported arg type: %s", t)
 			}
 			typ.T = FixedBytesTy
@@ -253,7 +254,7 @@ func (t Type) GetType() reflect.Type {
 	case BytesTy:
 		return reflect.TypeFor[[]byte]()
 	case HashTy, FixedPointTy: // currently not used
-		return reflect.TypeFor[[64]byte]()
+		return reflect.TypeFor[[uint512.WordBytes]byte]()
 	case FunctionTy:
 		return reflect.TypeFor[[common.AddressLength + 4]byte]()
 	default:
@@ -267,6 +268,10 @@ func (t Type) String() (out string) {
 }
 
 func (t Type) pack(v reflect.Value) ([]byte, error) {
+	if containsFunctionType(t) {
+		return nil, ErrUnsupportedFunctionType
+	}
+
 	// dereference pointer first if it's a pointer
 	v = indirect(v)
 	if err := typeCheck(t, v); err != nil {
@@ -353,6 +358,22 @@ func (t Type) requiresLengthPrefix() bool {
 	return t.T == StringTy || t.T == BytesTy || t.T == SliceTy
 }
 
+func containsFunctionType(t Type) bool {
+	switch t.T {
+	case FunctionTy:
+		return true
+	case SliceTy, ArrayTy:
+		return containsFunctionType(*t.Elem)
+	case TupleTy:
+		for _, elem := range t.TupleElems {
+			if containsFunctionType(*elem) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 // isDynamicType returns true if the type is dynamic.
 // The following types are called “dynamic”:
 // * bytes
@@ -378,7 +399,7 @@ func isDynamicType(t Type) bool {
 // current block.
 // So for a static variable, the size returned represents the size that the
 // variable actually occupies.
-// For a dynamic variable, the returned size is fixed 64 bytes, which is used
+// For a dynamic variable, the returned size is fixed at one ABI word, which is used
 // to store the location reference for actual value storage.
 func getTypeSize(t Type) int {
 	if t.T == ArrayTy && !isDynamicType(*t.Elem) {
@@ -386,7 +407,7 @@ func getTypeSize(t Type) int {
 		if t.Elem.T == ArrayTy || t.Elem.T == TupleTy {
 			return t.Size * getTypeSize(*t.Elem)
 		}
-		return t.Size * 64
+		return t.Size * uint512.WordBytes
 	} else if t.T == TupleTy && !isDynamicType(t) {
 		total := 0
 		for _, elem := range t.TupleElems {
@@ -394,7 +415,7 @@ func getTypeSize(t Type) int {
 		}
 		return total
 	}
-	return 64
+	return uint512.WordBytes
 }
 
 // isLetter reports whether a given 'rune' is classified as a Letter.

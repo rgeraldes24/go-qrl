@@ -19,6 +19,7 @@ package abi
 import (
 	"bytes"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"math"
 	"math/big"
@@ -29,6 +30,8 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"github.com/theQRL/go-qrl/common"
+	qmath "github.com/theQRL/go-qrl/common/math"
+	"github.com/theQRL/go-qrl/common/uint512"
 )
 
 func BenchmarkUnpack(b *testing.B) {
@@ -38,14 +41,14 @@ func BenchmarkUnpack(b *testing.B) {
 	}{
 		{
 			def:    `[{"type": "uint32"}]`,
-			packed: "0000000000000000000000000000000000000000000000000000000000000001",
+			packed: abiWord("01"),
 		},
 		{
 			def: `[{"type": "uint32[]"}]`,
-			packed: "0000000000000000000000000000000000000000000000000000000000000020" +
-				"0000000000000000000000000000000000000000000000000000000000000002" +
-				"0000000000000000000000000000000000000000000000000000000000000001" +
-				"0000000000000000000000000000000000000000000000000000000000000002",
+			packed: abiWord("40") +
+				abiWord("02") +
+				abiWord("01") +
+				abiWord("02"),
 		},
 	}
 	for i, test := range testCases {
@@ -61,8 +64,15 @@ func BenchmarkUnpack(b *testing.B) {
 			}
 
 			var result any
+			if _, err := abi.Unpack("method", encb); err != nil {
+				b.Fatalf("invalid packed fixture %s: %v", test.packed, err)
+			}
+			b.ResetTimer()
 			for b.Loop() {
-				result, _ = abi.Unpack("method", encb)
+				result, err = abi.Unpack("method", encb)
+				if err != nil {
+					b.Fatal(err)
+				}
 			}
 			_ = result
 		})
@@ -96,6 +106,42 @@ func TestUnpack(t *testing.T) {
 	}
 }
 
+func TestUnpackUnsupportedFunctionType(t *testing.T) {
+	t.Parallel()
+
+	emptySliceOutput := append(common.LeftPadBytes([]byte{64}, 64), common.LeftPadBytes(nil, 64)...)
+	tests := []struct {
+		name   string
+		abi    string
+		output []byte
+	}{
+		{
+			name:   "direct",
+			abi:    `[{"name":"method","type":"function","outputs":[{"type":"function"}]}]`,
+			output: make([]byte, 64),
+		},
+		{
+			name:   "empty slice",
+			abi:    `[{"name":"method","type":"function","outputs":[{"type":"function[]"}]}]`,
+			output: emptySliceOutput,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			abi, err := JSON(strings.NewReader(tt.abi))
+			if err != nil {
+				t.Fatalf("invalid ABI definition: %v", err)
+			}
+			_, err = abi.Unpack("method", tt.output)
+			if !errors.Is(err, ErrUnsupportedFunctionType) {
+				t.Fatalf("unpack function type error = %v, want %v", err, ErrUnsupportedFunctionType)
+			}
+		})
+	}
+}
+
 type unpackTest struct {
 	def  string // ABI definition JSON
 	enc  string // qrvm return data
@@ -119,6 +165,13 @@ func (test unpackTest) checkError(err error) error {
 // z32 is a 32-byte (64 hex chars) zero prefix used to left-pad the legacy
 // 32-byte slot hex fixtures below to the 64-byte slot width.
 const z32 = "0000000000000000000000000000000000000000000000000000000000000000"
+
+func abiWord(hexValue string) string {
+	if len(hexValue) > 2*uint512.WordBytes {
+		panic("abi test word is too wide")
+	}
+	return strings.Repeat("0", 2*uint512.WordBytes-len(hexValue)) + hexValue
+}
 
 var unpackTests = []unpackTest{
 	// Bools
@@ -713,7 +766,7 @@ func TestUnmarshal(t *testing.T) {
 		t.Error("expected Bool to be true")
 	}
 
-	// marshal dynamic bytes, length equal to one slot (32 bytes)
+	// marshal dynamic bytes, length equal to 32 bytes
 	bytesOut := common.RightPadBytes([]byte("hello"), 32)
 	packed, err = inAbi.Pack("bytes", bytesOut)
 	if err != nil {
@@ -1045,53 +1098,53 @@ func TestOOMMaliciousInput(t *testing.T) {
 	oomTests := []unpackTest{
 		{
 			def: `[{"type": "uint8[]"}]`,
-			enc: "0000000000000000000000000000000000000000000000000000000000000020" + // offset
-				"0000000000000000000000000000000000000000000000000000000000000003" + // num elems
-				"0000000000000000000000000000000000000000000000000000000000000001" + // elem 1
-				"0000000000000000000000000000000000000000000000000000000000000002", // elem 2
+			enc: abiWord("40") + // offset
+				abiWord("03") + // num elems
+				abiWord("01") + // elem 1
+				abiWord("02"), // elem 2
 		},
 		{ // Length larger than 64 bits
 			def: `[{"type": "uint8[]"}]`,
-			enc: "0000000000000000000000000000000000000000000000000000000000000020" + // offset
-				"00ffffffffffffffffffffffffffffffffffffffffffffff0000000000000002" + // num elems
-				"0000000000000000000000000000000000000000000000000000000000000001" + // elem 1
-				"0000000000000000000000000000000000000000000000000000000000000002", // elem 2
+			enc: abiWord("40") + // offset
+				abiWord("010000000000000000") + // num elems
+				abiWord("01") + // elem 1
+				abiWord("02"), // elem 2
 		},
 		{ // Offset very large (over 64 bits)
 			def: `[{"type": "uint8[]"}]`,
-			enc: "00ffffffffffffffffffffffffffffffffffffffffffffff0000000000000020" + // offset
-				"0000000000000000000000000000000000000000000000000000000000000002" + // num elems
-				"0000000000000000000000000000000000000000000000000000000000000001" + // elem 1
-				"0000000000000000000000000000000000000000000000000000000000000002", // elem 2
+			enc: abiWord("010000000000000000") + // offset
+				abiWord("02") + // num elems
+				abiWord("01") + // elem 1
+				abiWord("02"), // elem 2
 		},
 		{ // Offset very large (below 64 bits)
 			def: `[{"type": "uint8[]"}]`,
-			enc: "0000000000000000000000000000000000000000000000007ffffffffff00020" + // offset
-				"0000000000000000000000000000000000000000000000000000000000000002" + // num elems
-				"0000000000000000000000000000000000000000000000000000000000000001" + // elem 1
-				"0000000000000000000000000000000000000000000000000000000000000002", // elem 2
+			enc: abiWord("7ffffffffff00020") + // offset
+				abiWord("02") + // num elems
+				abiWord("01") + // elem 1
+				abiWord("02"), // elem 2
 		},
-		{ // Offset negative (as 64 bit)
+		{ // Offset greater than max int64
 			def: `[{"type": "uint8[]"}]`,
-			enc: "000000000000000000000000000000000000000000000000f000000000000020" + // offset
-				"0000000000000000000000000000000000000000000000000000000000000002" + // num elems
-				"0000000000000000000000000000000000000000000000000000000000000001" + // elem 1
-				"0000000000000000000000000000000000000000000000000000000000000002", // elem 2
+			enc: abiWord("f000000000000020") + // offset
+				abiWord("02") + // num elems
+				abiWord("01") + // elem 1
+				abiWord("02"), // elem 2
 		},
 
-		{ // Negative length
+		{ // Length greater than max int64
 			def: `[{"type": "uint8[]"}]`,
-			enc: "0000000000000000000000000000000000000000000000000000000000000020" + // offset
-				"000000000000000000000000000000000000000000000000f000000000000002" + // num elems
-				"0000000000000000000000000000000000000000000000000000000000000001" + // elem 1
-				"0000000000000000000000000000000000000000000000000000000000000002", // elem 2
+			enc: abiWord("40") + // offset
+				abiWord("f000000000000002") + // num elems
+				abiWord("01") + // elem 1
+				abiWord("02"), // elem 2
 		},
 		{ // Very large length
 			def: `[{"type": "uint8[]"}]`,
-			enc: "0000000000000000000000000000000000000000000000000000000000000020" + // offset
-				"0000000000000000000000000000000000000000000000007fffffffff000002" + // num elems
-				"0000000000000000000000000000000000000000000000000000000000000001" + // elem 1
-				"0000000000000000000000000000000000000000000000000000000000000002", // elem 2
+			enc: abiWord("40") + // offset
+				abiWord("7fffffffff000002") + // num elems
+				abiWord("01") + // elem 1
+				abiWord("02"), // elem 2
 		},
 	}
 	for i, test := range oomTests {
@@ -1276,5 +1329,60 @@ func TestPackAndUnpackIncompatibleNumber(t *testing.T) {
 		if !reflect.DeepEqual(decoded[0], testCase.expectValue) {
 			t.Fatalf("Expected value %v, actual value %v", testCase.expectValue, decoded[0])
 		}
+	}
+}
+
+func TestPackAndUnpackDeclaredIntegerBounds(t *testing.T) {
+	t.Parallel()
+
+	mustType := func(name string) Type {
+		t.Helper()
+		typ, err := NewType(name, "", nil)
+		require.NoError(t, err)
+		return typ
+	}
+	args := func(name string) Arguments {
+		return Arguments{{Type: mustType(name)}}
+	}
+	word := func(n *big.Int) []byte {
+		return qmath.U512Bytes(new(big.Int).Set(n))
+	}
+
+	uint256Args := args("uint256")
+	uint256Overflow := new(big.Int).Lsh(common.Big1, 256)
+	_, err := uint256Args.Pack(uint256Overflow)
+	require.ErrorIs(t, err, errBadUint256)
+	_, err = uint256Args.Unpack(word(uint256Overflow))
+	require.ErrorIs(t, err, errBadUint256)
+
+	uint512Args := args("uint512")
+	maxUint512 := new(big.Int).Sub(new(big.Int).Lsh(common.Big1, uint512.WordBits), common.Big1)
+	packed, err := uint512Args.Pack(maxUint512)
+	require.NoError(t, err)
+	decoded, err := uint512Args.Unpack(packed)
+	require.NoError(t, err)
+	require.Zero(t, decoded[0].(*big.Int).Cmp(maxUint512))
+
+	int256Args := args("int256")
+	int256Overflow := new(big.Int).Lsh(common.Big1, 255)
+	int256Underflow := new(big.Int).Neg(new(big.Int).Add(new(big.Int).Lsh(common.Big1, 255), common.Big1))
+	_, err = int256Args.Pack(int256Overflow)
+	require.ErrorIs(t, err, errBadInt256)
+	_, err = int256Args.Unpack(word(int256Overflow))
+	require.ErrorIs(t, err, errBadInt256)
+	_, err = int256Args.Pack(int256Underflow)
+	require.ErrorIs(t, err, errBadInt256)
+	_, err = int256Args.Unpack(word(int256Underflow))
+	require.ErrorIs(t, err, errBadInt256)
+
+	int512Args := args("int512")
+	maxInt512 := new(big.Int).Sub(new(big.Int).Lsh(common.Big1, uint512.WordBits-1), common.Big1)
+	minInt512 := new(big.Int).Neg(new(big.Int).Lsh(common.Big1, uint512.WordBits-1))
+	for _, value := range []*big.Int{maxInt512, minInt512} {
+		packed, err = int512Args.Pack(value)
+		require.NoError(t, err)
+		decoded, err = int512Args.Unpack(packed)
+		require.NoError(t, err)
+		require.Zero(t, decoded[0].(*big.Int).Cmp(value))
 	}
 }

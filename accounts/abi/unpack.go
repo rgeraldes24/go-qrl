@@ -25,6 +25,7 @@ import (
 	"reflect"
 
 	"github.com/theQRL/go-qrl/common"
+	"github.com/theQRL/go-qrl/common/uint512"
 )
 
 var (
@@ -33,7 +34,7 @@ var (
 	// MaxInt256 is the maximum value that can be represented by a int256.
 	MaxInt256 = new(big.Int).Sub(new(big.Int).Lsh(common.Big1, 255), common.Big1)
 	// MaxUint512 is the maximum value that can be represented by a uint512.
-	MaxUint512 = new(big.Int).Sub(new(big.Int).Lsh(common.Big1, 512), common.Big1)
+	MaxUint512 = new(big.Int).Sub(new(big.Int).Lsh(common.Big1, uint512.WordBits), common.Big1)
 )
 
 // ReadInteger reads the integer based on its kind and returns the appropriate value.
@@ -64,15 +65,17 @@ func ReadInteger(typ Type, b []byte) (any, error) {
 			}
 			return u64, nil
 		default:
-			// the only case left for unsigned integer is uint256.
+			if !fitsUnsignedInteger(ret, typ.Size) {
+				return nil, errBadUint(typ.Size)
+			}
 			return ret, nil
 		}
 	}
 
 	// big.SetBytes can't tell if a number is negative or positive in itself.
-	// Signed integers are sign-extended to fill the full 64-byte ABI slot,
-	// so a value occupies the slot's MSB (bit 511) iff it is negative.
-	if ret.Bit(511) == 1 {
+	// Signed integers are sign-extended to fill the full ABI slot,
+	// so a value occupies the slot's MSB iff it is negative.
+	if ret.Bit(uint512.WordBits-1) == 1 {
 		ret.Add(MaxUint512, new(big.Int).Neg(ret))
 		ret.Add(ret, common.Big1)
 		ret.Neg(ret)
@@ -100,20 +103,21 @@ func ReadInteger(typ Type, b []byte) (any, error) {
 		}
 		return i64, nil
 	default:
-		// the only case left for integer is int256
-
+		if !fitsSignedInteger(ret, typ.Size) {
+			return nil, errBadInt(typ.Size)
+		}
 		return ret, nil
 	}
 }
 
 // readBool reads a bool.
 func readBool(word []byte) (bool, error) {
-	for _, b := range word[:63] {
+	for _, b := range word[:uint512.WordBytes-1] {
 		if b != 0 {
 			return false, errBadBool
 		}
 	}
-	switch word[63] {
+	switch word[uint512.WordBytes-1] {
 	case 0:
 		return false, nil
 	case 1:
@@ -121,27 +125,6 @@ func readBool(word []byte) (bool, error) {
 	default:
 		return false, errBadBool
 	}
-}
-
-// A function type is simply the address with the function selection signature at the end.
-//
-// readFunctionType enforces that standard by always presenting it as an array of
-// (AddressLength + 4) bytes (address + 4-byte selector).
-func readFunctionType(t Type, word []byte) (funcTy [common.AddressLength + 4]byte, err error) {
-	if t.T != FunctionTy {
-		return [common.AddressLength + 4]byte{}, errors.New("abi: invalid type in call to make function type byte array")
-	}
-	if common.AddressLength+4 > len(word) {
-		return [common.AddressLength + 4]byte{}, errors.New("abi: function type does not fit in a 64-byte ABI word with 64-byte addresses")
-	}
-	for _, b := range word[common.AddressLength+4:] {
-		if b != 0 {
-			err = fmt.Errorf("abi: got improperly encoded function type, got %v", word)
-			return
-		}
-	}
-	copy(funcTy[:], word[0:common.AddressLength+4])
-	return
 }
 
 // ReadFixedBytes uses reflection to create a fixed array to be read from.
@@ -161,8 +144,8 @@ func forEachUnpack(t Type, output []byte, start, size int) (any, error) {
 	if size < 0 {
 		return nil, fmt.Errorf("cannot marshal input to array, size is negative (%d)", size)
 	}
-	if start+64*size > len(output) {
-		return nil, fmt.Errorf("abi: cannot marshal into go array: offset %d would go over slice boundary (len=%d)", len(output), start+64*size)
+	if start+uint512.WordBytes*size > len(output) {
+		return nil, fmt.Errorf("abi: cannot marshal into go array: offset %d would go over slice boundary (len=%d)", len(output), start+uint512.WordBytes*size)
 	}
 
 	// this value will become our slice or our array, depending on the type
@@ -180,7 +163,7 @@ func forEachUnpack(t Type, output []byte, start, size int) (any, error) {
 	}
 
 	// Arrays have packed elements, resulting in longer unpack steps.
-	// Slices have just 32 bytes per element (pointing to the contents).
+	// Slices have one ABI word per element (pointing to the contents).
 	elemSize := getTypeSize(*t.Elem)
 
 	for i, j := start, 0; j < size; i, j = i+elemSize, j+1 {
@@ -201,7 +184,7 @@ func forTupleUnpack(t Type, output []byte) (any, error) {
 	retval := reflect.New(t.GetType()).Elem()
 	virtualArgs := 0
 	for index, elem := range t.TupleElems {
-		marshalledValue, err := toGoType((index+virtualArgs)*64, *elem, output)
+		marshalledValue, err := toGoType((index+virtualArgs)*uint512.WordBytes, *elem, output)
 		if err != nil {
 			return nil, err
 		}
@@ -216,11 +199,11 @@ func forTupleUnpack(t Type, output []byte) (any, error) {
 			//
 			// Calculate the full array size to get the correct offset for the next argument.
 			// Decrement it by 1, as the normal index increment is still applied.
-			virtualArgs += getTypeSize(*elem)/64 - 1
+			virtualArgs += getTypeSize(*elem)/uint512.WordBytes - 1
 		} else if elem.T == TupleTy && !isDynamicType(*elem) {
 			// If we have a static tuple, like (uint256, bool, uint256), these are
 			// coded as just like uint256,bool,uint256
-			virtualArgs += getTypeSize(*elem)/64 - 1
+			virtualArgs += getTypeSize(*elem)/uint512.WordBytes - 1
 		}
 		retval.Field(index).Set(reflect.ValueOf(marshalledValue))
 	}
@@ -230,8 +213,11 @@ func forTupleUnpack(t Type, output []byte) (any, error) {
 // toGoType parses the output bytes and recursively assigns the value of these bytes
 // into a go type with accordance with the ABI spec.
 func toGoType(index int, t Type, output []byte) (any, error) {
-	if index+64 > len(output) {
-		return nil, fmt.Errorf("abi: cannot marshal in to go type: length insufficient %d require %d", len(output), index+64)
+	if containsFunctionType(t) {
+		return nil, ErrUnsupportedFunctionType
+	}
+	if index+uint512.WordBytes > len(output) {
+		return nil, fmt.Errorf("abi: cannot marshal in to go type: length insufficient %d require %d", len(output), index+uint512.WordBytes)
 	}
 
 	var (
@@ -247,7 +233,7 @@ func toGoType(index int, t Type, output []byte) (any, error) {
 			return nil, err
 		}
 	} else {
-		returnOutput = output[index : index+64]
+		returnOutput = output[index : index+uint512.WordBytes]
 	}
 
 	switch t.T {
@@ -286,16 +272,16 @@ func toGoType(index int, t Type, output []byte) (any, error) {
 	case FixedBytesTy:
 		return ReadFixedBytes(t, returnOutput)
 	case FunctionTy:
-		return readFunctionType(t, returnOutput)
+		return nil, ErrUnsupportedFunctionType
 	default:
 		return nil, fmt.Errorf("abi: unknown type %v", t.T)
 	}
 }
 
-// lengthPrefixPointsTo interprets a 64 byte slice as an offset and then determines which indices to look to decode the type.
+// lengthPrefixPointsTo interprets an ABI word as an offset and then determines which indices to look to decode the type.
 func lengthPrefixPointsTo(index int, output []byte) (start int, length int, err error) {
-	bigOffsetEnd := new(big.Int).SetBytes(output[index : index+64])
-	bigOffsetEnd.Add(bigOffsetEnd, common.Big64)
+	bigOffsetEnd := new(big.Int).SetBytes(output[index : index+uint512.WordBytes])
+	bigOffsetEnd.Add(bigOffsetEnd, big.NewInt(int64(uint512.WordBytes)))
 	outputLength := big.NewInt(int64(len(output)))
 
 	if bigOffsetEnd.Cmp(outputLength) > 0 {
@@ -307,7 +293,7 @@ func lengthPrefixPointsTo(index int, output []byte) (start int, length int, err 
 	}
 
 	offsetEnd := int(bigOffsetEnd.Uint64())
-	lengthBig := new(big.Int).SetBytes(output[offsetEnd-64 : offsetEnd])
+	lengthBig := new(big.Int).SetBytes(output[offsetEnd-uint512.WordBytes : offsetEnd])
 
 	totalSize := new(big.Int).Add(bigOffsetEnd, lengthBig)
 	if totalSize.BitLen() > 63 {
@@ -324,7 +310,7 @@ func lengthPrefixPointsTo(index int, output []byte) (start int, length int, err 
 
 // tuplePointsTo resolves the location reference for dynamic tuple.
 func tuplePointsTo(index int, output []byte) (start int, err error) {
-	offset := new(big.Int).SetBytes(output[index : index+64])
+	offset := new(big.Int).SetBytes(output[index : index+uint512.WordBytes])
 	outputLen := big.NewInt(int64(len(output)))
 
 	if offset.Cmp(outputLen) > 0 {

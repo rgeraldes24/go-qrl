@@ -22,6 +22,8 @@ import (
 	"fmt"
 	"reflect"
 	"strings"
+
+	"github.com/theQRL/go-qrl/common/uint512"
 )
 
 // Argument holds the name of the argument and the corresponding type.
@@ -192,7 +194,7 @@ func (arguments Arguments) UnpackValues(data []byte) ([]any, error) {
 		if arg.Indexed {
 			continue
 		}
-		marshalledValue, err := toGoType((index+virtualArgs)*64, arg.Type, data)
+		marshalledValue, err := toGoType((index+virtualArgs)*uint512.WordBytes, arg.Type, data)
 		if err != nil {
 			return nil, err
 		}
@@ -207,11 +209,11 @@ func (arguments Arguments) UnpackValues(data []byte) ([]any, error) {
 			//
 			// Calculate the full array size to get the correct offset for the next argument.
 			// Decrement it by 1, as the normal index increment is still applied.
-			virtualArgs += getTypeSize(arg.Type)/64 - 1
+			virtualArgs += getTypeSize(arg.Type)/uint512.WordBytes - 1
 		} else if arg.Type.T == TupleTy && !isDynamicType(arg.Type) {
 			// If we have a static tuple, like (uint256, bool, uint256), these are
 			// coded as just like uint256,bool,uint256
-			virtualArgs += getTypeSize(arg.Type)/64 - 1
+			virtualArgs += getTypeSize(arg.Type)/uint512.WordBytes - 1
 		}
 		retval = append(retval, marshalledValue)
 		index++

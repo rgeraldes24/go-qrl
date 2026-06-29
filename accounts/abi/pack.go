@@ -24,13 +24,14 @@ import (
 
 	"github.com/theQRL/go-qrl/common"
 	"github.com/theQRL/go-qrl/common/math"
+	"github.com/theQRL/go-qrl/common/uint512"
 )
 
 // packBytesSlice packs the given bytes as [L, V] as the canonical representation
 // bytes slice. Bytes payloads are padded to a multiple of the 64-byte ABI slot.
 func packBytesSlice(bytes []byte, l int) []byte {
 	len := packNum(reflect.ValueOf(l))
-	return append(len, common.RightPadBytes(bytes, (l+63)/64*64)...)
+	return append(len, common.RightPadBytes(bytes, (l+uint512.WordBytes-1)/uint512.WordBytes*uint512.WordBytes)...)
 }
 
 // packElement packs the given reflect value according to the abi specification in
@@ -38,16 +39,20 @@ func packBytesSlice(bytes []byte, l int) []byte {
 func packElement(t Type, reflectValue reflect.Value) ([]byte, error) {
 	switch t.T {
 	case UintTy:
-		// make sure to not pack a negative value into a uint type.
-		if reflectValue.Kind() == reflect.Ptr {
-			val := new(big.Int).Set(reflectValue.Interface().(*big.Int))
-			if val.Sign() == -1 {
-				return nil, errInvalidSign
-			}
+		val := packNumValue(reflectValue)
+		if val.Sign() == -1 {
+			return nil, errInvalidSign
 		}
-		return packNum(reflectValue), nil
+		if !fitsUnsignedInteger(val, t.Size) {
+			return nil, errBadUint(t.Size)
+		}
+		return math.U512Bytes(val), nil
 	case IntTy:
-		return packNum(reflectValue), nil
+		val := packNumValue(reflectValue)
+		if !fitsSignedInteger(val, t.Size) {
+			return nil, errBadInt(t.Size)
+		}
+		return math.U512Bytes(val), nil
 	case StringTy:
 		return packBytesSlice([]byte(reflectValue.String()), reflectValue.Len()), nil
 	case AddressTy:
@@ -55,12 +60,12 @@ func packElement(t Type, reflectValue reflect.Value) ([]byte, error) {
 			reflectValue = mustArrayToByteSlice(reflectValue)
 		}
 
-		return common.LeftPadBytes(reflectValue.Bytes(), 64), nil
+		return common.LeftPadBytes(reflectValue.Bytes(), uint512.WordBytes), nil
 	case BoolTy:
 		if reflectValue.Bool() {
-			return math.PaddedBigBytes(common.Big1, 64), nil
+			return math.PaddedBigBytes(common.Big1, uint512.WordBytes), nil
 		}
-		return math.PaddedBigBytes(common.Big0, 64), nil
+		return math.PaddedBigBytes(common.Big0, uint512.WordBytes), nil
 	case BytesTy:
 		if reflectValue.Kind() == reflect.Array {
 			reflectValue = mustArrayToByteSlice(reflectValue)
@@ -69,29 +74,33 @@ func packElement(t Type, reflectValue reflect.Value) ([]byte, error) {
 			return []byte{}, errors.New("bytes type is neither slice nor array")
 		}
 		return packBytesSlice(reflectValue.Bytes(), reflectValue.Len()), nil
-	case FixedBytesTy, FunctionTy:
+	case FixedBytesTy:
 		if reflectValue.Kind() == reflect.Array {
 			reflectValue = mustArrayToByteSlice(reflectValue)
 		}
-		if t.T == FunctionTy && reflectValue.Len() > 64 {
-			return []byte{}, errors.New("abi: function type does not fit in a 64-byte ABI word with 64-byte addresses")
-		}
-		return common.RightPadBytes(reflectValue.Bytes(), 64), nil
+		return common.RightPadBytes(reflectValue.Bytes(), uint512.WordBytes), nil
+	case FunctionTy:
+		return nil, ErrUnsupportedFunctionType
 	default:
 		return []byte{}, fmt.Errorf("could not pack element, unknown type: %v", t.T)
 	}
 }
 
-// packNum packs the given number (using the reflect value) and will cast it to appropriate number representation.
-func packNum(value reflect.Value) []byte {
+func packNumValue(value reflect.Value) *big.Int {
 	switch kind := value.Kind(); kind {
 	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-		return math.U512Bytes(new(big.Int).SetUint64(value.Uint()))
+		return new(big.Int).SetUint64(value.Uint())
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-		return math.U512Bytes(big.NewInt(value.Int()))
+		return big.NewInt(value.Int())
 	case reflect.Ptr:
-		return math.U512Bytes(new(big.Int).Set(value.Interface().(*big.Int)))
+		return new(big.Int).Set(value.Interface().(*big.Int))
 	default:
 		panic("abi: fatal error")
 	}
+}
+
+// packNum packs the given number (using the reflect value) and casts it to the
+// VM64 ABI word representation.
+func packNum(value reflect.Value) []byte {
+	return math.U512Bytes(packNumValue(value))
 }
