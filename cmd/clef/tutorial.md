@@ -256,10 +256,10 @@ INFO [07-01|14:12:41.638] IPC endpoint opened                      url=$HOME/.cl
 Then test signing, once with `bazonk` and once without:
 
 ```
-$ echo '{"id": 1, "jsonrpc":"2.0", "method":"account_signData", "params":["text/plain", "Q0123456789ABcdEF0123456789abcDEF0123456789AbCdef0123456789abcDeF89aBCDeF0123456789AbcdeF0123456789AbCdeF0123456789aBCDef01234567", "0x202062617a6f6e6b2062617a2067617a0a"]}' | nc -U ~/.clef/clef.ipc
+$ echo '{"id": 1, "jsonrpc":"2.0", "method":"account_signData", "params":["text/plain", "Q0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef89abcdef0123456789abcdef0123456789abcdef0123456789abcdef01234567", "0x202062617a6f6e6b2062617a2067617a0a"]}' | nc -U ~/.clef/clef.ipc
 {"jsonrpc":"2.0","id":1,"result":"0x4f93e3457027f6be99b06b3392d0ebc60615ba448bb7544687ef1248dea4f5317f789002df783979c417d969836b6fda3710f5bffb296b4d51c8aaae6e2ac4831c"}
 
-$ echo '{"id": 1, "jsonrpc":"2.0", "method":"account_signData", "params":["text/plain", "Q0123456789ABcdEF0123456789abcDEF0123456789AbCdef0123456789abcDeF89aBCDeF0123456789AbcdeF0123456789AbCdeF0123456789aBCDef01234567", "0x2020626f6e6b2062617a2067617a0a"]}' | nc -U ~/.clef/clef.ipc
+$ echo '{"id": 1, "jsonrpc":"2.0", "method":"account_signData", "params":["text/plain", "Q0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef89abcdef0123456789abcdef0123456789abcdef0123456789abcdef01234567", "0x2020626f6e6b2062617a2067617a0a"]}' | nc -U ~/.clef/clef.ipc
 {"jsonrpc":"2.0","id":1,"error":{"code":-32000,"message":"Request denied"}}
 ```
 
@@ -273,9 +273,9 @@ The signer also stores all traffic over the external API in a log file. The last
 
 ```text
 $ tail -n 4 audit.log
-t=2019-07-01T15:52:14+0300 lvl=info msg=SignData   api=signer type=request  metadata="{\"remote\":\"NA\",\"local\":\"NA\",\"scheme\":\"NA\",\"User-Agent\":\"\",\"Origin\":\"\"}" addr="Q0123456789ABcdEF0123456789abcDEF0123456789AbCdef0123456789abcDeF89aBCDeF0123456789AbcdeF0123456789AbCdeF0123456789aBCDef01234567 [chksum ok]" data=0x202062617a6f6e6b2062617a2067617a0a content-type=text/plain
+t=2019-07-01T15:52:14+0300 lvl=info msg=SignData   api=signer type=request  metadata="{\"remote\":\"NA\",\"local\":\"NA\",\"scheme\":\"NA\",\"User-Agent\":\"\",\"Origin\":\"\"}" addr="Q0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef89abcdef0123456789abcdef0123456789abcdef0123456789abcdef01234567 [chksum INVALID]" data=0x202062617a6f6e6b2062617a2067617a0a content-type=text/plain
 t=2019-07-01T15:52:14+0300 lvl=info msg=SignData   api=signer type=response data=4f93e3457027f6be99b06b3392d0ebc60615ba448bb7544687ef1248dea4f5317f789002df783979c417d969836b6fda3710f5bffb296b4d51c8aaae6e2ac4831c error=nil
-t=2019-07-01T15:52:23+0300 lvl=info msg=SignData   api=signer type=request  metadata="{\"remote\":\"NA\",\"local\":\"NA\",\"scheme\":\"NA\",\"User-Agent\":\"\",\"Origin\":\"\"}" addr="Q0123456789ABcdEF0123456789abcDEF0123456789AbCdef0123456789abcDeF89aBCDeF0123456789AbcdeF0123456789AbCdeF0123456789aBCDef01234567 [chksum ok]" data=0x2020626f6e6b2062617a2067617a0a     content-type=text/plain
+t=2019-07-01T15:52:23+0300 lvl=info msg=SignData   api=signer type=request  metadata="{\"remote\":\"NA\",\"local\":\"NA\",\"scheme\":\"NA\",\"User-Agent\":\"\",\"Origin\":\"\"}" addr="Q0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef89abcdef0123456789abcdef0123456789abcdef0123456789abcdef01234567 [chksum INVALID]" data=0x2020626f6e6b2062617a2067617a0a     content-type=text/plain
 t=2019-07-01T15:52:23+0300 lvl=info msg=SignData   api=signer type=response data=                                     error="Request denied"
 ```
 
