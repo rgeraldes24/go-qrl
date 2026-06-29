@@ -94,7 +94,7 @@ Depending on whether we approve or deny the request, the original NetCat process
 
 or
 
-{"jsonrpc":"2.0","id":1,"error":{"code":-32000,"message":"Request denied"}}
+{"jsonrpc":"2.0","id":1,"error":{"code":-32000,"message":"request denied"}}
 ```
 
 Apart from listing accounts, you can also *request* creating a new account and signing transactions and data. You can find the available methods in the Clef [External API Spec](https://github.com/theQRL/go-qrl/tree/master/cmd/clef#external-api-1) and the [External API Changelog](https://github.com/theQRL/go-qrl/blob/master/cmd/clef/extapi_changelog.md).
@@ -260,7 +260,7 @@ $ echo '{"id": 1, "jsonrpc":"2.0", "method":"account_signData", "params":["text/
 {"jsonrpc":"2.0","id":1,"result":"0x4f93e3457027f6be99b06b3392d0ebc60615ba448bb7544687ef1248dea4f5317f789002df783979c417d969836b6fda3710f5bffb296b4d51c8aaae6e2ac4831c"}
 
 $ echo '{"id": 1, "jsonrpc":"2.0", "method":"account_signData", "params":["text/plain", "Q0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef89abcdef0123456789abcdef0123456789abcdef0123456789abcdef01234567", "0x2020626f6e6b2062617a2067617a0a"]}' | nc -U ~/.clef/clef.ipc
-{"jsonrpc":"2.0","id":1,"error":{"code":-32000,"message":"Request denied"}}
+{"jsonrpc":"2.0","id":1,"error":{"code":-32000,"message":"request denied"}}
 ```
 
 Meanwhile, in the Clef output log you can see:
@@ -276,7 +276,7 @@ $ tail -n 4 audit.log
 time=2019-07-01T15:52:14.000+03:00 level=INFO msg=SignData api=signer type=request metadata="{\"remote\":\"NA\",\"local\":\"NA\",\"scheme\":\"NA\",\"User-Agent\":\"\",\"Origin\":\"\"}" addr=Q0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef89abcdef0123456789abcdef0123456789abcdef0123456789abcdef01234567 data="\"0x202062617a6f6e6b2062617a2067617a0a\"" content-type=text/plain
 time=2019-07-01T15:52:14.000+03:00 level=INFO msg=SignData api=signer type=response data=4f93e3457027f6be99b06b3392d0ebc60615ba448bb7544687ef1248dea4f5317f789002df783979c417d969836b6fda3710f5bffb296b4d51c8aaae6e2ac4831c error=<nil>
 time=2019-07-01T15:52:23.000+03:00 level=INFO msg=SignData api=signer type=request metadata="{\"remote\":\"NA\",\"local\":\"NA\",\"scheme\":\"NA\",\"User-Agent\":\"\",\"Origin\":\"\"}" addr=Q0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef89abcdef0123456789abcdef0123456789abcdef0123456789abcdef01234567 data="\"0x2020626f6e6b2062617a2067617a0a\"" content-type=text/plain
-time=2019-07-01T15:52:23.000+03:00 level=INFO msg=SignData api=signer type=response data="" error="Request denied"
+time=2019-07-01T15:52:23.000+03:00 level=INFO msg=SignData api=signer type=response data="" error="request denied"
 ```
 
 For more details on writing automatic rules, please see the [rules spec](https://github.com/theQRL/go-qrl/blob/master/cmd/clef/rules.md).
