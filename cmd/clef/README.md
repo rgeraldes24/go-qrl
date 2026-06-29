@@ -301,6 +301,12 @@ Response
   ]
 }
 ```
+
+The same request using curl:
+```bash
+curl -H "Content-Type: application/json" -X POST --data '{"id":67,"jsonrpc":"2.0","method":"account_signTransaction","params":[{"from":"QBb81a0496aa34a64f96c2bCd28793165e1e6C08af0605b119cc768764901d2E4B48b5b9c049C57469CcA8a0421D2E31DF5C637a9cee8f3DA83964261B6CF9a22","gas":"0x333","maxFeePerGas":"0x1","maxPriorityFeePerGas":"0x0","nonce":"0x0","to":"QaAAaaAAAaaAaAAAAAAAAaAAAaAAAAaAa55555555555555555555555555555555CCCcCcCCcCcCCCccccccCCcccccccCcC33333333333333333333333333333333","value":"0x0","data":"0x4401a6e4fedcba9876543210fedcba9876543210fedcba9876543210fedcba987654321076543210fedcba9876543210fedcba9876543210fedcba9876543210fedcba98"},"safeSend(address)"]}' http://localhost:8550/
+```
+
 Response
 
 ```json
