@@ -193,7 +193,7 @@ Repeat password:
 
 Decrypt master seed of clef
 Password:
-INFO [07-01|14:05:56.031] Credential store updated                 key=Q0123456789ABcdEF0123456789abcDEF0123456789AbCdef0123456789abcDeF89aBCDeF0123456789AbcdeF0123456789AbCdeF0123456789aBCDef01234567
+INFO [07-01|14:05:56.031] Credential store updated                 set=Q0123456789ABcdEF0123456789abcDEF0123456789AbCdef0123456789abcDeF89aBCDeF0123456789AbcdeF0123456789AbCdeF0123456789aBCDef01234567
 ```
 
 Now let's update the rules to make use of the new credentials:
