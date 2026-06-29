@@ -597,7 +597,7 @@ curl -i -H "Content-Type: application/json" -X POST --data '{"jsonrpc":"2.0","me
       "call_info": [
           {
             "type": "WARNING",
-            "message": "Transaction data did not match ABI-interface: WARNING: Supplied data is stuffed with extra data. \nWant fedcba9876543210fedcba9876543210fedcba9876543210fedcba987654321076543210fedcba9876543210fedcba9876543210fedcba9876543210fedcba98\nHave fedcba9876543210fedcba9876543210fedcba9876543210fedcba987654321076543210fedcba9876543210fedcba9876543210fedcba9876543210fedcba9800000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000042\nfor method safeSend(address)"
+            "message": "Transaction contains data, but provided ABI signature could not be matched: WARNING: Supplied data is stuffed with extra data. \nWant fedcba9876543210fedcba9876543210fedcba9876543210fedcba987654321076543210fedcba9876543210fedcba9876543210fedcba9876543210fedcba9800000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000042\nHave fedcba9876543210fedcba9876543210fedcba9876543210fedcba987654321076543210fedcba9876543210fedcba9876543210fedcba9876543210fedcba98\nfor method safeSend(address)"
           }
         ],
       "meta": {
