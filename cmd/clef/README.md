@@ -561,7 +561,7 @@ Results in the following invocation on the UI:
       "meta": {
         "remote": "127.0.0.1:48486",
         "local": "localhost:8550",
-        "scheme": "HTTP/1.1"
+        "scheme": "http"
       }
     }
   ]
@@ -603,7 +603,7 @@ curl -i -H "Content-Type: application/json" -X POST --data '{"jsonrpc":"2.0","me
       "meta": {
         "remote": "127.0.0.1:48492",
         "local": "localhost:8550",
-        "scheme": "HTTP/1.1"
+        "scheme": "http"
       }
     }
   ]
@@ -641,9 +641,9 @@ One which has missing `to`, but with no `data`. By default, Clef rejects this re
           }
         ],
       "meta": {
-        "remote": "signer binary",
-        "local": "main",
-        "scheme": "in-proc"
+        "remote": "NA",
+        "local": "NA",
+        "scheme": "NA"
       }
     }
   ]
@@ -675,9 +675,9 @@ Invoked when a request for account listing has been made.
         }
       ],
       "meta": {
-        "remote": "signer binary",
-        "local": "main",
-        "scheme": "in-proc"
+        "remote": "NA",
+        "local": "NA",
+        "scheme": "NA"
       }
     }
   ]
@@ -710,9 +710,9 @@ Invoked when a request for account listing has been made.
       "call_info": null,
       "hash": "0x097ef4cb29183eb6814a1e1ac8bac8d4110e68c73c1d8673c03d79b109fae7c1",
       "meta": {
-        "remote": "signer binary",
-        "local": "main",
-        "scheme": "in-proc"
+        "remote": "NA",
+        "local": "NA",
+        "scheme": "NA"
       }
     }
   ]
@@ -733,9 +733,9 @@ Invoked when a request for creating a new account has been made.
   "params": [
     {
       "meta": {
-        "remote": "signer binary",
-        "local": "main",
-        "scheme": "in-proc"
+        "remote": "NA",
+        "local": "NA",
+        "scheme": "NA"
       }
     }
   ]
