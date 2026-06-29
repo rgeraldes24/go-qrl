@@ -1,6 +1,6 @@
 ## Initializing Clef
 
-First things first, Clef needs to store some data itself. Since that data might be sensitive (passwords, signing rules, accounts), Clef's entire storage is encrypted. To support encrypting data, the first step is to initialize Clef with a random master seed, itself too encrypted with your chosen password:
+First things first, Clef needs to store some data itself. Since that data might be sensitive (passwords, signing rules, accounts), Clef encrypts stored values. To support encrypting data, the first step is to initialize Clef with a random master seed, itself too encrypted with your chosen password:
 
 ```text
 $ clef init
@@ -178,7 +178,7 @@ In `$HOME/.clef`, the `masterseed.json` file was created, containing the master 
 
 - **Vault location**: in this case `02f90c0603f4f2f60188`.
    - If you use a different master seed, a different vault location will be used that does not conflict with each other (e.g. `clef --signersecret /path/to/file`). This allows you to run multiple instances of Clef, each with its own rules (e.g. mainnet + testnet).
-- **`config.json`**: the encrypted key/value storage for configuration data, currently only containing the key `ruleset_sha256`, the attested hash of the automatic rules to use.
+- **`config.json`**: key/value storage with encrypted values for configuration data, currently only containing the key `ruleset_sha256`, the attested hash of the automatic rules to use.
 
 ## Advanced rules
 

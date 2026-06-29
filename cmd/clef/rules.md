@@ -56,7 +56,7 @@ invokes the corresponding method. In doing so, there are three possible outcomes
 3. Error occurs, or something else is returned
   * Pass on to `next` ui: the regular UI channel.
 
-A more advanced example can be found below, "Example 1: ruleset for a rate-limited window", using `storage` to `Put` and `Get` `string`s by key.
+A more advanced example can be found below, "Example 1: ruleset for a rate-limited window", using `storage.put` and `storage.get` to store and retrieve strings by key.
 
 * Rule storage is persisted through Clef's encrypted JavaScript storage.
 
