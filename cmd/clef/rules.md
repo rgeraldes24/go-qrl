@@ -210,7 +210,7 @@ function OnApprovedTx(resp) {
 }
 ```
 
-## Example 2: allow destination
+## Example 2: allow and deny senders
 
 ```js
 function ApproveTx(r) {
