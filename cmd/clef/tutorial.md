@@ -321,13 +321,14 @@ Lastly, when we requested a transaction to be sent, Clef prompted us in the orig
 
 ```text
 --------- Transaction request-------------
-to:           Q0123456789ABcdEF0123456789abcDEF0123456789AbCdef0123456789abcDeF89aBCDeF0123456789AbcdeF0123456789AbCdeF0123456789aBCDef01234567
-from:         Q0123456789ABcdEF0123456789abcDEF0123456789AbCdef0123456789abcDeF89aBCDeF0123456789AbcdeF0123456789AbCdeF0123456789aBCDef01234567
-value:        0 planck
-gas:          0x5208 (21000)
-maxFeePerGas: 1000000000 planck
-maxPriorityFeePerGas:  0 planck
-nonce:        0x2366 (9062)
+to:    Q0123456789ABcdEF0123456789abcDEF0123456789AbCdef0123456789abcDeF89aBCDeF0123456789AbcdeF0123456789AbCdeF0123456789aBCDef01234567
+from:               Q0123456789ABcdEF0123456789abcDEF0123456789AbCdef0123456789abcDeF89aBCDeF0123456789AbcdeF0123456789AbCdeF0123456789aBCDef01234567
+value:              0 planck
+gas:                0x5208 (21000)
+maxFeePerGas:          1000000000 planck
+maxPriorityFeePerGas:  1000000000 planck
+nonce:    0x2366 (9062)
+chainid:  0x539
 
 Request context:
 	NA -> NA -> NA
