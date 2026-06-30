@@ -29,7 +29,7 @@ import (
 	"github.com/theQRL/go-qrl/crypto/pqcrypto/wallet"
 	"github.com/theQRL/go-qrl/internal/testutil"
 	"github.com/theQRL/go-qrl/rlp"
-	walletmldsa87 "github.com/theQRL/go-qrllib/wallet/ml_dsa_87"
+	walletmldsa87 "github.com/theQRL/go-qrllib/wallet/mldsa87"
 )
 
 // The values in those tests are from the Transaction Tests

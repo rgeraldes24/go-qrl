@@ -6,15 +6,15 @@ import (
 
 	"github.com/theQRL/go-qrl/common"
 	"github.com/theQRL/go-qrl/crypto/pqcrypto/wallet"
-	cryptomldsa87 "github.com/theQRL/go-qrllib/crypto/ml_dsa_87"
+	cryptomldsa87 "github.com/theQRL/go-qrllib/crypto/mldsa87"
 	libwallet "github.com/theQRL/go-qrllib/wallet"
 	"github.com/theQRL/go-qrllib/wallet/common/descriptor"
-	walletmldsa87 "github.com/theQRL/go-qrllib/wallet/ml_dsa_87"
+	walletmldsa87 "github.com/theQRL/go-qrllib/wallet/mldsa87"
 )
 
 const (
-	MLDSA87SignatureLength = cryptomldsa87.CRYPTO_BYTES
-	MLDSA87PublicKeyLength = cryptomldsa87.CRYPTO_PUBLIC_KEY_BYTES
+	MLDSA87SignatureLength = cryptomldsa87.SignatureSize
+	MLDSA87PublicKeyLength = cryptomldsa87.PublicKeySize
 	DescriptorSize         = descriptor.DescriptorSize
 
 	// DigestLength sets the signature digest exact length
@@ -39,7 +39,7 @@ func PublicKeyAndDescriptorToAddress(pk []byte, d descriptor.Descriptor) (common
 
 func MLDSA87VerifySignature(sig []byte, msg []byte, pk []byte, desc descriptor.Descriptor) (bool, error) {
 	// walletmldsa87.Verify would panic on bad length
-	if l := len(sig); l != cryptomldsa87.CRYPTO_BYTES {
+	if l := len(sig); l != cryptomldsa87.SignatureSize {
 		return false, fmt.Errorf("%w: bad length", ErrBadSignature)
 	}
 

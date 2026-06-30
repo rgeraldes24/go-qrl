@@ -10,7 +10,7 @@ import (
 	walletcommon "github.com/theQRL/go-qrllib/wallet/common"
 	"github.com/theQRL/go-qrllib/wallet/common/descriptor"
 	"github.com/theQRL/go-qrllib/wallet/common/wallettype"
-	walletmldsa87 "github.com/theQRL/go-qrllib/wallet/ml_dsa_87"
+	walletmldsa87 "github.com/theQRL/go-qrllib/wallet/mldsa87"
 )
 
 const (

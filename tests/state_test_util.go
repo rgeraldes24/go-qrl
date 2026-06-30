@@ -42,7 +42,7 @@ import (
 	"github.com/theQRL/go-qrl/trie/triedb/hashdb"
 	"github.com/theQRL/go-qrl/trie/triedb/pathdb"
 	walletcommon "github.com/theQRL/go-qrllib/wallet/common"
-	walletmldsa87 "github.com/theQRL/go-qrllib/wallet/ml_dsa_87"
+	walletmldsa87 "github.com/theQRL/go-qrllib/wallet/mldsa87"
 	"golang.org/x/crypto/sha3"
 )
 
