@@ -39,7 +39,7 @@ type MLDSA87Wallet struct {
 }
 
 func (w *MLDSA87Wallet) Sign(message []uint8) ([]byte, error) {
-	sig, err := w.Wallet.Sign(message)
+	sig, err := w.Wallet.Sign(nil, message)
 	if err != nil {
 		return nil, err
 	}
