@@ -237,7 +237,7 @@ func TestRlpDecodeParentHash(t *testing.T) {
 	}
 	// And a maximum one
 	// | Number      | dynamic| *big.Int       | 64 bits               |
-	// | Extra       | dynamic| []byte         | 65+32 byte            |
+	// | Extra       | dynamic| []byte         | 65+32 byte (clique)   |
 	// | BaseFee     | dynamic| *big.Int       | 64 bits               |
 	if rlpData, err := rlp.EncodeToBytes(&Header{
 		ParentHash: want,

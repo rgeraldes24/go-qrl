@@ -393,7 +393,8 @@ func NewBlockChain(db qrldb.Database, cacheConfig *CacheConfig, genesis *Genesis
 		}
 	}
 	// The first thing the node will do is reconstruct the verification data for
-	// the head block. Might as well do it in advance.
+	// the head block (ethash cache or clique voting snapshot). Might as well do
+	// it in advance.
 	bc.engine.VerifyHeader(bc, bc.CurrentHeader())
 
 	// Load any existing snapshot, regenerating it if loading failed
@@ -1576,12 +1577,12 @@ func (bc *BlockChain) insertChain(chain types.Blocks, setHead bool) (int, error)
 			log.Debug("Abort during block processing")
 			break
 		}
-		// If the block is known (in the middle of the chain), consecutive empty
-		// blocks can share state, so importing an older block might complete the
-		// state of the subsequent one. In this case, just skip the block (we already
-		// validated it once fully (and crashed), since its header and body was
-		// already in the database). But if the corresponding snapshot layer is
-		// missing, forcibly rerun the execution to build it.
+		// If the block is known (in the middle of the chain), it's a special case for
+		// Clique blocks where they can share state among each other, so importing an
+		// older block might complete the state of the subsequent one. In this case,
+		// just skip the block (we already validated it once fully (and crashed), since
+		// its header and body was already in the database). But if the corresponding
+		// snapshot layer is missing, forcibly rerun the execution to build it.
 		if bc.skipBlock(err, it) {
 			logger := log.Warn
 			logger("Inserted known block", "number", block.Number(), "hash", block.Hash(),
@@ -1589,13 +1590,13 @@ func (bc *BlockChain) insertChain(chain types.Blocks, setHead bool) (int, error)
 				"root", block.Root())
 
 			// Special case. Commit the empty receipt slice if we meet the known
-			// block in the middle. This can happen when consecutive empty blocks
-			// share state. Whenever we insert blocks via `insertSideChain`, we only
-			// commit `td`, `header` and `body` if it's non-existent. Since we don't
-			// have receipts without reexecution, so nothing to commit. But if the
-			// sidechain will be adopted as the canonical chain eventually, it needs
-			// to be reexecuted for missing state, but if it's this special case
-			// here(skip reexecution) we will lose the empty receipt entry.
+			// block in the middle. It can only happen in the clique chain. Whenever
+			// we insert blocks via `insertSideChain`, we only commit `td`, `header`
+			// and `body` if it's non-existent. Since we don't have receipts without
+			// reexecution, so nothing to commit. But if the sidechain will be adopted
+			// as the canonical chain eventually, it needs to be reexecuted for missing
+			// state, but if it's this special case here(skip reexecution) we will lose
+			// the empty receipt entry.
 			if len(block.Transactions()) == 0 {
 				rawdb.WriteReceipts(bc.db, block.Hash(), block.NumberU64(), nil)
 			} else {
@@ -1607,8 +1608,8 @@ func (bc *BlockChain) insertChain(chain types.Blocks, setHead bool) (int, error)
 			}
 			stats.processed++
 
-			// We can assume that logs are empty here, since consecutive blocks can
-			// only share state if there are no transactions.
+			// We can assume that logs are empty here, since the only way for consecutive
+			// Clique blocks to have the same state is if there are no transactions.
 			lastCanon = block
 			continue
 		}
