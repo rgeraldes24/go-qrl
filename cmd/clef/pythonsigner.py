@@ -80,8 +80,9 @@ def metaString(meta):
 
 
 class StdIOHandler:
-    def __init__(self):
-        pass
+    def __init__(self, test_mode=False):
+        self.test_mode = test_mode
+        self.sign_data_requests = 0
 
     @public
     def approveTx(self, req):
@@ -124,6 +125,9 @@ class StdIOHandler:
 
         {"jsonrpc":"2.0","id":8,"method":"ui_approveSignData","params":[{"content_type":"text/plain","address":"Q0123456789ABcdEF0123456789abcDEF0123456789AbCdef0123456789abcDeF89aBCDeF0123456789AbcdeF0123456789AbCdeF0123456789aBCDef01234567","raw_data":"GVFSTCBTaWduZWQgTWVzc2FnZToKMTFoZWxsbyB3b3JsZA==","messages":[{"name":"message","value":"\u0019QRL Signed Message:\n11hello world","type":"text/plain"}],"call_info":null,"hash":"0x097ef4cb29183eb6814a1e1ac8bac8d4110e68c73c1d8673c03d79b109fae7c1","meta":{"remote":"clef binary","local":"main","scheme":"in-proc","User-Agent":"","Origin":""}}]}
         """  # noqa: E501
+        self.sign_data_requests += 1
+        approved = self.test_mode and self.sign_data_requests <= 2
+        action = "approving" if approved else "rejecting"
         message = (
             "Sign data request:\n"
             "\t{meta_string}\n"
@@ -132,7 +136,7 @@ class StdIOHandler:
             "\tAddress: {address}\n"
             "\tHash: {hash_}\n"
             "\n"
-            "\tAuto-rejecting request\n"
+            "\tAuto-{action} request\n"
         )
         meta = req.get("meta", {})
         sys.stdout.write(
@@ -141,11 +145,12 @@ class StdIOHandler:
                 content_type=req.get("content_type"),
                 address=req.get("address"),
                 hash_=req.get("hash"),
+                action=action,
             )
         )
 
         return {
-            "approved": False,
+            "approved": approved,
             "password": None,
         }
 
@@ -289,12 +294,13 @@ class StdIOHandler:
 
 def main(args):
     cmd = ["clef", "--stdio-ui"]
-    if len(args) > 0 and args[0] == "test":
+    test_mode = len(args) > 0 and args[0] == "test"
+    if test_mode:
         cmd.extend(["--stdio-ui-test"])
     print("cmd: {}".format(" ".join(cmd)))
 
     dispatcher = RPCDispatcher()
-    dispatcher.register_instance(StdIOHandler(), "ui_")
+    dispatcher.register_instance(StdIOHandler(test_mode), "ui_")
 
     # line buffered
     p = subprocess.Popen(

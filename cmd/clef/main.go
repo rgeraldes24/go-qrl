@@ -906,9 +906,7 @@ func confirm(text string) bool {
 }
 
 func testExternalUI(api *core.SignerAPI) {
-	ctx := context.WithValue(context.Background(), "remote", "clef binary")
-	ctx = context.WithValue(ctx, "scheme", "in-proc")
-	ctx = context.WithValue(ctx, "local", "main")
+	ctx := context.Background()
 	errs := make([]string, 0)
 
 	const (
@@ -1042,10 +1040,10 @@ func testExternalUI(api *core.SignerAPI) {
 		expectDeny("newaccount", err)
 	}
 	{ // Metadata
-		api.UI.ShowInfo("Please check if you see the Origin in next listing (approve or deny)")
+		api.UI.ShowInfo("Please check if the next listing shows empty Origin and User-Agent (approve or deny)")
 		time.Sleep(delay)
-		api.List(context.WithValue(ctx, "Origin", "origin.com"))
-		expectResponse("metadata - origin", "Did you see origin (origin.com)? [yes/no] ", "yes")
+		api.List(ctx)
+		expectResponse("metadata", "Did you see empty Origin and User-Agent? [yes/no] ", "yes")
 	}
 
 	for _, e := range errs {
