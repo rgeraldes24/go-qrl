@@ -1246,12 +1246,12 @@ func TestRPCGetBlockOrHeader(t *testing.T) {
 func setupReceiptBackend(t *testing.T, genBlocks int) (*testBackend, []common.Hash) {
 	config := *params.TestChainConfig
 	var (
-		acc1Wallet                 = testutil.MustLoadAccount("bob").MustWallet()
-		acc2Wallet                 = testutil.MustLoadAccount("carol").MustWallet()
-		acc1Addr                   = acc1Wallet.GetAddress()
-		acc2Addr    common.Address = acc2Wallet.GetAddress()
-		contract, _                = common.NewAddressFromString("Q00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000031ec7")
-		genesis                    = &core.Genesis{
+		acc1Wallet                = testutil.MustLoadAccount("bob").MustWallet()
+		acc2Wallet                = testutil.MustLoadAccount("carol").MustWallet()
+		acc1Addr                  = acc1Wallet.GetAddress()
+		acc2Addr   common.Address = acc2Wallet.GetAddress()
+		contract                  = common.MustParseAddress("Q00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000031ec7")
+		genesis                   = &core.Genesis{
 			Config: &config,
 			Alloc: core.GenesisAlloc{
 				acc1Addr: {Balance: big.NewInt(params.Quanta)},

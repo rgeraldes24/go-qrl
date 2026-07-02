@@ -27,6 +27,7 @@ import (
 	ssz "github.com/prysmaticlabs/fastssz"
 	"github.com/theQRL/go-qrl/common"
 	"github.com/theQRL/go-qrl/common/math"
+	"github.com/theQRL/go-qrl/crypto/pqcrypto"
 	"github.com/theQRL/go-qrl/params"
 )
 
@@ -79,6 +80,17 @@ func RunPrecompiledContract(p PrecompiledContract, input []byte, suppliedGas uin
 
 type depositroot struct{}
 
+const (
+	depositPublicKeyLength           = pqcrypto.MLDSA87PublicKeyLength
+	depositWithdrawalRecipientLength = common.AddressLength
+	depositAmountLength              = 8
+	depositSignatureLength           = pqcrypto.MLDSA87SignatureLength
+	depositPublicKeyOffset           = 0
+	depositWithdrawalRecipientOffset = depositPublicKeyOffset + depositPublicKeyLength
+	depositAmountOffset              = depositWithdrawalRecipientOffset + depositWithdrawalRecipientLength
+	depositSignatureOffset           = depositAmountOffset + depositAmountLength
+)
+
 // TODO(now.youtrack.cloud/issue/TGZ-5)
 func (c *depositroot) RequiredGas(input []byte) uint64 {
 	// NOTE(rgeraldes): number of sha256 ops below does not include the number of zero
@@ -89,10 +101,10 @@ func (c *depositroot) RequiredGas(input []byte) uint64 {
 
 func (c *depositroot) Run(input []byte) ([]byte, error) {
 	var (
-		pkBytes     = getData(input, 0, 2592)    // 2592 bytes
-		credsBytes  = getData(input, 2592, 64)   // 64 bytes
-		amountBytes = getData(input, 2656, 8)    // 8 bytes
-		sigBytes    = getData(input, 2664, 4627) // 4627 bytes
+		pkBytes                  = getData(input, depositPublicKeyOffset, depositPublicKeyLength)
+		withdrawalRecipientBytes = getData(input, depositWithdrawalRecipientOffset, depositWithdrawalRecipientLength)
+		amountBytes              = getData(input, depositAmountOffset, depositAmountLength)
+		sigBytes                 = getData(input, depositSignatureOffset, depositSignatureLength)
 	)
 
 	var amountUint uint64
@@ -103,10 +115,10 @@ func (c *depositroot) Run(input []byte) ([]byte, error) {
 	}
 
 	data := &depositdata{
-		PublicKey:             pkBytes,
-		WithdrawalCredentials: credsBytes,
-		Amount:                amountUint,
-		Signature:             sigBytes,
+		PublicKey:           pkBytes,
+		WithdrawalRecipient: withdrawalRecipientBytes,
+		Amount:              amountUint,
+		Signature:           sigBytes,
 	}
 	h, err := data.HashTreeRoot()
 	if err != nil {
@@ -117,10 +129,10 @@ func (c *depositroot) Run(input []byte) ([]byte, error) {
 }
 
 type depositdata struct {
-	PublicKey             []byte
-	WithdrawalCredentials []byte
-	Amount                uint64
-	Signature             []byte
+	PublicKey           []byte
+	WithdrawalRecipient []byte
+	Amount              uint64
+	Signature           []byte
 }
 
 // HashTreeRoot ssz hashes the Deposit_Data object
@@ -133,25 +145,25 @@ func (d *depositdata) HashTreeRootWith(hh *ssz.Hasher) (err error) {
 	indx := hh.Index()
 
 	// Field (0) 'Pubkey'
-	if size := len(d.PublicKey); size != 2592 {
-		err = ssz.ErrBytesLengthFn("--.Pubkey", size, 2592)
+	if size := len(d.PublicKey); size != depositPublicKeyLength {
+		err = ssz.ErrBytesLengthFn("--.Pubkey", size, depositPublicKeyLength)
 		return
 	}
 	hh.PutBytes(d.PublicKey)
 
-	// Field (1) 'WithdrawalCredentials'
-	if size := len(d.WithdrawalCredentials); size != 64 {
-		err = ssz.ErrBytesLengthFn("--.WithdrawalCredentials", size, 64)
+	// Field (1) 'WithdrawalRecipient'
+	if size := len(d.WithdrawalRecipient); size != depositWithdrawalRecipientLength {
+		err = ssz.ErrBytesLengthFn("--.WithdrawalRecipient", size, depositWithdrawalRecipientLength)
 		return
 	}
-	hh.PutBytes(d.WithdrawalCredentials)
+	hh.PutBytes(d.WithdrawalRecipient)
 
 	// Field (2) 'Amount'
 	hh.PutUint64(d.Amount)
 
 	// Field (3) 'Signature'
-	if size := len(d.Signature); size != 4627 {
-		err = ssz.ErrBytesLengthFn("--.Signature", size, 4627)
+	if size := len(d.Signature); size != depositSignatureLength {
+		err = ssz.ErrBytesLengthFn("--.Signature", size, depositSignatureLength)
 		return
 	}
 	hh.PutBytes(d.Signature)

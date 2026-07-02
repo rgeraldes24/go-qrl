@@ -68,6 +68,20 @@ func TestIsAddress(t *testing.T) {
 	}
 }
 
+func TestMustParseAddress(t *testing.T) {
+	input := "Q" + strings.Repeat("5a", AddressLength)
+	if got, want := MustParseAddress(input), BytesToAddress(Hex2Bytes(strings.TrimPrefix(input, "Q"))); got != want {
+		t.Fatalf("unexpected address: got %s want %s", got, want)
+	}
+
+	defer func() {
+		if recover() == nil {
+			t.Fatal("expected panic for invalid address")
+		}
+	}()
+	MustParseAddress("Q" + strings.Repeat("0", 40))
+}
+
 func TestHashJsonValidation(t *testing.T) {
 	var tests = []struct {
 		Prefix string
@@ -142,7 +156,7 @@ func TestAddressHexQIP55Checksum(t *testing.T) {
 		{"Q" + strings.Repeat("0", 88) + "D1220a0cf47c7B9bE7a2e6bA89F429762E7b9ADb", "Q" + strings.Repeat("0", 88) + "d1220A0cf47c7B9BE7a2e6BA89f429762e7B9AdB"},
 	}
 	for i, test := range tests {
-		addr, _ := NewAddressFromString(test.Input)
+		addr := MustParseAddress(test.Input)
 		output := addr.Hex()
 		if output != test.Output {
 			t.Errorf("test #%d: failed to match when it should (%s != %s)", i, output, test.Output)
@@ -151,7 +165,7 @@ func TestAddressHexQIP55Checksum(t *testing.T) {
 }
 
 func BenchmarkAddressHex(b *testing.B) {
-	testAddr, _ := NewAddressFromString("Q" + strings.Repeat("0", 88) + "5aaeb6053f3e94c9b9a09f33669435e7ef1beaed")
+	testAddr := MustParseAddress("Q" + strings.Repeat("0", 88) + "5aaeb6053f3e94c9b9a09f33669435e7ef1beaed")
 	for b.Loop() {
 		testAddr.Hex()
 	}
@@ -188,10 +202,7 @@ func TestMixedcaseAccount_Address(t *testing.T) {
 		Valid bool
 	}
 	lowercase := "Q" + strings.Repeat("0", 88) + "ae967917c465db8578ca9024c205720b1a3651a9"
-	addr, err := NewAddressFromString(lowercase)
-	if err != nil {
-		t.Fatal(err)
-	}
+	addr := MustParseAddress(lowercase)
 	canonical := addr.Hex()
 	if err := json.Unmarshal([]byte(fmt.Sprintf(`[
 			{"A" : "%s", "Valid": true},

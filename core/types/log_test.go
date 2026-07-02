@@ -30,7 +30,7 @@ import (
 // 64-byte fixture address used for all log unmarshal test cases.
 const logTestAddrHex = "Qecf8f87f810ecf450940c9f60066b4a7a501d6a7ecf8f87f810ecf450940c9f60066b4a7a501d6a7112233445566778899aabbccddeeff001122334455667788"
 
-var address, _ = common.NewAddressFromString(logTestAddrHex)
+var address = common.MustParseAddress(logTestAddrHex)
 
 // 64-byte LogTopic hex strings: the classic 32-byte Ethereum topics left-
 // padded with 32 zero bytes to fit the 64-byte QRL slot width.

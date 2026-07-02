@@ -52,7 +52,7 @@ var (
 	addressT = reflect.TypeFor[Address]()
 
 	// MaxAddress represents the maximum possible address value.
-	MaxAddress, _ = NewAddressFromString("Qffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff")
+	MaxAddress = MustParseAddress("Qffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff")
 
 	// MaxHash represents the maximum possible hash value.
 	MaxHash = HexToHash("0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff")
@@ -426,6 +426,16 @@ func NewAddressFromString(hexaddr string) (Address, error) {
 	return BytesToAddress(rawAddr), nil
 }
 
+// MustParseAddress calls NewAddressFromString and panics on error.
+// It is intended for tests and package-level initializations with hard-coded strings.
+func MustParseAddress(hexaddr string) Address {
+	addr, err := NewAddressFromString(hexaddr)
+	if err != nil {
+		panic(fmt.Errorf("invalid QRL address %q: %w", hexaddr, err))
+	}
+	return addr
+}
+
 // IsAddress verifies whether a string can represent a valid hex-encoded
 // QRL address or not.
 func IsAddress(s string) bool {
@@ -444,9 +454,6 @@ func (a Address) Cmp(other Address) int {
 
 // Bytes gets the string representation of the underlying address.
 func (a Address) Bytes() []byte { return a[:] }
-
-// Hash converts an address to a hash by left-padding it with zeros.
-func (a Address) Hash() Hash { return BytesToHash(a[:]) }
 
 // Big converts an address to a big integer.
 func (a Address) Big() *big.Int { return new(big.Int).SetBytes(a[:]) }

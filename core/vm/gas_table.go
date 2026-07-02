@@ -36,7 +36,7 @@ func memoryGasCost(mem *Memory, newMemSize uint64) (uint64, error) {
 		return 0, ErrGasUintOverflow
 	}
 	newMemSizeWords := toWordSize(newMemSize)
-	newMemSize = newMemSizeWords * 64
+	newMemSize = newMemSizeWords * WordBytes
 
 	if newMemSize > uint64(mem.Len()) {
 		square := newMemSizeWords * newMemSizeWords
@@ -190,7 +190,7 @@ func gasExpEIP158(qrvm *QRVM, contract *Contract, stack *Stack, mem *Memory, mem
 	expByteLen := uint64((stack.data[stack.len()-2].BitLen() + 7) / 8)
 
 	var (
-		gas      = expByteLen * params.ExpByteEIP158 // no overflow check required. Max is 512 * ExpByte gas
+		gas      = expByteLen * params.ExpByteEIP158 // no overflow check required. Max is one VM word * ExpByte gas
 		overflow bool
 	)
 	if gas, overflow = math.SafeAdd(gas, params.ExpGas); overflow {

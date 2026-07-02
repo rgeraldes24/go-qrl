@@ -35,7 +35,7 @@ import (
 // The values in those tests are from the Transaction Tests
 // at github.com/ethereum/tests.
 var (
-	testAddr, _ = common.NewAddressFromString("Q00000000000000000000000000000000000000000000000000000000b94f5374fce5edbc8e2a8697c15331677e6ebf0b99aabbccddeeff001122334455667788")
+	testAddr = common.MustParseAddress("Q00000000000000000000000000000000000000000000000000000000b94f5374fce5edbc8e2a8697c15331677e6ebf0b99aabbccddeeff001122334455667788")
 
 	emptyEip2718Tx = NewTx(&DynamicFeeTx{
 		ChainID:   big.NewInt(1),
@@ -344,10 +344,10 @@ func TestTransactionCoding(t *testing.T) {
 		t.Fatalf("could not generate wallet: %v", err)
 	}
 	var (
-		signer       = NewZondSigner(common.Big1)
-		addr, _      = common.NewAddressFromString("Q00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000199aabbccddeeff001122334455667788")
-		recipient, _ = common.NewAddressFromString("Q00000000000000000000000000000000000000000000000000000000095e7baea6a6c7c4c2dfeb977efac326af552d8799aabbccddeeff001122334455667788")
-		accesses     = AccessList{{Address: addr, StorageKeys: []common.Hash{{0}}}}
+		signer    = NewZondSigner(common.Big1)
+		addr      = common.MustParseAddress("Q00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000199aabbccddeeff001122334455667788")
+		recipient = common.MustParseAddress("Q00000000000000000000000000000000000000000000000000000000095e7baea6a6c7c4c2dfeb977efac326af552d8799aabbccddeeff001122334455667788")
+		accesses  = AccessList{{Address: addr, StorageKeys: []common.Hash{{0}}}}
 	)
 	for i := range uint64(500) {
 		var txdata TxData
@@ -471,7 +471,7 @@ func assertEqual(orig *Transaction, cpy *Transaction) error {
 func TestTransactionSizes(t *testing.T) {
 	signer := NewZondSigner(big.NewInt(123))
 	wallet := testutil.LoadAccount(t, "alice").Wallet(t)
-	to, _ := common.NewAddressFromString("Q00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000199aabbccddeeff001122334455667788")
+	to := common.MustParseAddress("Q00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000199aabbccddeeff001122334455667788")
 	for i, txdata := range []TxData{
 		&DynamicFeeTx{
 			ChainID:   big.NewInt(123),

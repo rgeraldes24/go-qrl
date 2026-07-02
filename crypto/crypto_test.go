@@ -30,7 +30,7 @@ import (
 	"github.com/theQRL/go-qrl/common/hexutil"
 )
 
-var testAddr, _ = common.NewAddressFromString("Q43261cfab65ca3444b9a1001528c60d9a23d19bad2bc21051f24bf4bccd804dc63e35f36b63ee11ca7775ec832d6580929136989106db0231c6f04840cf8ee16")
+var testAddr = common.MustParseAddress("Q43261cfab65ca3444b9a1001528c60d9a23d19bad2bc21051f24bf4bccd804dc63e35f36b63ee11ca7775ec832d6580929136989106db0231c6f04840cf8ee16")
 var testPrivHex = "289c2857d4598e37fb9647507e47a309d6133539bf21a8b9cb6df88fd5232032"
 
 // These tests are sanity checks.
@@ -139,9 +139,9 @@ func TestNewContractAddress(t *testing.T) {
 	caddr0 := CreateAddress(testAddr, 0)
 	caddr1 := CreateAddress(testAddr, 1)
 	caddr2 := CreateAddress(testAddr, 2)
-	addr0, _ := common.NewAddressFromString("Qf2a607fd56723c510a1bf4b000fd1e778aedc94e78fcc8cb18d531ec673212284520097bbed26e2df76ce4a5360c73add776771dcd5c0ce56751e30c2413c366")
-	addr1, _ := common.NewAddressFromString("Q5c2ef024f69257cab379fd37fe2dc6c9242320f8771b1a6d6c86b6cefadcfc449c473414b5647b4ee3361f28a7a4cd47b10b6c6fa3399d056f851d97998f7748")
-	addr2, _ := common.NewAddressFromString("Qb000412862016ae61f4003114cc4eaa6ba614ccbf8b096e5686a7df6305cb82743e72610275437d11f05758befb7ba44b17fb05f588615893d661e787cd0738e")
+	addr0 := common.MustParseAddress("Qf2a607fd56723c510a1bf4b000fd1e778aedc94e78fcc8cb18d531ec673212284520097bbed26e2df76ce4a5360c73add776771dcd5c0ce56751e30c2413c366")
+	addr1 := common.MustParseAddress("Q5c2ef024f69257cab379fd37fe2dc6c9242320f8771b1a6d6c86b6cefadcfc449c473414b5647b4ee3361f28a7a4cd47b10b6c6fa3399d056f851d97998f7748")
+	addr2 := common.MustParseAddress("Qb000412862016ae61f4003114cc4eaa6ba614ccbf8b096e5686a7df6305cb82743e72610275437d11f05758befb7ba44b17fb05f588615893d661e787cd0738e")
 	checkAddr(t, addr0, caddr0)
 	checkAddr(t, addr1, caddr1)
 	checkAddr(t, addr2, caddr2)

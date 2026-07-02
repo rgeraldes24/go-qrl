@@ -45,12 +45,11 @@ func (m *Memory) Set(offset, size uint64, value []byte) {
 	}
 }
 
-// Set64 sets the 64 bytes starting at offset to the value of val, left-padded with zeroes to
-// 64 bytes.
+// Set64 sets one VM word starting at offset to the value of val, left-padded with zeroes.
 func (m *Memory) Set64(offset uint64, val *uint512.Int) {
 	// length of store may never be less than offset + size.
 	// The store should be resized PRIOR to setting the memory
-	if offset+64 > uint64(len(m.store)) {
+	if offset+WordBytes > uint64(len(m.store)) {
 		panic("invalid memory: store empty")
 	}
 	// Fill in relevant bits

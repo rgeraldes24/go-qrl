@@ -345,7 +345,7 @@ func ExampleJSON() {
 	if err != nil {
 		panic(err)
 	}
-	address, _ := common.NewAddressFromString("Q" + strings.Repeat("0", 126) + "01")
+	address := common.MustParseAddress("Q" + strings.Repeat("0", 126) + "01")
 	out, err := abi.Pack("isBar", address)
 	if err != nil {
 		panic(err)
@@ -693,7 +693,7 @@ func TestUnpackEvent(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	sender, _ := common.NewAddressFromString("Q0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000376c47978271565f56DEB45495afa69E59c16Ab2")
+	sender := common.MustParseAddress("Q0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000376c47978271565f56DEB45495afa69E59c16Ab2")
 	amount := big.NewInt(1)
 	memo := []byte{0x58}
 	packed, err := inAbi.Pack("received", sender, amount, memo)
@@ -749,7 +749,7 @@ func TestUnpackEventIntoMap(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	sender, _ := common.NewAddressFromString("Q0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000376c47978271565f56DEB45495afa69E59c16Ab2")
+	sender := common.MustParseAddress("Q0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000376c47978271565f56DEB45495afa69E59c16Ab2")
 	amount := big.NewInt(1)
 	memo := []byte{0x58}
 	packed, err := inAbi.Pack("received", sender, amount, memo)
@@ -868,7 +868,7 @@ func TestUnpackIntoMapNamingConflict(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	sender, _ := common.NewAddressFromString("Q0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000376c47978271565f56DEB45495afa69E59c16Ab2")
+	sender := common.MustParseAddress("Q0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000376c47978271565f56DEB45495afa69E59c16Ab2")
 	memo := []byte{0x58}
 	packed, err := inAbi.Pack("payload", sender, big.NewInt(1), memo)
 	if err != nil {
