@@ -78,7 +78,7 @@ You can select which accounts the caller can see
     URL: keystore://$HOME/.qrl/testnet/keystore/UTC--2018-02-06T22-53-11.211657239Z--QfEDcbA9876543210FEdCba9876543210FEDCba9876543210fEDcBA987654321076543210fEdCBa9876543210fedcBa9876543210FedCba9876543210fedCba98
 -------------------------------------------
 Request context:
-	NA -> NA -> NA
+	NA -> ipc -> NA
 
 Additional HTTP header data, provided by the external caller:
 	User-Agent: ""
@@ -331,7 +331,7 @@ nonce:    0x2366 (9062)
 chainid:  0x539
 
 Request context:
-	NA -> NA -> NA
+	NA -> ipc -> NA
 
 Additional HTTP header data, provided by the external caller:
 	User-Agent: ""

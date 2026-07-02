@@ -61,7 +61,7 @@ def sanitize(txt, limit=100):
 
 def metaString(meta):
     """
-    "meta":{"remote":"clef binary","local":"main","scheme":"in-proc","User-Agent":"","Origin":""}
+    "meta":{"remote":"NA","local":"NA","scheme":"NA","User-Agent":"","Origin":""}
     """  # noqa: E501
     message = (
         "\tRequest context:\n"
@@ -89,7 +89,7 @@ class StdIOHandler:
         """
         Example request:
 
-        {"jsonrpc":"2.0","id":20,"method":"ui_approveTx","params":[{"transaction":{"from":"Q0123456789ABcdEF0123456789abcDEF0123456789AbCdef0123456789abcDeF89aBCDeF0123456789AbcdeF0123456789AbCdeF0123456789aBCDef01234567","to":"Q0123456789ABcdEF0123456789abcDEF0123456789AbCdef0123456789abcDeF89aBCDeF0123456789AbcdeF0123456789AbCdeF0123456789aBCDef01234567","gas":"0x3e8","maxFeePerGas":"0x5","maxPriorityFeePerGas":"0x0","value":"0x6","nonce":"0x1","data":"0x"},"call_info":null,"meta":{"remote":"clef binary","local":"main","scheme":"in-proc","User-Agent":"","Origin":""}}]}
+        {"jsonrpc":"2.0","id":20,"method":"ui_approveTx","params":[{"transaction":{"from":"Q0123456789ABcdEF0123456789abcDEF0123456789AbCdef0123456789abcDeF89aBCDeF0123456789AbcdeF0123456789AbCdeF0123456789aBCDef01234567","to":"Q0123456789ABcdEF0123456789abcDEF0123456789AbCdef0123456789abcDeF89aBCDeF0123456789AbcdeF0123456789AbCdeF0123456789aBCDef01234567","gas":"0x3e8","maxFeePerGas":"0x5","maxPriorityFeePerGas":"0x0","value":"0x6","nonce":"0x1","data":"0x"},"call_info":null,"meta":{"remote":"NA","local":"NA","scheme":"NA","User-Agent":"","Origin":""}}]}
 
         :param transaction: transaction info
         :param call_info: info about the call, e.g. if ABI info could not be
@@ -123,7 +123,7 @@ class StdIOHandler:
         """
         Example request:
 
-        {"jsonrpc":"2.0","id":8,"method":"ui_approveSignData","params":[{"content_type":"text/plain","address":"Q0123456789ABcdEF0123456789abcDEF0123456789AbCdef0123456789abcDeF89aBCDeF0123456789AbcdeF0123456789AbCdeF0123456789aBCDef01234567","raw_data":"GVFSTCBTaWduZWQgTWVzc2FnZToKMTFoZWxsbyB3b3JsZA==","messages":[{"name":"message","value":"\u0019QRL Signed Message:\n11hello world","type":"text/plain"}],"call_info":null,"hash":"0x097ef4cb29183eb6814a1e1ac8bac8d4110e68c73c1d8673c03d79b109fae7c1","meta":{"remote":"clef binary","local":"main","scheme":"in-proc","User-Agent":"","Origin":""}}]}
+        {"jsonrpc":"2.0","id":8,"method":"ui_approveSignData","params":[{"content_type":"text/plain","address":"Q0123456789ABcdEF0123456789abcDEF0123456789AbCdef0123456789abcDeF89aBCDeF0123456789AbcdeF0123456789AbCdeF0123456789aBCDef01234567","raw_data":"GVFSTCBTaWduZWQgTWVzc2FnZToKMTFoZWxsbyB3b3JsZA==","messages":[{"name":"message","value":"\u0019QRL Signed Message:\n11hello world","type":"text/plain"}],"call_info":null,"hash":"0x097ef4cb29183eb6814a1e1ac8bac8d4110e68c73c1d8673c03d79b109fae7c1","meta":{"remote":"NA","local":"NA","scheme":"NA","User-Agent":"","Origin":""}}]}
         """  # noqa: E501
         self.sign_data_requests += 1
         approved = self.test_mode and self.sign_data_requests <= 2
@@ -159,7 +159,7 @@ class StdIOHandler:
         """
         Example request:
 
-        {"jsonrpc":"2.0","id":25,"method":"ui_approveNewAccount","params":[{"meta":{"remote":"clef binary","local":"main","scheme":"in-proc","User-Agent":"","Origin":""}}]}
+        {"jsonrpc":"2.0","id":25,"method":"ui_approveNewAccount","params":[{"meta":{"remote":"NA","local":"NA","scheme":"NA","User-Agent":"","Origin":""}}]}
         """  # noqa: E501
         message = (
             "Create new account request:\n"

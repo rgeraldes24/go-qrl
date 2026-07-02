@@ -93,7 +93,6 @@ Some snags and todos
       * the number of unique recipients
 
 * Gqrl todos
-    - The signer should pass the `Origin` header as call-info to the UI. As of right now, the way that info about the request is put together is a bit of a hack into the HTTP server. This could probably be greatly improved.
     - Relay: Gqrl should be started in `gqrl --signer localhost:8550`.
     - QRL addresses are 64-byte values rendered as `Q` + 128 QIP-55 mixed-case hex characters. The signer keeps `common.MixedcaseAddress` for API compatibility and uses it to validate checksum casing when the original input is available.
 * [x] Storage
@@ -529,7 +528,7 @@ Invoked when there's a transaction for approval.
 Here's a method invocation:
 ```bash
 
-curl -i -H "Content-Type: application/json" -X POST --data '{"jsonrpc":"2.0","method":"account_signTransaction","params":[{"from":"Q111122223333444455556666777788889999AaaAbbBBCCCcDDDDEeEeffff00000000FFfFEeEedDDdcCcCBBbBAAaa999988887777666655554444333322221111","gas":"0x333","maxFeePerGas":"0x1","maxPriorityFeePerGas":"0x1","nonce":"0x0","to":"QaAAaaAAAaaAaAAAAAAAAaAAAaAAAAaAa55555555555555555555555555555555CCCcCcCCcCcCCCccccccCCcccccccCcC33333333333333333333333333333333", "value":"0x0", "data":"0x4401a6e4fedcba9876543210fedcba9876543210fedcba9876543210fedcba987654321076543210fedcba9876543210fedcba9876543210fedcba9876543210fedcba98"},"safeSend(address)"],"id":67}' http://localhost:8550/
+curl -i -H "Content-Type: application/json" -H "User-Agent:" -X POST --data '{"jsonrpc":"2.0","method":"account_signTransaction","params":[{"from":"Q111122223333444455556666777788889999AaaAbbBBCCCcDDDDEeEeffff00000000FFfFEeEedDDdcCcCBBbBAAaa999988887777666655554444333322221111","gas":"0x333","maxFeePerGas":"0x1","maxPriorityFeePerGas":"0x1","nonce":"0x0","to":"QaAAaaAAAaaAaAAAAAAAAaAAAaAAAAaAa55555555555555555555555555555555CCCcCcCCcCcCCCccccccCCcccccccCcC33333333333333333333333333333333", "value":"0x0", "data":"0x4401a6e4fedcba9876543210fedcba9876543210fedcba9876543210fedcba987654321076543210fedcba9876543210fedcba9876543210fedcba9876543210fedcba98"},"safeSend(address)"],"id":67}' http://localhost:8550/
 ```
 Results in the following invocation on the UI:
 ```json
@@ -573,7 +572,7 @@ Results in the following invocation on the UI:
 The same method invocation, but with invalid data. By default, Clef rejects this request before calling the UI. When `--advanced` is enabled, Clef forwards it to the UI with a warning:
 ```bash
 
-curl -i -H "Content-Type: application/json" -X POST --data '{"jsonrpc":"2.0","method":"account_signTransaction","params":[{"from":"Q111122223333444455556666777788889999AaaAbbBBCCCcDDDDEeEeffff00000000FFfFEeEedDDdcCcCBBbBAAaa999988887777666655554444333322221111","gas":"0x333","maxFeePerGas":"0x1","maxPriorityFeePerGas":"0x1","nonce":"0x0","to":"QaAAaaAAAaaAaAAAAAAAAaAAAaAAAAaAa55555555555555555555555555555555CCCcCcCCcCcCCCccccccCCcccccccCcC33333333333333333333333333333333", "value":"0x0", "data":"0x4401a6e4fedcba9876543210fedcba9876543210fedcba9876543210fedcba987654321076543210fedcba9876543210fedcba9876543210fedcba9876543210fedcba9800000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000042"},"safeSend(address)"],"id":67}' http://localhost:8550/
+curl -i -H "Content-Type: application/json" -H "User-Agent:" -X POST --data '{"jsonrpc":"2.0","method":"account_signTransaction","params":[{"from":"Q111122223333444455556666777788889999AaaAbbBBCCCcDDDDEeEeffff00000000FFfFEeEedDDdcCcCBBbBAAaa999988887777666655554444333322221111","gas":"0x333","maxFeePerGas":"0x1","maxPriorityFeePerGas":"0x1","nonce":"0x0","to":"QaAAaaAAAaaAaAAAAAAAAaAAAaAAAAaAa55555555555555555555555555555555CCCcCcCCcCcCCCccccccCCcccccccCcC33333333333333333333333333333333", "value":"0x0", "data":"0x4401a6e4fedcba9876543210fedcba9876543210fedcba9876543210fedcba987654321076543210fedcba9876543210fedcba9876543210fedcba9876543210fedcba9800000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000042"},"safeSend(address)"],"id":67}' http://localhost:8550/
 ```
 
 ```json
@@ -762,10 +761,11 @@ The UI should show the info (a single message) to the user. Does not expect resp
 ```json
 {
   "jsonrpc": "2.0",
-  "id": 9,
   "method": "ui_showInfo",
   "params": [
-    "Tests completed"
+    {
+      "text": "Tests completed"
+    }
   ]
 }
 
@@ -779,10 +779,11 @@ The UI should show the error (a single message) to the user. Does not expect res
 
 {
   "jsonrpc": "2.0",
-  "id": 2,
   "method": "ui_showError",
   "params": [
-    "Something bad happened!"
+    {
+      "text": "Something bad happened!"
+    }
   ]
 }
 
@@ -801,7 +802,6 @@ Example call:
 
 {
   "jsonrpc": "2.0",
-  "id": 1,
   "method": "ui_onApprovedTx",
   "params": [
     {
@@ -838,15 +838,14 @@ Example call:
 
 {
   "jsonrpc": "2.0",
-  "id": 1,
   "method": "ui_onSignerStartup",
   "params": [
     {
       "info": {
-        "extapi_http": "http://localhost:8550",
-        "extapi_ipc": null,
-        "extapi_version": "2.0.0",
-        "intapi_version": "1.2.0"
+        "extapi_http": "http://localhost:8550/",
+        "extapi_ipc": "/home/user/.clef/clef.ipc",
+        "extapi_version": "6.1.0",
+        "intapi_version": "7.0.1"
       }
     }
   ]
