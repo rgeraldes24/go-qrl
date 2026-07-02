@@ -224,6 +224,25 @@ func TestDecodeEmptyTypedReceipt(t *testing.T) {
 	}
 }
 
+func TestReceiptSizeCountsLogTopicLength(t *testing.T) {
+	withoutTopic := (&Receipt{
+		Logs: []*Log{{
+			Data: []byte{0x01, 0x02, 0x03},
+		}},
+	}).Size()
+
+	withTopic := (&Receipt{
+		Logs: []*Log{{
+			Topics: []common.LogTopic{{}},
+			Data:   []byte{0x01, 0x02, 0x03},
+		}},
+	}).Size()
+
+	if diff := withTopic - withoutTopic; diff != common.StorageSize(common.LogTopicLength) {
+		t.Fatalf("receipt topic size mismatch: have %d, want %d", uint64(diff), common.LogTopicLength)
+	}
+}
+
 // Tests that receipt data can be correctly derived from the contextual infos
 func TestDeriveFields(t *testing.T) {
 	// Re-derive receipts.
