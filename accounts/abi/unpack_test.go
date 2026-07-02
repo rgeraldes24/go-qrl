@@ -530,7 +530,7 @@ func TestMultiReturnWithStringArray(t *testing.T) {
 	}
 	temp, _ := new(big.Int).SetString("30000000000000000000", 10)
 	ret1Exp := [3]*big.Int{big.NewInt(1545304298), big.NewInt(6), temp}
-	ret2Exp, _ := common.NewAddressFromString("Q0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000ab1257528b3782fb40d7ed5f72e624b744dffb2f")
+	ret2Exp := common.MustParseAddress("Q0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000ab1257528b3782fb40d7ed5f72e624b744dffb2f")
 	ret3Exp := [2]string{"Ethereum", "Hello, Ethereum!"}
 	ret4Exp := false
 	packed, err := inAbi.Pack("multi", ret1Exp, ret2Exp, ret3Exp, ret4Exp)

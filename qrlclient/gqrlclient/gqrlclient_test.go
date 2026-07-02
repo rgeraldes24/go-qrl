@@ -299,7 +299,7 @@ func testGetProofCanonicalizeKeys(t *testing.T, client *rpc.Client) {
 }
 
 func testGetProofNonExistent(t *testing.T, client *rpc.Client) {
-	addr, _ := common.NewAddressFromString("Q00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001")
+	addr := common.MustParseAddress("Q00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001")
 	ec := New(client)
 	result, err := ec.GetProof(t.Context(), addr, nil, nil)
 	if err != nil {
