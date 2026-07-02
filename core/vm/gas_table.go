@@ -22,8 +22,12 @@ import (
 )
 
 const (
-	maxMemoryExpansionWords = uint64(0xffffffff)
-	maxMemoryExpansionBytes = maxMemoryExpansionWords * uint64(WordBytes)
+	// memoryGasCost computes square := words * words using uint64 arithmetic.
+	// The largest word count whose square still fits in uint64 is 2^32-1
+	// (0xffffffff); 2^32 squared is 2^64 and would wrap. Convert that safe word
+	// count through WordBytes so the byte limit follows the VM word width.
+	maxMemoryExpansionWordCount = uint64(0xffffffff)
+	maxMemoryExpansionBytes     = maxMemoryExpansionWordCount * uint64(WordBytes)
 )
 
 // memoryGasCost calculates the quadratic gas for memory expansion. It does so
@@ -32,8 +36,7 @@ func memoryGasCost(mem *Memory, newMemSize uint64) (uint64, error) {
 	if newMemSize == 0 {
 		return 0, nil
 	}
-	// The memory gas formula squares the word count in uint64 arithmetic. The
-	// largest safe word count is 0xffffffff; one more word would wrap the square.
+	// Reject memory sizes that would round up past the safe word-count limit.
 	if newMemSize > maxMemoryExpansionBytes {
 		return 0, ErrGasUintOverflow
 	}
