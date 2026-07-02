@@ -2211,7 +2211,6 @@ module.exports={
 
 var RequestManager = require('./web3/requestmanager');
 var QRL = require('./web3/methods/qrl');
-var DB = require('./web3/methods/db');
 var Net = require('./web3/methods/net');
 var Settings = require('./web3/settings');
 var version = require('./version.json');
@@ -2230,7 +2229,6 @@ function Web3 (provider) {
     this._requestManager = new RequestManager(provider);
     this.currentProvider = provider;
     this.qrl = new QRL(this);
-    this.db = new DB(this);
     this.net = new Net(this);
     this.settings = new Settings();
     this.version = {
@@ -2293,11 +2291,6 @@ var properties = function () {
         new Property({
             name: 'version.network',
             getter: 'net_version',
-            inputFormatter: utils.toDecimal
-        }),
-        new Property({
-            name: 'version.qrl',
-            getter: 'qrl_protocolVersion',
             inputFormatter: utils.toDecimal
         })
     ];
@@ -4827,12 +4820,6 @@ var methods = function () {
         outputFormatter: utils.toDecimal
     });
 
-    var compileHyperion = new Method({
-        name: 'compile.hyperion',
-        call: 'qrl_compileHyperion',
-        params: 1
-    });
-
     return [
         getBalance,
         getStorageAt,
@@ -4848,8 +4835,7 @@ var methods = function () {
         sendRawTransaction,
         signTransaction,
         sendTransaction,
-        sign,
-        compileHyperion
+        sign
     ];
 };
 
@@ -4875,10 +4861,6 @@ var properties = function () {
             getter: 'qrl_blockNumber',
             outputFormatter: utils.toDecimal
         }),
-        new Property({
-            name: 'protocolVersion',
-            getter: 'qrl_protocolVersion'
-        })
     ];
 };
 
@@ -4889,10 +4871,6 @@ QRL.prototype.contract = function (abi) {
 
 QRL.prototype.filter = function (options, callback, filterCreationErrorCallback) {
     return new Filter(options, 'qrl', this._requestManager, watches.qrl(), formatters.outputLogFormatter, callback, filterCreationErrorCallback);
-};
-
-QRL.prototype.namereg = function () {
-    return this.contract(namereg.global.abi).at(namereg.global.address);
 };
 
 QRL.prototype.isSyncing = function (callback) {

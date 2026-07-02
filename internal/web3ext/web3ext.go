@@ -428,12 +428,6 @@ web3._extend({
 			outputFormatter: web3._extend.utils.toDecimal
 		}),
 		new web3._extend.Method({
-			name: 'submitTransaction',
-			call: 'qrl_submitTransaction',
-			params: 1,
-			inputFormatter: [web3._extend.formatters.inputTransactionFormatter]
-		}),
-		new web3._extend.Method({
 			name: 'fillTransaction',
 			call: 'qrl_fillTransaction',
 			params: 1,
