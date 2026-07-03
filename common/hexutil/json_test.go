@@ -206,24 +206,28 @@ func TestMarshalBig(t *testing.T) {
 	}
 }
 
+var unmarshalU512Tests = []unmarshalTest{
+	// invalid encoding
+	{input: "", wantErr: errJSONEOF},
+	{input: "null", wantErr: errNonString(u512T)},
+	{input: "10", wantErr: errNonString(u512T)},
+	{input: `"0"`, wantErr: wrapTypeError(ErrMissingPrefix, u512T)},
+	{input: `"0x"`, wantErr: wrapTypeError(ErrEmptyNumber, u512T)},
+	{input: `"0x01"`, wantErr: wrapTypeError(ErrLeadingZero, u512T)},
+	{input: `"0x` + string(bytes.Repeat([]byte{'f'}, 129)) + `"`, wantErr: wrapTypeError(ErrBig512Range, u512T)},
+	{input: `"0xx"`, wantErr: wrapTypeError(ErrSyntax, u512T)},
+	{input: `"0x1zz01"`, wantErr: wrapTypeError(ErrSyntax, u512T)},
+
+	// valid encoding
+	{input: `""`, want: big.NewInt(0)},
+	{input: `"0x0"`, want: big.NewInt(0)},
+	{input: `"0x2"`, want: big.NewInt(2)},
+	{input: `"0x` + string(bytes.Repeat([]byte{'f'}, 64)) + `"`, want: referenceBig(string(bytes.Repeat([]byte{'f'}, 64)))},
+	{input: `"0x` + string(bytes.Repeat([]byte{'f'}, 128)) + `"`, want: referenceBig(string(bytes.Repeat([]byte{'f'}, 128)))},
+}
+
 func TestUnmarshalU512(t *testing.T) {
-	tests := []unmarshalTest{
-		{input: "", wantErr: errJSONEOF},
-		{input: "null", wantErr: errNonString(u512T)},
-		{input: "10", wantErr: errNonString(u512T)},
-		{input: `"0"`, wantErr: wrapTypeError(ErrMissingPrefix, u512T)},
-		{input: `"0x"`, wantErr: wrapTypeError(ErrEmptyNumber, u512T)},
-		{input: `"0x01"`, wantErr: wrapTypeError(ErrLeadingZero, u512T)},
-		{input: `"0x` + string(bytes.Repeat([]byte{'f'}, 129)) + `"`, wantErr: wrapTypeError(ErrBig512Range, u512T)},
-		{input: `"0xx"`, wantErr: wrapTypeError(ErrSyntax, u512T)},
-		{input: `"0x1zz01"`, wantErr: wrapTypeError(ErrSyntax, u512T)},
-		{input: `""`, want: big.NewInt(0)},
-		{input: `"0x0"`, want: big.NewInt(0)},
-		{input: `"0x2"`, want: big.NewInt(2)},
-		{input: `"0x` + string(bytes.Repeat([]byte{'f'}, 64)) + `"`, want: referenceBig(string(bytes.Repeat([]byte{'f'}, 64)))},
-		{input: `"0x` + string(bytes.Repeat([]byte{'f'}, 128)) + `"`, want: referenceBig(string(bytes.Repeat([]byte{'f'}, 128)))},
-	}
-	for _, test := range tests {
+	for _, test := range unmarshalU512Tests {
 		var v U512
 		err := json.Unmarshal([]byte(test.input), &v)
 		if !checkError(t, test.input, err, test.wantErr) {
