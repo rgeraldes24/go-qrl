@@ -36,8 +36,6 @@ import (
 	"math/big"
 	"math/bits"
 	"strconv"
-
-	"github.com/theQRL/go-qrl/common/uint512"
 )
 
 const (
@@ -57,7 +55,7 @@ var (
 	ErrUint64Range    = &decError{"hex number > 64 bits"}
 	ErrUintRange      = &decError{fmt.Sprintf("hex number > %d bits", bits.UintSize)}
 	ErrBig256Range    = &decError{"hex number > 256 bits"}
-	ErrBig512Range    = &decError{fmt.Sprintf("hex number > %d bits", uint512.WordBits)}
+	ErrBig512Range    = &decError{"hex number > 512 bits"}
 )
 
 type decError struct{ msg string }

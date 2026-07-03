@@ -23,8 +23,6 @@ import (
 	"math/big"
 	"reflect"
 	"strconv"
-
-	"github.com/theQRL/go-qrl/common/uint512"
 )
 
 var (
@@ -35,6 +33,8 @@ var (
 	uintT   = reflect.TypeFor[Uint]()
 	uint64T = reflect.TypeFor[Uint64]()
 )
+
+const u512HexDigits = 128
 
 // Bytes marshals/unmarshals as a JSON string with 0x prefix.
 // The empty slice marshals as "0x".
@@ -277,7 +277,7 @@ func (u *U512) UnmarshalText(input []byte) error {
 	if err != nil {
 		return err
 	}
-	if len(raw) > uint512.WordBits/4 {
+	if len(raw) > u512HexDigits {
 		return ErrBig512Range
 	}
 	words := make([]big.Word, len(raw)/bigWordNibbles+1)
