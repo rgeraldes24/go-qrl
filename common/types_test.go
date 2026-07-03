@@ -445,6 +445,18 @@ func TestAddress_Value(t *testing.T) {
 	}
 }
 
+func TestBytesToEventSignatureLogTopic(t *testing.T) {
+	hash := bytes.Repeat([]byte{0xab}, HashLength)
+	topic := BytesToEventSignatureLogTopic(hash)
+
+	if !bytes.Equal(topic[:LogTopicLength-HashLength], make([]byte, LogTopicLength-HashLength)) {
+		t.Fatalf("event signature hash should be right-aligned: %x", topic)
+	}
+	if !bytes.Equal(topic[LogTopicLength-HashLength:], hash) {
+		t.Fatalf("event signature hash mismatch: got %x want %x", topic[LogTopicLength-HashLength:], hash)
+	}
+}
+
 func TestAddress_Format(t *testing.T) {
 	b := []byte{
 		0xb2, 0x6f, 0x2b, 0x34, 0x2a, 0xab, 0x24, 0xbc, 0xf6, 0x3e,

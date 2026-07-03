@@ -1146,6 +1146,10 @@ func TestOOMMaliciousInput(t *testing.T) {
 				abiWord("01") + // elem 1
 				abiWord("02"), // elem 2
 		},
+		{ // Fixed array with dynamic elements must reject full-width malformed offsets.
+			def: `[{"type": "string[2]"}]`,
+			enc: abiWord("010000000000000040"),
+		},
 	}
 	for i, test := range oomTests {
 		def := fmt.Sprintf(`[{ "name" : "method", "type": "function", "outputs": %s}]`, test.def)
@@ -1362,6 +1366,8 @@ func TestPackAndUnpackDeclaredIntegerBounds(t *testing.T) {
 	decoded, err := uint512Args.Unpack(packed)
 	require.NoError(t, err)
 	require.Zero(t, decoded[0].(*big.Int).Cmp(maxUint512))
+	_, err = uint512Args.Pack(new(big.Int).Add(maxUint512, common.Big1))
+	require.ErrorContains(t, err, "uint512")
 
 	int256Args := args("int256")
 	int256Overflow := new(big.Int).Lsh(common.Big1, 255)
@@ -1378,6 +1384,10 @@ func TestPackAndUnpackDeclaredIntegerBounds(t *testing.T) {
 	int512Args := args("int512")
 	maxInt512 := new(big.Int).Sub(new(big.Int).Lsh(common.Big1, uint512.WordBits-1), common.Big1)
 	minInt512 := new(big.Int).Neg(new(big.Int).Lsh(common.Big1, uint512.WordBits-1))
+	_, err = int512Args.Pack(new(big.Int).Add(maxInt512, common.Big1))
+	require.ErrorContains(t, err, "int512")
+	_, err = int512Args.Pack(new(big.Int).Sub(minInt512, common.Big1))
+	require.ErrorContains(t, err, "int512")
 	for _, value := range []*big.Int{maxInt512, minInt512} {
 		packed, err = int512Args.Pack(value)
 		require.NoError(t, err)

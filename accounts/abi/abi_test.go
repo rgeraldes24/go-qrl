@@ -1066,6 +1066,19 @@ func TestABI_EventById(t *testing.T) {
 	}
 }
 
+func TestABI_EventByTopicSkipsAnonymousEvents(t *testing.T) {
+	t.Parallel()
+
+	abi, err := JSON(strings.NewReader(`[{"anonymous":true,"inputs":[],"name":"Hidden","type":"event"}]`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	topic := abi.Events["Hidden"].Topic()
+	if event, err := abi.EventByTopic(topic); err == nil {
+		t.Fatalf("EventByTopic matched anonymous event %v", event)
+	}
+}
+
 func TestABI_ErrorByID(t *testing.T) {
 	t.Parallel()
 	abi, err := JSON(strings.NewReader(`[

@@ -141,9 +141,15 @@ func NewType(t string, internalType string, components []ArgumentMarshaling) (ty
 	// varType is the parsed abi type
 	switch varType := parsedType[1]; varType {
 	case "int":
+		if !validIntegerSize(varSize) {
+			return Type{}, fmt.Errorf("unsupported arg type: %s", t)
+		}
 		typ.Size = varSize
 		typ.T = IntTy
 	case "uint":
+		if !validIntegerSize(varSize) {
+			return Type{}, fmt.Errorf("unsupported arg type: %s", t)
+		}
 		typ.Size = varSize
 		typ.T = UintTy
 	case "bool":

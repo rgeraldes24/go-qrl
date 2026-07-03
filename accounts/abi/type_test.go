@@ -63,11 +63,13 @@ func TestTypeRegexp(t *testing.T) {
 		{"int64[2]", nil, Type{T: ArrayTy, Size: 2, Elem: &Type{Size: 64, T: IntTy, stringKind: "int64"}, stringKind: "int64[2]"}},
 		{"int256[]", nil, Type{T: SliceTy, Elem: &Type{Size: 256, T: IntTy, stringKind: "int256"}, stringKind: "int256[]"}},
 		{"int256[2]", nil, Type{T: ArrayTy, Size: 2, Elem: &Type{Size: 256, T: IntTy, stringKind: "int256"}, stringKind: "int256[2]"}},
+		{"int512", nil, Type{Size: 512, T: IntTy, stringKind: "int512"}},
 		{"uint8", nil, Type{Size: 8, T: UintTy, stringKind: "uint8"}},
 		{"uint16", nil, Type{Size: 16, T: UintTy, stringKind: "uint16"}},
 		{"uint32", nil, Type{Size: 32, T: UintTy, stringKind: "uint32"}},
 		{"uint64", nil, Type{Size: 64, T: UintTy, stringKind: "uint64"}},
 		{"uint256", nil, Type{Size: 256, T: UintTy, stringKind: "uint256"}},
+		{"uint512", nil, Type{Size: 512, T: UintTy, stringKind: "uint512"}},
 		{"uint8[]", nil, Type{T: SliceTy, Elem: &Type{Size: 8, T: UintTy, stringKind: "uint8"}, stringKind: "uint8[]"}},
 		{"uint8[2]", nil, Type{T: ArrayTy, Size: 2, Elem: &Type{Size: 8, T: UintTy, stringKind: "uint8"}, stringKind: "uint8[2]"}},
 		{"uint16[]", nil, Type{T: SliceTy, Elem: &Type{Size: 16, T: UintTy, stringKind: "uint16"}, stringKind: "uint16[]"}},
@@ -389,6 +391,16 @@ func TestNewFixedBytesInvalidSize(t *testing.T) {
 		_, err := NewType(typ, "", nil)
 		if err == nil {
 			t.Errorf("fixed bytes type %s is not spec'd", typ)
+		}
+	}
+}
+
+func TestNewIntegerInvalidSize(t *testing.T) {
+	t.Parallel()
+	for _, typ := range []string{"int0", "uint0", "int513", "uint513"} {
+		_, err := NewType(typ, "", nil)
+		if err == nil {
+			t.Errorf("integer type %s is not spec'd", typ)
 		}
 	}
 }

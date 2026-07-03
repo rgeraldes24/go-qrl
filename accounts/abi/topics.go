@@ -159,10 +159,9 @@ func parseTopicWithSetter(fields Arguments, topics []common.LogTopic, setter fun
 		}
 		var reconstr any
 		switch arg.Type.T {
-		case TupleTy:
-			return errors.New("tuple type in topic reconstruction")
-		case StringTy, BytesTy, SliceTy, ArrayTy:
-			// Array types (including strings and bytes) have their keccak256 hashes stored in the topic — returned verbatim.
+		case TupleTy, StringTy, BytesTy, SliceTy, ArrayTy:
+			// Dynamic indexed values and tuple values have their keccak256 hashes
+			// stored in the topic — returned verbatim.
 			reconstr = topics[i]
 		default:
 			// Topic is already the width of an ABI slot (64 bytes); decode directly.

@@ -223,6 +223,9 @@ func (abi *ABI) EventByID(topic common.Hash) (*Event, error) {
 // none found.
 func (abi *ABI) EventByTopic(topic common.LogTopic) (*Event, error) {
 	for _, event := range abi.Events {
+		if event.Anonymous {
+			continue
+		}
 		if event.Topic() == topic {
 			return &event, nil
 		}

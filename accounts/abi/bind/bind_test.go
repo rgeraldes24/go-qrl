@@ -1881,7 +1881,27 @@ var bindTests = []struct {
 			if b, err := NewNumericMethodName(common.Address{}, nil); b == nil || err != nil {
 				t.Fatalf("combined binding (%v) nil or error (%v) not nil", b, nil)
 			}
-		`,
+			`,
+	},
+	{
+		name:     "ArrayTopics",
+		bytecode: []string{qrvmNoopBytecode},
+		abi:      []string{`[{"anonymous":false,"inputs":[{"indexed":true,"internalType":"uint256[]","name":"nums","type":"uint256[]"},{"indexed":true,"internalType":"address[2]","name":"addrs","type":"address[2]"},{"indexed":true,"internalType":"string","name":"name","type":"string"},{"indexed":true,"internalType":"bytes","name":"data","type":"bytes"}],"name":"Indexed","type":"event"}]`},
+		imports: `
+				"github.com/theQRL/go-qrl/accounts/abi/bind"
+				"github.com/theQRL/go-qrl/common"
+			`,
+		tester: `
+				if b, err := NewArrayTopics(common.Address{}, nil); b == nil || err != nil {
+					t.Fatalf("binding (%v) nil or error (%v) not nil", b, nil)
+				} else if false { // Don't run, just compile and test types.
+					var err error
+					var sink chan<- *ArrayTopicsIndexed
+					_, err = b.FilterIndexed(&bind.FilterOpts{}, []common.LogTopic{}, []common.LogTopic{}, []string{}, [][]byte{})
+					_, err = b.WatchIndexed(&bind.WatchOpts{}, sink, []common.LogTopic{}, []common.LogTopic{}, []string{}, [][]byte{})
+					_ = err
+				}
+			`,
 	},
 }
 
@@ -1930,15 +1950,31 @@ func TestBindRejectsUnsupportedFunctionType(t *testing.T) {
 }
 
 func TestBindTopicTypeUsesLogTopicForIndexedDynamicTypes(t *testing.T) {
-	tests := []string{"string", "bytes", "string[]", "address[2]"}
+	tests := []struct {
+		name       string
+		typ        string
+		components []abi.ArgumentMarshaling
+	}{
+		{name: "string", typ: "string"},
+		{name: "bytes", typ: "bytes"},
+		{name: "string[]", typ: "string[]"},
+		{name: "address[2]", typ: "address[2]"},
+		{
+			name: "tuple",
+			typ:  "tuple",
+			components: []abi.ArgumentMarshaling{
+				{Name: "value", Type: "uint256"},
+			},
+		},
+	}
 	for _, tt := range tests {
-		t.Run(tt, func(t *testing.T) {
-			kind, err := abi.NewType(tt, "", nil)
+		t.Run(tt.name, func(t *testing.T) {
+			kind, err := abi.NewType(tt.typ, "", tt.components)
 			if err != nil {
-				t.Fatalf("NewType(%q): %v", tt, err)
+				t.Fatalf("NewType(%q): %v", tt.typ, err)
 			}
 			if got := bindTopicType(kind, nil); got != "common.LogTopic" {
-				t.Fatalf("bindTopicType(%q) = %q, want common.LogTopic", tt, got)
+				t.Fatalf("bindTopicType(%q) = %q, want common.LogTopic", tt.name, got)
 			}
 		})
 	}
@@ -1946,17 +1982,27 @@ func TestBindTopicTypeUsesLogTopicForIndexedDynamicTypes(t *testing.T) {
 
 func TestBindTopicRuleTypeUsesLogTopicForIndexedArrays(t *testing.T) {
 	tests := []struct {
-		typ  string
-		want string
+		name       string
+		typ        string
+		components []abi.ArgumentMarshaling
+		want       string
 	}{
-		{typ: "string", want: "string"},
-		{typ: "bytes", want: "[]byte"},
-		{typ: "uint256[]", want: "common.LogTopic"},
-		{typ: "address[2]", want: "common.LogTopic"},
+		{name: "string", typ: "string", want: "string"},
+		{name: "bytes", typ: "bytes", want: "[]byte"},
+		{name: "uint256[]", typ: "uint256[]", want: "common.LogTopic"},
+		{name: "address[2]", typ: "address[2]", want: "common.LogTopic"},
+		{
+			name: "tuple",
+			typ:  "tuple",
+			components: []abi.ArgumentMarshaling{
+				{Name: "value", Type: "uint256"},
+			},
+			want: "common.LogTopic",
+		},
 	}
 	for _, tt := range tests {
-		t.Run(tt.typ, func(t *testing.T) {
-			kind, err := abi.NewType(tt.typ, "", nil)
+		t.Run(tt.name, func(t *testing.T) {
+			kind, err := abi.NewType(tt.typ, "", tt.components)
 			if err != nil {
 				t.Fatalf("NewType(%q): %v", tt.typ, err)
 			}
