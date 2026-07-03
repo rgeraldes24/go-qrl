@@ -23,7 +23,6 @@ import (
 	"os"
 	"runtime"
 	"strconv"
-	"strings"
 	"sync/atomic"
 	"time"
 
@@ -379,7 +378,7 @@ func parseDumpConfig(ctx *cli.Context, stack *node.Node) (*state.DumpConfig, qrl
 	var start common.Hash
 	switch {
 	case startArg == "": // common.Hash
-	case isHexEncodedHash(startArg):
+	case common.IsHexEncodedHash(startArg):
 		start = common.BytesToHash(common.FromHex(startArg))
 	case common.IsAddress(startArg):
 		addr, err := common.NewAddressFromString(startArg)
@@ -436,12 +435,4 @@ func dump(ctx *cli.Context) error {
 func hashish(x string) bool {
 	_, err := strconv.Atoi(x)
 	return err != nil
-}
-
-func isHexEncodedHash(s string) bool {
-	hashHexLength := 2 * common.HashLength
-	if len(s) == hashHexLength {
-		return true
-	}
-	return len(s) == len("0x")+hashHexLength && (strings.HasPrefix(s, "0x") || strings.HasPrefix(s, "0X"))
 }
