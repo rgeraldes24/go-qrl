@@ -608,6 +608,17 @@ func NewMixedcaseAddressFromString(hexaddr string) (*MixedcaseAddress, error) {
 	return &MixedcaseAddress{addr: BytesToAddress(rawAddr), original: hexaddr}, nil
 }
 
+// MustParseMixedcaseAddress calls NewMixedcaseAddressFromString and panics on
+// error. It is intended for tests and package-level initializations with
+// hard-coded strings.
+func MustParseMixedcaseAddress(hexaddr string) *MixedcaseAddress {
+	addr, err := NewMixedcaseAddressFromString(hexaddr)
+	if err != nil {
+		panic(fmt.Errorf("invalid QRL mixed-case address %q: %w", hexaddr, err))
+	}
+	return addr
+}
+
 // UnmarshalJSON parses MixedcaseAddress
 func (ma *MixedcaseAddress) UnmarshalJSON(input []byte) error {
 	if err := hexutil.UnmarshalFixedJSONQ(addressT, input, ma.addr[:]); err != nil {

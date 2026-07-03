@@ -82,6 +82,20 @@ func TestMustParseAddress(t *testing.T) {
 	MustParseAddress("Q" + strings.Repeat("0", 40))
 }
 
+func TestMustParseMixedcaseAddress(t *testing.T) {
+	input := "Q" + strings.Repeat("5a", AddressLength)
+	if got := MustParseMixedcaseAddress(input); got.String() != input {
+		t.Fatalf("unexpected mixed-case address: got %s want %s", got, input)
+	}
+
+	defer func() {
+		if recover() == nil {
+			t.Fatal("expected panic for invalid mixed-case address")
+		}
+	}()
+	MustParseMixedcaseAddress("Q" + strings.Repeat("0", 40))
+}
+
 func TestHashJsonValidation(t *testing.T) {
 	var tests = []struct {
 		Prefix string

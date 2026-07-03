@@ -124,14 +124,14 @@ func minerTestGenesisBlock(gasLimit uint64, faucet common.Address) *core.Genesis
 }
 
 func createMiner(t *testing.T) *Miner {
-	feeRecipient, _ := common.NewAddressFromString("Q000000000000000000000000000000000000000000000000000000000000000000000000000000000000000123456789")
+	feeRecipient := common.MustParseAddress("Q00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000012345678")
 	config := Config{
 		PendingFeeRecipient: feeRecipient,
 	}
 	// Create chainConfig
 	chainDB := rawdb.NewMemoryDatabase()
 	triedb := trie.NewDatabase(chainDB, nil)
-	faucet, _ := common.NewAddressFromString("Q000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000012345")
+	faucet := common.MustParseAddress("Q00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000012345")
 	genesis := minerTestGenesisBlock(11_500_000, faucet)
 	chainConfig, _, err := core.SetupGenesisBlock(chainDB, triedb, genesis)
 	if err != nil {
