@@ -108,7 +108,7 @@ Docker:
 ```shell
 docker run -d --name qrl-node -v /Users/alice/qrl:/root \
            -p 8545:8545 -p 30303:30303 \
-           theqrl/gqrl
+           qrledger/go-qrl
 ```
 
 This will start `gqrl` in snap-sync mode with a DB memory allowance of 1GB, as the
