@@ -388,7 +388,7 @@ func parseDumpConfig(ctx *cli.Context, stack *node.Node) (*state.DumpConfig, qrl
 		start = crypto.Keccak256Hash(addr.Bytes())
 		log.Info("Converting start-address to hash", "address", addr, "hash", start.Hex())
 	default:
-		return nil, nil, common.Hash{}, fmt.Errorf("invalid start argument: %x. Q-prefixed %d-byte address or %d-byte hash required", startArg, common.AddressLength, common.HashLength)
+		return nil, nil, common.Hash{}, fmt.Errorf("invalid start argument %q: Q-prefixed %d-byte address or hex-encoded %d-byte hash required", startArg, common.AddressLength, common.HashLength)
 	}
 	var conf = &state.DumpConfig{
 		SkipCode:          ctx.Bool(utils.ExcludeCodeFlag.Name),
