@@ -68,6 +68,32 @@ func TestIsAddress(t *testing.T) {
 	}
 }
 
+func TestIsHexEncodedHash(t *testing.T) {
+	tests := []struct {
+		str string
+		exp bool
+	}{
+		{strings.Repeat("5a", HashLength), true},
+		{"0x" + strings.Repeat("5a", HashLength), true},
+		{"0X" + strings.Repeat("5a", HashLength), true},
+		{strings.Repeat("0", 2*HashLength), true},
+		{"0x" + strings.Repeat("0", 2*HashLength), true},
+		{strings.Repeat("0", 2*HashLength-1), false},
+		{strings.Repeat("0", 2*HashLength+1), false},
+		{"0x" + strings.Repeat("0", 2*HashLength-1), false},
+		{"0x" + strings.Repeat("0", 2*HashLength+1), false},
+		{"0x" + strings.Repeat("0", 2*HashLength-1) + "x", false},
+		{"Q" + strings.Repeat("0", 2*HashLength), false},
+	}
+
+	for _, test := range tests {
+		if result := IsHexEncodedHash(test.str); result != test.exp {
+			t.Errorf("IsHexEncodedHash(%s) == %v; expected %v",
+				test.str, result, test.exp)
+		}
+	}
+}
+
 func TestMustParseAddress(t *testing.T) {
 	input := "Q" + strings.Repeat("5a", AddressLength)
 	if got, want := MustParseAddress(input), BytesToAddress(Hex2Bytes(strings.TrimPrefix(input, "Q"))); got != want {
@@ -80,6 +106,20 @@ func TestMustParseAddress(t *testing.T) {
 		}
 	}()
 	MustParseAddress("Q" + strings.Repeat("0", 40))
+}
+
+func TestMustParseMixedcaseAddress(t *testing.T) {
+	input := "Q" + strings.Repeat("5a", AddressLength)
+	if got := MustParseMixedcaseAddress(input); got.String() != input {
+		t.Fatalf("unexpected mixed-case address: got %s want %s", got, input)
+	}
+
+	defer func() {
+		if recover() == nil {
+			t.Fatal("expected panic for invalid mixed-case address")
+		}
+	}()
+	MustParseMixedcaseAddress("Q" + strings.Repeat("0", 40))
 }
 
 func TestHashJsonValidation(t *testing.T) {

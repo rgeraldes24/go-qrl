@@ -447,6 +447,15 @@ func IsAddress(s string) bool {
 	return len(s) == 2*AddressLength && isHex(s)
 }
 
+// IsHexEncodedHash verifies whether a string can represent a valid hex-encoded
+// 32-byte hash, with or without 0x prefix.
+func IsHexEncodedHash(s string) bool {
+	if has0xPrefix(s) {
+		s = s[2:]
+	}
+	return len(s) == 2*HashLength && isHex(s)
+}
+
 // Cmp compares two addresses.
 func (a Address) Cmp(other Address) int {
 	return bytes.Compare(a[:], other[:])
@@ -606,6 +615,17 @@ func NewMixedcaseAddressFromString(hexaddr string) (*MixedcaseAddress, error) {
 	}
 	rawAddr, _ := hex.DecodeString(hexaddr[1:])
 	return &MixedcaseAddress{addr: BytesToAddress(rawAddr), original: hexaddr}, nil
+}
+
+// MustParseMixedcaseAddress calls NewMixedcaseAddressFromString and panics on
+// error. It is intended for tests and package-level initializations with
+// hard-coded strings.
+func MustParseMixedcaseAddress(hexaddr string) *MixedcaseAddress {
+	addr, err := NewMixedcaseAddressFromString(hexaddr)
+	if err != nil {
+		panic(fmt.Errorf("invalid QRL mixed-case address %q: %w", hexaddr, err))
+	}
+	return addr
 }
 
 // UnmarshalJSON parses MixedcaseAddress

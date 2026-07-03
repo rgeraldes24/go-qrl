@@ -376,11 +376,11 @@ func parseDumpConfig(ctx *cli.Context, stack *node.Node) (*state.DumpConfig, qrl
 	}
 	startArg := ctx.String(utils.StartKeyFlag.Name)
 	var start common.Hash
-	switch len(startArg) {
-	case 0: // common.Hash
-	case 64, 66:
+	switch {
+	case startArg == "": // common.Hash
+	case common.IsHexEncodedHash(startArg):
 		start = common.BytesToHash(common.FromHex(startArg))
-	case 41:
+	case common.IsAddress(startArg):
 		addr, err := common.NewAddressFromString(startArg)
 		if err != nil {
 			return nil, nil, common.Hash{}, err
@@ -388,7 +388,7 @@ func parseDumpConfig(ctx *cli.Context, stack *node.Node) (*state.DumpConfig, qrl
 		start = crypto.Keccak256Hash(addr.Bytes())
 		log.Info("Converting start-address to hash", "address", addr, "hash", start.Hex())
 	default:
-		return nil, nil, common.Hash{}, fmt.Errorf("invalid start argument: %x. 20 or 32 hex-encoded bytes required", startArg)
+		return nil, nil, common.Hash{}, fmt.Errorf("invalid start argument %q: Q-prefixed %d-byte address or hex-encoded %d-byte hash required", startArg, common.AddressLength, common.HashLength)
 	}
 	var conf = &state.DumpConfig{
 		SkipCode:          ctx.Bool(utils.ExcludeCodeFlag.Name),
