@@ -254,6 +254,10 @@ func (b *Big) UnmarshalGraphQL(input any) error {
 // U512 marshals/unmarshals as a JSON quantity with 0x prefix.
 // The zero value marshals as "0x0".
 //
+// U512 is intended for RPC fields that can legitimately carry full-width
+// storage values without relaxing the 256-bit validation enforced by Big for
+// regular protocol quantities.
+//
 // Negative integers are not supported. Values larger than 512 bits are rejected
 // by Unmarshal but will be marshaled without error.
 type U512 big.Int
