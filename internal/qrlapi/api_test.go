@@ -36,6 +36,7 @@ import (
 	"github.com/theQRL/go-qrl/accounts"
 	"github.com/theQRL/go-qrl/common"
 	"github.com/theQRL/go-qrl/common/hexutil"
+	"github.com/theQRL/go-qrl/common/uint512"
 	"github.com/theQRL/go-qrl/consensus"
 	"github.com/theQRL/go-qrl/consensus/beacon"
 	"github.com/theQRL/go-qrl/core"
@@ -54,6 +55,33 @@ import (
 	"github.com/theQRL/go-qrl/qrldb"
 	"github.com/theQRL/go-qrl/rpc"
 )
+
+func receiptLogContractCode() []byte {
+	return []byte{
+		byte(vm.PUSH4), 0x12, 0x34, 0x56, 0x78,
+		byte(vm.PUSH1), 0x00,
+		byte(vm.MSTORE),
+		byte(vm.PUSH1), 0xcc,
+		byte(vm.PUSH1), 0xbb,
+		byte(vm.PUSH1), byte(uint512.WordBytes),
+		byte(vm.PUSH1), 0x00,
+		byte(vm.LOG2),
+		byte(vm.PUSH1), 0x01,
+		byte(vm.PUSH1), 0x00,
+		byte(vm.MSTORE),
+		byte(vm.PUSH1), byte(uint512.WordBytes),
+		byte(vm.PUSH1), 0x00,
+		byte(vm.RETURN),
+	}
+}
+
+func receiptLogCallData(seed byte) []byte {
+	data := make([]byte, 4+2*uint512.WordBytes)
+	copy(data[:4], []byte{0xa9, 0x05, 0x9c, 0xbb})
+	data[4+uint512.WordBytes-1] = seed
+	data[4+2*uint512.WordBytes-1] = seed + 1
+	return data
+}
 
 func testTransactionMarshal(t *testing.T, tests []txData, config *params.ChainConfig) {
 	t.Parallel()
@@ -1298,18 +1326,9 @@ func setupReceiptBackend(t *testing.T, genBlocks int) (*testBackend, []common.Ha
 			Alloc: core.GenesisAlloc{
 				acc1Addr: {Balance: big.NewInt(params.Quanta)},
 				acc2Addr: {Balance: big.NewInt(params.Quanta)},
-				// // SPDX-License-Identifier: GPL-3.0
-				// // TODO(now.youtrack.cloud/issue/TGZ-30)
-				// pragma hyperion >=0.7.0 <0.9.0;
-				//
-				// contract Token {
-				//     event Transfer(address indexed from, address indexed to, uint256 value);
-				//     function transfer(address to, uint256 value) public returns (bool) {
-				//         emit Transfer(msg.sender, to, value);
-				//         return true;
-				//     }
-				// }
-				contract: {Balance: big.NewInt(params.Quanta), Code: common.FromHex("0x608060405234801561001057600080fd5b506004361061002b5760003560e01c8063a9059cbb14610030575b600080fd5b61004a6004803603810190610045919061016a565b610060565b60405161005791906101c5565b60405180910390f35b60008273ffffffffffffffffffffffffffffffffffffffff163373ffffffffffffffffffffffffffffffffffffffff167fddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef846040516100bf91906101ef565b60405180910390a36001905092915050565b600080fd5b600073ffffffffffffffffffffffffffffffffffffffff82169050919050565b6000610101826100d6565b9050919050565b610111816100f6565b811461011c57600080fd5b50565b60008135905061012e81610108565b92915050565b6000819050919050565b61014781610134565b811461015257600080fd5b50565b6000813590506101648161013e565b92915050565b60008060408385031215610181576101806100d1565b5b600061018f8582860161011f565b92505060206101a085828601610155565b9150509250929050565b60008115159050919050565b6101bf816101aa565b82525050565b60006020820190506101da60008301846101b6565b92915050565b6101e981610134565b82525050565b600060208201905061020460008301846101e0565b9291505056fea2646970667358221220b469033f4b77b9565ee84e0a2f04d496b18160d26034d54f9487e57788fd36d564736f6c63430008120033")},
+				// VM64 test log contract: every call emits LOG2 with two
+				// 64-byte topics and one 64-byte data word.
+				contract: {Balance: big.NewInt(params.Quanta), Code: receiptLogContractCode()},
 			},
 		}
 		signer   = types.LatestSignerForChainID(params.TestChainConfig.ChainID)
@@ -1330,16 +1349,12 @@ func setupReceiptBackend(t *testing.T, genBlocks int) (*testBackend, []common.Ha
 			tx, err = types.SignTx(types.NewTx(&types.DynamicFeeTx{Nonce: uint64(i), To: nil, Gas: 53100, GasFeeCap: b.BaseFee(), Data: common.FromHex("0x60806040")}), signer, acc1Wallet)
 		case 2:
 			// with logs
-			// transfer(address to, uint256 value)
-			data := fmt.Sprintf("0xa9059cbb%s%s", common.HexToHash(common.BigToHash(big.NewInt(int64(i + 1))).Hex()).String()[2:], common.BytesToHash([]byte{byte(i + 11)}).String()[2:])
-			tx, err = types.SignTx(types.NewTx(&types.DynamicFeeTx{Nonce: uint64(i), To: &contract, Gas: 60000, GasFeeCap: b.BaseFee(), Data: common.FromHex(data)}), signer, acc1Wallet)
+			tx, err = types.SignTx(types.NewTx(&types.DynamicFeeTx{Nonce: uint64(i), To: &contract, Gas: 60000, GasFeeCap: b.BaseFee(), Data: receiptLogCallData(byte(i + 11))}), signer, acc1Wallet)
 		case 3:
 			// dynamic fee with logs
-			// transfer(address to, uint256 value)
-			data := fmt.Sprintf("0xa9059cbb%s%s", common.HexToHash(common.BigToHash(big.NewInt(int64(i + 1))).Hex()).String()[2:], common.BytesToHash([]byte{byte(i + 11)}).String()[2:])
 			fee := big.NewInt(500)
 			fee.Add(fee, b.BaseFee())
-			tx, err = types.SignTx(types.NewTx(&types.DynamicFeeTx{Nonce: uint64(i), To: &contract, Gas: 60000, Value: big.NewInt(1), GasTipCap: big.NewInt(500), GasFeeCap: fee, Data: common.FromHex(data)}), signer, acc1Wallet)
+			tx, err = types.SignTx(types.NewTx(&types.DynamicFeeTx{Nonce: uint64(i), To: &contract, Gas: 60000, Value: big.NewInt(1), GasTipCap: big.NewInt(500), GasFeeCap: fee, Data: receiptLogCallData(byte(i + 11))}), signer, acc1Wallet)
 		case 4:
 			// access list with contract create
 			accessList := types.AccessList{{
