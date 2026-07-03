@@ -226,6 +226,13 @@ var unmarshalU512Tests = []unmarshalTest{
 	{input: `"0x` + string(bytes.Repeat([]byte{'f'}, 128)) + `"`, want: referenceBig(string(bytes.Repeat([]byte{'f'}, 128)))},
 }
 
+var encodeU512Tests = []marshalTest{
+	{referenceBig("0"), "0x0"},
+	{referenceBig("2"), "0x2"},
+	{referenceBig(string(bytes.Repeat([]byte{'f'}, 64))), "0x" + string(bytes.Repeat([]byte{'f'}, 64))},
+	{referenceBig(string(bytes.Repeat([]byte{'f'}, 128))), "0x" + string(bytes.Repeat([]byte{'f'}, 128))},
+}
+
 func TestUnmarshalU512(t *testing.T) {
 	for _, test := range unmarshalU512Tests {
 		var v U512
@@ -240,17 +247,21 @@ func TestUnmarshalU512(t *testing.T) {
 }
 
 func TestMarshalU512(t *testing.T) {
-	in := referenceBig(string(bytes.Repeat([]byte{'f'}, 128)))
-	out, err := json.Marshal((*U512)(in))
-	if err != nil {
-		t.Fatal(err)
-	}
-	want := `"0x` + string(bytes.Repeat([]byte{'f'}, 128)) + `"`
-	if string(out) != want {
-		t.Fatalf("MarshalJSON output mismatch: got %q, want %q", out, want)
-	}
-	if got := (*U512)(in).String(); got != want[1:len(want)-1] {
-		t.Fatalf("String mismatch: got %q, want %q", got, want[1:len(want)-1])
+	for _, test := range encodeU512Tests {
+		in := test.input.(*big.Int)
+		out, err := json.Marshal((*U512)(in))
+		if err != nil {
+			t.Errorf("%d: %v", in, err)
+			continue
+		}
+		if want := `"` + test.want + `"`; string(out) != want {
+			t.Errorf("%d: MarshalJSON output mismatch: got %q, want %q", in, out, want)
+			continue
+		}
+		if out := (*U512)(in).String(); out != test.want {
+			t.Errorf("%x: String mismatch: got %q, want %q", in, out, test.want)
+			continue
+		}
 	}
 }
 
