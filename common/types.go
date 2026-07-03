@@ -447,6 +447,15 @@ func IsAddress(s string) bool {
 	return len(s) == 2*AddressLength && isHex(s)
 }
 
+// IsHexEncodedHash verifies whether a string can represent a valid hex-encoded
+// 32-byte hash, with or without 0x prefix.
+func IsHexEncodedHash(s string) bool {
+	if has0xPrefix(s) {
+		s = s[2:]
+	}
+	return len(s) == 2*HashLength && isHex(s)
+}
+
 // Cmp compares two addresses.
 func (a Address) Cmp(other Address) int {
 	return bytes.Compare(a[:], other[:])
