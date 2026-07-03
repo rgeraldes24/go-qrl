@@ -618,7 +618,7 @@ func checkAccount(ctx *cli.Context) error {
 			return err
 		}
 		hash = crypto.Keccak256Hash(addr.Bytes())
-	case len(arg) == 2*common.HashLength || len(arg) == 2+2*common.HashLength:
+	case isHexEncodedHash(arg):
 		hash = common.HexToHash(arg)
 	default:
 		return errors.New("malformed address or hash")
