@@ -34,8 +34,6 @@ var (
 	uint64T = reflect.TypeFor[Uint64]()
 )
 
-const u512HexDigits = 128
-
 // Bytes marshals/unmarshals as a JSON string with 0x prefix.
 // The empty slice marshals as "0x".
 type Bytes []byte
@@ -250,6 +248,8 @@ func (b *Big) UnmarshalGraphQL(input any) error {
 	}
 	return err
 }
+
+const u512HexDigits = 128
 
 // U512 marshals/unmarshals as a JSON quantity with 0x prefix.
 // The zero value marshals as "0x0".
