@@ -17,6 +17,7 @@
 package qrlapi
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -107,6 +108,47 @@ func TestTransaction_RoundTripRpcJSON(t *testing.T) {
 		tests[i].Want = ""
 	}
 	testTransactionMarshal(t, tests, config)
+}
+
+func TestGetProofStorageValue64Quantity(t *testing.T) {
+	t.Parallel()
+
+	var (
+		addr    = common.BytesToAddress(bytes.Repeat([]byte{0x11}, common.AddressLength))
+		slot    = common.HexToHash("0x01")
+		value   = common.BytesToStorageValue64(bytes.Repeat([]byte{0x42}, common.StorageValue64Length))
+		genesis = &core.Genesis{
+			Config: params.TestChainConfig,
+			Alloc: core.GenesisAlloc{
+				addr: {
+					Balance: big.NewInt(1),
+					Storage: map[common.Hash]common.StorageValue64{
+						slot: value,
+					},
+				},
+			},
+		}
+		api = NewBlockChainAPI(newTestBackend(t, 1, genesis, beacon.NewFaker(), func(i int, b *core.BlockGen) {}))
+	)
+
+	result, err := api.GetProof(t.Context(), addr, []string{slot.Hex()}, rpc.BlockNumberOrHashWithNumber(rpc.LatestBlockNumber))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(result.StorageProof) != 1 {
+		t.Fatalf("storage proof length mismatch: have %d, want 1", len(result.StorageProof))
+	}
+	if result.StorageProof[0].Value.ToInt().BitLen() <= 256 {
+		t.Fatalf("storage proof value does not exercise high 256 bits: %s", result.StorageProof[0].Value)
+	}
+	got, err := json.Marshal(result.StorageProof[0].Value)
+	if err != nil {
+		t.Fatalf("marshal storage proof value: %v", err)
+	}
+	want := `"` + hexutil.EncodeBig(value.Big()) + `"`
+	if string(got) != want {
+		t.Fatalf("storage proof value JSON mismatch:\nhave %s\nwant %s", got, want)
+	}
 }
 
 func TestRPCTransactionPreservesExtraParams(t *testing.T) {
