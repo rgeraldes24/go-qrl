@@ -140,6 +140,14 @@ var expectedReturn = func() []byte {
 	return b
 }()
 
+const signedIntABI = `[{"inputs":[],"name":"signed","outputs":[{"name":"value","type":"int512"}],"stateMutability":"view","type":"function"}]`
+
+// signedIntBin returns a 64-byte all-ones word. The runtime builds it with
+// NOT(0), writes it through MSTORE, and returns it so the test exercises real
+// QRVM word serialization instead of synthetic ABI bytes.
+const signedIntBin = `0x600c600c600039600c6000f3` +
+	`60001960005260406000f3`
+
 func simTestBackend(testAddr common.Address) *SimulatedBackend {
 	return NewSimulatedBackend(
 		core.GenesisAlloc{
@@ -1184,6 +1192,41 @@ func TestPendingAndCallContract(t *testing.T) {
 
 	if !bytes.Equal(res, expectedReturn) || !strings.Contains(string(res), "hello world") {
 		t.Errorf("response from calling contract was expected to be 'hello world' instead received %v", string(res))
+	}
+}
+
+func TestSimulatedBackendCallDecodesSignedVMWord(t *testing.T) {
+	testAddr := testWallet.GetAddress()
+	sim := simTestBackend(testAddr)
+	defer sim.Close()
+
+	parsed, err := abi.JSON(strings.NewReader(signedIntABI))
+	if err != nil {
+		t.Fatalf("could not parse signed integer ABI: %v", err)
+	}
+	contractAuth, err := bind.NewKeyedTransactorWithChainID(testWallet, big.NewInt(1337))
+	if err != nil {
+		t.Fatalf("could not create transactor: %v", err)
+	}
+	_, _, contract, err := bind.DeployContract(contractAuth, parsed, common.FromHex(signedIntBin), sim)
+	if err != nil {
+		t.Fatalf("could not deploy contract: %v", err)
+	}
+	sim.Commit()
+
+	var result []any
+	if err := contract.Call(&bind.CallOpts{From: testAddr}, &result, "signed"); err != nil {
+		t.Fatalf("could not call signed method on contract: %v", err)
+	}
+	if len(result) != 1 {
+		t.Fatalf("expected one ABI return value, got %d: %#v", len(result), result)
+	}
+	got, ok := result[0].(*big.Int)
+	if !ok {
+		t.Fatalf("expected *big.Int ABI return value, got %T", result[0])
+	}
+	if got.Cmp(big.NewInt(-1)) != 0 {
+		t.Fatalf("expected signed VM word to decode as -1, got %v", got)
 	}
 }
 
