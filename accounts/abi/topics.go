@@ -78,12 +78,10 @@ func MakeTopics(query ...[]any) ([][]common.LogTopic, error) {
 				copy(topic[common.LogTopicLength-common.HashLength:], hash[:])
 
 			default:
-				// todo(rjl493456442) according to hyperion documentation, indexed event
-				// parameters that are not value types i.e. arrays and structs are not
-				// stored directly but instead a keccak256-hash of an encoding is stored.
-				//
-				// We only convert stringS and bytes to hash, still need to deal with
-				// array(both fixed-size and dynamic-size) and struct.
+				// Indexed dynamic values are stored as the Keccak256 hash of their
+				// ABI encoding. Strings and bytes can be hashed from their preimage
+				// here; arrays and tuples use precomputed common.LogTopic values in
+				// generated binding filter rules.
 
 				// Attempt to generate the topic from funky types
 				val := reflect.ValueOf(rule)

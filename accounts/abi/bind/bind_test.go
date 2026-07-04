@@ -1886,7 +1886,7 @@ var bindTests = []struct {
 	{
 		name:     "ArrayTopics",
 		bytecode: []string{qrvmNoopBytecode},
-		abi:      []string{`[{"anonymous":false,"inputs":[{"indexed":true,"internalType":"uint256[]","name":"nums","type":"uint256[]"},{"indexed":true,"internalType":"address[2]","name":"addrs","type":"address[2]"},{"indexed":true,"internalType":"string","name":"name","type":"string"},{"indexed":true,"internalType":"bytes","name":"data","type":"bytes"}],"name":"Indexed","type":"event"}]`},
+		abi:      []string{`[{"anonymous":false,"inputs":[{"indexed":true,"internalType":"uint256[]","name":"nums","type":"uint256[]"},{"indexed":true,"internalType":"address[2]","name":"addrs","type":"address[2]"},{"components":[{"internalType":"uint256","name":"id","type":"uint256"},{"internalType":"address","name":"owner","type":"address"}],"indexed":true,"internalType":"struct ArrayTopics.Meta","name":"meta","type":"tuple"},{"indexed":true,"internalType":"string","name":"name","type":"string"},{"indexed":true,"internalType":"bytes","name":"data","type":"bytes"}],"name":"Indexed","type":"event"}]`},
 		imports: `
 				"github.com/theQRL/go-qrl/accounts/abi/bind"
 				"github.com/theQRL/go-qrl/common"
@@ -1895,13 +1895,13 @@ var bindTests = []struct {
 				if b, err := NewArrayTopics(common.Address{}, nil); b == nil || err != nil {
 					t.Fatalf("binding (%v) nil or error (%v) not nil", b, nil)
 				} else if false { // Don't run, just compile and test types.
-					var err error
-					var sink chan<- *ArrayTopicsIndexed
-					_, err = b.FilterIndexed(&bind.FilterOpts{}, []common.LogTopic{}, []common.LogTopic{}, []string{}, [][]byte{})
-					_, err = b.WatchIndexed(&bind.WatchOpts{}, sink, []common.LogTopic{}, []common.LogTopic{}, []string{}, [][]byte{})
-					_ = err
-				}
-			`,
+						var err error
+						var sink chan<- *ArrayTopicsIndexed
+						_, err = b.FilterIndexed(&bind.FilterOpts{}, []common.LogTopic{}, []common.LogTopic{}, []common.LogTopic{}, []string{}, [][]byte{})
+						_, err = b.WatchIndexed(&bind.WatchOpts{}, sink, []common.LogTopic{}, []common.LogTopic{}, []common.LogTopic{}, []string{}, [][]byte{})
+						_ = err
+					}
+				`,
 	},
 }
 
@@ -2013,10 +2013,10 @@ func TestBindTopicRuleTypeUsesLogTopicForIndexedArrays(t *testing.T) {
 	}
 }
 
-func TestBindIndexedArrayFilterRulesUseLogTopic(t *testing.T) {
+func TestBindIndexedCompositeFilterRulesUseLogTopic(t *testing.T) {
 	code, err := Bind(
 		[]string{"ArrayTopics"},
-		[]string{`[{"anonymous":false,"inputs":[{"indexed":true,"internalType":"uint256[]","name":"nums","type":"uint256[]"},{"indexed":true,"internalType":"address[2]","name":"addrs","type":"address[2]"},{"indexed":true,"internalType":"string","name":"name","type":"string"},{"indexed":true,"internalType":"bytes","name":"data","type":"bytes"}],"name":"Indexed","type":"event"}]`},
+		[]string{`[{"anonymous":false,"inputs":[{"indexed":true,"internalType":"uint256[]","name":"nums","type":"uint256[]"},{"indexed":true,"internalType":"address[2]","name":"addrs","type":"address[2]"},{"components":[{"internalType":"uint256","name":"id","type":"uint256"},{"internalType":"address","name":"owner","type":"address"}],"indexed":true,"internalType":"struct ArrayTopics.Meta","name":"meta","type":"tuple"},{"indexed":true,"internalType":"string","name":"name","type":"string"},{"indexed":true,"internalType":"bytes","name":"data","type":"bytes"}],"name":"Indexed","type":"event"}]`},
 		[]string{qrvmNoopBytecode},
 		nil,
 		"bindtest",
@@ -2029,10 +2029,11 @@ func TestBindIndexedArrayFilterRulesUseLogTopic(t *testing.T) {
 	for _, want := range []string{
 		`(?m)\bNums\s+common\.LogTopic\b`,
 		`(?m)\bAddrs\s+common\.LogTopic\b`,
+		`(?m)\bMeta\s+common\.LogTopic\b`,
 		`(?m)\bName\s+common\.LogTopic\b`,
 		`(?m)\bData\s+common\.LogTopic\b`,
-		`FilterIndexed\(opts \*bind\.FilterOpts, nums \[\]common\.LogTopic, addrs \[\]common\.LogTopic, name \[\]string, data \[\]\[\]byte\)`,
-		`WatchIndexed\(opts \*bind\.WatchOpts, sink chan<- \*ArrayTopicsIndexed, nums \[\]common\.LogTopic, addrs \[\]common\.LogTopic, name \[\]string, data \[\]\[\]byte\)`,
+		`FilterIndexed\(opts \*bind\.FilterOpts, nums \[\]common\.LogTopic, addrs \[\]common\.LogTopic, meta \[\]common\.LogTopic, name \[\]string, data \[\]\[\]byte\)`,
+		`WatchIndexed\(opts \*bind\.WatchOpts, sink chan<- \*ArrayTopicsIndexed, nums \[\]common\.LogTopic, addrs \[\]common\.LogTopic, meta \[\]common\.LogTopic, name \[\]string, data \[\]\[\]byte\)`,
 	} {
 		if !regexp.MustCompile(want).MatchString(code) {
 			t.Fatalf("generated binding missing pattern %q", want)
