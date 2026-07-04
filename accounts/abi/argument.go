@@ -190,11 +190,14 @@ func (arguments Arguments) UnpackValues(data []byte) ([]any, error) {
 		index       = 0
 	)
 
-	for _, arg := range arguments {
-		if arg.Indexed {
-			continue
-		}
-		marshalledValue, err := toGoType((index+virtualArgs)*uint512.WordBytes, arg.Type, data)
+	nonIndexedArgs := arguments.NonIndexed()
+	minTailOffset := 0
+	for _, arg := range nonIndexedArgs {
+		minTailOffset += getTypeSize(arg.Type)
+	}
+
+	for _, arg := range nonIndexedArgs {
+		marshalledValue, err := toGoType((index+virtualArgs)*uint512.WordBytes, arg.Type, data, minTailOffset)
 		if err != nil {
 			return nil, err
 		}

@@ -575,7 +575,7 @@ HyperionCoder.prototype.decodeParams = function (types, bytes) {
     var offsets = this.getOffsets(types, hyperionTypes);
 
     return hyperionTypes.map(function (hyperionType, index) {
-        return hyperionType.decode(bytes, offsets[index],  types[index], index);
+        return hyperionType.decode(bytes, offsets[index],  types[index]);
     });
 };
 
@@ -2347,7 +2347,7 @@ Web3.prototype.createBatch = function () {
 module.exports = Web3;
 
 
-},{"./utils/sha3":19,"./utils/utils":20,"./version.json":21,"./web3/batch":24,"./web3/extend":28,"./web3/httpprovider":32,"./web3/ipcprovider":34,"./web3/methods/db":37,"./web3/methods/qrl":38,"./web3/methods/net":39,"./web3/methods/personal":40,"./web3/methods/shh":41,"./web3/methods/swarm":42,"./web3/property":45,"./web3/requestmanager":46,"./web3/settings":47,"bignumber.js":"bignumber.js"}],23:[function(require,module,exports){
+},{"./utils/sha3":19,"./utils/utils":20,"./version.json":21,"./web3/batch":24,"./web3/extend":28,"./web3/httpprovider":32,"./web3/ipcprovider":34,"./web3/methods/qrl":38,"./web3/methods/net":39,"./web3/methods/personal":40,"./web3/methods/shh":41,"./web3/methods/swarm":42,"./web3/property":45,"./web3/requestmanager":46,"./web3/settings":47,"bignumber.js":"bignumber.js"}],23:[function(require,module,exports){
 /*
     This file is part of web3.js.
 

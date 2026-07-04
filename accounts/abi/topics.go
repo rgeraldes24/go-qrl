@@ -166,7 +166,7 @@ func parseTopicWithSetter(fields Arguments, topics []common.LogTopic, setter fun
 		default:
 			// Topic is already the width of an ABI slot (64 bytes); decode directly.
 			var err error
-			reconstr, err = toGoType(0, arg.Type, topics[i][:])
+			reconstr, err = toGoType(0, arg.Type, topics[i][:], common.LogTopicLength)
 			if err != nil {
 				return err
 			}

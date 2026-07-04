@@ -19,6 +19,7 @@ package jsre
 import (
 	"encoding/json"
 	"fmt"
+	"math/big"
 	"os"
 	"reflect"
 	"strings"
@@ -283,6 +284,103 @@ JSON.stringify({data: data, capturedData: capturedData, decoded: JSON.stringify(
 			}
 			if got.Decoded != tt.wantDecoded {
 				t.Fatalf("web3 decoded output mismatch: have %s want %s", got.Decoded, tt.wantDecoded)
+			}
+		})
+	}
+}
+
+func TestEmbeddedWeb3MultiReturnDynamicOutputDecoding(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name       string
+		outputs    string
+		goValues   []any
+		wantNumber string
+		wantSecond string
+	}{
+		{
+			name:       "string second output",
+			outputs:    `[{"name":"","type":"uint512"},{"name":"","type":"string"}]`,
+			goValues:   []any{big.NewInt(7), "hello"},
+			wantNumber: "7",
+			wantSecond: "hello",
+		},
+		{
+			name:       "dynamic array second output",
+			outputs:    `[{"name":"","type":"uint512"},{"name":"","type":"string[]"}]`,
+			goValues:   []any{big.NewInt(7), []string{"alpha", "bravo"}},
+			wantNumber: "7",
+			wantSecond: `["alpha","bravo"]`,
+		},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			re := New("", os.Stdout)
+			defer re.Stop(false)
+
+			if err := re.Compile("bignumber.js", deps.BigNumberJS); err != nil {
+				t.Fatalf("compile bignumber.js: %v", err)
+			}
+			if err := re.Compile("web3.js", deps.Web3JS); err != nil {
+				t.Fatalf("compile web3.js: %v", err)
+			}
+
+			abiJSON := fmt.Sprintf(`[{"type":"function","name":"f","constant":true,"inputs":[],"outputs":%s}]`, tt.outputs)
+			goABI, err := qrlabi.JSON(strings.NewReader(abiJSON))
+			if err != nil {
+				t.Fatalf("parse ABI: %v", err)
+			}
+			output, err := goABI.Methods["f"].Outputs.PackValues(tt.goValues)
+			if err != nil {
+				t.Fatalf("pack Go ABI output: %v", err)
+			}
+			outputHex := "0x" + fmt.Sprintf("%x", output)
+
+			script := fmt.Sprintf(`
+var provider = {
+  send: function(payload) {
+    if (payload.method === "qrl_call") {
+      return {jsonrpc: "2.0", id: payload.id, result: %q};
+    }
+    return {jsonrpc: "2.0", id: payload.id, result: null};
+  },
+  sendAsync: function(payload, cb) {
+    cb(null, this.send(payload));
+  },
+  isConnected: function() { return true; }
+};
+var Web3 = require("web3");
+var web3 = new Web3(provider);
+var abi = JSON.parse(%q);
+var contract = web3.qrl.contract(abi).at("Q00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000");
+var decoded = contract.f.call();
+var second = decoded[1];
+if (Array.isArray(second)) {
+  second = JSON.stringify(second);
+}
+JSON.stringify({number: decoded[0].toString(10), second: second});
+`, outputHex, abiJSON)
+			value, err := re.Run(script)
+			if err != nil {
+				t.Fatalf("run multi-return ABI script: %v", err)
+			}
+			var got struct {
+				Number string `json:"number"`
+				Second string `json:"second"`
+			}
+			if err := json.Unmarshal([]byte(value.String()), &got); err != nil {
+				t.Fatalf("decode script result %q: %v", value.String(), err)
+			}
+			if got.Number != tt.wantNumber {
+				t.Fatalf("decoded number mismatch: have %s want %s", got.Number, tt.wantNumber)
+			}
+			if got.Second != tt.wantSecond {
+				t.Fatalf("decoded second output mismatch: have %s want %s", got.Second, tt.wantSecond)
 			}
 		})
 	}

@@ -1160,6 +1160,21 @@ func TestOOMMaliciousInput(t *testing.T) {
 			enc: abiWord("00") +
 				abiWord("00"),
 		},
+		{ // Top-level dynamic offsets must not point into another output head word.
+			def: `[{"type": "string"}, {"type": "string"}]`,
+			enc: abiWord("40") +
+				abiWord("80") +
+				abiWord("00") +
+				abiWord("00"),
+		},
+		{ // Fixed array dynamic element offsets must start after the full array head.
+			def: `[{"type": "string[2]"}]`,
+			enc: abiWord("40") +
+				abiWord("40") +
+				abiWord("80") +
+				abiWord("00") +
+				abiWord("00"),
+		},
 		{ // Fixed array with dynamic elements must reject full-width malformed offsets.
 			def: `[{"type": "string[2]"}]`,
 			enc: abiWord("010000000000000040"),

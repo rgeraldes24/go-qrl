@@ -171,7 +171,7 @@ func forEachUnpack(t Type, output []byte, start, size int) (any, error) {
 	}
 
 	for i, j := start, 0; j < size; i, j = i+elemSize, j+1 {
-		inter, err := toGoType(i, *t.Elem, output)
+		inter, err := toGoType(i, *t.Elem, output, end)
 		if err != nil {
 			return nil, err
 		}
@@ -187,8 +187,12 @@ func forEachUnpack(t Type, output []byte, start, size int) (any, error) {
 func forTupleUnpack(t Type, output []byte) (any, error) {
 	retval := reflect.New(t.GetType()).Elem()
 	virtualArgs := 0
+	headSize := 0
+	for _, elem := range t.TupleElems {
+		headSize += getTypeSize(*elem)
+	}
 	for index, elem := range t.TupleElems {
-		marshalledValue, err := toGoType((index+virtualArgs)*uint512.WordBytes, *elem, output)
+		marshalledValue, err := toGoType((index+virtualArgs)*uint512.WordBytes, *elem, output, headSize)
 		if err != nil {
 			return nil, err
 		}
@@ -216,7 +220,7 @@ func forTupleUnpack(t Type, output []byte) (any, error) {
 
 // toGoType parses the output bytes and recursively assigns the value of these bytes
 // into a go type with accordance with the ABI spec.
-func toGoType(index int, t Type, output []byte) (any, error) {
+func toGoType(index int, t Type, output []byte, minTailOffset int) (any, error) {
 	if containsFunctionType(t) {
 		return nil, ErrUnsupportedFunctionType
 	}
@@ -232,7 +236,7 @@ func toGoType(index int, t Type, output []byte) (any, error) {
 
 	// if we require a length prefix, find the beginning word and size returned.
 	if t.requiresLengthPrefix() {
-		begin, length, err = lengthPrefixPointsTo(index, output)
+		begin, length, err = lengthPrefixPointsTo(index, output, minTailOffset)
 		if err != nil {
 			return nil, err
 		}
@@ -243,7 +247,7 @@ func toGoType(index int, t Type, output []byte) (any, error) {
 	switch t.T {
 	case TupleTy:
 		if isDynamicType(t) {
-			begin, err := tuplePointsTo(index, output)
+			begin, err := tuplePointsTo(index, output, minTailOffset)
 			if err != nil {
 				return nil, err
 			}
@@ -254,7 +258,7 @@ func toGoType(index int, t Type, output []byte) (any, error) {
 		return forEachUnpack(t, output[begin:], 0, length)
 	case ArrayTy:
 		if isDynamicType(*t.Elem) {
-			offset, err := tuplePointsTo(index, output)
+			offset, err := tuplePointsTo(index, output, minTailOffset)
 			if err != nil {
 				return nil, err
 			}
@@ -283,8 +287,8 @@ func toGoType(index int, t Type, output []byte) (any, error) {
 }
 
 // lengthPrefixPointsTo interprets an ABI word as an offset and then determines which indices to look to decode the type.
-func lengthPrefixPointsTo(index int, output []byte) (start int, length int, err error) {
-	offset, err := readDynamicOffset(index, output)
+func lengthPrefixPointsTo(index int, output []byte, minTailOffset int) (start int, length int, err error) {
+	offset, err := readDynamicOffset(index, output, minTailOffset)
 	if err != nil {
 		return 0, 0, err
 	}
@@ -311,11 +315,11 @@ func lengthPrefixPointsTo(index int, output []byte) (start int, length int, err 
 }
 
 // tuplePointsTo resolves the location reference for dynamic tuple.
-func tuplePointsTo(index int, output []byte) (start int, err error) {
-	return readDynamicOffset(index, output)
+func tuplePointsTo(index int, output []byte, minTailOffset int) (start int, err error) {
+	return readDynamicOffset(index, output, minTailOffset)
 }
 
-func readDynamicOffset(index int, output []byte) (int, error) {
+func readDynamicOffset(index int, output []byte, minTailOffset int) (int, error) {
 	offset := new(big.Int).SetBytes(output[index : index+uint512.WordBytes])
 	outputLen := big.NewInt(int64(len(output)))
 
@@ -329,8 +333,11 @@ func readDynamicOffset(index int, output []byte) (int, error) {
 	if offsetInt%uint512.WordBytes != 0 {
 		return 0, fmt.Errorf("abi offset %d is not word-aligned", offsetInt)
 	}
-	if offsetInt < index+uint512.WordBytes {
-		return 0, fmt.Errorf("abi offset %d points into head for offset word at %d", offsetInt, index)
+	if minTailOffset < index+uint512.WordBytes {
+		minTailOffset = index + uint512.WordBytes
+	}
+	if offsetInt < minTailOffset {
+		return 0, fmt.Errorf("abi offset %d points into head; minimum tail offset is %d", offsetInt, minTailOffset)
 	}
 	return offsetInt, nil
 }
