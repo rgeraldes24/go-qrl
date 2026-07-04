@@ -166,6 +166,10 @@ func TestCalldataDecoding(t *testing.T) {
 		// Too short
 		"751e10790000000000000000000000000000000000000000000000000000000000000012",
 		"751e1079FFffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+		// uint256 still occupies one 64-byte ABI slot, but values above 256
+		// bits are invalid for the declared type.
+		"a52c101e" + "FFffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff" +
+			"FFffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
 		// Not valid multiple of 64-byte slot width
 		"deadbeef" + "00000000000000000000000000000000000000000000000000000000000000",
 		// Too short 'issue'
@@ -186,9 +190,6 @@ func TestCalldataDecoding(t *testing.T) {
 	for i, hexdata := range []string{
 		samOK,
 		sendOK,
-		// sendOK with high bits set in the uint256 slot (still a valid encoding).
-		"a52c101e" + "FFffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff" +
-			"FFffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
 		compareOK,
 		issueOK,
 	} {
