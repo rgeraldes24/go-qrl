@@ -1146,6 +1146,20 @@ func TestOOMMaliciousInput(t *testing.T) {
 				abiWord("01") + // elem 1
 				abiWord("02"), // elem 2
 		},
+		{ // Dynamic offset points back into the head and used to decode as an empty string.
+			def: `[{"type": "string"}]`,
+			enc: abiWord("00"),
+		},
+		{ // Dynamic offsets must be ABI word-aligned.
+			def: `[{"type": "bytes"}]`,
+			enc: abiWord("41") +
+				abiWord("00"),
+		},
+		{ // Fixed array dynamic element offsets must not point back into the array head.
+			def: `[{"type": "string[2]"}]`,
+			enc: abiWord("00") +
+				abiWord("00"),
+		},
 		{ // Fixed array with dynamic elements must reject full-width malformed offsets.
 			def: `[{"type": "string[2]"}]`,
 			enc: abiWord("010000000000000040"),

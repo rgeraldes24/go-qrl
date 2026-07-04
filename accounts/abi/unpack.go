@@ -284,20 +284,18 @@ func toGoType(index int, t Type, output []byte) (any, error) {
 
 // lengthPrefixPointsTo interprets an ABI word as an offset and then determines which indices to look to decode the type.
 func lengthPrefixPointsTo(index int, output []byte) (start int, length int, err error) {
-	bigOffsetEnd := new(big.Int).SetBytes(output[index : index+uint512.WordBytes])
-	bigOffsetEnd.Add(bigOffsetEnd, big.NewInt(int64(uint512.WordBytes)))
+	offset, err := readDynamicOffset(index, output)
+	if err != nil {
+		return 0, 0, err
+	}
+	bigOffsetEnd := new(big.Int).SetInt64(int64(offset + uint512.WordBytes))
 	outputLength := big.NewInt(int64(len(output)))
 
 	if bigOffsetEnd.Cmp(outputLength) > 0 {
 		return 0, 0, fmt.Errorf("abi: cannot marshal in to go slice: offset %v would go over slice boundary (len=%v)", bigOffsetEnd, outputLength)
 	}
 
-	if bigOffsetEnd.BitLen() > 63 {
-		return 0, 0, fmt.Errorf("abi offset larger than int64: %v", bigOffsetEnd)
-	}
-
-	offsetEnd := int(bigOffsetEnd.Uint64())
-	lengthBig := new(big.Int).SetBytes(output[offsetEnd-uint512.WordBytes : offsetEnd])
+	lengthBig := new(big.Int).SetBytes(output[offset : offset+uint512.WordBytes])
 
 	totalSize := new(big.Int).Add(bigOffsetEnd, lengthBig)
 	if totalSize.BitLen() > 63 {
@@ -314,6 +312,10 @@ func lengthPrefixPointsTo(index int, output []byte) (start int, length int, err 
 
 // tuplePointsTo resolves the location reference for dynamic tuple.
 func tuplePointsTo(index int, output []byte) (start int, err error) {
+	return readDynamicOffset(index, output)
+}
+
+func readDynamicOffset(index int, output []byte) (int, error) {
 	offset := new(big.Int).SetBytes(output[index : index+uint512.WordBytes])
 	outputLen := big.NewInt(int64(len(output)))
 
@@ -323,5 +325,12 @@ func tuplePointsTo(index int, output []byte) (start int, err error) {
 	if offset.BitLen() > 63 {
 		return 0, fmt.Errorf("abi offset larger than int64: %v", offset)
 	}
-	return int(offset.Uint64()), nil
+	offsetInt := int(offset.Uint64())
+	if offsetInt%uint512.WordBytes != 0 {
+		return 0, fmt.Errorf("abi offset %d is not word-aligned", offsetInt)
+	}
+	if offsetInt < index+uint512.WordBytes {
+		return 0, fmt.Errorf("abi offset %d points into head for offset word at %d", offsetInt, index)
+	}
+	return offsetInt, nil
 }

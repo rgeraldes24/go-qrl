@@ -24,6 +24,7 @@ import (
 	"strings"
 	"testing"
 
+	qrlabi "github.com/theQRL/go-qrl/accounts/abi"
 	"github.com/theQRL/go-qrl/common"
 	"github.com/theQRL/go-qrl/common/uint512"
 	"github.com/theQRL/go-qrl/crypto"
@@ -165,6 +166,125 @@ JSON.stringify({
 	expectedOffset := uint512.NewInt(uint64(uint512.WordBytes)).Bytes64()
 	if got.FirstOffset != fmt.Sprintf("%x", expectedOffset[:]) {
 		t.Fatalf("top-level nested array offset mismatch: have %q", got.FirstOffset)
+	}
+}
+
+func TestEmbeddedWeb3DynamicArrayEncodingMatchesGoABI(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name        string
+		typ         string
+		jsValue     string
+		goValue     any
+		wantDecoded string
+	}{
+		{
+			name:        "string slice",
+			typ:         "string[]",
+			jsValue:     `["alpha", "bravo"]`,
+			goValue:     []string{"alpha", "bravo"},
+			wantDecoded: `["alpha","bravo"]`,
+		},
+		{
+			name:        "bytes slice",
+			typ:         "bytes[]",
+			jsValue:     `["0x0102", "0x030405"]`,
+			goValue:     [][]byte{{0x01, 0x02}, {0x03, 0x04, 0x05}},
+			wantDecoded: `["0x0102","0x030405"]`,
+		},
+		{
+			name:        "nested string slice",
+			typ:         "string[][]",
+			jsValue:     `[["alpha"], ["bravo", "charlie"]]`,
+			goValue:     [][]string{{"alpha"}, {"bravo", "charlie"}},
+			wantDecoded: `[["alpha"],["bravo","charlie"]]`,
+		},
+		{
+			name:        "static string array",
+			typ:         "string[2]",
+			jsValue:     `["alpha", "bravo"]`,
+			goValue:     [2]string{"alpha", "bravo"},
+			wantDecoded: `["alpha","bravo"]`,
+		},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			re := New("", os.Stdout)
+			defer re.Stop(false)
+
+			if err := re.Compile("bignumber.js", deps.BigNumberJS); err != nil {
+				t.Fatalf("compile bignumber.js: %v", err)
+			}
+			if err := re.Compile("web3.js", deps.Web3JS); err != nil {
+				t.Fatalf("compile web3.js: %v", err)
+			}
+
+			abiJSON := fmt.Sprintf(`[{"type":"function","name":"f","constant":true,"inputs":[{"name":"values","type":%q}],"outputs":[{"name":"","type":%q}]}]`, tt.typ, tt.typ)
+			goABI, err := qrlabi.JSON(strings.NewReader(abiJSON))
+			if err != nil {
+				t.Fatalf("parse ABI: %v", err)
+			}
+			packed, err := goABI.Pack("f", tt.goValue)
+			if err != nil {
+				t.Fatalf("pack Go ABI calldata: %v", err)
+			}
+			output, err := goABI.Methods["f"].Outputs.PackValues([]any{tt.goValue})
+			if err != nil {
+				t.Fatalf("pack Go ABI output: %v", err)
+			}
+			wantData := "0x" + fmt.Sprintf("%x", packed)
+			outputHex := "0x" + fmt.Sprintf("%x", output)
+
+			script := fmt.Sprintf(`
+var capturedData = null;
+var provider = {
+  send: function(payload) {
+    if (payload.method === "qrl_call") {
+      capturedData = payload.params[0].data;
+      return {jsonrpc: "2.0", id: payload.id, result: %q};
+    }
+    return {jsonrpc: "2.0", id: payload.id, result: null};
+  },
+  sendAsync: function(payload, cb) {
+    cb(null, this.send(payload));
+  },
+  isConnected: function() { return true; }
+};
+var Web3 = require("web3");
+var web3 = new Web3(provider);
+var abi = JSON.parse(%q);
+var contract = web3.qrl.contract(abi).at("Q00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000");
+var data = contract.f.getData(%s);
+var decoded = contract.f.call(%s);
+JSON.stringify({data: data, capturedData: capturedData, decoded: JSON.stringify(decoded)});
+`, outputHex, abiJSON, tt.jsValue, tt.jsValue)
+			value, err := re.Run(script)
+			if err != nil {
+				t.Fatalf("run dynamic array ABI script: %v", err)
+			}
+			var got struct {
+				Data         string `json:"data"`
+				CapturedData string `json:"capturedData"`
+				Decoded      string `json:"decoded"`
+			}
+			if err := json.Unmarshal([]byte(value.String()), &got); err != nil {
+				t.Fatalf("decode script result %q: %v", value.String(), err)
+			}
+			if got.Data != wantData {
+				t.Fatalf("web3 calldata mismatch:\nhave %s\nwant %s", got.Data, wantData)
+			}
+			if got.CapturedData != wantData {
+				t.Fatalf("web3 qrl_call data mismatch:\nhave %s\nwant %s", got.CapturedData, wantData)
+			}
+			if got.Decoded != tt.wantDecoded {
+				t.Fatalf("web3 decoded output mismatch: have %s want %s", got.Decoded, tt.wantDecoded)
+			}
+		})
 	}
 }
 
