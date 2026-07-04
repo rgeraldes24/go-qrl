@@ -1168,6 +1168,24 @@ func TestOOMMaliciousInput(t *testing.T) {
 	}
 }
 
+func TestUnpackSliceOfStaticArraysChecksFullElementSize(t *testing.T) {
+	t.Parallel()
+
+	def := `[{ "name" : "method", "type": "function", "outputs": [{"type": "uint256[2][]"}]}]`
+	abi, err := JSON(strings.NewReader(def))
+	require.NoError(t, err)
+
+	enc := abiWord("40") + // offset
+		abiWord("02") + // num elems
+		abiWord("01") + // first array, elem 1
+		abiWord("02") // first array, elem 2
+	encb, err := hex.DecodeString(enc)
+	require.NoError(t, err)
+
+	_, err = abi.Methods["method"].Outputs.UnpackValues(encb)
+	require.ErrorContains(t, err, "cannot marshal into go array")
+}
+
 func TestPackAndUnpackIncompatibleNumber(t *testing.T) {
 	t.Parallel()
 	var encodeABI Arguments

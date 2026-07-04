@@ -143,8 +143,17 @@ func forEachUnpack(t Type, output []byte, start, size int) (any, error) {
 	if size < 0 {
 		return nil, fmt.Errorf("cannot marshal input to array, size is negative (%d)", size)
 	}
-	if start+uint512.WordBytes*size > len(output) {
-		return nil, fmt.Errorf("abi: cannot marshal into go array: offset %d would go over slice boundary (len=%d)", len(output), start+uint512.WordBytes*size)
+
+	// Walk elements by their encoded size. Static aggregate elements can occupy
+	// multiple ABI words; dynamic elements occupy one offset word.
+	elemSize := getTypeSize(*t.Elem)
+	maxInt := int(^uint(0) >> 1)
+	if start < 0 || size > 0 && elemSize > (maxInt-start)/size {
+		return nil, fmt.Errorf("abi: cannot marshal into go array: size overflow")
+	}
+	end := start + elemSize*size
+	if end > len(output) {
+		return nil, fmt.Errorf("abi: cannot marshal into go array: offset %d would go over slice boundary (len=%d)", end, len(output))
 	}
 
 	// this value will become our slice or our array, depending on the type
@@ -160,10 +169,6 @@ func forEachUnpack(t Type, output []byte, start, size int) (any, error) {
 	default:
 		return nil, errors.New("abi: invalid type in array/slice unpacking stage")
 	}
-
-	// Arrays have packed elements, resulting in longer unpack steps.
-	// Slices have one ABI word per element (pointing to the contents).
-	elemSize := getTypeSize(*t.Elem)
 
 	for i, j := start, 0; j < size; i, j = i+elemSize, j+1 {
 		inter, err := toGoType(i, *t.Elem, output)
