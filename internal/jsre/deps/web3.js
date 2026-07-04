@@ -1376,9 +1376,10 @@ HyperionType.prototype.decode = function (bytes, offset, name, offsetBase) {
             var nestedName = self.nestedName(name);
             var nestedStaticPartLength = self.staticPartLength(nestedName);  // in bytes
             var roundedNestedStaticPartLength = Math.floor((nestedStaticPartLength + 63) / 64) * 64;
+            var nestedHeadLength = isDynamic(self, nestedName) ? 64 : roundedNestedStaticPartLength;
             var result = [];
 
-            for (var i = 0; i < length * roundedNestedStaticPartLength; i += roundedNestedStaticPartLength) {
+            for (var i = 0; i < length * nestedHeadLength; i += nestedHeadLength) {
                 result.push(self.decode(bytes, arrayStart + i, nestedName, arrayStart));
             }
 
@@ -1397,9 +1398,10 @@ HyperionType.prototype.decode = function (bytes, offset, name, offsetBase) {
             var nestedName = self.nestedName(name);
             var nestedStaticPartLength = self.staticPartLength(nestedName); // in bytes
             var roundedNestedStaticPartLength = Math.floor((nestedStaticPartLength + 63) / 64) * 64;
+            var nestedHeadLength = isDynamic(self, nestedName) ? 64 : roundedNestedStaticPartLength;
             var result = [];
 
-            for (var i = 0; i < length * roundedNestedStaticPartLength; i += roundedNestedStaticPartLength) {
+            for (var i = 0; i < length * nestedHeadLength; i += nestedHeadLength) {
                 result.push(self.decode(bytes, arrayStart + i, nestedName, arrayStart));
             }
 

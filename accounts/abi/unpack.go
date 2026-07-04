@@ -301,7 +301,12 @@ func lengthPrefixPointsTo(index int, output []byte, minTailOffset int) (start in
 
 	lengthBig := new(big.Int).SetBytes(output[offset : offset+uint512.WordBytes])
 
-	totalSize := new(big.Int).Add(bigOffsetEnd, lengthBig)
+	wordBytes := big.NewInt(int64(uint512.WordBytes))
+	paddedLength := new(big.Int).Set(lengthBig)
+	if remainder := new(big.Int).Mod(paddedLength, wordBytes); remainder.Sign() != 0 {
+		paddedLength.Add(paddedLength, new(big.Int).Sub(wordBytes, remainder))
+	}
+	totalSize := new(big.Int).Add(bigOffsetEnd, paddedLength)
 	if totalSize.BitLen() > 63 {
 		return 0, 0, fmt.Errorf("abi: length larger than int64: %v", totalSize)
 	}

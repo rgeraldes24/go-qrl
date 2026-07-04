@@ -208,6 +208,20 @@ func TestEmbeddedWeb3DynamicArrayEncodingMatchesGoABI(t *testing.T) {
 			goValue:     [2]string{"alpha", "bravo"},
 			wantDecoded: `["alpha","bravo"]`,
 		},
+		{
+			name:        "dynamic array of static string arrays",
+			typ:         "string[2][]",
+			jsValue:     `[["alpha", "bravo"], ["charlie", "delta"]]`,
+			goValue:     [][2]string{{"alpha", "bravo"}, {"charlie", "delta"}},
+			wantDecoded: `[["alpha","bravo"],["charlie","delta"]]`,
+		},
+		{
+			name:        "static array of static string arrays",
+			typ:         "string[2][2]",
+			jsValue:     `[["alpha", "bravo"], ["charlie", "delta"]]`,
+			goValue:     [2][2]string{{"alpha", "bravo"}, {"charlie", "delta"}},
+			wantDecoded: `[["alpha","bravo"],["charlie","delta"]]`,
+		},
 	}
 
 	for _, tt := range tests {

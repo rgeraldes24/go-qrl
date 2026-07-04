@@ -203,7 +203,7 @@ func TestTypeCheck(t *testing.T) {
 		{"int232", nil, big.NewInt(1), ""},
 		{"int240", nil, big.NewInt(1), ""},
 		{"int248", nil, big.NewInt(1), ""},
-		{"uint30", nil, uint8(1), "abi: cannot use uint8 as type ptr as argument"},
+		{"uint24", nil, uint8(1), "abi: cannot use uint8 as type ptr as argument"},
 		{"uint8", nil, uint16(1), "abi: cannot use uint16 as type uint8 as argument"},
 		{"uint8", nil, uint32(1), "abi: cannot use uint32 as type uint8 as argument"},
 		{"uint8", nil, uint64(1), "abi: cannot use uint64 as type uint8 as argument"},
@@ -401,7 +401,7 @@ func TestNewFixedBytesInvalidSize(t *testing.T) {
 
 func TestNewIntegerInvalidSize(t *testing.T) {
 	t.Parallel()
-	for _, typ := range []string{"int0", "uint0", "int513", "uint513"} {
+	for _, typ := range []string{"int0", "uint0", "int1", "uint1", "int7", "uint9", "int255", "uint511", "int513", "uint513"} {
 		_, err := NewType(typ, "", nil)
 		if err == nil {
 			t.Errorf("integer type %s is not spec'd", typ)

@@ -195,7 +195,7 @@ var unpackTests = []unpackTest{
 		err:  "abi: cannot unmarshal uint32 in to uint16",
 	},
 	{
-		def:  `[{"type": "uint17"}]`,
+		def:  `[{"type": "uint24"}]`,
 		enc:  z32 + "0000000000000000000000000000000000000000000000000000000000000001",
 		want: uint16(0),
 		err:  "abi: cannot unmarshal *big.Int in to uint16",
@@ -207,7 +207,7 @@ var unpackTests = []unpackTest{
 		err:  "abi: cannot unmarshal int32 in to int16",
 	},
 	{
-		def:  `[{"type": "int17"}]`,
+		def:  `[{"type": "int24"}]`,
 		enc:  z32 + "0000000000000000000000000000000000000000000000000000000000000001",
 		want: int16(0),
 		err:  "abi: cannot unmarshal *big.Int in to int16",
@@ -1154,6 +1154,12 @@ func TestOOMMaliciousInput(t *testing.T) {
 			def: `[{"type": "bytes"}]`,
 			enc: abiWord("41") +
 				abiWord("00"),
+		},
+		{ // Dynamic payloads must include padding to the ABI word boundary.
+			def: `[{"type": "bytes"}]`,
+			enc: abiWord("40") +
+				abiWord("41") +
+				strings.Repeat("ff", 65),
 		},
 		{ // Fixed array dynamic element offsets must not point back into the array head.
 			def: `[{"type": "string[2]"}]`,

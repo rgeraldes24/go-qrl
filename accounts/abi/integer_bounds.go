@@ -16,7 +16,7 @@ import (
 )
 
 func validIntegerSize(size int) bool {
-	return size > 0 && size <= uint512.WordBits
+	return size >= 8 && size <= uint512.WordBits && size%8 == 0
 }
 
 func maxUnsignedInteger(size int) *big.Int {

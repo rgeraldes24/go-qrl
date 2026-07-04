@@ -323,7 +323,7 @@ func bindBasicType(kind abi.Type) string {
 }
 
 // bindType converts hyperion types to Go ones. Since there is no clear mapping
-// from all Hyperion types to Go ones (e.g. uint17), those that cannot be exactly
+// from all Hyperion types to Go ones (e.g. uint24), those that cannot be exactly
 // mapped will use an upscaled type (e.g. *big.Int).
 func bindType(kind abi.Type, structs map[string]*tmplStruct) string {
 	switch kind.T {
