@@ -400,6 +400,69 @@ JSON.stringify({number: decoded[0].toString(10), second: second});
 	}
 }
 
+func TestEmbeddedWeb3MultiReturnDynamicFixedArrayHeadOffset(t *testing.T) {
+	t.Parallel()
+
+	re := New("", os.Stdout)
+	defer re.Stop(false)
+
+	if err := re.Compile("bignumber.js", deps.BigNumberJS); err != nil {
+		t.Fatalf("compile bignumber.js: %v", err)
+	}
+	if err := re.Compile("web3.js", deps.Web3JS); err != nil {
+		t.Fatalf("compile web3.js: %v", err)
+	}
+
+	abiJSON := `[{"type":"function","name":"f","constant":true,"inputs":[],"outputs":[{"name":"","type":"string[2]"},{"name":"","type":"uint512"}]}]`
+	goABI, err := qrlabi.JSON(strings.NewReader(abiJSON))
+	if err != nil {
+		t.Fatalf("parse ABI: %v", err)
+	}
+	output, err := goABI.Methods["f"].Outputs.PackValues([]any{[2]string{"alpha", "bravo"}, big.NewInt(7)})
+	if err != nil {
+		t.Fatalf("pack Go ABI output: %v", err)
+	}
+	outputHex := "0x" + fmt.Sprintf("%x", output)
+
+	script := fmt.Sprintf(`
+var provider = {
+  send: function(payload) {
+    if (payload.method === "qrl_call") {
+      return {jsonrpc: "2.0", id: payload.id, result: %q};
+    }
+    return {jsonrpc: "2.0", id: payload.id, result: null};
+  },
+  sendAsync: function(payload, cb) {
+    cb(null, this.send(payload));
+  },
+  isConnected: function() { return true; }
+};
+var Web3 = require("web3");
+var web3 = new Web3(provider);
+var abi = JSON.parse(%q);
+var contract = web3.qrl.contract(abi).at("Q00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000");
+var decoded = contract.f.call();
+JSON.stringify({first: JSON.stringify(decoded[0]), second: decoded[1].toString(10)});
+`, outputHex, abiJSON)
+	value, err := re.Run(script)
+	if err != nil {
+		t.Fatalf("run multi-return fixed-array ABI script: %v", err)
+	}
+	var got struct {
+		First  string `json:"first"`
+		Second string `json:"second"`
+	}
+	if err := json.Unmarshal([]byte(value.String()), &got); err != nil {
+		t.Fatalf("decode script result %q: %v", value.String(), err)
+	}
+	if got.First != `["alpha","bravo"]` {
+		t.Fatalf("decoded first output mismatch: have %s", got.First)
+	}
+	if got.Second != "7" {
+		t.Fatalf("decoded second output mismatch: have %s want 7", got.Second)
+	}
+}
+
 func TestEmbeddedWeb3RawFilterTopicPadding(t *testing.T) {
 	t.Parallel()
 

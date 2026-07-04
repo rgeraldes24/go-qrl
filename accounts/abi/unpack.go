@@ -266,6 +266,9 @@ func toGoType(index int, t Type, output []byte, minTailOffset int) (any, error) 
 		}
 		return forEachUnpack(t, output[index:], 0, t.Size)
 	case StringTy: // variable arrays are written at the end of the return bytes
+		if err := validateDynamicPayloadPadding(output, begin, length); err != nil {
+			return nil, err
+		}
 		return string(output[begin : begin+length]), nil
 	case IntTy, UintTy:
 		return ReadInteger(t, returnOutput)
@@ -276,6 +279,9 @@ func toGoType(index int, t Type, output []byte, minTailOffset int) (any, error) 
 	case HashTy:
 		return common.BytesToHash(returnOutput), nil
 	case BytesTy:
+		if err := validateDynamicPayloadPadding(output, begin, length); err != nil {
+			return nil, err
+		}
 		return output[begin : begin+length], nil
 	case FixedBytesTy:
 		return ReadFixedBytes(t, returnOutput)
@@ -317,6 +323,23 @@ func lengthPrefixPointsTo(index int, output []byte, minTailOffset int) (start in
 	start = int(bigOffsetEnd.Uint64())
 	length = int(lengthBig.Uint64())
 	return
+}
+
+func validateDynamicPayloadPadding(output []byte, start, length int) error {
+	paddedLength := length
+	if remainder := paddedLength % uint512.WordBytes; remainder != 0 {
+		paddedLength += uint512.WordBytes - remainder
+	}
+	end := start + paddedLength
+	if end > len(output) {
+		return fmt.Errorf("abi: cannot marshal in to go type: length insufficient %d require %d", len(output), end)
+	}
+	for _, b := range output[start+length : end] {
+		if b != 0 {
+			return fmt.Errorf("abi: non-zero padding byte in dynamic data")
+		}
+	}
+	return nil
 }
 
 // tuplePointsTo resolves the location reference for dynamic tuple.

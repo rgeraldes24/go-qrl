@@ -469,7 +469,6 @@ HyperionCoder.prototype.encodeMultiWithOffset = function (types, hyperionTypes, 
             result += self.encodeWithOffset(types[i], hyperionTypes[i], encodeds[i], dynamicOffset);
         }
 
-        // TODO: figure out nested arrays
     });
 
     types.forEach(function (type, i) {
@@ -581,7 +580,7 @@ HyperionCoder.prototype.decodeParams = function (types, bytes) {
 
 HyperionCoder.prototype.getOffsets = function (types, hyperionTypes) {
     var lengths =  hyperionTypes.map(function (hyperionType, index) {
-        return hyperionType.staticPartLength(types[index]);
+        return isDynamic(hyperionType, types[index]) ? 64 : hyperionType.staticPartLength(types[index]);
     });
 
     for (var i = 1; i < lengths.length; i++) {
@@ -591,7 +590,7 @@ HyperionCoder.prototype.getOffsets = function (types, hyperionTypes) {
 
     return lengths.map(function (length, index) {
         // remove the current length, so the length is sum of previous elements
-        var staticPartLength = hyperionTypes[index].staticPartLength(types[index]);
+        var staticPartLength = isDynamic(hyperionTypes[index], types[index]) ? 64 : hyperionTypes[index].staticPartLength(types[index]);
         return length - staticPartLength;
     });
 };
