@@ -20,6 +20,8 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+
+	"github.com/theQRL/go-qrl/common"
 )
 
 var (
@@ -104,6 +106,8 @@ func sliceTypeCheck(t Type, val reflect.Value) error {
 
 	if val.Type().Elem().Kind() != t.Elem.GetType().Kind() {
 		return typeErr(formatSliceString(t.Elem.GetType().Kind(), t.Size), val.Type())
+	} else if t.Elem.T == AddressTy && val.Type().Elem().Len() != common.AddressLength {
+		return typeErr(t.GetType(), val.Type())
 	}
 	return nil
 }
@@ -118,6 +122,8 @@ func typeCheck(t Type, value reflect.Value) error {
 	// Check base type validity. Element types will be checked later on.
 	if t.GetType().Kind() != value.Kind() {
 		return typeErr(t.GetType().Kind(), value.Kind())
+	} else if t.T == AddressTy && value.Len() != common.AddressLength {
+		return typeErr(t.GetType(), value.Type())
 	} else if t.T == FixedBytesTy && t.Size != value.Len() {
 		return typeErr(t.GetType(), value.Type())
 	} else {

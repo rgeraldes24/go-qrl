@@ -221,8 +221,10 @@ func TestTypeCheck(t *testing.T) {
 		{"uint16[3]", nil, []uint16{1, 2, 3}, ""},
 		{"uint16[3]", nil, []uint16{1, 2, 3, 4}, "abi: cannot use [4]uint16 as type [3]uint16 as argument"},
 		{"address[]", nil, []common.Address{{1}}, ""},
+		{"address[]", nil, []common.Hash{{1}}, "abi: cannot use []common.Hash as type []common.Address as argument"},
 		{"address[1]", nil, []common.Address{{1}}, ""},
 		{"address[1]", nil, [1]common.Address{{1}}, ""},
+		{"address[1]", nil, [1]common.Hash{{1}}, "abi: cannot use [1]common.Hash as type [1]common.Address as argument"},
 		{"address[2]", nil, [1]common.Address{{1}}, "abi: cannot use [1]array as type [2]array as argument"},
 		{"bytes32", nil, [32]byte{}, ""},
 		{"bytes31", nil, [31]byte{}, ""},
@@ -274,6 +276,8 @@ func TestTypeCheck(t *testing.T) {
 		{"function", nil, [common.AddressLength + 4]byte{}, ""},
 		// Addresses are 64 bytes. The address type and bytes64 share the same
 		// Go array width, but only the address ABI type carries address semantics.
+		{"address", nil, [32]byte{}, "abi: cannot use [32]uint8 as type common.Address as argument"},
+		{"address", nil, common.Hash{}, "abi: cannot use common.Hash as type common.Address as argument"},
 		{"address", nil, [64]byte{}, ""},
 		{"address", nil, common.Address{}, ""},
 		{"bytes32[]]", nil, "", "invalid arg type in abi"},

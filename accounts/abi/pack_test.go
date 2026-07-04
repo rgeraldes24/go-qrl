@@ -94,6 +94,51 @@ func TestPackUnsupportedFunctionType(t *testing.T) {
 	}
 }
 
+func TestPackRejectsNonAddressByteArrays(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name  string
+		abi   string
+		value any
+	}{
+		{
+			name:  "address with bytes32",
+			abi:   `[{"name":"method","type":"function","inputs":[{"type":"address"}]}]`,
+			value: [common.HashLength]byte{},
+		},
+		{
+			name:  "address with hash",
+			abi:   `[{"name":"method","type":"function","inputs":[{"type":"address"}]}]`,
+			value: common.Hash{},
+		},
+		{
+			name:  "address slice with hashes",
+			abi:   `[{"name":"method","type":"function","inputs":[{"type":"address[]"}]}]`,
+			value: []common.Hash{{}},
+		},
+		{
+			name:  "address array with hashes",
+			abi:   `[{"name":"method","type":"function","inputs":[{"type":"address[1]"}]}]`,
+			value: [1]common.Hash{{}},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			abi, err := JSON(strings.NewReader(tt.abi))
+			if err != nil {
+				t.Fatalf("invalid ABI definition: %v", err)
+			}
+			_, err = abi.Pack("method", tt.value)
+			if err == nil {
+				t.Fatal("expected non-address byte array to be rejected")
+			}
+		})
+	}
+}
+
 func TestMethodPack(t *testing.T) {
 	t.Parallel()
 	abi, err := JSON(strings.NewReader(jsondata))
