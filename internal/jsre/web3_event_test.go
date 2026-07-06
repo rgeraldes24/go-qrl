@@ -400,6 +400,330 @@ JSON.stringify({number: decoded[0].toString(10), second: second});
 	}
 }
 
+func TestEmbeddedWeb3DeclaredIntegerBounds(t *testing.T) {
+	t.Parallel()
+
+	re := New("", os.Stdout)
+	defer re.Stop(false)
+
+	if err := re.Compile("bignumber.js", deps.BigNumberJS); err != nil {
+		t.Fatalf("compile bignumber.js: %v", err)
+	}
+	if err := re.Compile("web3.js", deps.Web3JS); err != nil {
+		t.Fatalf("compile web3.js: %v", err)
+	}
+
+	word := func(n *big.Int) string {
+		return fmt.Sprintf("0x%0128x", n)
+	}
+	uint256Overflow := new(big.Int).Lsh(common.Big1, 256)
+	maxUint512 := new(big.Int).Sub(new(big.Int).Lsh(common.Big1, uint512.WordBits), common.Big1)
+	int256Overflow := new(big.Int).Lsh(common.Big1, 255)
+	maxInt512 := new(big.Int).Sub(new(big.Int).Lsh(common.Big1, uint512.WordBits-1), common.Big1)
+
+	abiJSON := `[{
+  "type":"function",
+  "name":"u256In",
+  "inputs":[{"name":"value","type":"uint256"}],
+  "outputs":[]
+},{
+  "type":"function",
+  "name":"u512In",
+  "inputs":[{"name":"value","type":"uint512"}],
+  "outputs":[]
+},{
+  "type":"function",
+  "name":"i256In",
+  "inputs":[{"name":"value","type":"int256"}],
+  "outputs":[]
+},{
+  "type":"function",
+  "name":"i512In",
+  "inputs":[{"name":"value","type":"int512"}],
+  "outputs":[]
+},{
+  "type":"function",
+  "name":"u256Out",
+  "constant":true,
+  "inputs":[],
+  "outputs":[{"name":"","type":"uint256"}]
+},{
+  "type":"function",
+  "name":"u512Out",
+  "constant":true,
+  "inputs":[],
+  "outputs":[{"name":"","type":"uint512"}]
+},{
+  "type":"function",
+  "name":"i256Out",
+  "constant":true,
+  "inputs":[],
+  "outputs":[{"name":"","type":"int256"}]
+},{
+  "type":"function",
+  "name":"i512Out",
+  "constant":true,
+  "inputs":[],
+  "outputs":[{"name":"","type":"int512"}]
+}]`
+	script := fmt.Sprintf(`
+var response = "0x";
+var provider = {
+  send: function(payload) {
+    if (payload.method === "qrl_call") {
+      return {jsonrpc: "2.0", id: payload.id, result: response};
+    }
+    return {jsonrpc: "2.0", id: payload.id, result: null};
+  },
+  sendAsync: function(payload, cb) {
+    cb(null, this.send(payload));
+  },
+  isConnected: function() { return true; }
+};
+var Web3 = require("web3");
+var web3 = new Web3(provider);
+var BN = web3.BigNumber;
+var abi = JSON.parse(%q);
+var contract = web3.qrl.contract(abi).at("Q00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000");
+function errorOf(fn) {
+  try {
+    fn();
+    return "";
+  } catch (err) {
+    return err.message;
+  }
+}
+JSON.stringify({
+  u256InputOverflow: errorOf(function() { contract.u256In.getData(new BN(2).pow(256)); }),
+  u512InputMax: errorOf(function() { contract.u512In.getData(new BN(2).pow(512).minus(1)); }),
+  u512InputOverflow: errorOf(function() { contract.u512In.getData(new BN(2).pow(512)); }),
+  i256InputOverflow: errorOf(function() { contract.i256In.getData(new BN(2).pow(255)); }),
+  i256InputUnderflow: errorOf(function() { contract.i256In.getData(new BN(2).pow(255).plus(1).times(-1)); }),
+  i512InputMax: errorOf(function() { contract.i512In.getData(new BN(2).pow(511).minus(1)); }),
+  u256OutputOverflow: errorOf(function() { response = %q; contract.u256Out.call(); }),
+  u512OutputMax: errorOf(function() { response = %q; contract.u512Out.call(); }),
+  i256OutputOverflow: errorOf(function() { response = %q; contract.i256Out.call(); }),
+  i512OutputMax: errorOf(function() { response = %q; contract.i512Out.call(); })
+});
+`, abiJSON, word(uint256Overflow), word(maxUint512), word(int256Overflow), word(maxInt512))
+
+	value, err := re.Run(script)
+	if err != nil {
+		t.Fatalf("run integer bounds script: %v", err)
+	}
+	var got map[string]string
+	if err := json.Unmarshal([]byte(value.String()), &got); err != nil {
+		t.Fatalf("decode script result %q: %v", value.String(), err)
+	}
+	for _, key := range []string{
+		"u256InputOverflow",
+		"u512InputOverflow",
+		"i256InputOverflow",
+		"i256InputUnderflow",
+		"u256OutputOverflow",
+		"i256OutputOverflow",
+	} {
+		if got[key] == "" {
+			t.Fatalf("%s should reject out-of-range integer value: %#v", key, got)
+		}
+	}
+	for _, key := range []string{
+		"u512InputMax",
+		"i512InputMax",
+		"u512OutputMax",
+		"i512OutputMax",
+	} {
+		if got[key] != "" {
+			t.Fatalf("%s should accept full-width integer value, got error %q in %#v", key, got[key], got)
+		}
+	}
+}
+
+func TestEmbeddedWeb3FixedBytesBounds(t *testing.T) {
+	t.Parallel()
+
+	re := New("", os.Stdout)
+	defer re.Stop(false)
+
+	if err := re.Compile("bignumber.js", deps.BigNumberJS); err != nil {
+		t.Fatalf("compile bignumber.js: %v", err)
+	}
+	if err := re.Compile("web3.js", deps.Web3JS); err != nil {
+		t.Fatalf("compile web3.js: %v", err)
+	}
+
+	wantWord := "0102" + strings.Repeat("0", 124)
+	validOutput := "0x" + "01" + strings.Repeat("00", 63)
+	invalidOutput := "0x" + "01" + strings.Repeat("00", 62) + "02"
+	tooLongInput := "0x" + strings.Repeat("11", 33)
+
+	script := fmt.Sprintf(`
+var response = "0x";
+var provider = {
+  send: function(payload) {
+    if (payload.method === "qrl_call") {
+      return {jsonrpc: "2.0", id: payload.id, result: response};
+    }
+    return {jsonrpc: "2.0", id: payload.id, result: null};
+  },
+  sendAsync: function(payload, cb) {
+    cb(null, this.send(payload));
+  },
+  isConnected: function() { return true; }
+};
+var Web3 = require("web3");
+var web3 = new Web3(provider);
+var abi = [{
+  type: "function",
+  name: "fixedIn",
+  inputs: [{name: "value", type: "bytes32"}],
+  outputs: []
+},{
+  type: "function",
+  name: "fixedOut",
+  constant: true,
+  inputs: [],
+  outputs: [{name: "", type: "bytes32"}]
+}];
+var contract = web3.qrl.contract(abi).at("Q00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000");
+function errorOf(fn) {
+  try {
+    fn();
+    return "";
+  } catch (err) {
+    return err.message;
+  }
+}
+var encodedWord = contract.fixedIn.getData("0x0102").slice(10);
+var tooLongInputError = errorOf(function() { contract.fixedIn.getData(%q); });
+response = %q;
+var validOut = contract.fixedOut.call();
+response = %q;
+var invalidOutputError = errorOf(function() { contract.fixedOut.call(); });
+JSON.stringify({
+  encodedWord: encodedWord,
+  validOut: validOut,
+  tooLongInputError: tooLongInputError,
+  invalidOutputError: invalidOutputError
+});
+`, tooLongInput, validOutput, invalidOutput)
+
+	value, err := re.Run(script)
+	if err != nil {
+		t.Fatalf("run fixed-bytes bounds script: %v", err)
+	}
+	var got struct {
+		EncodedWord        string `json:"encodedWord"`
+		ValidOut           string `json:"validOut"`
+		TooLongInputError  string `json:"tooLongInputError"`
+		InvalidOutputError string `json:"invalidOutputError"`
+	}
+	if err := json.Unmarshal([]byte(value.String()), &got); err != nil {
+		t.Fatalf("decode script result %q: %v", value.String(), err)
+	}
+	if got.EncodedWord != wantWord {
+		t.Fatalf("encoded bytes32 word mismatch:\nhave %s\nwant %s", got.EncodedWord, wantWord)
+	}
+	if got.ValidOut != "0x"+"01"+strings.Repeat("00", 31) {
+		t.Fatalf("decoded bytes32 output mismatch: have %s", got.ValidOut)
+	}
+	if got.TooLongInputError == "" {
+		t.Fatalf("bytes32 input longer than 32 bytes should fail")
+	}
+	if got.InvalidOutputError == "" {
+		t.Fatalf("bytes32 output with non-zero right padding should fail")
+	}
+}
+
+func TestEmbeddedWeb3IndexedTupleTopicsUsePrecomputedTopics(t *testing.T) {
+	t.Parallel()
+
+	re := New("", os.Stdout)
+	defer re.Stop(false)
+
+	if err := re.Compile("bignumber.js", deps.BigNumberJS); err != nil {
+		t.Fatalf("compile bignumber.js: %v", err)
+	}
+	if err := re.Compile("web3.js", deps.Web3JS); err != nil {
+		t.Fatalf("compile web3.js: %v", err)
+	}
+
+	tupleTopic := common.BytesToLogTopic([]byte{0x12, 0x34}).Hex()
+	address := "Q00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+	script := fmt.Sprintf(`
+var capturedOptions = null;
+var provider = {
+  send: function(payload) {
+    return {jsonrpc: "2.0", id: payload.id, result: null};
+  },
+  sendAsync: function(payload, cb) {
+    if (payload.method === "qrl_newFilter") {
+      capturedOptions = payload.params[0];
+    }
+    cb(null, {jsonrpc: "2.0", id: payload.id, result: "0x1"});
+  },
+  isConnected: function() { return true; }
+};
+var Web3 = require("web3");
+var web3 = new Web3(provider);
+var abi = [{
+  type: "event",
+  name: "TupleEvent",
+  anonymous: true,
+  inputs: [{
+    name: "value",
+    type: "tuple",
+    indexed: true,
+    components: [{name: "amount", type: "uint512"}]
+  }]
+}];
+var contract = web3.qrl.contract(abi).at(%q);
+function errorOf(fn) {
+  try {
+    fn();
+    return "";
+  } catch (err) {
+    return err.message;
+  }
+}
+var filter = contract.TupleEvent({value: %q}, {});
+var decoded = filter.formatter({address: %q, data: "0x", topics: filter.options.topics});
+var invalidError = errorOf(function() { contract.TupleEvent({value: "0x1234"}, {}); });
+JSON.stringify({
+  topics: filter.options.topics,
+  captured: capturedOptions.topics,
+  decoded: decoded.args.value,
+  invalidError: invalidError
+});
+`, address, tupleTopic, address)
+
+	value, err := re.Run(script)
+	if err != nil {
+		t.Fatalf("run indexed tuple topic script: %v", err)
+	}
+	var got struct {
+		Topics       []string `json:"topics"`
+		Captured     []string `json:"captured"`
+		Decoded      string   `json:"decoded"`
+		InvalidError string   `json:"invalidError"`
+	}
+	if err := json.Unmarshal([]byte(value.String()), &got); err != nil {
+		t.Fatalf("decode script result %q: %v", value.String(), err)
+	}
+	if !reflect.DeepEqual(got.Topics, []string{tupleTopic}) {
+		t.Fatalf("encoded tuple topic mismatch: have %#v want %s", got.Topics, tupleTopic)
+	}
+	if !reflect.DeepEqual(got.Captured, []string{tupleTopic}) {
+		t.Fatalf("captured tuple topic mismatch: have %#v want %s", got.Captured, tupleTopic)
+	}
+	if got.Decoded != tupleTopic {
+		t.Fatalf("decoded tuple topic mismatch: have %s want %s", got.Decoded, tupleTopic)
+	}
+	if got.InvalidError == "" {
+		t.Fatalf("indexed tuple filters should require a precomputed 64-byte topic")
+	}
+}
+
 func TestEmbeddedWeb3MultiReturnDynamicFixedArrayHeadOffset(t *testing.T) {
 	t.Parallel()
 

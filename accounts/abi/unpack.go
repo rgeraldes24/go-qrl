@@ -131,6 +131,11 @@ func ReadFixedBytes(t Type, word []byte) (any, error) {
 	if t.T != FixedBytesTy {
 		return nil, errors.New("abi: invalid type in call to make fixed byte array")
 	}
+	for _, b := range word[t.Size:] {
+		if b != 0 {
+			return nil, fmt.Errorf("abi: non-zero padding byte in fixed bytes")
+		}
+	}
 	// convert
 	array := reflect.New(t.GetType()).Elem()
 

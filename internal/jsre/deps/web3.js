@@ -666,6 +666,114 @@ var utils = require('../utils/utils');
 var c = require('../utils/config');
 var HyperionParam = require('./param');
 
+var parseIntegerSize = function (name) {
+    if (!name) {
+        return null;
+    }
+    var matches = name.match(/^(u?int)([0-9]*)(\[.*)?$/);
+    if (!matches) {
+        return null;
+    }
+    if (matches[2] === '') {
+        throw new Error('unsupported integer size: ' + name);
+    }
+    var size = parseInt(matches[2], 10);
+    if (size < 8 || size > 512 || size % 8 !== 0) {
+        throw new Error('unsupported integer size: ' + name);
+    }
+    return size;
+};
+
+var integerMax = function (size) {
+    return new BigNumber(2).pow(size).minus(1);
+};
+
+var signedIntegerMin = function (size) {
+    return new BigNumber(2).pow(size - 1).times(-1);
+};
+
+var signedIntegerMax = function (size) {
+    return new BigNumber(2).pow(size - 1).minus(1);
+};
+
+var integerValue = function (value) {
+    BigNumber.config(c.QRL_BIGNUMBER_ROUNDING_MODE);
+    return utils.toBigNumber(value).round();
+};
+
+var assertUnsignedIntegerBounds = function (value, name) {
+    var size = parseIntegerSize(name);
+    if (size === null) {
+        return value;
+    }
+    if (value.lessThan(0) || integerMax(size).lessThan(value)) {
+        throw new Error('value out of range for ' + name);
+    }
+    return value;
+};
+
+var assertSignedIntegerBounds = function (value, name) {
+    var size = parseIntegerSize(name);
+    if (size === null) {
+        return value;
+    }
+    if (value.lessThan(signedIntegerMin(size)) || signedIntegerMax(size).lessThan(value)) {
+        throw new Error('value out of range for ' + name);
+    }
+    return value;
+};
+
+var assertUnsignedWordBounds = function (value, name) {
+    var size = parseIntegerSize(name);
+    if (size === null || size === 512) {
+        return;
+    }
+    var prefix = value.slice(0, 128 - size / 4);
+    if (/[^0]/.test(prefix)) {
+        throw new Error('value out of range for ' + name);
+    }
+};
+
+var assertSignedWordBounds = function (value, name) {
+    var size = parseIntegerSize(name);
+    if (size === null || size === 512) {
+        return;
+    }
+    var prefixLength = 128 - size / 4;
+    var prefix = value.slice(0, prefixLength);
+    var signNibble = parseInt(value.slice(prefixLength, prefixLength + 1), 16);
+    var expected = (signNibble & 8) === 0 ? '0' : 'f';
+
+    for (var i = 0; i < prefix.length; i++) {
+        if (prefix[i] !== expected) {
+            throw new Error('value out of range for ' + name);
+        }
+    }
+};
+
+var parseFixedBytesSize = function (name) {
+    if (!name) {
+        return null;
+    }
+    var matches = name.match(/^bytes([0-9]+)(\[.*)?$/);
+    if (!matches) {
+        return null;
+    }
+    var size = parseInt(matches[1], 10);
+    if (size < 1 || size > 64) {
+        throw new Error('unsupported fixed bytes size: ' + name);
+    }
+    return size;
+};
+
+var assertZeroRightPadding = function (value, start, type) {
+    for (var i = start; i < value.length; i++) {
+        if (value[i] !== '0') {
+            throw new Error('non-zero padding for ' + type);
+        }
+    }
+};
+
 
 /**
  * Formats input value to byte representation of int
@@ -676,9 +784,26 @@ var HyperionParam = require('./param');
  * @param {String|Number|BigNumber} value that needs to be formatted
  * @returns {HyperionParam}
  */
-var formatInputInt = function (value) {
-    BigNumber.config(c.QRL_BIGNUMBER_ROUNDING_MODE);
-    var result = utils.padLeft(utils.toTwosComplement(value).toString(16), 128);
+var formatInputInt = function (value, name) {
+    var number = assertSignedIntegerBounds(integerValue(value), name);
+    if (number.lessThan(0)) {
+        number = new BigNumber(new Array(129).join('f'), 16).plus(number).plus(1);
+    }
+    var result = utils.padLeft(number.toString(16), 128);
+    return new HyperionParam(result);
+};
+
+/**
+ * Formats input value to byte representation of uint
+ * If the value is floating point, round it down
+ *
+ * @method formatInputUInt
+ * @param {String|Number|BigNumber} value that needs to be formatted
+ * @returns {HyperionParam}
+ */
+var formatInputUInt = function (value, name) {
+    var number = assertUnsignedIntegerBounds(integerValue(value), name);
+    var result = utils.padLeft(number.toString(16), 128);
     return new HyperionParam(result);
 };
 
@@ -703,8 +828,16 @@ var formatInputAddress = function (value) {
  * @param {String}
  * @returns {HyperionParam}
  */
-var formatInputBytes = function (value) {
+var formatInputBytes = function (value, name) {
     var result = utils.toHex(value).substr(2);
+    var size = parseFixedBytesSize(name);
+    if (size !== null) {
+        if (result.length > size * 2) {
+            throw new Error('value out of range for ' + name);
+        }
+        result = utils.padRight(result, 128);
+        return new HyperionParam(result);
+    }
     var l = Math.floor((result.length + 127) / 128);
     result = utils.padRight(result, l * 128);
     return new HyperionParam(result);
@@ -781,15 +914,19 @@ var signedIsNegative = function (value) {
  * @param {HyperionParam} param
  * @returns {BigNumber} right-aligned output bytes formatted to big number
  */
-var formatOutputInt = function (param) {
-    var value = param.staticPart() || "0";
+var formatOutputInt = function (param, name) {
+    var value = utils.padLeft(param.staticPart() || "0", 128).toLowerCase();
+    var result;
+    assertSignedWordBounds(value, name);
 
     // check if it's negative number
     // it is, return two's complement
     if (signedIsNegative(value)) {
-        return new BigNumber(value, 16).minus(new BigNumber(new Array(129).join('f'), 16)).minus(1);
+        result = new BigNumber(value, 16).minus(new BigNumber(new Array(129).join('f'), 16)).minus(1);
+    } else {
+        result = new BigNumber(value, 16);
     }
-    return new BigNumber(value, 16);
+    return result;
 };
 
 /**
@@ -799,8 +936,9 @@ var formatOutputInt = function (param) {
  * @param {HyperionParam}
  * @returns {BigNumeber} right-aligned output bytes formatted to uint
  */
-var formatOutputUInt = function (param) {
-    var value = param.staticPart() || "0";
+var formatOutputUInt = function (param, name) {
+    var value = utils.padLeft(param.staticPart() || "0", 128).toLowerCase();
+    assertUnsignedWordBounds(value, name);
     return new BigNumber(value, 16);
 };
 
@@ -846,9 +984,13 @@ var formatOutputBool = function (param) {
  * @returns {String} hex string
  */
 var formatOutputBytes = function (param, name) {
-    var matches = name.match(/^bytes([0-9]*)/);
-    var size = parseInt(matches[1]);
-    return '0x' + param.staticPart().slice(0, 2 * size);
+    var size = parseFixedBytesSize(name);
+    var value = (param.staticPart() || '').toLowerCase();
+    if (value.length < 128) {
+        throw new Error('invalid fixed bytes word for ' + name);
+    }
+    assertZeroRightPadding(value, size * 2, name);
+    return '0x' + value.slice(0, 2 * size);
 };
 
 /**
@@ -889,6 +1031,7 @@ var formatOutputAddress = function (param) {
 
 module.exports = {
     formatInputInt: formatInputInt,
+    formatInputUInt: formatInputUInt,
     formatInputAddress: formatInputAddress,
     formatInputBytes: formatInputBytes,
     formatInputDynamicBytes: formatInputDynamicBytes,
@@ -1445,7 +1588,7 @@ var HyperionType = require('./type');
  * uint64[][6][], ...
  */
 var HyperionTypeUInt = function () {
-    this._inputFormatter = f.formatInputInt;
+    this._inputFormatter = f.formatInputUInt;
     this._outputFormatter = f.formatOutputUInt;
 };
 
@@ -2967,8 +3110,16 @@ var isArrayType = function (type) {
     return !!type.match(/(\[[0-9]*\])/);
 };
 
+var isTupleType = function (type) {
+    return type === 'tuple' || type.indexOf('tuple[') === 0;
+};
+
 var isIndexedHashOnlyType = function (type) {
     return type === 'string' || type === 'bytes' || isArrayType(type);
+};
+
+var isIndexedOpaqueTopicType = function (type) {
+    return isTupleType(type);
 };
 
 var arraySuffix = function (type) {
@@ -3010,6 +3161,12 @@ var indexedEventEncoding = function (type, value, nested) {
 };
 
 var encodeIndexedTopic = function (type, value) {
+    if (isIndexedOpaqueTopicType(type)) {
+        if (!utils.isTopic(value)) {
+            throw new Error('indexed event topic must be a 64-byte topic: ' + type);
+        }
+        return '0x' + stripHexPrefix(value).toLowerCase();
+    }
     if (isIndexedHashOnlyType(type)) {
         return topicFromHash(sha3(indexedEventEncoding(type, value, false), {encoding: 'hex'}));
     }
@@ -3083,7 +3240,7 @@ HyperionEvent.prototype.decode = function (data) {
         if (topic === undefined || topic === null) {
             return null;
         }
-        if (isIndexedHashOnlyType(i.type)) {
+        if (isIndexedHashOnlyType(i.type) || isIndexedOpaqueTopicType(i.type)) {
             return '0x' + stripHexPrefix(topic);
         }
         return coder.decodeParam(i.type, stripHexPrefix(topic));

@@ -1169,6 +1169,13 @@ func TestOOMMaliciousInput(t *testing.T) {
 				strings.Repeat("00", 62) +
 				"01",
 		},
+		{ // Fixed bytes payload padding must be zero.
+			def: `[{"type": "bytes32"}]`,
+			enc: "ff" +
+				strings.Repeat("00", 31) +
+				strings.Repeat("00", 31) +
+				"01",
+		},
 		{ // Fixed array dynamic element offsets must not point back into the array head.
 			def: `[{"type": "string[2]"}]`,
 			enc: abiWord("00") +
