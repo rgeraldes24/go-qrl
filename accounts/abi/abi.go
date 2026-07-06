@@ -209,7 +209,8 @@ func (abi *ABI) MethodById(sigdata []byte) (*Method, error) {
 }
 
 // EventByID looks an event up by its 32-byte ABI event ID and returns nil if
-// none found. Use EventByTopic for VM64 log topic lookups.
+// none found. Use EventBySignatureTopic for emitted VM64 signature-topic
+// lookups.
 func (abi *ABI) EventByID(id common.Hash) (*Event, error) {
 	for _, event := range abi.Events {
 		if bytes.Equal(event.ID.Bytes(), id.Bytes()) {
@@ -219,18 +220,19 @@ func (abi *ABI) EventByID(id common.Hash) (*Event, error) {
 	return nil, fmt.Errorf("no event with id: %#x", id.Hex())
 }
 
-// EventByTopic looks an event up by its full VM64 topic0 and returns nil if
-// none found.
-func (abi *ABI) EventByTopic(topic common.LogTopic) (*Event, error) {
+// EventBySignatureTopic looks a non-anonymous event up by its emitted VM64
+// signature topic. Anonymous events are skipped because their topic0 is an
+// indexed argument, not the event signature.
+func (abi *ABI) EventBySignatureTopic(signatureTopic common.LogTopic) (*Event, error) {
 	for _, event := range abi.Events {
 		if event.Anonymous {
 			continue
 		}
-		if event.Topic() == topic {
+		if event.SignatureTopic() == signatureTopic {
 			return &event, nil
 		}
 	}
-	return nil, fmt.Errorf("no event with topic: %s", topic.Hex())
+	return nil, fmt.Errorf("no event with topic: %s", signatureTopic.Hex())
 }
 
 // ErrorByID looks up an error by the 4-byte id,

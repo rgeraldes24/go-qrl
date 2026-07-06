@@ -86,8 +86,8 @@ func TestEventTopic(t *testing.T) {
 
 	event := NewEvent("Called", "Called", false, nil)
 	want := common.BytesToLogTopic(crypto.Keccak256([]byte("Called()")))
-	if event.Topic() != want {
-		t.Fatalf("event topic mismatch: got %x want %x", event.Topic(), want)
+	if event.SignatureTopic() != want {
+		t.Fatalf("event topic mismatch: got %x want %x", event.SignatureTopic(), want)
 	}
 }
 

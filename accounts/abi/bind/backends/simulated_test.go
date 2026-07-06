@@ -1480,7 +1480,7 @@ func TestForkLogsReborn(t *testing.T) {
 	if len(log.Topics) != 1 {
 		t.Fatalf("wrong event topic count: got %d want 1", len(log.Topics))
 	}
-	if want := parsed.Events["Called"].Topic(); log.Topics[0] != want {
+	if want := parsed.Events["Called"].SignatureTopic(); log.Topics[0] != want {
 		t.Errorf("wrong event topic: got %s want %s", log.Topics[0].Hex(), want.Hex())
 	}
 	if log.Removed {

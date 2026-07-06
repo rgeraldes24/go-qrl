@@ -186,7 +186,7 @@ RPC and API surfaces expose VM64-width values where the underlying runtime value
 is VM64-width.
 
 - Raw JSON-RPC log topic filters require full 64-byte topic hex.
-- Higher-level ABI event paths use `Event.Topic()` and `common.LogTopic` to
+- Higher-level ABI event paths use `Event.SignatureTopic()` and `common.LogTopic` to
   construct full topics.
 - GraphQL log topics use the `Bytes64` scalar.
 - Receipt log topics and log data are exposed at VM64 widths.

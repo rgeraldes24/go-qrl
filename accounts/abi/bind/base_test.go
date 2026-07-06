@@ -146,7 +146,7 @@ func TestEventFilterTopicMatchesUnpackTopic(t *testing.T) {
 	if len(filterer.query.Topics) != 1 || len(filterer.query.Topics[0]) != 1 {
 		t.Fatalf("unexpected topic filter shape: %#v", filterer.query.Topics)
 	}
-	expected := parsed.Events["Called"].Topic()
+	expected := parsed.Events["Called"].SignatureTopic()
 	if got := filterer.query.Topics[0][0]; got != expected {
 		t.Fatalf("filter topic mismatch: got %x want %x", got, expected)
 	}
@@ -154,6 +154,34 @@ func TestEventFilterTopicMatchesUnpackTopic(t *testing.T) {
 	log := types.Log{Topics: []common.LogTopic{filterer.query.Topics[0][0]}}
 	if err := bc.UnpackLogIntoMap(make(map[string]any), "Called", log); err != nil {
 		t.Fatalf("filter topic should unpack as event topic: %v", err)
+	}
+}
+
+func TestAnonymousEventLogsAreRejected(t *testing.T) {
+	parsed, err := abi.JSON(strings.NewReader(`[{"anonymous":true,"inputs":[{"indexed":true,"name":"value","type":"uint256"}],"name":"Hidden","type":"event"}]`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	filterer := new(mockFilterer)
+	bc := bind.NewBoundContract(common.Address{}, parsed, nil, nil, filterer)
+
+	if _, _, err := bc.FilterLogs(new(bind.FilterOpts), "Hidden"); err == nil || err.Error() != "no event signature" {
+		t.Fatalf("FilterLogs error mismatch: %v", err)
+	}
+	if filterer.query.Topics != nil {
+		t.Fatalf("FilterLogs built a topic query for an anonymous event: %#v", filterer.query.Topics)
+	}
+
+	if _, _, err := bc.WatchLogs(new(bind.WatchOpts), "Hidden"); err == nil || err.Error() != "no event signature" {
+		t.Fatalf("WatchLogs error mismatch: %v", err)
+	}
+
+	log := types.Log{Topics: []common.LogTopic{common.BytesToLogTopic([]byte{1})}}
+	if err := bc.UnpackLog(new(struct{}), "Hidden", log); err == nil || err.Error() != "no event signature" {
+		t.Fatalf("UnpackLog error mismatch: %v", err)
+	}
+	if err := bc.UnpackLogIntoMap(make(map[string]any), "Hidden", log); err == nil || err.Error() != "no event signature" {
+		t.Fatalf("UnpackLogIntoMap error mismatch: %v", err)
 	}
 }
 
