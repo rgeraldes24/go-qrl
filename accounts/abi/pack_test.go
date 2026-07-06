@@ -147,8 +147,8 @@ func TestMethodPack(t *testing.T) {
 	}
 
 	sig := abi.Methods["slice"].ID
-	sig = append(sig, common.LeftPadBytes([]byte{1}, 64)...)
-	sig = append(sig, common.LeftPadBytes([]byte{2}, 64)...)
+	sig = append(sig, common.LeftPadBytes([]byte{1}, abiWordBytes)...)
+	sig = append(sig, common.LeftPadBytes([]byte{2}, abiWordBytes)...)
 
 	packed, err := abi.Pack("slice", []uint32{1, 2})
 	if err != nil {
@@ -161,10 +161,10 @@ func TestMethodPack(t *testing.T) {
 
 	var addrA, addrB = common.Address{1}, common.Address{2}
 	sig = abi.Methods["sliceAddress"].ID
-	sig = append(sig, common.LeftPadBytes([]byte{64}, 64)...) // offset = 1 slot * 64 B
-	sig = append(sig, common.LeftPadBytes([]byte{2}, 64)...)
-	sig = append(sig, common.LeftPadBytes(addrA[:], 64)...)
-	sig = append(sig, common.LeftPadBytes(addrB[:], 64)...)
+	sig = append(sig, common.LeftPadBytes([]byte{abiWordBytes}, abiWordBytes)...) // offset = 1 ABI word
+	sig = append(sig, common.LeftPadBytes([]byte{2}, abiWordBytes)...)
+	sig = append(sig, common.LeftPadBytes(addrA[:], abiWordBytes)...)
+	sig = append(sig, common.LeftPadBytes(addrB[:], abiWordBytes)...)
 
 	packed, err = abi.Pack("sliceAddress", []common.Address{addrA, addrB})
 	if err != nil {
@@ -176,14 +176,14 @@ func TestMethodPack(t *testing.T) {
 
 	var addrC, addrD = common.Address{3}, common.Address{4}
 	sig = abi.Methods["sliceMultiAddress"].ID
-	sig = append(sig, common.LeftPadBytes([]byte{0x80}, 64)...)       // 2 head slots * 64 = 128
-	sig = append(sig, common.LeftPadBytes([]byte{0x01, 0x40}, 64)...) // 128 + count + 2 elems = 320
-	sig = append(sig, common.LeftPadBytes([]byte{2}, 64)...)
-	sig = append(sig, common.LeftPadBytes(addrA[:], 64)...)
-	sig = append(sig, common.LeftPadBytes(addrB[:], 64)...)
-	sig = append(sig, common.LeftPadBytes([]byte{2}, 64)...)
-	sig = append(sig, common.LeftPadBytes(addrC[:], 64)...)
-	sig = append(sig, common.LeftPadBytes(addrD[:], 64)...)
+	sig = append(sig, common.LeftPadBytes([]byte{0x80}, abiWordBytes)...)       // 2 head slots * 64 = 128
+	sig = append(sig, common.LeftPadBytes([]byte{0x01, 0x40}, abiWordBytes)...) // 128 + count + 2 elems = 320
+	sig = append(sig, common.LeftPadBytes([]byte{2}, abiWordBytes)...)
+	sig = append(sig, common.LeftPadBytes(addrA[:], abiWordBytes)...)
+	sig = append(sig, common.LeftPadBytes(addrB[:], abiWordBytes)...)
+	sig = append(sig, common.LeftPadBytes([]byte{2}, abiWordBytes)...)
+	sig = append(sig, common.LeftPadBytes(addrC[:], abiWordBytes)...)
+	sig = append(sig, common.LeftPadBytes(addrD[:], abiWordBytes)...)
 
 	packed, err = abi.Pack("sliceMultiAddress", []common.Address{addrA, addrB}, []common.Address{addrC, addrD})
 	if err != nil {
@@ -194,8 +194,8 @@ func TestMethodPack(t *testing.T) {
 	}
 
 	sig = abi.Methods["slice256"].ID
-	sig = append(sig, common.LeftPadBytes([]byte{1}, 64)...)
-	sig = append(sig, common.LeftPadBytes([]byte{2}, 64)...)
+	sig = append(sig, common.LeftPadBytes([]byte{1}, abiWordBytes)...)
+	sig = append(sig, common.LeftPadBytes([]byte{2}, abiWordBytes)...)
 
 	packed, err = abi.Pack("slice256", []*big.Int{big.NewInt(1), big.NewInt(2)})
 	if err != nil {
@@ -208,14 +208,14 @@ func TestMethodPack(t *testing.T) {
 
 	a := [2][2]*big.Int{{big.NewInt(1), big.NewInt(1)}, {big.NewInt(2), big.NewInt(0)}}
 	sig = abi.Methods["nestedArray"].ID
-	sig = append(sig, common.LeftPadBytes([]byte{1}, 64)...)
-	sig = append(sig, common.LeftPadBytes([]byte{1}, 64)...)
-	sig = append(sig, common.LeftPadBytes([]byte{2}, 64)...)
-	sig = append(sig, common.LeftPadBytes([]byte{0}, 64)...)
-	sig = append(sig, common.LeftPadBytes([]byte{0x01, 0x40}, 64)...) // offset 0xa0 doubled → 0x140
-	sig = append(sig, common.LeftPadBytes([]byte{2}, 64)...)
-	sig = append(sig, common.LeftPadBytes(addrC[:], 64)...)
-	sig = append(sig, common.LeftPadBytes(addrD[:], 64)...)
+	sig = append(sig, common.LeftPadBytes([]byte{1}, abiWordBytes)...)
+	sig = append(sig, common.LeftPadBytes([]byte{1}, abiWordBytes)...)
+	sig = append(sig, common.LeftPadBytes([]byte{2}, abiWordBytes)...)
+	sig = append(sig, common.LeftPadBytes([]byte{0}, abiWordBytes)...)
+	sig = append(sig, common.LeftPadBytes([]byte{0x01, 0x40}, abiWordBytes)...) // offset 0xa0 doubled → 0x140
+	sig = append(sig, common.LeftPadBytes([]byte{2}, abiWordBytes)...)
+	sig = append(sig, common.LeftPadBytes(addrC[:], abiWordBytes)...)
+	sig = append(sig, common.LeftPadBytes(addrD[:], abiWordBytes)...)
 	packed, err = abi.Pack("nestedArray", a, []common.Address{addrC, addrD})
 	if err != nil {
 		t.Fatal(err)
@@ -225,13 +225,13 @@ func TestMethodPack(t *testing.T) {
 	}
 
 	sig = abi.Methods["nestedArray2"].ID
-	sig = append(sig, common.LeftPadBytes([]byte{0x40}, 64)...)       // 0x20 → 0x40
-	sig = append(sig, common.LeftPadBytes([]byte{0x80}, 64)...)       // 0x40 → 0x80
-	sig = append(sig, common.LeftPadBytes([]byte{0x01, 0x00}, 64)...) // 0x80 → 0x100
-	sig = append(sig, common.LeftPadBytes([]byte{1}, 64)...)
-	sig = append(sig, common.LeftPadBytes([]byte{1}, 64)...)
-	sig = append(sig, common.LeftPadBytes([]byte{1}, 64)...)
-	sig = append(sig, common.LeftPadBytes([]byte{1}, 64)...)
+	sig = append(sig, common.LeftPadBytes([]byte{0x40}, abiWordBytes)...)       // 0x20 → 0x40
+	sig = append(sig, common.LeftPadBytes([]byte{0x80}, abiWordBytes)...)       // 0x40 → 0x80
+	sig = append(sig, common.LeftPadBytes([]byte{0x01, 0x00}, abiWordBytes)...) // 0x80 → 0x100
+	sig = append(sig, common.LeftPadBytes([]byte{1}, abiWordBytes)...)
+	sig = append(sig, common.LeftPadBytes([]byte{1}, abiWordBytes)...)
+	sig = append(sig, common.LeftPadBytes([]byte{1}, abiWordBytes)...)
+	sig = append(sig, common.LeftPadBytes([]byte{1}, abiWordBytes)...)
 	packed, err = abi.Pack("nestedArray2", [2][]uint8{{1}, {1}})
 	if err != nil {
 		t.Fatal(err)
@@ -241,16 +241,16 @@ func TestMethodPack(t *testing.T) {
 	}
 
 	sig = abi.Methods["nestedSlice"].ID
-	sig = append(sig, common.LeftPadBytes([]byte{0x40}, 64)...) // 0x20 → 0x40
-	sig = append(sig, common.LeftPadBytes([]byte{0x02}, 64)...)
-	sig = append(sig, common.LeftPadBytes([]byte{0x80}, 64)...)       // 0x40 → 0x80
-	sig = append(sig, common.LeftPadBytes([]byte{0x01, 0x40}, 64)...) // 0xa0 → 0x140
-	sig = append(sig, common.LeftPadBytes([]byte{2}, 64)...)
-	sig = append(sig, common.LeftPadBytes([]byte{1}, 64)...)
-	sig = append(sig, common.LeftPadBytes([]byte{2}, 64)...)
-	sig = append(sig, common.LeftPadBytes([]byte{2}, 64)...)
-	sig = append(sig, common.LeftPadBytes([]byte{1}, 64)...)
-	sig = append(sig, common.LeftPadBytes([]byte{2}, 64)...)
+	sig = append(sig, common.LeftPadBytes([]byte{0x40}, abiWordBytes)...) // 0x20 → 0x40
+	sig = append(sig, common.LeftPadBytes([]byte{0x02}, abiWordBytes)...)
+	sig = append(sig, common.LeftPadBytes([]byte{0x80}, abiWordBytes)...)       // 0x40 → 0x80
+	sig = append(sig, common.LeftPadBytes([]byte{0x01, 0x40}, abiWordBytes)...) // 0xa0 → 0x140
+	sig = append(sig, common.LeftPadBytes([]byte{2}, abiWordBytes)...)
+	sig = append(sig, common.LeftPadBytes([]byte{1}, abiWordBytes)...)
+	sig = append(sig, common.LeftPadBytes([]byte{2}, abiWordBytes)...)
+	sig = append(sig, common.LeftPadBytes([]byte{2}, abiWordBytes)...)
+	sig = append(sig, common.LeftPadBytes([]byte{1}, abiWordBytes)...)
+	sig = append(sig, common.LeftPadBytes([]byte{2}, abiWordBytes)...)
 	packed, err = abi.Pack("nestedSlice", [][]uint8{{1, 2}, {1, 2}})
 	if err != nil {
 		t.Fatal(err)

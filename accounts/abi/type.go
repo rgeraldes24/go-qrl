@@ -27,7 +27,6 @@ import (
 	"unicode/utf8"
 
 	"github.com/theQRL/go-qrl/common"
-	"github.com/theQRL/go-qrl/common/uint512"
 )
 
 // Type enumerator
@@ -177,7 +176,7 @@ func NewType(t string, internalType string, components []ArgumentMarshaling) (ty
 		if len(parsedType[3]) == 0 {
 			typ.T = BytesTy
 		} else {
-			if varSize == 0 || varSize > uint512.WordBytes {
+			if varSize == 0 || varSize > abiWordBytes {
 				return Type{}, fmt.Errorf("unsupported arg type: %s", t)
 			}
 			typ.T = FixedBytesTy
@@ -283,7 +282,7 @@ func (t Type) GetType() reflect.Type {
 	case BytesTy:
 		return reflect.TypeFor[[]byte]()
 	case HashTy, FixedPointTy: // currently not used
-		return reflect.TypeFor[[uint512.WordBytes]byte]()
+		return reflect.TypeFor[[abiWordBytes]byte]()
 	case FunctionTy:
 		return reflect.TypeFor[[common.AddressLength + 4]byte]()
 	default:
@@ -436,7 +435,7 @@ func getTypeSize(t Type) int {
 		if t.Elem.T == ArrayTy || t.Elem.T == TupleTy {
 			return t.Size * getTypeSize(*t.Elem)
 		}
-		return t.Size * uint512.WordBytes
+		return t.Size * abiWordBytes
 	} else if t.T == TupleTy && !isDynamicType(t) {
 		total := 0
 		for _, elem := range t.TupleElems {
@@ -444,7 +443,7 @@ func getTypeSize(t Type) int {
 		}
 		return total
 	}
-	return uint512.WordBytes
+	return abiWordBytes
 }
 
 // isLetter reports whether a given 'rune' is classified as a Letter.

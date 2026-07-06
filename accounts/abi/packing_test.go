@@ -21,7 +21,6 @@ import (
 	"strings"
 
 	"github.com/theQRL/go-qrl/common"
-	"github.com/theQRL/go-qrl/common/uint512"
 )
 
 type packUnpackTest struct {
@@ -35,7 +34,7 @@ func addressSlot(prefix byte) string {
 }
 
 func fixedBytesSlot(blob []byte) string {
-	return common.Bytes2Hex(common.RightPadBytes(blob, uint512.WordBytes))
+	return common.Bytes2Hex(common.RightPadBytes(blob, abiWordBytes))
 }
 
 func fmtByte(b byte) string {

@@ -363,20 +363,20 @@ func TestGetTypeSize(t *testing.T) {
 	}{
 		// Sizes use the 64-byte ABI slot width introduced by the 512-bit VM word.
 		// simple array
-		{"uint256[2]", nil, 64 * 2},
-		{"address[3]", nil, 64 * 3},
-		{"bytes32[4]", nil, 64 * 4},
+		{"uint256[2]", nil, abiWordBytes * 2},
+		{"address[3]", nil, abiWordBytes * 3},
+		{"bytes32[4]", nil, abiWordBytes * 4},
 		// array array
-		{"uint256[2][3][4]", nil, 64 * (2 * 3 * 4)},
+		{"uint256[2][3][4]", nil, abiWordBytes * (2 * 3 * 4)},
 		// array tuple
-		{"tuple[2]", []ArgumentMarshaling{{Name: "x", Type: "bytes32"}, {Name: "y", Type: "bytes32"}}, (64 * 2) * 2},
+		{"tuple[2]", []ArgumentMarshaling{{Name: "x", Type: "bytes32"}, {Name: "y", Type: "bytes32"}}, (abiWordBytes * 2) * 2},
 		// simple tuple
-		{"tuple", []ArgumentMarshaling{{Name: "x", Type: "uint256"}, {Name: "y", Type: "uint256"}}, 64 * 2},
+		{"tuple", []ArgumentMarshaling{{Name: "x", Type: "uint256"}, {Name: "y", Type: "uint256"}}, abiWordBytes * 2},
 		// tuple array
-		{"tuple", []ArgumentMarshaling{{Name: "x", Type: "bytes32[2]"}}, 64 * 2},
+		{"tuple", []ArgumentMarshaling{{Name: "x", Type: "bytes32[2]"}}, abiWordBytes * 2},
 		// tuple tuple
-		{"tuple", []ArgumentMarshaling{{Name: "x", Type: "tuple", Components: []ArgumentMarshaling{{Name: "x", Type: "bytes32"}}}}, 64},
-		{"tuple", []ArgumentMarshaling{{Name: "x", Type: "tuple", Components: []ArgumentMarshaling{{Name: "x", Type: "bytes32[2]"}, {Name: "y", Type: "uint256"}}}}, 64 * (2 + 1)},
+		{"tuple", []ArgumentMarshaling{{Name: "x", Type: "tuple", Components: []ArgumentMarshaling{{Name: "x", Type: "bytes32"}}}}, abiWordBytes},
+		{"tuple", []ArgumentMarshaling{{Name: "x", Type: "tuple", Components: []ArgumentMarshaling{{Name: "x", Type: "bytes32[2]"}, {Name: "y", Type: "uint256"}}}}, abiWordBytes * (2 + 1)},
 	}
 
 	for i, data := range testCases {

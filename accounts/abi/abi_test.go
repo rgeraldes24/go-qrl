@@ -358,7 +358,7 @@ func ExampleJSON() {
 
 // abiSlotSize is the width of a single ABI slot after the 64-byte-address /
 // 512-bit VM migration.
-const abiSlotSize = 64
+const abiSlotSize = abiWordBytes
 
 // abiSlot returns a zero-padded big-endian encoding of v in a single ABI slot.
 func abiSlot(v uint64) []byte {

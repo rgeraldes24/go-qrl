@@ -31,7 +31,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/theQRL/go-qrl/common"
 	qmath "github.com/theQRL/go-qrl/common/math"
-	"github.com/theQRL/go-qrl/common/uint512"
 )
 
 func BenchmarkUnpack(b *testing.B) {
@@ -109,7 +108,7 @@ func TestUnpack(t *testing.T) {
 func TestUnpackUnsupportedFunctionType(t *testing.T) {
 	t.Parallel()
 
-	emptySliceOutput := append(common.LeftPadBytes([]byte{64}, 64), common.LeftPadBytes(nil, 64)...)
+	emptySliceOutput := append(common.LeftPadBytes([]byte{abiWordBytes}, abiWordBytes), common.LeftPadBytes(nil, abiWordBytes)...)
 	tests := []struct {
 		name   string
 		abi    string
@@ -118,7 +117,7 @@ func TestUnpackUnsupportedFunctionType(t *testing.T) {
 		{
 			name:   "direct",
 			abi:    `[{"name":"method","type":"function","outputs":[{"type":"function"}]}]`,
-			output: make([]byte, 64),
+			output: make([]byte, abiWordBytes),
 		},
 		{
 			name:   "empty slice",
@@ -167,10 +166,10 @@ func (test unpackTest) checkError(err error) error {
 const z32 = "0000000000000000000000000000000000000000000000000000000000000000"
 
 func abiWord(hexValue string) string {
-	if len(hexValue) > 2*uint512.WordBytes {
+	if len(hexValue) > 2*abiWordBytes {
 		panic("abi test word is too wide")
 	}
-	return strings.Repeat("0", 2*uint512.WordBytes-len(hexValue)) + hexValue
+	return strings.Repeat("0", 2*abiWordBytes-len(hexValue)) + hexValue
 }
 
 var unpackTests = []unpackTest{
@@ -783,7 +782,7 @@ func TestUnmarshal(t *testing.T) {
 	}
 
 	// marshall dynamic bytes, length equal to one 64-byte slot
-	bytesOut = common.RightPadBytes([]byte("hello"), 64)
+	bytesOut = common.RightPadBytes([]byte("hello"), abiWordBytes)
 	packed, err = inAbi.Pack("bytes", bytesOut)
 	if err != nil {
 		t.Fatal(err)
@@ -1428,7 +1427,7 @@ func TestPackAndUnpackDeclaredIntegerBounds(t *testing.T) {
 	require.ErrorIs(t, err, errBadUint256)
 
 	uint512Args := args("uint512")
-	maxUint512 := new(big.Int).Sub(new(big.Int).Lsh(common.Big1, uint512.WordBits), common.Big1)
+	maxUint512 := new(big.Int).Sub(new(big.Int).Lsh(common.Big1, abiWordBits), common.Big1)
 	packed, err := uint512Args.Pack(maxUint512)
 	require.NoError(t, err)
 	decoded, err := uint512Args.Unpack(packed)
@@ -1450,8 +1449,8 @@ func TestPackAndUnpackDeclaredIntegerBounds(t *testing.T) {
 	require.ErrorIs(t, err, errBadInt256)
 
 	int512Args := args("int512")
-	maxInt512 := new(big.Int).Sub(new(big.Int).Lsh(common.Big1, uint512.WordBits-1), common.Big1)
-	minInt512 := new(big.Int).Neg(new(big.Int).Lsh(common.Big1, uint512.WordBits-1))
+	maxInt512 := new(big.Int).Sub(new(big.Int).Lsh(common.Big1, abiWordBits-1), common.Big1)
+	minInt512 := new(big.Int).Neg(new(big.Int).Lsh(common.Big1, abiWordBits-1))
 	_, err = int512Args.Pack(new(big.Int).Add(maxInt512, common.Big1))
 	require.ErrorContains(t, err, "int512")
 	_, err = int512Args.Pack(new(big.Int).Sub(minInt512, common.Big1))

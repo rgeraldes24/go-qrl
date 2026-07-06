@@ -24,7 +24,6 @@ import (
 	"reflect"
 
 	"github.com/theQRL/go-qrl/common"
-	"github.com/theQRL/go-qrl/common/uint512"
 )
 
 var (
@@ -33,7 +32,7 @@ var (
 	// MaxInt256 is the maximum value that can be represented by a int256.
 	MaxInt256 = new(big.Int).Sub(new(big.Int).Lsh(common.Big1, 255), common.Big1)
 	// MaxUint512 is the maximum value that can be represented by a uint512.
-	MaxUint512 = new(big.Int).Sub(new(big.Int).Lsh(common.Big1, uint512.WordBits), common.Big1)
+	MaxUint512 = new(big.Int).Sub(new(big.Int).Lsh(common.Big1, abiWordBits), common.Big1)
 )
 
 // ReadInteger reads the integer based on its kind and returns the appropriate value.
@@ -74,7 +73,7 @@ func ReadInteger(typ Type, b []byte) (any, error) {
 	// big.SetBytes can't tell if a number is negative or positive in itself.
 	// Signed integers are sign-extended to fill the full ABI slot,
 	// so a value occupies the slot's MSB iff it is negative.
-	if ret.Bit(uint512.WordBits-1) == 1 {
+	if ret.Bit(abiWordBits-1) == 1 {
 		ret.Add(MaxUint512, new(big.Int).Neg(ret))
 		ret.Add(ret, common.Big1)
 		ret.Neg(ret)
@@ -111,12 +110,12 @@ func ReadInteger(typ Type, b []byte) (any, error) {
 
 // readBool reads a bool.
 func readBool(word []byte) (bool, error) {
-	for _, b := range word[:uint512.WordBytes-1] {
+	for _, b := range word[:abiWordBytes-1] {
 		if b != 0 {
 			return false, errBadBool
 		}
 	}
-	switch word[uint512.WordBytes-1] {
+	switch word[abiWordBytes-1] {
 	case 0:
 		return false, nil
 	case 1:
@@ -197,7 +196,7 @@ func forTupleUnpack(t Type, output []byte) (any, error) {
 		headSize += getTypeSize(*elem)
 	}
 	for index, elem := range t.TupleElems {
-		marshalledValue, err := toGoType((index+virtualArgs)*uint512.WordBytes, *elem, output, headSize)
+		marshalledValue, err := toGoType((index+virtualArgs)*abiWordBytes, *elem, output, headSize)
 		if err != nil {
 			return nil, err
 		}
@@ -212,11 +211,11 @@ func forTupleUnpack(t Type, output []byte) (any, error) {
 			//
 			// Calculate the full array size to get the correct offset for the next argument.
 			// Decrement it by 1, as the normal index increment is still applied.
-			virtualArgs += getTypeSize(*elem)/uint512.WordBytes - 1
+			virtualArgs += getTypeSize(*elem)/abiWordBytes - 1
 		} else if elem.T == TupleTy && !isDynamicType(*elem) {
 			// If we have a static tuple, like (uint256, bool, uint256), these are
 			// coded as just like uint256,bool,uint256
-			virtualArgs += getTypeSize(*elem)/uint512.WordBytes - 1
+			virtualArgs += getTypeSize(*elem)/abiWordBytes - 1
 		}
 		retval.Field(index).Set(reflect.ValueOf(marshalledValue))
 	}
@@ -229,8 +228,8 @@ func toGoType(index int, t Type, output []byte, minTailOffset int) (any, error) 
 	if containsFunctionType(t) {
 		return nil, ErrUnsupportedFunctionType
 	}
-	if index+uint512.WordBytes > len(output) {
-		return nil, fmt.Errorf("abi: cannot marshal in to go type: length insufficient %d require %d", len(output), index+uint512.WordBytes)
+	if index+abiWordBytes > len(output) {
+		return nil, fmt.Errorf("abi: cannot marshal in to go type: length insufficient %d require %d", len(output), index+abiWordBytes)
 	}
 
 	var (
@@ -246,7 +245,7 @@ func toGoType(index int, t Type, output []byte, minTailOffset int) (any, error) 
 			return nil, err
 		}
 	} else {
-		returnOutput = output[index : index+uint512.WordBytes]
+		returnOutput = output[index : index+abiWordBytes]
 	}
 
 	switch t.T {
@@ -303,16 +302,16 @@ func lengthPrefixPointsTo(index int, output []byte, minTailOffset int) (start in
 	if err != nil {
 		return 0, 0, err
 	}
-	bigOffsetEnd := new(big.Int).SetInt64(int64(offset + uint512.WordBytes))
+	bigOffsetEnd := new(big.Int).SetInt64(int64(offset + abiWordBytes))
 	outputLength := big.NewInt(int64(len(output)))
 
 	if bigOffsetEnd.Cmp(outputLength) > 0 {
 		return 0, 0, fmt.Errorf("abi: cannot marshal in to go slice: offset %v would go over slice boundary (len=%v)", bigOffsetEnd, outputLength)
 	}
 
-	lengthBig := new(big.Int).SetBytes(output[offset : offset+uint512.WordBytes])
+	lengthBig := new(big.Int).SetBytes(output[offset : offset+abiWordBytes])
 
-	wordBytes := big.NewInt(int64(uint512.WordBytes))
+	wordBytes := big.NewInt(int64(abiWordBytes))
 	paddedLength := new(big.Int).Set(lengthBig)
 	if remainder := new(big.Int).Mod(paddedLength, wordBytes); remainder.Sign() != 0 {
 		paddedLength.Add(paddedLength, new(big.Int).Sub(wordBytes, remainder))
@@ -332,8 +331,8 @@ func lengthPrefixPointsTo(index int, output []byte, minTailOffset int) (start in
 
 func validateDynamicPayloadPadding(output []byte, start, length int) error {
 	paddedLength := length
-	if remainder := paddedLength % uint512.WordBytes; remainder != 0 {
-		paddedLength += uint512.WordBytes - remainder
+	if remainder := paddedLength % abiWordBytes; remainder != 0 {
+		paddedLength += abiWordBytes - remainder
 	}
 	end := start + paddedLength
 	if end > len(output) {
@@ -353,7 +352,7 @@ func tuplePointsTo(index int, output []byte, minTailOffset int) (start int, err 
 }
 
 func readDynamicOffset(index int, output []byte, minTailOffset int) (int, error) {
-	offset := new(big.Int).SetBytes(output[index : index+uint512.WordBytes])
+	offset := new(big.Int).SetBytes(output[index : index+abiWordBytes])
 	outputLen := big.NewInt(int64(len(output)))
 
 	if offset.Cmp(outputLen) > 0 {
@@ -363,11 +362,11 @@ func readDynamicOffset(index int, output []byte, minTailOffset int) (int, error)
 		return 0, fmt.Errorf("abi offset larger than int64: %v", offset)
 	}
 	offsetInt := int(offset.Uint64())
-	if offsetInt%uint512.WordBytes != 0 {
+	if offsetInt%abiWordBytes != 0 {
 		return 0, fmt.Errorf("abi offset %d is not word-aligned", offsetInt)
 	}
-	if minTailOffset < index+uint512.WordBytes {
-		minTailOffset = index + uint512.WordBytes
+	if minTailOffset < index+abiWordBytes {
+		minTailOffset = index + abiWordBytes
 	}
 	if offsetInt < minTailOffset {
 		return 0, fmt.Errorf("abi offset %d points into head; minimum tail offset is %d", offsetInt, minTailOffset)

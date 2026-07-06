@@ -12,18 +12,17 @@ import (
 	"math/big"
 
 	"github.com/theQRL/go-qrl/common"
-	"github.com/theQRL/go-qrl/common/uint512"
 )
 
 func validIntegerSize(size int) bool {
-	return size >= 8 && size <= uint512.WordBits && size%8 == 0
+	return size >= 8 && size <= abiWordBits && size%8 == 0
 }
 
 func maxUnsignedInteger(size int) *big.Int {
 	switch size {
 	case 256:
 		return new(big.Int).Set(MaxUint256)
-	case uint512.WordBits:
+	case abiWordBits:
 		return new(big.Int).Set(MaxUint512)
 	default:
 		return new(big.Int).Sub(new(big.Int).Lsh(common.Big1, uint(size)), common.Big1)
