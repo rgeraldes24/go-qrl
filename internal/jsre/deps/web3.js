@@ -782,6 +782,14 @@ var parseFixedBytesSize = function (name) {
     return size;
 };
 
+var formatInputBytesHex = function (value) {
+    var result = utils.toHex(value).substr(2);
+    if (result.length % 2 !== 0 || !/^[0-9a-f]*$/i.test(result)) {
+        throw new Error('invalid ABI hex data');
+    }
+    return result;
+};
+
 var assertZeroRightPadding = function (value, start, type) {
     for (var i = start; i < value.length; i++) {
         if (value[i] !== '0') {
@@ -873,7 +881,7 @@ var formatInputAddress = function (value) {
  * @returns {HyperionParam}
  */
 var formatInputBytes = function (value, name) {
-    var result = utils.toHex(value).substr(2);
+    var result = formatInputBytesHex(value);
     var size = parseFixedBytesSize(name);
     if (size !== null) {
         if (result.length > size * 2) {
@@ -895,7 +903,7 @@ var formatInputBytes = function (value, name) {
  * @returns {HyperionParam}
  */
 var formatInputDynamicBytes = function (value) {
-    var result = utils.toHex(value).substr(2);
+    var result = formatInputBytesHex(value);
     var length = result.length / 2;
     var l = Math.floor((result.length + 127) / 128);
     result = utils.padRight(result, l * 128);

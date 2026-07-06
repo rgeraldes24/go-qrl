@@ -212,4 +212,3 @@ After this model lands:
 - regenerate Qrysm deposit-contract bindings,
 - update Hyperion compiler/codegen assumptions for ABI calldata, return data,
   event logs, and linked bytecode to use 64-byte VM64 ABI words and topics.
-

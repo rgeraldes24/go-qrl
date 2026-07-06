@@ -668,6 +668,11 @@ var abi = [{
   outputs: []
 },{
   type: "function",
+  name: "dynamicIn",
+  inputs: [{name: "value", type: "bytes"}],
+  outputs: []
+},{
+  type: "function",
   name: "fixedOut",
   constant: true,
   inputs: [],
@@ -684,6 +689,10 @@ function errorOf(fn) {
 }
 var encodedWord = contract.fixedIn.getData("0x0102").slice(10);
 var tooLongInputError = errorOf(function() { contract.fixedIn.getData(%q); });
+var fixedOddHexError = errorOf(function() { contract.fixedIn.getData("0x1"); });
+var fixedNonHexError = errorOf(function() { contract.fixedIn.getData("0xzz"); });
+var dynamicOddHexError = errorOf(function() { contract.dynamicIn.getData("0x1"); });
+var dynamicNonHexError = errorOf(function() { contract.dynamicIn.getData("0xzz"); });
 response = %q;
 var validOut = contract.fixedOut.call();
 response = %q;
@@ -692,6 +701,10 @@ JSON.stringify({
   encodedWord: encodedWord,
   validOut: validOut,
   tooLongInputError: tooLongInputError,
+  fixedOddHexError: fixedOddHexError,
+  fixedNonHexError: fixedNonHexError,
+  dynamicOddHexError: dynamicOddHexError,
+  dynamicNonHexError: dynamicNonHexError,
   invalidOutputError: invalidOutputError
 });
 `, tooLongInput, validOutput, invalidOutput)
@@ -704,6 +717,10 @@ JSON.stringify({
 		EncodedWord        string `json:"encodedWord"`
 		ValidOut           string `json:"validOut"`
 		TooLongInputError  string `json:"tooLongInputError"`
+		FixedOddHexError   string `json:"fixedOddHexError"`
+		FixedNonHexError   string `json:"fixedNonHexError"`
+		DynamicOddHexError string `json:"dynamicOddHexError"`
+		DynamicNonHexError string `json:"dynamicNonHexError"`
 		InvalidOutputError string `json:"invalidOutputError"`
 	}
 	if err := json.Unmarshal([]byte(value.String()), &got); err != nil {
@@ -717,6 +734,12 @@ JSON.stringify({
 	}
 	if got.TooLongInputError == "" {
 		t.Fatalf("bytes32 input longer than 32 bytes should fail")
+	}
+	if got.FixedOddHexError == "" || got.FixedNonHexError == "" {
+		t.Fatalf("malformed bytes32 hex inputs should fail: odd=%q nonhex=%q", got.FixedOddHexError, got.FixedNonHexError)
+	}
+	if got.DynamicOddHexError == "" || got.DynamicNonHexError == "" {
+		t.Fatalf("malformed dynamic bytes hex inputs should fail: odd=%q nonhex=%q", got.DynamicOddHexError, got.DynamicNonHexError)
 	}
 	if got.InvalidOutputError == "" {
 		t.Fatalf("bytes32 output with non-zero right padding should fail")

@@ -64,10 +64,10 @@ type Type struct {
 
 var (
 	// typeRegex parses the abi sub types
-	typeRegex = regexp.MustCompile("([a-zA-Z]+)(([0-9]+)(x([0-9]+))?)?")
+	typeRegex = regexp.MustCompile("^([a-zA-Z]+)(([0-9]+)(x([0-9]+))?)?$")
 
-	// sliceSizeRegex grab the slice size
-	sliceSizeRegex = regexp.MustCompile("[0-9]+")
+	// arrayRegex parses one exact array suffix.
+	arrayRegex = regexp.MustCompile(`^\[([0-9]*)\]$`)
 )
 
 // NewType creates a new reflection type of abi type given in t.
@@ -94,40 +94,42 @@ func NewType(t string, internalType string, components []ArgumentMarshaling) (ty
 		}
 		// grab the last cell and create a type from there
 		sliced := t[i:]
-		// grab the slice size with regexp
-		intz := sliceSizeRegex.FindAllString(sliced, -1)
-
-		if len(intz) == 0 {
+		arrayMatch := arrayRegex.FindStringSubmatch(sliced)
+		if arrayMatch == nil {
+			return Type{}, errors.New("invalid arg type in abi")
+		}
+		if arrayMatch[1] == "" {
 			// is a slice
 			typ.T = SliceTy
 			typ.Elem = &embeddedType
 			typ.stringKind = embeddedType.stringKind + sliced
-		} else if len(intz) == 1 {
+		} else {
 			// is an array
 			typ.T = ArrayTy
 			typ.Elem = &embeddedType
-			typ.Size, err = strconv.Atoi(intz[0])
+			typ.Size, err = strconv.Atoi(arrayMatch[1])
 			if err != nil {
 				return Type{}, fmt.Errorf("abi: error parsing variable size: %v", err)
 			}
 			typ.stringKind = embeddedType.stringKind + sliced
-		} else {
-			return Type{}, errors.New("invalid formatting of array type")
 		}
 		return typ, err
 	}
 	// parse the type and size of the abi-type.
-	matches := typeRegex.FindAllStringSubmatch(t, -1)
-	if len(matches) == 0 {
-		return Type{}, fmt.Errorf("invalid type '%v'", t)
+	parsedType := typeRegex.FindStringSubmatch(t)
+	if len(parsedType) == 0 {
+		if !strings.HasPrefix(t, "tuple ") && !strings.HasPrefix(t, "tuple(") {
+			return Type{}, fmt.Errorf("invalid type '%v'", t)
+		}
+		parsedType = []string{t, "tuple", "", "", "", ""}
 	}
-	parsedType := matches[0]
 
 	// varSize is the size of the variable
 	var varSize int
-	if len(parsedType[3]) > 0 {
+	hasSize := len(parsedType[3]) > 0
+	if hasSize {
 		var err error
-		varSize, err = strconv.Atoi(parsedType[2])
+		varSize, err = strconv.Atoi(parsedType[3])
 		if err != nil {
 			return Type{}, fmt.Errorf("abi: error parsing variable size: %v", err)
 		}
@@ -153,11 +155,20 @@ func NewType(t string, internalType string, components []ArgumentMarshaling) (ty
 		typ.Size = varSize
 		typ.T = UintTy
 	case "bool":
+		if hasSize {
+			return Type{}, fmt.Errorf("unsupported arg type: %s", t)
+		}
 		typ.T = BoolTy
 	case "address":
+		if hasSize {
+			return Type{}, fmt.Errorf("unsupported arg type: %s", t)
+		}
 		typ.Size = common.AddressLength
 		typ.T = AddressTy
 	case "string":
+		if hasSize {
+			return Type{}, fmt.Errorf("unsupported arg type: %s", t)
+		}
 		typ.T = StringTy
 	case "bytes":
 		if len(parsedType[3]) == 0 {
@@ -170,6 +181,9 @@ func NewType(t string, internalType string, components []ArgumentMarshaling) (ty
 			typ.Size = varSize
 		}
 	case "tuple":
+		if hasSize {
+			return Type{}, fmt.Errorf("unsupported arg type: %s", t)
+		}
 		var (
 			fields     []reflect.StructField
 			elems      []*Type
@@ -222,9 +236,15 @@ func NewType(t string, internalType string, components []ArgumentMarshaling) (ty
 		}
 
 	case "function":
+		if hasSize {
+			return Type{}, fmt.Errorf("unsupported arg type: %s", t)
+		}
 		typ.T = FunctionTy
 		typ.Size = common.AddressLength + 4
 	default:
+		if hasSize {
+			return Type{}, fmt.Errorf("unsupported arg type: %s", t)
+		}
 		if strings.HasPrefix(internalType, "contract ") {
 			typ.Size = common.AddressLength
 			typ.T = AddressTy
