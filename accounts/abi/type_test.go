@@ -255,6 +255,7 @@ func TestTypeCheck(t *testing.T) {
 		{"bytes6", nil, [6]byte{}, ""},
 		{"bytes5", nil, [5]byte{}, ""},
 		{"bytes4", nil, [4]byte{}, ""},
+		{"bytes4", nil, [4]uint16{}, "abi: cannot use [4]uint16 as type [4]uint8 as argument"},
 		{"bytes3", nil, [3]byte{}, ""},
 		{"bytes2", nil, [2]byte{}, ""},
 		{"bytes1", nil, [1]byte{}, ""},
@@ -278,7 +279,9 @@ func TestTypeCheck(t *testing.T) {
 		// Go array width, but only the address ABI type carries address semantics.
 		{"address", nil, [32]byte{}, "abi: cannot use [32]uint8 as type common.Address as argument"},
 		{"address", nil, common.Hash{}, "abi: cannot use common.Hash as type common.Address as argument"},
-		{"address", nil, [64]byte{}, ""},
+		{"address", nil, [64]byte{}, "abi: cannot use [64]uint8 as type common.Address as argument"},
+		{"address", nil, common.LogTopic{}, "abi: cannot use common.LogTopic as type common.Address as argument"},
+		{"address", nil, common.StorageValue64{}, "abi: cannot use common.StorageValue64 as type common.Address as argument"},
 		{"address", nil, common.Address{}, ""},
 		{"bytes32[]]", nil, "", "invalid arg type in abi"},
 		{"invalidType", nil, "", "unsupported arg type: invalidType"},

@@ -3109,7 +3109,7 @@ HyperionEvent.prototype.signature = function () {
 
 var stripHexPrefix = function (value) {
     value = String(value);
-    return value.indexOf('0x') === 0 ? value.slice(2) : value;
+    return value.replace(/^0x/i, '');
 };
 
 var padRightToWord = function (hex) {

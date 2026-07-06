@@ -765,6 +765,7 @@ func TestEmbeddedWeb3IndexedTupleTopicsUsePrecomputedTopics(t *testing.T) {
 	}
 
 	tupleTopic := common.BytesToLogTopic([]byte{0x12, 0x34}).Hex()
+	tupleFilterTopic := "0X" + strings.ToUpper(tupleTopic[2:])
 	eventTopic := common.BytesToEventSignatureLogTopic(crypto.Keccak256([]byte("TupleEvent((uint512))"))).Hex()
 	address := "Q00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
 	script := fmt.Sprintf(`
@@ -812,7 +813,7 @@ JSON.stringify({
   decoded: decoded.args.value,
   invalidError: invalidError
 });
-`, address, tupleTopic, address)
+	`, address, tupleFilterTopic, address)
 
 	value, err := re.Run(script)
 	if err != nil {

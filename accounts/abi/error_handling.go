@@ -103,6 +103,12 @@ func sliceTypeCheck(t Type, val reflect.Value) error {
 			return sliceTypeCheck(*t.Elem, val.Index(0))
 		}
 	}
+	if t.Elem.T == AddressTy && val.Type().Elem() != t.Elem.GetType() {
+		return typeErr(t.GetType(), val.Type())
+	}
+	if t.Elem.T == FixedBytesTy && !isByteArrayOfSize(val.Type().Elem(), t.Elem.Size) {
+		return typeErr(t.GetType(), val.Type())
+	}
 
 	if val.Type().Elem().Kind() != t.Elem.GetType().Kind() {
 		return typeErr(formatSliceString(t.Elem.GetType().Kind(), t.Size), val.Type())
@@ -122,13 +128,17 @@ func typeCheck(t Type, value reflect.Value) error {
 	// Check base type validity. Element types will be checked later on.
 	if t.GetType().Kind() != value.Kind() {
 		return typeErr(t.GetType().Kind(), value.Kind())
-	} else if t.T == AddressTy && value.Len() != common.AddressLength {
+	} else if t.T == AddressTy && value.Type() != t.GetType() {
 		return typeErr(t.GetType(), value.Type())
-	} else if t.T == FixedBytesTy && t.Size != value.Len() {
+	} else if t.T == FixedBytesTy && !isByteArrayOfSize(value.Type(), t.Size) {
 		return typeErr(t.GetType(), value.Type())
 	} else {
 		return nil
 	}
+}
+
+func isByteArrayOfSize(typ reflect.Type, size int) bool {
+	return typ.Kind() == reflect.Array && typ.Len() == size && typ.Elem().Kind() == reflect.Uint8
 }
 
 // typeErr returns a formatted type casting error.
