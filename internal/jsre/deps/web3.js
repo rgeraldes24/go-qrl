@@ -2804,6 +2804,11 @@ AllHyperionEvents.prototype.decode = function (data) {
     data.data = data.data || '';
     data.topics = data.topics || [];
 
+    data.topics.forEach(function (topic) {
+        if (!utils.isTopic(topic)) {
+            throw new Error('event log topic must be a 64-byte topic');
+        }
+    });
     var eventTopic = String(data.topics[0] || '').replace(/^0x/i, '').toLowerCase();
     var match = this._json.filter(function (j) {
         return eventTopic === utils.padLeft(sha3(utils.transformToFullName(j)), 128).toLowerCase();

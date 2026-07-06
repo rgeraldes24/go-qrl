@@ -429,6 +429,8 @@ func TestNewTypeRejectsMalformedTypeStrings(t *testing.T) {
 		"uint008",
 		"int0512",
 		"bytes064",
+		"uint256[01]",
+		"uint256[2][03]",
 	} {
 		if _, err := NewType(typ, "", nil); err == nil {
 			t.Errorf("malformed type %s parsed without error", typ)

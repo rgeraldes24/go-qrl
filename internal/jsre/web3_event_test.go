@@ -96,9 +96,11 @@ var abi = [{
 var contract = web3.qrl.contract(abi).at(%q);
 var filter = contract.E({name: "hello", data: "0x010203", nums: ["1", "2"]}, {});
 var decoded = filter.formatter({address: %q, data: "0x", topics: filter.options.topics});
+var capturedTopics = capturedOptions.topics;
+var allEvents = contract.allEvents({});
 JSON.stringify({
   topics: filter.options.topics,
-  captured: capturedOptions.topics,
+  captured: capturedTopics,
   args: decoded.args,
   missingTopicError: errorOf(function() { filter.formatter({address: %q, data: "0x", topics: filter.options.topics.slice(0, 3)}); }),
   wrongSignatureTopicError: errorOf(function() { filter.formatter({address: %q, data: "0x", topics: [filter.options.topics[1], filter.options.topics[1], filter.options.topics[2], filter.options.topics[3]]}); }),
@@ -107,11 +109,13 @@ JSON.stringify({
   shortTopicError: errorOf(function() { filter.formatter({address: %q, data: "0x", topics: [filter.options.topics[0], "0x1234", filter.options.topics[2], filter.options.topics[3]]}); }),
   invalidDataError: errorOf(function() { filter.formatter({address: %q, data: "zz", topics: filter.options.topics}); }),
   oddDataError: errorOf(function() { filter.formatter({address: %q, data: "0x1", topics: filter.options.topics}); }),
+  allEventsInvalidTopicError: errorOf(function() { allEvents.formatter({address: %q, data: "0x", topics: ["0xzz"]}); }),
+  allEventsShortTopicError: errorOf(function() { allEvents.formatter({address: %q, data: "0x", topics: ["0x1234"]}); }),
   oddBytesError: errorOf(function() { contract.E({data: "0x1"}, {}); }),
   nonHexBytesError: errorOf(function() { contract.E({data: "0xzz"}, {}); }),
   upperNonHexBytesError: errorOf(function() { contract.E({data: "0Xzz"}, {}); })
 });
-`, address, address, address, address, address, address, address, address, address)
+`, address, address, address, address, address, address, address, address, address, address, address)
 
 	value, err := re.Run(script)
 	if err != nil {
@@ -128,6 +132,8 @@ JSON.stringify({
 		ShortTopicError          string            `json:"shortTopicError"`
 		InvalidDataError         string            `json:"invalidDataError"`
 		OddDataError             string            `json:"oddDataError"`
+		AllEventsInvalidTopic    string            `json:"allEventsInvalidTopicError"`
+		AllEventsShortTopic      string            `json:"allEventsShortTopicError"`
 		OddBytesError            string            `json:"oddBytesError"`
 		NonHexBytesError         string            `json:"nonHexBytesError"`
 		UpperNonHexBytesError    string            `json:"upperNonHexBytesError"`
@@ -149,6 +155,9 @@ JSON.stringify({
 	}
 	if got.InvalidDataError == "" || got.OddDataError == "" {
 		t.Fatalf("malformed event data should fail: invalid=%q odd=%q", got.InvalidDataError, got.OddDataError)
+	}
+	if got.AllEventsInvalidTopic == "" || got.AllEventsShortTopic == "" {
+		t.Fatalf("malformed allEvents topics should fail: invalid=%q short=%q", got.AllEventsInvalidTopic, got.AllEventsShortTopic)
 	}
 	if got.OddBytesError == "" || got.NonHexBytesError == "" || got.UpperNonHexBytesError == "" {
 		t.Fatalf("malformed indexed bytes filters should fail: odd=%q nonhex=%q upper=%q", got.OddBytesError, got.NonHexBytesError, got.UpperNonHexBytesError)

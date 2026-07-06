@@ -104,6 +104,9 @@ func NewType(t string, internalType string, components []ArgumentMarshaling) (ty
 			typ.stringKind = embeddedType.stringKind + sliced
 		} else {
 			// is an array
+			if len(arrayMatch[1]) > 1 && arrayMatch[1][0] == '0' {
+				return Type{}, fmt.Errorf("unsupported arg type: %s", t)
+			}
 			typ.T = ArrayTy
 			typ.Elem = &embeddedType
 			typ.Size, err = strconv.Atoi(arrayMatch[1])

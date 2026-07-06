@@ -1235,6 +1235,18 @@ func TestUnpackSliceOfStaticArraysChecksFullElementSize(t *testing.T) {
 	require.ErrorContains(t, err, "cannot marshal into go array")
 }
 
+func TestUnpackValuesRejectsUnalignedData(t *testing.T) {
+	t.Parallel()
+
+	def := `[{ "name" : "method", "type": "function", "outputs": [{"type": "uint256"}]}]`
+	abi, err := JSON(strings.NewReader(def))
+	require.NoError(t, err)
+
+	data := append(common.LeftPadBytes([]byte{1}, abiWordBytes), 0)
+	_, err = abi.Methods["method"].Outputs.UnpackValues(data)
+	require.ErrorContains(t, err, "abi: improperly formatted output")
+}
+
 func TestPackAndUnpackIncompatibleNumber(t *testing.T) {
 	t.Parallel()
 	var encodeABI Arguments
