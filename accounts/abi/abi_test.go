@@ -1072,10 +1072,6 @@ func TestABI_EventBySignatureTopic(t *testing.T) {
 			t.Errorf("We should not find any event for signature topic %s, test #%d", unknownSignatureTopic.Hex(), testnum)
 		}
 	}
-}
-
-func TestABI_EventBySignatureTopicSkipsAnonymousEvents(t *testing.T) {
-	t.Parallel()
 
 	abi, err := JSON(strings.NewReader(`[{"anonymous":true,"inputs":[],"name":"Hidden","type":"event"}]`))
 	if err != nil {
