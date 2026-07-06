@@ -4223,13 +4223,16 @@ HyperionFunction.prototype.signature = function () {
     return sha3(this._name).slice(0, 8);
 };
 
+var stripHexPrefix = function (value) {
+    return String(value).replace(/^0x/i, '');
+};
 
 HyperionFunction.prototype.unpackOutput = function (output) {
     if (!output) {
         return;
     }
 
-    output = output.length >= 2 ? output.slice(2) : output;
+    output = stripHexPrefix(output);
     var result = coder.decodeParams(this._outputTypes, output);
     return result.length === 1 ? result[0] : result;
 };

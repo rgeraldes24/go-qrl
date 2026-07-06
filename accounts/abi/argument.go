@@ -150,7 +150,9 @@ func (arguments Arguments) copyTuple(v any, marshalledValues []any) error {
 			argNames[i] = arg.Name
 		}
 		var err error
-		abi2struct, err := mapArgNamesToStructFields(argNames, value)
+		// Event structs may carry abi tags for indexed fields, which are filled
+		// separately from topics after non-indexed data is unpacked.
+		abi2struct, err := mapArgNamesToStructFieldsWithIgnoredTags(argNames, value, len(nonIndexedArgs) != len(arguments))
 		if err != nil {
 			return err
 		}
@@ -189,13 +191,13 @@ func (arguments Arguments) UnpackValues(data []byte) ([]any, error) {
 	)
 
 	nonIndexedArgs := arguments.NonIndexed()
-	minTailOffset := 0
+	headSize := 0
 	for _, arg := range nonIndexedArgs {
-		minTailOffset += getTypeSize(arg.Type)
+		headSize += getTypeSize(arg.Type)
 	}
 
 	for _, arg := range nonIndexedArgs {
-		marshalledValue, err := toGoType((index+virtualArgs)*abiWordBytes, arg.Type, data, minTailOffset)
+		marshalledValue, err := toGoType((index+virtualArgs)*abiWordBytes, arg.Type, data, headSize)
 		if err != nil {
 			return nil, err
 		}

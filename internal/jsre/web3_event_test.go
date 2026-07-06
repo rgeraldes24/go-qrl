@@ -896,10 +896,14 @@ response = %q;
 var invalidError = errorOf(function() { contract.flag.call(); });
 response = "0x1";
 var shortWordError = errorOf(function() { contract.flag.call(); });
+response = "zz" + %q.slice(2);
+var malformedNoPrefixError = errorOf(function() { contract.flag.call(); });
 response = %q;
 var encodedFalse = contract.echo.call(false);
 response = %q;
 var encodedTrue = contract.echo.call(true);
+var encodedFalseData = contract.echo.getData(false);
+var encodedTrueData = contract.echo.getData(true);
 var invalidStringInputError = errorOf(function() { contract.echo.call("false"); });
 var invalidNumberInputError = errorOf(function() { contract.echo.call(2); });
 JSON.stringify({
@@ -907,12 +911,15 @@ JSON.stringify({
   decodedTrue: decodedTrue,
   invalidError: invalidError,
   shortWordError: shortWordError,
+  malformedNoPrefixError: malformedNoPrefixError,
   encodedFalse: encodedFalse,
   encodedTrue: encodedTrue,
+  encodedFalseData: encodedFalseData,
+  encodedTrueData: encodedTrueData,
   invalidStringInputError: invalidStringInputError,
   invalidNumberInputError: invalidNumberInputError
 });
-`, boolWord(0), boolWord(1), boolWord(2), boolWord(0), boolWord(1))
+`, boolWord(0), boolWord(1), boolWord(2), boolWord(1), boolWord(0), boolWord(1))
 
 	value, err := re.Run(script)
 	if err != nil {
@@ -923,8 +930,11 @@ JSON.stringify({
 		DecodedTrue             bool   `json:"decodedTrue"`
 		InvalidError            string `json:"invalidError"`
 		ShortWordError          string `json:"shortWordError"`
+		MalformedNoPrefixError  string `json:"malformedNoPrefixError"`
 		EncodedFalse            bool   `json:"encodedFalse"`
 		EncodedTrue             bool   `json:"encodedTrue"`
+		EncodedFalseData        string `json:"encodedFalseData"`
+		EncodedTrueData         string `json:"encodedTrueData"`
 		InvalidStringInputError string `json:"invalidStringInputError"`
 		InvalidNumberInputError string `json:"invalidNumberInputError"`
 	}
@@ -943,11 +953,20 @@ JSON.stringify({
 	if got.ShortWordError == "" {
 		t.Fatalf("short bool word should fail")
 	}
+	if got.MalformedNoPrefixError == "" {
+		t.Fatalf("malformed no-prefix bool output should fail")
+	}
 	if got.EncodedFalse {
 		t.Fatalf("encoded false bool mismatch")
 	}
 	if !got.EncodedTrue {
 		t.Fatalf("encoded true bool mismatch")
+	}
+	if want := boolWord(0)[2:]; !strings.HasSuffix(got.EncodedFalseData, want) || len(got.EncodedFalseData) != 2+8+len(want) {
+		t.Fatalf("encoded false calldata mismatch: have %q want selector + %q", got.EncodedFalseData, want)
+	}
+	if want := boolWord(1)[2:]; !strings.HasSuffix(got.EncodedTrueData, want) || len(got.EncodedTrueData) != 2+8+len(want) {
+		t.Fatalf("encoded true calldata mismatch: have %q want selector + %q", got.EncodedTrueData, want)
 	}
 	if got.InvalidStringInputError == "" {
 		t.Fatalf("string bool input should fail")

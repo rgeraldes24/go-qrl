@@ -224,7 +224,7 @@ func forTupleUnpack(t Type, output []byte) (any, error) {
 
 // toGoType parses the output bytes and recursively assigns the value of these bytes
 // into a go type with accordance with the ABI spec.
-func toGoType(index int, t Type, output []byte, minTailOffset int) (any, error) {
+func toGoType(index int, t Type, output []byte, minDynamicOffset int) (any, error) {
 	if containsFunctionType(t) {
 		return nil, ErrUnsupportedFunctionType
 	}
@@ -240,7 +240,7 @@ func toGoType(index int, t Type, output []byte, minTailOffset int) (any, error) 
 
 	// if we require a length prefix, find the beginning word and size returned.
 	if t.requiresLengthPrefix() {
-		begin, length, err = lengthPrefixPointsTo(index, output, minTailOffset)
+		begin, length, err = lengthPrefixPointsTo(index, output, minDynamicOffset)
 		if err != nil {
 			return nil, err
 		}
@@ -251,7 +251,7 @@ func toGoType(index int, t Type, output []byte, minTailOffset int) (any, error) 
 	switch t.T {
 	case TupleTy:
 		if isDynamicType(t) {
-			begin, err := tuplePointsTo(index, output, minTailOffset)
+			begin, err := tuplePointsTo(index, output, minDynamicOffset)
 			if err != nil {
 				return nil, err
 			}
@@ -262,7 +262,7 @@ func toGoType(index int, t Type, output []byte, minTailOffset int) (any, error) 
 		return forEachUnpack(t, output[begin:], 0, length)
 	case ArrayTy:
 		if isDynamicType(*t.Elem) {
-			offset, err := tuplePointsTo(index, output, minTailOffset)
+			offset, err := tuplePointsTo(index, output, minDynamicOffset)
 			if err != nil {
 				return nil, err
 			}
@@ -297,8 +297,8 @@ func toGoType(index int, t Type, output []byte, minTailOffset int) (any, error) 
 }
 
 // lengthPrefixPointsTo interprets an ABI word as an offset and then determines which indices to look to decode the type.
-func lengthPrefixPointsTo(index int, output []byte, minTailOffset int) (start int, length int, err error) {
-	offset, err := readDynamicOffset(index, output, minTailOffset)
+func lengthPrefixPointsTo(index int, output []byte, minDynamicOffset int) (start int, length int, err error) {
+	offset, err := readDynamicOffset(index, output, minDynamicOffset)
 	if err != nil {
 		return 0, 0, err
 	}
@@ -347,11 +347,11 @@ func validateDynamicPayloadPadding(output []byte, start, length int) error {
 }
 
 // tuplePointsTo resolves the location reference for dynamic tuple.
-func tuplePointsTo(index int, output []byte, minTailOffset int) (start int, err error) {
-	return readDynamicOffset(index, output, minTailOffset)
+func tuplePointsTo(index int, output []byte, minDynamicOffset int) (start int, err error) {
+	return readDynamicOffset(index, output, minDynamicOffset)
 }
 
-func readDynamicOffset(index int, output []byte, minTailOffset int) (int, error) {
+func readDynamicOffset(index int, output []byte, minDynamicOffset int) (int, error) {
 	offset := new(big.Int).SetBytes(output[index : index+abiWordBytes])
 	outputLen := big.NewInt(int64(len(output)))
 
@@ -365,11 +365,11 @@ func readDynamicOffset(index int, output []byte, minTailOffset int) (int, error)
 	if offsetInt%abiWordBytes != 0 {
 		return 0, fmt.Errorf("abi offset %d is not word-aligned", offsetInt)
 	}
-	if minTailOffset < index+abiWordBytes {
-		minTailOffset = index + abiWordBytes
+	if minDynamicOffset < index+abiWordBytes {
+		minDynamicOffset = index + abiWordBytes
 	}
-	if offsetInt < minTailOffset {
-		return 0, fmt.Errorf("abi offset %d points into head; minimum tail offset is %d", offsetInt, minTailOffset)
+	if offsetInt < minDynamicOffset {
+		return 0, fmt.Errorf("abi offset %d points into head; minimum dynamic offset is %d", offsetInt, minDynamicOffset)
 	}
 	return offsetInt, nil
 }

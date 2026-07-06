@@ -729,6 +729,36 @@ func TestUnpackEvent(t *testing.T) {
 	}
 }
 
+func TestUnpackEventDataIgnoresIndexedOnlyTags(t *testing.T) {
+	t.Parallel()
+
+	const definition = `[{
+		"type":"event",
+		"name":"mixed",
+		"inputs":[
+			{"name":"addr","type":"address","indexed":true},
+			{"name":"value","type":"uint256","indexed":false}
+		]
+	}]`
+	abi, err := JSON(strings.NewReader(definition))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	type MixedEvent struct {
+		Addr  common.Address `abi:"addr"`
+		Value *big.Int       `abi:"value"`
+	}
+	var event MixedEvent
+	data := common.LeftPadBytes([]byte{0x2a}, abiWordBytes)
+	if err := abi.UnpackIntoInterface(&event, "mixed", data); err != nil {
+		t.Fatalf("UnpackIntoInterface should ignore indexed-only struct tags while unpacking event data: %v", err)
+	}
+	if event.Value.Cmp(big.NewInt(42)) != 0 {
+		t.Fatalf("value mismatch: have %v want 42", event.Value)
+	}
+}
+
 func TestUnpackEventIntoMap(t *testing.T) {
 	t.Parallel()
 	const abiJSON = `[{"constant":false,"inputs":[{"name":"memo","type":"bytes"}],"name":"receive","outputs":[],"payable":true,"stateMutability":"payable","type":"function"},{"anonymous":false,"inputs":[{"indexed":false,"name":"sender","type":"address"},{"indexed":false,"name":"amount","type":"uint256"},{"indexed":false,"name":"memo","type":"bytes"}],"name":"received","type":"event"},{"anonymous":false,"inputs":[{"indexed":false,"name":"sender","type":"address"}],"name":"receivedAddr","type":"event"}]`
