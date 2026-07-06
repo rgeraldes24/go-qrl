@@ -974,8 +974,8 @@ func TestABI_MethodById(t *testing.T) {
 }
 
 var eventLookupTests = []struct {
-	json      string
-	signature string
+	json           string
+	eventSignature string
 }{
 	{
 		json: `[
@@ -985,7 +985,7 @@ var eventLookupTests = []struct {
 				{"indexed":false,"name":"memo","type":"bytes"}
 				]
 			}]`,
-		signature: "received(address,uint256,bytes)",
+		eventSignature: "received(address,uint256,bytes)",
 	}, {
 		json: `[
 				{ "constant": true, "inputs": [], "name": "name", "outputs": [ { "name": "", "type": "string" } ], "payable": false, "stateMutability": "view", "type": "function" },
@@ -1001,7 +1001,7 @@ var eventLookupTests = []struct {
 				{ "anonymous": false, "inputs": [ { "indexed": true, "name": "owner", "type": "address" }, { "indexed": true, "name": "spender", "type": "address" }, { "indexed": false, "name": "value", "type": "uint256" } ], "name": "Approval", "type": "event" },
 				{ "anonymous": false, "inputs": [ { "indexed": true, "name": "from", "type": "address" }, { "indexed": true, "name": "to", "type": "address" }, { "indexed": false, "name": "value", "type": "uint256" } ], "name": "Transfer", "type": "event" }
 			]`,
-		signature: "Transfer(address,address,uint256)",
+		eventSignature: "Transfer(address,address,uint256)",
 	},
 }
 
@@ -1013,7 +1013,7 @@ func TestABI_EventByID(t *testing.T) {
 			t.Error(err)
 		}
 
-		eventID := crypto.Keccak256Hash([]byte(test.signature))
+		eventID := crypto.Keccak256Hash([]byte(test.eventSignature))
 
 		event, err := abi.EventByID(eventID)
 		if err != nil {
@@ -1044,7 +1044,7 @@ func TestABI_EventBySignatureTopic(t *testing.T) {
 			t.Error(err)
 		}
 
-		eventID := crypto.Keccak256Hash([]byte(test.signature))
+		eventID := crypto.Keccak256Hash([]byte(test.eventSignature))
 		signatureTopic := common.BytesToLogTopic(eventID.Bytes())
 		signatureTopicEvent, err := abi.EventBySignatureTopic(signatureTopic)
 		if err != nil {
