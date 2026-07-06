@@ -227,7 +227,7 @@ var hexData = func() []byte {
 func TestUnpackIndexedStringTyLogIntoMap(t *testing.T) {
 	hash := crypto.Keccak256Hash([]byte("testName"))
 	topics := []common.LogTopic{
-		common.BytesToEventSignatureLogTopic(crypto.Keccak256([]byte("received(string,address,uint256,bytes)"))),
+		common.BytesToLogTopic(crypto.Keccak256([]byte("received(string,address,uint256,bytes)"))),
 		common.BytesToLogTopic(hash.Bytes()),
 	}
 	mockLog := newMockLog(topics, common.HexToHash("0x0"))
@@ -249,7 +249,7 @@ func TestUnpackIndexedDynamicTyLogIntoStruct(t *testing.T) {
 	nameHash := crypto.Keccak256Hash([]byte("testName"))
 	contentHash := crypto.Keccak256Hash([]byte{1, 2, 3, 4, 5})
 	topics := []common.LogTopic{
-		common.BytesToEventSignatureLogTopic(crypto.Keccak256([]byte("received(string,bytes,address,uint256,bytes)"))),
+		common.BytesToLogTopic(crypto.Keccak256([]byte("received(string,bytes,address,uint256,bytes)"))),
 		common.BytesToLogTopic(nameHash.Bytes()),
 		common.BytesToLogTopic(contentHash.Bytes()),
 	}
@@ -311,7 +311,7 @@ func TestUnpackIndexedSliceTyLogIntoMap(t *testing.T) {
 	}
 	hash := crypto.Keccak256Hash(sliceBytes)
 	topics := []common.LogTopic{
-		common.BytesToEventSignatureLogTopic(crypto.Keccak256([]byte("received(string[],address,uint256,bytes)"))),
+		common.BytesToLogTopic(crypto.Keccak256([]byte("received(string[],address,uint256,bytes)"))),
 		common.BytesToLogTopic(hash.Bytes()),
 	}
 	mockLog := newMockLog(topics, common.HexToHash("0x0"))
@@ -338,7 +338,7 @@ func TestUnpackIndexedArrayTyLogIntoMap(t *testing.T) {
 	}
 	hash := crypto.Keccak256Hash(arrBytes)
 	topics := []common.LogTopic{
-		common.BytesToEventSignatureLogTopic(crypto.Keccak256([]byte("received(address[2],address,uint256,bytes)"))),
+		common.BytesToLogTopic(crypto.Keccak256([]byte("received(address[2],address,uint256,bytes)"))),
 		common.BytesToLogTopic(hash.Bytes()),
 	}
 	mockLog := newMockLog(topics, common.HexToHash("0x0"))
@@ -362,7 +362,7 @@ func TestUnpackIndexedFuncTyLogIntoMap(t *testing.T) {
 	functionSelector := hash[:4]
 	functionTyBytes := append(addrBytes, functionSelector...)
 	topics := []common.LogTopic{
-		common.BytesToEventSignatureLogTopic(crypto.Keccak256([]byte("received(function,address,uint256,bytes)"))),
+		common.BytesToLogTopic(crypto.Keccak256([]byte("received(function,address,uint256,bytes)"))),
 		common.BytesToLogTopic(functionTyBytes),
 	}
 	mockLog := newMockLog(topics, common.HexToHash("0x5c698f13940a2153440c6d19660878bc90219d9298fdcf37365aa8d88d40fc42"))
@@ -384,7 +384,7 @@ func TestUnpackIndexedBytesTyLogIntoMap(t *testing.T) {
 	bytes := []byte{1, 2, 3, 4, 5}
 	hash := crypto.Keccak256Hash(bytes)
 	topics := []common.LogTopic{
-		common.BytesToEventSignatureLogTopic(crypto.Keccak256([]byte("received(bytes,address,uint256,bytes)"))),
+		common.BytesToLogTopic(crypto.Keccak256([]byte("received(bytes,address,uint256,bytes)"))),
 		common.BytesToLogTopic(hash.Bytes()),
 	}
 	mockLog := newMockLog(topics, common.HexToHash("0x5c698f13940a2153440c6d19660878bc90219d9298fdcf37365aa8d88d40fc42"))

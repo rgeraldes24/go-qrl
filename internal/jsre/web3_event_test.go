@@ -52,7 +52,7 @@ func TestEmbeddedWeb3IndexedDynamicEventTopics(t *testing.T) {
 		arrayPreimage = append(arrayPreimage, word[:]...)
 	}
 	expected := []string{
-		common.BytesToEventSignatureLogTopic(crypto.Keccak256([]byte("E(string,bytes,uint512[])"))).Hex(),
+		common.BytesToLogTopic(crypto.Keccak256([]byte("E(string,bytes,uint512[])"))).Hex(),
 		common.BytesToLogTopic(crypto.Keccak256([]byte("hello"))).Hex(),
 		common.BytesToLogTopic(crypto.Keccak256([]byte{1, 2, 3})).Hex(),
 		common.BytesToLogTopic(crypto.Keccak256(arrayPreimage)).Hex(),
@@ -861,7 +861,7 @@ func TestEmbeddedWeb3IndexedTupleTopicsUsePrecomputedTopics(t *testing.T) {
 
 	tupleTopic := common.BytesToLogTopic([]byte{0x12, 0x34}).Hex()
 	tupleFilterTopic := "0X" + strings.ToUpper(tupleTopic[2:])
-	eventTopic := common.BytesToEventSignatureLogTopic(crypto.Keccak256([]byte("TupleEvent((uint512))"))).Hex()
+	eventTopic := common.BytesToLogTopic(crypto.Keccak256([]byte("TupleEvent((uint512))"))).Hex()
 	address := "Q00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
 	script := fmt.Sprintf(`
 var capturedOptions = null;
@@ -1014,7 +1014,7 @@ func TestEmbeddedWeb3RawFilterTopicPadding(t *testing.T) {
 		t.Fatalf("compile web3.js: %v", err)
 	}
 
-	expected := common.BytesToEventSignatureLogTopic(crypto.Keccak256([]byte("Transfer(address,uint512)"))).Hex()
+	expected := common.BytesToLogTopic(crypto.Keccak256([]byte("Transfer(address,uint512)"))).Hex()
 	mixedCaseTopic := "0X" + strings.Repeat("Aa", common.LogTopicLength)
 	script := fmt.Sprintf(`
 var capturedOptions = null;

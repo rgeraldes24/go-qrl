@@ -234,16 +234,6 @@ func BytesToLogTopic(b []byte) LogTopic {
 	return t
 }
 
-// BytesToEventSignatureLogTopic copies an event signature hash into a LogTopic,
-// right-aligned.
-//
-// Event selectors are pushed as VM stack values before LOG opcodes serialize
-// them via Bytes64(), so the 32-byte Keccak hash occupies the low half of the
-// 64-byte topic.
-func BytesToEventSignatureLogTopic(b []byte) LogTopic {
-	return BytesToLogTopic(b)
-}
-
 // HexToLogTopic parses a hex string into a LogTopic.
 func HexToLogTopic(s string) LogTopic { return BytesToLogTopic(FromHex(s)) }
 

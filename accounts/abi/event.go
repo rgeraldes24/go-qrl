@@ -60,7 +60,7 @@ type Event struct {
 // Event IDs remain 32-byte Keccak-256 hashes, but non-anonymous QRVM logs
 // encode that hash in a full 64-byte LogTopic.
 func (e Event) Topic() common.LogTopic {
-	return common.BytesToEventSignatureLogTopic(e.ID.Bytes())
+	return common.BytesToLogTopic(e.ID.Bytes())
 }
 
 // NewEvent creates a new Event.

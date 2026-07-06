@@ -445,9 +445,9 @@ func TestAddress_Value(t *testing.T) {
 	}
 }
 
-func TestBytesToEventSignatureLogTopic(t *testing.T) {
+func TestBytesToLogTopic(t *testing.T) {
 	hash := bytes.Repeat([]byte{0xab}, HashLength)
-	topic := BytesToEventSignatureLogTopic(hash)
+	topic := BytesToLogTopic(hash)
 
 	if !bytes.Equal(topic[:LogTopicLength-HashLength], make([]byte, LogTopicLength-HashLength)) {
 		t.Fatalf("event signature hash should be right-aligned: %x", topic)

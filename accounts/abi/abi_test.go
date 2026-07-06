@@ -1029,7 +1029,7 @@ func TestABI_EventById(t *testing.T) {
 			t.Errorf("Event id %s does not match topic %s, test #%d", event.ID.Hex(), topicID.Hex(), testnum)
 		}
 
-		topic0 := common.BytesToEventSignatureLogTopic(topicID.Bytes())
+		topic0 := common.BytesToLogTopic(topicID.Bytes())
 		topicEvent, err := abi.EventByTopic(topic0)
 		if err != nil {
 			t.Fatalf("Failed to look up ABI event by topic: %v, test #%d", err, testnum)
@@ -1055,7 +1055,7 @@ func TestABI_EventById(t *testing.T) {
 			t.Errorf("We should not find any event for topic %s, test #%d", unknowntopicID.Hex(), testnum)
 		}
 
-		unknownTopic := common.BytesToEventSignatureLogTopic(unknowntopicID.Bytes())
+		unknownTopic := common.BytesToLogTopic(unknowntopicID.Bytes())
 		unknownTopicEvent, err := abi.EventByTopic(unknownTopic)
 		if err == nil {
 			t.Errorf("EventByTopic should return an error if a topic is not found, test #%d", testnum)
