@@ -973,26 +973,21 @@ func TestABI_MethodById(t *testing.T) {
 	}
 }
 
-func TestABI_EventById(t *testing.T) {
-	t.Parallel()
-	tests := []struct {
-		name  string
-		json  string
-		event string
-	}{
-		{
-			name: "",
-			json: `[
+var eventLookupTests = []struct {
+	json      string
+	signature string
+}{
+	{
+		json: `[
 			{"type":"event","name":"received","anonymous":false,"inputs":[
 				{"indexed":false,"name":"sender","type":"address"},
 				{"indexed":false,"name":"amount","type":"uint256"},
 				{"indexed":false,"name":"memo","type":"bytes"}
 				]
 			}]`,
-			event: "received(address,uint256,bytes)",
-		}, {
-			name: "",
-			json: `[
+		signature: "received(address,uint256,bytes)",
+	}, {
+		json: `[
 				{ "constant": true, "inputs": [], "name": "name", "outputs": [ { "name": "", "type": "string" } ], "payable": false, "stateMutability": "view", "type": "function" },
 				{ "constant": false, "inputs": [ { "name": "_spender", "type": "address" }, { "name": "_value", "type": "uint256" } ], "name": "approve", "outputs": [ { "name": "", "type": "bool" } ], "payable": false, "stateMutability": "nonpayable", "type": "function" },
 				{ "constant": true, "inputs": [], "name": "totalSupply", "outputs": [ { "name": "", "type": "uint256" } ], "payable": false, "stateMutability": "view", "type": "function" },
@@ -1006,62 +1001,75 @@ func TestABI_EventById(t *testing.T) {
 				{ "anonymous": false, "inputs": [ { "indexed": true, "name": "owner", "type": "address" }, { "indexed": true, "name": "spender", "type": "address" }, { "indexed": false, "name": "value", "type": "uint256" } ], "name": "Approval", "type": "event" },
 				{ "anonymous": false, "inputs": [ { "indexed": true, "name": "from", "type": "address" }, { "indexed": true, "name": "to", "type": "address" }, { "indexed": false, "name": "value", "type": "uint256" } ], "name": "Transfer", "type": "event" }
 			]`,
-			event: "Transfer(address,address,uint256)",
-		},
-	}
+		signature: "Transfer(address,address,uint256)",
+	},
+}
 
-	for testnum, test := range tests {
+func TestABI_EventByID(t *testing.T) {
+	t.Parallel()
+	for testnum, test := range eventLookupTests {
 		abi, err := JSON(strings.NewReader(test.json))
 		if err != nil {
 			t.Error(err)
 		}
 
-		topic := test.event
-		topicID := crypto.Keccak256Hash([]byte(topic))
+		eventID := crypto.Keccak256Hash([]byte(test.signature))
 
-		event, err := abi.EventByID(topicID)
+		event, err := abi.EventByID(eventID)
 		if err != nil {
-			t.Fatalf("Failed to look up ABI method: %v, test #%d", err, testnum)
+			t.Fatalf("Failed to look up ABI event by ID: %v, test #%d", err, testnum)
 		}
 		if event == nil {
-			t.Errorf("We should find a event for topic %s, test #%d", topicID.Hex(), testnum)
-		} else if event.ID != topicID {
-			t.Errorf("Event id %s does not match topic %s, test #%d", event.ID.Hex(), topicID.Hex(), testnum)
+			t.Errorf("We should find an event for ID %s, test #%d", eventID.Hex(), testnum)
+		} else if event.ID != eventID {
+			t.Errorf("Event ID %s does not match ID %s, test #%d", event.ID.Hex(), eventID.Hex(), testnum)
 		}
 
-		topic0 := common.BytesToLogTopic(topicID.Bytes())
-		topicEvent, err := abi.EventBySignatureTopic(topic0)
-		if err != nil {
-			t.Fatalf("Failed to look up ABI event by topic: %v, test #%d", err, testnum)
-		}
-		if topicEvent == nil {
-			t.Errorf("We should find an event for signature topic %s, test #%d", topic0.Hex(), testnum)
-		} else if topicEvent.SignatureTopic() != topic0 {
-			t.Errorf("Event signature topic %s does not match topic %s, test #%d", topicEvent.SignatureTopic().Hex(), topic0.Hex(), testnum)
-		}
-
-		malformedTopic := topic0
-		malformedTopic[0] = 0x01
-		if malformedEvent, err := abi.EventBySignatureTopic(malformedTopic); err == nil {
-			t.Errorf("EventBySignatureTopic should reject malformed topic %s, matched %v, test #%d", malformedTopic.Hex(), malformedEvent, testnum)
-		}
-
-		unknowntopicID := crypto.Keccak256Hash([]byte("unknownEvent"))
-		unknownEvent, err := abi.EventByID(unknowntopicID)
+		unknownEventID := crypto.Keccak256Hash([]byte("unknownEvent"))
+		unknownEvent, err := abi.EventByID(unknownEventID)
 		if err == nil {
-			t.Errorf("EventByID should return an error if a topic is not found, test #%d", testnum)
+			t.Errorf("EventByID should return an error if an ID is not found, test #%d", testnum)
 		}
 		if unknownEvent != nil {
-			t.Errorf("We should not find any event for topic %s, test #%d", unknowntopicID.Hex(), testnum)
+			t.Errorf("We should not find any event for ID %s, test #%d", unknownEventID.Hex(), testnum)
+		}
+	}
+}
+
+func TestABI_EventBySignatureTopic(t *testing.T) {
+	t.Parallel()
+	for testnum, test := range eventLookupTests {
+		abi, err := JSON(strings.NewReader(test.json))
+		if err != nil {
+			t.Error(err)
 		}
 
-		unknownTopic := common.BytesToLogTopic(unknowntopicID.Bytes())
-		unknownTopicEvent, err := abi.EventBySignatureTopic(unknownTopic)
-		if err == nil {
-			t.Errorf("EventBySignatureTopic should return an error if a topic is not found, test #%d", testnum)
+		eventID := crypto.Keccak256Hash([]byte(test.signature))
+		signatureTopic := common.BytesToLogTopic(eventID.Bytes())
+		signatureTopicEvent, err := abi.EventBySignatureTopic(signatureTopic)
+		if err != nil {
+			t.Fatalf("Failed to look up ABI event by signature topic: %v, test #%d", err, testnum)
 		}
-		if unknownTopicEvent != nil {
-			t.Errorf("We should not find any event for signature topic %s, test #%d", unknownTopic.Hex(), testnum)
+		if signatureTopicEvent == nil {
+			t.Errorf("We should find an event for signature topic %s, test #%d", signatureTopic.Hex(), testnum)
+		} else if signatureTopicEvent.SignatureTopic() != signatureTopic {
+			t.Errorf("Event signature topic %s does not match signature topic %s, test #%d", signatureTopicEvent.SignatureTopic().Hex(), signatureTopic.Hex(), testnum)
+		}
+
+		malformedSignatureTopic := signatureTopic
+		malformedSignatureTopic[0] = 0x01
+		if malformedEvent, err := abi.EventBySignatureTopic(malformedSignatureTopic); err == nil {
+			t.Errorf("EventBySignatureTopic should reject malformed signature topic %s, matched %v, test #%d", malformedSignatureTopic.Hex(), malformedEvent, testnum)
+		}
+
+		unknownEventID := crypto.Keccak256Hash([]byte("unknownEvent"))
+		unknownSignatureTopic := common.BytesToLogTopic(unknownEventID.Bytes())
+		unknownSignatureTopicEvent, err := abi.EventBySignatureTopic(unknownSignatureTopic)
+		if err == nil {
+			t.Errorf("EventBySignatureTopic should return an error if a signature topic is not found, test #%d", testnum)
+		}
+		if unknownSignatureTopicEvent != nil {
+			t.Errorf("We should not find any event for signature topic %s, test #%d", unknownSignatureTopic.Hex(), testnum)
 		}
 	}
 }
@@ -1073,8 +1081,16 @@ func TestABI_EventBySignatureTopicSkipsAnonymousEvents(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	topic := abi.Events["Hidden"].SignatureTopic()
-	if event, err := abi.EventBySignatureTopic(topic); err == nil {
+
+	hidden := abi.Events["Hidden"]
+	if event, err := abi.EventByID(hidden.ID); err != nil {
+		t.Fatalf("EventByID should find anonymous event: %v", err)
+	} else if event.ID != hidden.ID {
+		t.Fatalf("EventByID returned event ID %s, want %s", event.ID.Hex(), hidden.ID.Hex())
+	}
+
+	signatureTopic := hidden.SignatureTopic()
+	if event, err := abi.EventBySignatureTopic(signatureTopic); err == nil {
 		t.Fatalf("EventBySignatureTopic matched anonymous event %v", event)
 	}
 }
