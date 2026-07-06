@@ -757,6 +757,16 @@ func TestUnpackEventDataIgnoresIndexedOnlyTags(t *testing.T) {
 	if event.Value.Cmp(big.NewInt(42)) != 0 {
 		t.Fatalf("value mismatch: have %v want 42", event.Value)
 	}
+
+	type BadMixedEvent struct {
+		Addr  common.Address `abi:"addr"`
+		Value *big.Int       `abi:"value"`
+		Other *big.Int       `abi:"other"`
+	}
+	var badEvent BadMixedEvent
+	if err := abi.UnpackIntoInterface(&badEvent, "mixed", data); err == nil {
+		t.Fatalf("UnpackIntoInterface should reject tags that do not belong to the event")
+	}
 }
 
 func TestUnpackEventIntoMap(t *testing.T) {

@@ -476,7 +476,7 @@ func (c *BoundContract) UnpackLog(out any, event string, log types.Log) error {
 			indexed = append(indexed, arg)
 		}
 	}
-	return abi.ParseTopics(out, indexed, log.Topics[1:])
+	return abi.ParseTopicsWithKnownFields(out, indexed, log.Topics[1:], eventABI.Inputs)
 }
 
 // UnpackLogIntoMap unpacks a retrieved log into the provided map.

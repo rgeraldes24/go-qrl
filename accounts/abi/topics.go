@@ -124,6 +124,22 @@ func genIntType(rule int64, size uint) []byte {
 
 // ParseTopics converts the indexed topic fields into actual log field values.
 func ParseTopics(out any, fields Arguments, topics []common.LogTopic) error {
+	return parseTopics(out, fields, topics, nil)
+}
+
+// ParseTopicsWithKnownFields converts indexed topic fields while allowing struct
+// tags for non-indexed fields from the same event.
+func ParseTopicsWithKnownFields(out any, fields Arguments, topics []common.LogTopic, knownFields Arguments) error {
+	allowedMissingTags := make(map[string]struct{})
+	for _, arg := range knownFields {
+		if !arg.Indexed {
+			allowedMissingTags[arg.Name] = struct{}{}
+		}
+	}
+	return parseTopics(out, fields, topics, allowedMissingTags)
+}
+
+func parseTopics(out any, fields Arguments, topics []common.LogTopic, allowedMissingTags map[string]struct{}) error {
 	if len(fields) != len(topics) {
 		return errors.New("topic/field count mismatch")
 	}
@@ -132,7 +148,7 @@ func ParseTopics(out any, fields Arguments, topics []common.LogTopic) error {
 	for i, arg := range fields {
 		argNames[i] = arg.Name
 	}
-	abi2struct, err := mapArgNamesToStructFieldsWithIgnoredTags(argNames, value, true)
+	abi2struct, err := mapArgNamesToStructFieldsWithAllowedMissingTags(argNames, value, allowedMissingTags)
 	if err != nil {
 		return err
 	}

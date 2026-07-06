@@ -519,10 +519,9 @@ func TestParseTopicsUsesABITags(t *testing.T) {
 	}
 
 	var out struct {
-		Msg   *big.Int `abi:"msg"`
-		Msg0  *big.Int `abi:"_msg"`
-		Arg0  *big.Int `abi:"range"`
-		Other *big.Int `abi:"other"`
+		Msg  *big.Int `abi:"msg"`
+		Msg0 *big.Int `abi:"_msg"`
+		Arg0 *big.Int `abi:"range"`
 	}
 	err = ParseTopics(&out, Arguments{
 		{Name: "msg", Type: int256Ty, Indexed: true},
@@ -534,6 +533,17 @@ func TestParseTopicsUsesABITags(t *testing.T) {
 	}
 	if out.Msg.Cmp(big.NewInt(1)) != 0 || out.Msg0.Cmp(big.NewInt(2)) != 0 || out.Arg0.Cmp(big.NewInt(3)) != 0 {
 		t.Fatalf("ParseTopics tagged output mismatch: msg=%v _msg=%v range=%v", out.Msg, out.Msg0, out.Arg0)
+	}
+
+	var unknownTagOut struct {
+		Msg   *big.Int `abi:"msg"`
+		Other *big.Int `abi:"other"`
+	}
+	err = ParseTopics(&unknownTagOut, Arguments{
+		{Name: "msg", Type: int256Ty, Indexed: true},
+	}, []common.LogTopic{topic(1)})
+	if err == nil {
+		t.Fatalf("ParseTopics should reject unknown abi tags")
 	}
 }
 
