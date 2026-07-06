@@ -1800,6 +1800,7 @@ var bindTests = []struct {
 		abi:      []string{`[{"anonymous":false,"inputs":[{"indexed":false,"internalType":"int256","name":"msg","type":"int256"},{"indexed":false,"internalType":"int256","name":"_msg","type":"int256"}],"name":"log","type":"event"},{"inputs":[{"components":[{"internalType":"bytes","name":"data","type":"bytes"},{"internalType":"bytes","name":"_data","type":"bytes"}],"internalType":"struct oracle.request","name":"req","type":"tuple"}],"name":"addRequest","outputs":[],"stateMutability":"pure","type":"function"},{"inputs":[],"name":"getRequest","outputs":[{"components":[{"internalType":"bytes","name":"data","type":"bytes"},{"internalType":"bytes","name":"_data","type":"bytes"}],"internalType":"struct oracle.request","name":"","type":"tuple"}],"stateMutability":"pure","type":"function"}]`},
 		imports: `
 			"math/big"
+			"reflect"
 
 			"github.com/theQRL/go-qrl/accounts/abi/bind"
 			"github.com/theQRL/go-qrl/accounts/abi/bind/backends"
@@ -1824,6 +1825,14 @@ var bindTests = []struct {
 			if _, err = bind.WaitDeployed(nil, sim, tx); err != nil {
 				t.Logf("Deployment tx: %+v", tx)
 				t.Errorf("bind.WaitDeployed(nil, %T, <deployment tx>) got err %v; want nil err", sim, err)
+			}
+
+			eventType := reflect.TypeOf(NameConflictLog{})
+			if tag := eventType.Field(0).Tag.Get("abi"); tag != "msg" {
+				t.Fatalf("NameConflictLog.Msg abi tag = %q, want msg", tag)
+			}
+			if tag := eventType.Field(1).Tag.Get("abi"); tag != "_msg" {
+				t.Fatalf("NameConflictLog.Msg0 abi tag = %q, want _msg", tag)
 			}
 		`,
 	},

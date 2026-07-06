@@ -502,6 +502,38 @@ func TestParseTopics(t *testing.T) {
 	}
 }
 
+func TestParseTopicsUsesABITags(t *testing.T) {
+	t.Parallel()
+
+	int256Ty, err := NewType("int256", "", nil)
+	if err != nil {
+		t.Fatalf("build int256 type: %v", err)
+	}
+	topic := func(v int64) common.LogTopic {
+		var t common.LogTopic
+		copy(t[:], math.U512Bytes(big.NewInt(v)))
+		return t
+	}
+
+	var out struct {
+		Msg   *big.Int `abi:"msg"`
+		Msg0  *big.Int `abi:"_msg"`
+		Arg0  *big.Int `abi:"range"`
+		Other *big.Int `abi:"other"`
+	}
+	err = ParseTopics(&out, Arguments{
+		{Name: "msg", Type: int256Ty, Indexed: true},
+		{Name: "_msg", Type: int256Ty, Indexed: true},
+		{Name: "range", Type: int256Ty, Indexed: true},
+	}, []common.LogTopic{topic(1), topic(2), topic(3)})
+	if err != nil {
+		t.Fatalf("ParseTopics with abi tags: %v", err)
+	}
+	if out.Msg.Cmp(big.NewInt(1)) != 0 || out.Msg0.Cmp(big.NewInt(2)) != 0 || out.Arg0.Cmp(big.NewInt(3)) != 0 {
+		t.Fatalf("ParseTopics tagged output mismatch: msg=%v _msg=%v range=%v", out.Msg, out.Msg0, out.Arg0)
+	}
+}
+
 func TestParseTopicsRejectsUnsupportedFunctionType(t *testing.T) {
 	t.Parallel()
 

@@ -3254,6 +3254,14 @@ var eventBytesHex = function (value) {
     return result.toLowerCase();
 };
 
+var abiHexData = function (value) {
+    var hex = stripHexPrefix(value || '');
+    if (hex.length % 2 !== 0 || !/^[0-9a-f]*$/i.test(hex)) {
+        throw new Error('invalid ABI hex data');
+    }
+    return hex.toLowerCase();
+};
+
 var padRightToWord = function (hex) {
     var rem = hex.length % 128;
     return rem === 0 ? hex : utils.padRight(hex, hex.length + 128 - rem);
@@ -3401,6 +3409,12 @@ HyperionEvent.prototype.decode = function (data) {
             throw new Error('event log topic must be a 64-byte topic');
         }
     });
+    if (!this._anonymous) {
+        var signatureTopic = topicFromHash(this.signature()).toLowerCase();
+        if ('0x' + stripHexPrefix(data.topics[0]).toLowerCase() !== signatureTopic) {
+            throw new Error('event log signature topic mismatch');
+        }
+    }
 
     var argTopics = this._anonymous ? data.topics : data.topics.slice(1);
     var indexedParams = indexedInputs.map(function (i, index) {
@@ -3411,7 +3425,7 @@ HyperionEvent.prototype.decode = function (data) {
         return coder.decodeParam(i.type, stripHexPrefix(topic));
     });
 
-    var notIndexedData = data.data.slice(2);
+    var notIndexedData = abiHexData(data.data);
     var notIndexedParams = coder.decodeParams(this.types(false), notIndexedData);
 
     var result = formatters.outputLogFormatter(data);

@@ -182,6 +182,10 @@ func setStruct(dst, src reflect.Value) error {
 //
 // Note this function assumes the given value is a struct value.
 func mapArgNamesToStructFields(argNames []string, value reflect.Value) (map[string]string, error) {
+	return mapArgNamesToStructFieldsWithIgnoredTags(argNames, value, false)
+}
+
+func mapArgNamesToStructFieldsWithIgnoredTags(argNames []string, value reflect.Value, ignoreUnknownTags bool) (map[string]string, error) {
 	typ := value.Type()
 
 	abi2struct := make(map[string]string)
@@ -219,6 +223,10 @@ func mapArgNamesToStructFields(argNames []string, value reflect.Value) (map[stri
 		}
 		// check if this tag has been mapped.
 		if !found {
+			if ignoreUnknownTags {
+				struct2abi[structFieldName] = tagName
+				continue
+			}
 			return nil, fmt.Errorf("struct: abi tag '%s' defined but not found in abi", tagName)
 		}
 	}

@@ -124,18 +124,34 @@ func genIntType(rule int64, size uint) []byte {
 
 // ParseTopics converts the indexed topic fields into actual log field values.
 func ParseTopics(out any, fields Arguments, topics []common.LogTopic) error {
+	if len(fields) != len(topics) {
+		return errors.New("topic/field count mismatch")
+	}
+	value := reflect.ValueOf(out).Elem()
+	argNames := make([]string, len(fields))
+	for i, arg := range fields {
+		argNames[i] = arg.Name
+	}
+	abi2struct, err := mapArgNamesToStructFieldsWithIgnoredTags(argNames, value, true)
+	if err != nil {
+		return err
+	}
 	return parseTopicWithSetter(fields, topics,
-		func(arg Argument, reconstr any) {
-			field := reflect.ValueOf(out).Elem().FieldByName(ToCamelCase(arg.Name))
-			field.Set(reflect.ValueOf(reconstr))
+		func(arg Argument, reconstr any) error {
+			field := value.FieldByName(abi2struct[arg.Name])
+			if !field.IsValid() {
+				return fmt.Errorf("abi: field %s can't be found in the given value", arg.Name)
+			}
+			return set(field, reflect.ValueOf(reconstr))
 		})
 }
 
 // ParseTopicsIntoMap converts the indexed topic field-value pairs into map key-value pairs.
 func ParseTopicsIntoMap(out map[string]any, fields Arguments, topics []common.LogTopic) error {
 	return parseTopicWithSetter(fields, topics,
-		func(arg Argument, reconstr any) {
+		func(arg Argument, reconstr any) error {
 			out[arg.Name] = reconstr
+			return nil
 		})
 }
 
@@ -144,7 +160,7 @@ func ParseTopicsIntoMap(out map[string]any, fields Arguments, topics []common.Lo
 //
 // Note, dynamic types cannot be reconstructed since they get mapped to Keccak256
 // hashes as the topic value!
-func parseTopicWithSetter(fields Arguments, topics []common.LogTopic, setter func(Argument, any)) error {
+func parseTopicWithSetter(fields Arguments, topics []common.LogTopic, setter func(Argument, any) error) error {
 	// Sanity check that the fields and topics match up
 	if len(fields) != len(topics) {
 		return errors.New("topic/field count mismatch")
@@ -172,7 +188,9 @@ func parseTopicWithSetter(fields Arguments, topics []common.LogTopic, setter fun
 			}
 		}
 		// Use the setter function to store the value
-		setter(arg, reconstr)
+		if err := setter(arg, reconstr); err != nil {
+			return err
+		}
 	}
 
 	return nil

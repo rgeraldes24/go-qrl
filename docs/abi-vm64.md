@@ -14,7 +14,7 @@ not redefine Solidity persistent storage packing.
 - Function selector size: 4 bytes.
 - QRL address size: 64 bytes.
 - Log topic size: 64 bytes.
-- Event selector hash size: 32 bytes Keccak-256, carried inside a 64-byte log
+- Event signature hash size: 32 bytes Keccak-256, carried inside a 64-byte log
   topic.
 
 ## Encoding Rules
