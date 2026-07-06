@@ -1267,11 +1267,11 @@ func TestCallContractRevert(t *testing.T) {
 	//   revertString()   → 0x9bd61037  (Error("some error"))
 	//   revertNoString() → 0x4b409e01  (Error(""))
 	//   revertASM()      → 0x9b340e36  (REVERT(0,0))
-	//   noRevert()       → 0xb7246fc1  (RETURN 64 zero bytes)
-	// 12-byte init copies a 137-byte runtime that dispatches on the top 4
+	//   noRevert()       → 0xb7246fc1  (RETURN Error("some error") payload)
+	// 12-byte init copies a 177-byte runtime that dispatches on the top 4
 	// bytes of the 64-byte CALLDATALOAD word (SHR 480) and falls through
 	// to a bare REVERT for unknown selectors.
-	reverterBin := "6089600c60003960896000f3" + // init: CODECOPY 137 / RETURN
+	reverterBin := "60b1600c60003960b16000f3" + // init: CODECOPY 177 / RETURN
 		"6000356101e01c" + // selector = CALLDATALOAD(0) >> 480
 		"a0639bd6103714610038" + "57" + // DUP1 → revertString
 		"a0634b409e0114610066" + "57" + // DUP1 → revertNoString
@@ -1287,7 +1287,11 @@ func TestCallContractRevert(t *testing.T) {
 		"6040600452" + // offset=0x40
 		"60846000fd" + // REVERT(0, 132)  (length slot stays zero from fresh memory)
 		"5b60006000fd" + // 0x7d revertASM: REVERT(0,0)
-		"5b60406000f3" //    0x83 noRevert:  RETURN(0, 64)
+		"5b" + "6308c379a06101e01b600052" + // 0x83 noRevert: selector
+		"6040600452" + // offset=0x40
+		"600a604452" + // length=0x0a
+		"69736f6d65206572726f72" + "6101b01b" + "608452" + // "some error"<<432
+		"60c46000f3" // RETURN(0, 196)
 
 	parsed, err := abi.JSON(strings.NewReader(reverterABI))
 	if err != nil {
@@ -1362,8 +1366,13 @@ func TestCallContractRevert(t *testing.T) {
 		if res == nil {
 			t.Errorf("result from noRevert was nil")
 		}
-		if len(res) != 64 {
-			t.Errorf("result from noRevert had length %d, want 64", len(res))
+		want := make([]byte, 196)
+		copy(want, common.FromHex("08c379a0"))
+		want[67] = 0x40
+		want[131] = 0x0a
+		copy(want[132:], []byte("some error"))
+		if !bytes.Equal(res, want) {
+			t.Errorf("result from noRevert mismatch:\nhave %x\nwant %x", res, want)
 		}
 		sim.Commit()
 	}
