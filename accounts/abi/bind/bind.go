@@ -180,7 +180,8 @@ func Bind(types []string, abis []string, bytecodes []string, fsigs []map[string]
 			}
 		}
 		for _, original := range qrvmABI.Events {
-			// Skip anonymous events as they don't support explicit filtering
+			// Skip anonymous events in generated helpers because they emit no
+			// signature topic for the helper to filter or unpack against.
 			if original.Anonymous {
 				continue
 			}

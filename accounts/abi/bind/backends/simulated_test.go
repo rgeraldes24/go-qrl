@@ -1423,7 +1423,8 @@ const callableAbi = "[{\"anonymous\":false,\"inputs\":[],\"name\":\"Called\",\"t
 // widened to 512-bit words. 12-byte init copies a 58-byte runtime that
 //   - reads calldata[0:4] (shifted in from the 64-byte CALLDATALOAD word),
 //   - dispatches on selector 0x34e22921 (keccak256("Call()")[:4]),
-//   - and, on match, emits LOG1 with topic0 = keccak256("Called()"),
+//   - and, on match, emits LOG1 with topic0 = SignatureTopic("Called()"),
+//     where the 32-byte event ID is right-aligned in a 64-byte LogTopic,
 //     so contract.WatchLogs(nil, "Called") still resolves the event.
 const callableBin = "603a600c600039603a6000f36000356101e01c63" +
 	"34e22921146100125700" +
