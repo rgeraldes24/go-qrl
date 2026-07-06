@@ -400,6 +400,92 @@ JSON.stringify({number: decoded[0].toString(10), second: second});
 	}
 }
 
+func TestEmbeddedWeb3RejectsMalformedDynamicOutput(t *testing.T) {
+	t.Parallel()
+
+	re := New("", os.Stdout)
+	defer re.Stop(false)
+
+	if err := re.Compile("bignumber.js", deps.BigNumberJS); err != nil {
+		t.Fatalf("compile bignumber.js: %v", err)
+	}
+	if err := re.Compile("web3.js", deps.Web3JS); err != nil {
+		t.Fatalf("compile web3.js: %v", err)
+	}
+
+	abiJSON := `[{"type":"function","name":"f","constant":true,"inputs":[],"outputs":[{"name":"","type":"uint512"},{"name":"","type":"string"}]}]`
+	goABI, err := qrlabi.JSON(strings.NewReader(abiJSON))
+	if err != nil {
+		t.Fatalf("parse ABI: %v", err)
+	}
+	output, err := goABI.Methods["f"].Outputs.PackValues([]any{big.NewInt(7), "hello"})
+	if err != nil {
+		t.Fatalf("pack Go ABI output: %v", err)
+	}
+	outputHex := "0x" + fmt.Sprintf("%x", output)
+	replaceWord := func(hexData string, wordIndex int, word string) string {
+		body := strings.TrimPrefix(hexData, "0x")
+		return "0x" + body[:wordIndex*128] + word + body[(wordIndex+1)*128:]
+	}
+	word := func(n uint64) string {
+		return fmt.Sprintf("%0128x", n)
+	}
+
+	zeroOffset := replaceWord(outputHex, 1, word(0))
+	unalignedOffset := replaceWord(outputHex, 1, word(65))
+	truncatedTail := outputHex[:len(outputHex)-2]
+	nonZeroPadding := outputHex[:len(outputHex)-2] + "01"
+
+	script := fmt.Sprintf(`
+var response = "0x";
+var provider = {
+  send: function(payload) {
+    if (payload.method === "qrl_call") {
+      return {jsonrpc: "2.0", id: payload.id, result: response};
+    }
+    return {jsonrpc: "2.0", id: payload.id, result: null};
+  },
+  sendAsync: function(payload, cb) {
+    cb(null, this.send(payload));
+  },
+  isConnected: function() { return true; }
+};
+var Web3 = require("web3");
+var web3 = new Web3(provider);
+var abi = JSON.parse(%q);
+var contract = web3.qrl.contract(abi).at("Q00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000");
+function errorFor(output) {
+  response = output;
+  try {
+    contract.f.call();
+    return "";
+  } catch (err) {
+    return err.message;
+  }
+}
+JSON.stringify({
+  zeroOffset: errorFor(%q),
+  unalignedOffset: errorFor(%q),
+  truncatedTail: errorFor(%q),
+  nonZeroPadding: errorFor(%q)
+});
+`, abiJSON, zeroOffset, unalignedOffset, truncatedTail, nonZeroPadding)
+
+	value, err := re.Run(script)
+	if err != nil {
+		t.Fatalf("run malformed dynamic output script: %v", err)
+	}
+	var got map[string]string
+	if err := json.Unmarshal([]byte(value.String()), &got); err != nil {
+		t.Fatalf("decode script result %q: %v", value.String(), err)
+	}
+	for name, errMessage := range got {
+		if errMessage == "" {
+			t.Fatalf("%s should reject malformed dynamic output: %#v", name, got)
+		}
+	}
+}
+
 func TestEmbeddedWeb3DeclaredIntegerBounds(t *testing.T) {
 	t.Parallel()
 
@@ -503,7 +589,8 @@ JSON.stringify({
   u256OutputOverflow: errorOf(function() { response = %q; contract.u256Out.call(); }),
   u512OutputMax: errorOf(function() { response = %q; contract.u512Out.call(); }),
   i256OutputOverflow: errorOf(function() { response = %q; contract.i256Out.call(); }),
-  i512OutputMax: errorOf(function() { response = %q; contract.i512Out.call(); })
+  i512OutputMax: errorOf(function() { response = %q; contract.i512Out.call(); }),
+  u512ShortOutput: errorOf(function() { response = "0x1"; contract.u512Out.call(); })
 });
 `, abiJSON, word(uint256Overflow), word(maxUint512), word(int256Overflow), word(maxInt512))
 
@@ -522,6 +609,7 @@ JSON.stringify({
 		"i256InputUnderflow",
 		"u256OutputOverflow",
 		"i256OutputOverflow",
+		"u512ShortOutput",
 	} {
 		if got[key] == "" {
 			t.Fatalf("%s should reject out-of-range integer value: %#v", key, got)
@@ -695,6 +783,8 @@ response = %q;
 var decodedTrue = contract.flag.call();
 response = %q;
 var invalidError = errorOf(function() { contract.flag.call(); });
+response = "0x1";
+var shortWordError = errorOf(function() { contract.flag.call(); });
 response = %q;
 var encodedFalse = contract.echo.call(false);
 response = %q;
@@ -705,6 +795,7 @@ JSON.stringify({
   decodedFalse: decodedFalse,
   decodedTrue: decodedTrue,
   invalidError: invalidError,
+  shortWordError: shortWordError,
   encodedFalse: encodedFalse,
   encodedTrue: encodedTrue,
   invalidStringInputError: invalidStringInputError,
@@ -720,6 +811,7 @@ JSON.stringify({
 		DecodedFalse            bool   `json:"decodedFalse"`
 		DecodedTrue             bool   `json:"decodedTrue"`
 		InvalidError            string `json:"invalidError"`
+		ShortWordError          string `json:"shortWordError"`
 		EncodedFalse            bool   `json:"encodedFalse"`
 		EncodedTrue             bool   `json:"encodedTrue"`
 		InvalidStringInputError string `json:"invalidStringInputError"`
@@ -736,6 +828,9 @@ JSON.stringify({
 	}
 	if got.InvalidError == "" {
 		t.Fatalf("malformed bool word should fail")
+	}
+	if got.ShortWordError == "" {
+		t.Fatalf("short bool word should fail")
 	}
 	if got.EncodedFalse {
 		t.Fatalf("encoded false bool mismatch")
@@ -937,6 +1032,14 @@ var provider = {
 };
 var Web3 = require("web3");
 var web3 = new Web3(provider);
+function errorOf(fn) {
+  try {
+    fn();
+    return "";
+  } catch (err) {
+    return err.message;
+  }
+}
 var rawTopic = web3.sha3("Transfer(address,uint512)");
 var filter = web3.qrl.filter({fromBlock: "0x0", toBlock: "latest", topics: [rawTopic]});
 JSON.stringify({
@@ -944,21 +1047,25 @@ JSON.stringify({
   rawIsTopic: web3._extend.utils.isTopic(rawTopic),
   paddedIsTopic: web3._extend.utils.isTopic(filter.options.topics[0]),
   mixedCaseIsTopic: web3._extend.utils.isTopic(%q),
+  invalidShortHexError: errorOf(function() { web3.qrl.filter({topics: ["0xzz"]}); }),
+  invalidFullHexError: errorOf(function() { web3.qrl.filter({topics: [%q]}); }),
   options: filter.options.topics,
   captured: capturedOptions.topics
 });
-`, mixedCaseTopic)
+`, mixedCaseTopic, "0x"+strings.Repeat("g", common.LogTopicLength*2))
 	value, err := re.Run(script)
 	if err != nil {
 		t.Fatalf("run raw topic script: %v", err)
 	}
 	var got struct {
-		Raw              string   `json:"raw"`
-		RawIsTopic       bool     `json:"rawIsTopic"`
-		PaddedIsTopic    bool     `json:"paddedIsTopic"`
-		MixedCaseIsTopic bool     `json:"mixedCaseIsTopic"`
-		Options          []string `json:"options"`
-		Captured         []string `json:"captured"`
+		Raw                  string   `json:"raw"`
+		RawIsTopic           bool     `json:"rawIsTopic"`
+		PaddedIsTopic        bool     `json:"paddedIsTopic"`
+		MixedCaseIsTopic     bool     `json:"mixedCaseIsTopic"`
+		InvalidShortHexError string   `json:"invalidShortHexError"`
+		InvalidFullHexError  string   `json:"invalidFullHexError"`
+		Options              []string `json:"options"`
+		Captured             []string `json:"captured"`
 	}
 	if err := json.Unmarshal([]byte(value.String()), &got); err != nil {
 		t.Fatalf("decode script result %q: %v", value.String(), err)
@@ -974,6 +1081,12 @@ JSON.stringify({
 	}
 	if !got.MixedCaseIsTopic {
 		t.Fatalf("mixed-case 64-byte topic should pass VM64 topic validation")
+	}
+	if got.InvalidShortHexError == "" {
+		t.Fatalf("invalid short topic hex should fail")
+	}
+	if got.InvalidFullHexError == "" {
+		t.Fatalf("invalid full-width topic hex should fail")
 	}
 	if !reflect.DeepEqual(got.Options, []string{expected}) {
 		t.Fatalf("filter options topic mismatch: have %#v want %#v", got.Options, []string{expected})

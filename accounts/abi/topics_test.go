@@ -64,14 +64,15 @@ func TestMakeTopics(t *testing.T) {
 			false,
 		},
 		{
-			"support common hash types in topics",
+			"support common hash types as fixed bytes in topics",
 			args{[][]any{{common.Hash{1, 2, 3, 4, 5}}}},
-			// Hash right-aligned in the 64-byte slot: low 32 bytes hold the
-			// hash, upper 32 are zero.
+			// common.Hash is a bytes32 value here, so it is left-packed like
+			// other ABI fixed bytes. Use common.LogTopic for a precomputed
+			// full topic.
 			[][]common.LogTopic{{func() common.LogTopic {
 				var t common.LogTopic
 				h := common.Hash{1, 2, 3, 4, 5}
-				copy(t[common.LogTopicLength-common.HashLength:], h[:])
+				copy(t[:common.HashLength], h[:])
 				return t
 			}()}},
 			false,

@@ -387,6 +387,12 @@ var isDynamic = function (hyperionType, type) {
    return false;
 };
 
+var assertHexBytes = function (bytes) {
+    if (bytes.length % 2 !== 0 || !/^[0-9a-f]*$/i.test(bytes)) {
+        throw new Error('invalid ABI hex data');
+    }
+};
+
 /**
  * HyperionCoder prototype should be used to encode/decode hyperion params of any type
  */
@@ -570,11 +576,19 @@ HyperionCoder.prototype.decodeParam = function (type, bytes) {
  * @return {Array} array of plain params
  */
 HyperionCoder.prototype.decodeParams = function (types, bytes) {
+    bytes = (bytes || '').replace(/^0x/i, '');
+    assertHexBytes(bytes);
+
     var hyperionTypes = this.getHyperionTypes(types);
     var offsets = this.getOffsets(types, hyperionTypes);
+    var headSize = hyperionTypes.reduce(function (acc, hyperionType, index) {
+        var staticPartLength = isDynamic(hyperionType, types[index]) ? 64 : hyperionType.staticPartLength(types[index]);
+        var roundedStaticPartLength = Math.floor((staticPartLength + 63) / 64) * 64;
+        return acc + roundedStaticPartLength;
+    }, 0);
 
     return hyperionTypes.map(function (hyperionType, index) {
-        return hyperionType.decode(bytes, offsets[index],  types[index]);
+        return hyperionType.decode(bytes, offsets[index], types[index], 0, headSize);
     });
 };
 
@@ -665,6 +679,8 @@ var BigNumber = require('bignumber.js');
 var utils = require('../utils/utils');
 var c = require('../utils/config');
 var HyperionParam = require('./param');
+
+var maxSafeInteger = new BigNumber('9007199254740991');
 
 var parseIntegerSize = function (name) {
     if (!name) {
@@ -772,6 +788,34 @@ var assertZeroRightPadding = function (value, start, type) {
             throw new Error('non-zero padding for ' + type);
         }
     }
+};
+
+var formatOutputWord = function (param, type) {
+    var value = (param.staticPart() || '').toLowerCase();
+    if (!/^[0-9a-f]{128}$/.test(value)) {
+        throw new Error('invalid ABI word for ' + type);
+    }
+    return value;
+};
+
+var readDynamicPayload = function (param, type) {
+    var value = (param.dynamicPart() || '').toLowerCase();
+    if (!/^[0-9a-f]*$/.test(value) || value.length < 128) {
+        throw new Error('invalid dynamic ABI data for ' + type);
+    }
+
+    var length = new BigNumber(value.slice(0, 128), 16);
+    if (maxSafeInteger.lessThan(length)) {
+        throw new Error('dynamic ABI data too large for ' + type);
+    }
+
+    var dataLength = length.toNumber() * 2;
+    var paddedLength = Math.floor((dataLength + 127) / 128) * 128;
+    if (value.length < 128 + paddedLength) {
+        throw new Error('short dynamic ABI data for ' + type);
+    }
+    assertZeroRightPadding(value.slice(128, 128 + paddedLength), dataLength, type);
+    return value.substr(128, dataLength);
 };
 
 
@@ -918,7 +962,7 @@ var signedIsNegative = function (value) {
  * @returns {BigNumber} right-aligned output bytes formatted to big number
  */
 var formatOutputInt = function (param, name) {
-    var value = utils.padLeft(param.staticPart() || "0", 128).toLowerCase();
+    var value = formatOutputWord(param, name);
     var result;
     assertSignedWordBounds(value, name);
 
@@ -940,7 +984,7 @@ var formatOutputInt = function (param, name) {
  * @returns {BigNumeber} right-aligned output bytes formatted to uint
  */
 var formatOutputUInt = function (param, name) {
-    var value = utils.padLeft(param.staticPart() || "0", 128).toLowerCase();
+    var value = formatOutputWord(param, name);
     assertUnsignedWordBounds(value, name);
     return new BigNumber(value, 16);
 };
@@ -1011,8 +1055,7 @@ var formatOutputBytes = function (param, name) {
  * @returns {String} hex string
  */
 var formatOutputDynamicBytes = function (param) {
-    var length = (new BigNumber(param.dynamicPart().slice(0, 128), 16)).toNumber() * 2;
-    return '0x' + param.dynamicPart().substr(128, length);
+    return '0x' + readDynamicPayload(param, 'bytes');
 };
 
 /**
@@ -1023,8 +1066,7 @@ var formatOutputDynamicBytes = function (param) {
  * @returns {String} ascii string
  */
 var formatOutputString = function (param) {
-    var length = (new BigNumber(param.dynamicPart().slice(0, 128), 16)).toNumber() * 2;
-    return utils.toUtf8(param.dynamicPart().substr(128, length));
+    return utils.toUtf8(readDynamicPayload(param, 'string'));
 };
 
 /**
@@ -1035,7 +1077,7 @@ var formatOutputString = function (param) {
  * @returns {String} checksummed Q-address
  */
 var formatOutputAddress = function (param) {
-    var value = param.staticPart();
+    var value = formatOutputWord(param, 'address');
     return utils.toChecksumAddress("Q" + value.slice(value.length - 128, value.length));
 };
 
@@ -1307,6 +1349,10 @@ module.exports = HyperionTypeString;
 var f = require('./formatters');
 var HyperionParam = require('./param');
 
+var wordBytes = 64;
+var wordHexLength = 128;
+var maxSafeIntegerHex = '1fffffffffffff';
+
 /**
  * HyperionType prototype is used to encode/decode hyperion params of certain type
  */
@@ -1324,6 +1370,66 @@ var isDynamic = function (hyperionType, type) {
        return isDynamic(hyperionType, hyperionType.nestedName(type));
    }
    return false;
+};
+
+var byteLength = function (bytes) {
+    return bytes.length / 2;
+};
+
+var assertAvailable = function (bytes, offset, length, context) {
+    if (offset < 0 || length < 0 || offset + length > byteLength(bytes)) {
+        throw new Error('short ABI data for ' + context);
+    }
+};
+
+var readData = function (bytes, offset, length, context) {
+    assertAvailable(bytes, offset, length, context);
+    var value = bytes.substr(offset * 2, length * 2);
+    if (value.length !== length * 2 || !/^[0-9a-f]*$/i.test(value)) {
+        throw new Error('invalid ABI data for ' + context);
+    }
+    return value.toLowerCase();
+};
+
+var readWord = function (bytes, offset, context) {
+    if (offset % wordBytes !== 0) {
+        throw new Error('unaligned ABI word for ' + context);
+    }
+    var value = readData(bytes, offset, wordBytes, context);
+    if (value.length !== wordHexLength) {
+        throw new Error('invalid ABI word for ' + context);
+    }
+    return value;
+};
+
+var wordToNumber = function (word, context) {
+    var trimmed = word.replace(/^0+/, '') || '0';
+    if (trimmed.length > maxSafeIntegerHex.length ||
+        (trimmed.length === maxSafeIntegerHex.length && trimmed > maxSafeIntegerHex)) {
+        throw new Error('ABI value too large for ' + context);
+    }
+    return parseInt(trimmed, 16);
+};
+
+var readWordNumber = function (bytes, offset, context) {
+    return wordToNumber(readWord(bytes, offset, context), context);
+};
+
+var readOffset = function (bytes, offset, offsetBase, minTailOffset, context) {
+    var relativeOffset = readWordNumber(bytes, offset, context + ' offset');
+    var absoluteOffset = offsetBase + relativeOffset;
+    if (relativeOffset % wordBytes !== 0 || absoluteOffset % wordBytes !== 0) {
+        throw new Error('unaligned ABI offset for ' + context);
+    }
+    if (absoluteOffset < minTailOffset) {
+        throw new Error('ABI offset points into head for ' + context);
+    }
+    assertAvailable(bytes, absoluteOffset, wordBytes, context);
+    return absoluteOffset;
+};
+
+var assertArrayHeadAvailable = function (bytes, arrayStart, length, headLength, context) {
+    assertAvailable(bytes, arrayStart, length * headLength, context);
 };
 
 /**
@@ -1514,25 +1620,28 @@ HyperionType.prototype.encode = function (value, name) {
  * @param {String} name type name
  * @returns {Object} decoded value
  */
-HyperionType.prototype.decode = function (bytes, offset, name, offsetBase) {
+HyperionType.prototype.decode = function (bytes, offset, name, offsetBase, minTailOffset) {
     var self = this;
     offsetBase = offsetBase || 0;
+    minTailOffset = minTailOffset || 0;
 
     if (this.isDynamicArray(name)) {
 
         return (function () {
-            var arrayOffset = offsetBase + parseInt('0x' + bytes.substr(offset * 2, 128)); // in bytes
-            var length = parseInt('0x' + bytes.substr(arrayOffset * 2, 128)); // in int
-            var arrayStart = arrayOffset + 64; // array starts after length; // in bytes
+            var arrayOffset = readOffset(bytes, offset, offsetBase, minTailOffset, name); // in bytes
+            var length = readWordNumber(bytes, arrayOffset, name + ' length'); // in int
+            var arrayStart = arrayOffset + wordBytes; // array starts after length; // in bytes
 
             var nestedName = self.nestedName(name);
             var nestedStaticPartLength = self.staticPartLength(nestedName);  // in bytes
-            var roundedNestedStaticPartLength = Math.floor((nestedStaticPartLength + 63) / 64) * 64;
-            var nestedHeadLength = isDynamic(self, nestedName) ? 64 : roundedNestedStaticPartLength;
+            var roundedNestedStaticPartLength = Math.floor((nestedStaticPartLength + wordBytes - 1) / wordBytes) * wordBytes;
+            var nestedHeadLength = isDynamic(self, nestedName) ? wordBytes : roundedNestedStaticPartLength;
+            var arrayHeadEnd = arrayStart + length * nestedHeadLength;
             var result = [];
 
+            assertArrayHeadAvailable(bytes, arrayStart, length, nestedHeadLength, name);
             for (var i = 0; i < length * nestedHeadLength; i += nestedHeadLength) {
-                result.push(self.decode(bytes, arrayStart + i, nestedName, arrayStart));
+                result.push(self.decode(bytes, arrayStart + i, nestedName, arrayStart, arrayHeadEnd));
             }
 
             return result;
@@ -1544,17 +1653,19 @@ HyperionType.prototype.decode = function (bytes, offset, name, offsetBase) {
             var length = self.staticArrayLength(name);                      // in int
             var arrayStart = offset;                                        // in bytes
             if (isDynamic(self, name)) {
-                arrayStart = offsetBase + parseInt('0x' + bytes.substr(offset * 2, 128));
+                arrayStart = readOffset(bytes, offset, offsetBase, minTailOffset, name);
             }
 
             var nestedName = self.nestedName(name);
             var nestedStaticPartLength = self.staticPartLength(nestedName); // in bytes
-            var roundedNestedStaticPartLength = Math.floor((nestedStaticPartLength + 63) / 64) * 64;
-            var nestedHeadLength = isDynamic(self, nestedName) ? 64 : roundedNestedStaticPartLength;
+            var roundedNestedStaticPartLength = Math.floor((nestedStaticPartLength + wordBytes - 1) / wordBytes) * wordBytes;
+            var nestedHeadLength = isDynamic(self, nestedName) ? wordBytes : roundedNestedStaticPartLength;
+            var arrayHeadEnd = arrayStart + length * nestedHeadLength;
             var result = [];
 
+            assertArrayHeadAvailable(bytes, arrayStart, length, nestedHeadLength, name);
             for (var i = 0; i < length * nestedHeadLength; i += nestedHeadLength) {
-                result.push(self.decode(bytes, arrayStart + i, nestedName, arrayStart));
+                result.push(self.decode(bytes, arrayStart + i, nestedName, arrayStart, arrayHeadEnd));
             }
 
             return result;
@@ -1562,16 +1673,17 @@ HyperionType.prototype.decode = function (bytes, offset, name, offsetBase) {
     } else if (this.isDynamicType(name)) {
 
         return (function () {
-            var dynamicOffset = offsetBase + parseInt('0x' + bytes.substr(offset * 2, 128));     // in bytes
-            var length = parseInt('0x' + bytes.substr(dynamicOffset * 2, 128));     // in bytes
-            var roundedLength = Math.floor((length + 63) / 64);                     // in int
-            var param = new HyperionParam(bytes.substr(dynamicOffset * 2, ( 1 + roundedLength) * 128), 0);
+            var dynamicOffset = readOffset(bytes, offset, offsetBase, minTailOffset, name);     // in bytes
+            var length = readWordNumber(bytes, dynamicOffset, name + ' length');     // in bytes
+            var roundedLength = Math.floor((length + wordBytes - 1) / wordBytes);    // in int
+            assertAvailable(bytes, dynamicOffset, wordBytes + roundedLength * wordBytes, name);
+            var param = new HyperionParam(bytes.substr(dynamicOffset * 2, (1 + roundedLength) * wordHexLength), 0);
             return self._outputFormatter(param, name);
         })();
     }
 
     var length = this.staticPartLength(name);
-    var param = new HyperionParam(bytes.substr(offset * 2, length * 2));
+    var param = new HyperionParam(readData(bytes, offset, length, name));
     return this._outputFormatter(param, name);
 };
 
@@ -3419,6 +3531,9 @@ var toTopic = function(value){
         value = utils.fromUtf8(value);
 
     var hex = value.slice(0, 2).toLowerCase() === '0x' ? value.slice(2) : value;
+    if (!/^[0-9a-f]*$/i.test(hex)) {
+        throw new Error('invalid topic hex');
+    }
     if (hex.length > 128) {
         throw new Error('invalid topic length');
     }

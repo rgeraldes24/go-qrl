@@ -29,6 +29,8 @@ import (
 
 // MakeTopics converts a filter query argument list into a filter topic set.
 // Topics are 64-byte values; scalar arguments are right-aligned (big-endian).
+// Use common.LogTopic for already-formed full topics. Fixed byte arrays,
+// including common.Hash, are encoded as ABI fixed bytes.
 func MakeTopics(query ...[]any) ([][]common.LogTopic, error) {
 	topics := make([][]common.LogTopic, len(query))
 	for i, filter := range query {
@@ -40,7 +42,7 @@ func MakeTopics(query ...[]any) ([][]common.LogTopic, error) {
 			case common.LogTopic:
 				copy(topic[:], rule[:])
 			case common.Hash:
-				copy(topic[common.LogTopicLength-common.HashLength:], rule[:])
+				copy(topic[:common.HashLength], rule[:])
 			case common.Address:
 				copy(topic[common.LogTopicLength-common.AddressLength:], rule[:])
 			case *big.Int:
