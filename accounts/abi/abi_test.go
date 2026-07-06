@@ -1056,10 +1056,10 @@ func TestABI_EventBySignatureTopic(t *testing.T) {
 			t.Errorf("Event signature topic %s does not match signature topic %s, test #%d", signatureTopicEvent.SignatureTopic().Hex(), signatureTopic.Hex(), testnum)
 		}
 
-		nonCanonicalSignatureTopic := signatureTopic
-		nonCanonicalSignatureTopic[0] = 0x01
-		if event, err := abi.EventBySignatureTopic(nonCanonicalSignatureTopic); err == nil {
-			t.Errorf("EventBySignatureTopic should not match non-canonical signature topic %s, matched %v, test #%d", nonCanonicalSignatureTopic.Hex(), event, testnum)
+		wronglyAlignedSignatureTopic := signatureTopic
+		wronglyAlignedSignatureTopic[0] = 0x01
+		if event, err := abi.EventBySignatureTopic(wronglyAlignedSignatureTopic); err == nil {
+			t.Errorf("EventBySignatureTopic should not match wrongly aligned signature topic %s, matched %v, test #%d", wronglyAlignedSignatureTopic.Hex(), event, testnum)
 		}
 
 		unknownEventID := crypto.Keccak256Hash([]byte("unknownEvent"))
