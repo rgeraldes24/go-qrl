@@ -1958,6 +1958,18 @@ func TestBindRejectsUnsupportedFunctionType(t *testing.T) {
 	}
 }
 
+func TestBindRejectsDuplicateEventInputNames(t *testing.T) {
+	duplicateABI := `[{"anonymous":false,"inputs":[{"indexed":true,"internalType":"uint256","name":"value","type":"uint256"},{"indexed":false,"internalType":"uint512","name":"value","type":"uint512"}],"name":"Duplicate","type":"event"}]`
+
+	_, err := Bind([]string{"DuplicateEvents"}, []string{duplicateABI}, []string{"0x"}, nil, "bindtest", nil, nil)
+	if err == nil {
+		t.Fatal("Bind accepted duplicate event input names")
+	}
+	if want := `event "Duplicate" has duplicate input name "value"`; !strings.Contains(err.Error(), want) {
+		t.Fatalf("Bind error = %q, want %q", err, want)
+	}
+}
+
 func TestBindTopicTypeUsesLogTopicForIndexedDynamicTypes(t *testing.T) {
 	tests := []struct {
 		name       string

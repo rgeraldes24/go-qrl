@@ -415,7 +415,21 @@ func TestNewIntegerInvalidSize(t *testing.T) {
 
 func TestNewTypeRejectsMalformedTypeStrings(t *testing.T) {
 	t.Parallel()
-	for _, typ := range []string{"uint256foo", "uint8x2", "int256x1", "bytes32x2", "address64", "bool2", "tuple2", "tuplefoo", "uint256[abc]", "uint256[2junk]"} {
+	for _, typ := range []string{
+		"uint256foo",
+		"uint8x2",
+		"int256x1",
+		"bytes32x2",
+		"address64",
+		"bool2",
+		"tuple2",
+		"tuplefoo",
+		"uint256[abc]",
+		"uint256[2junk]",
+		"uint008",
+		"int0512",
+		"bytes064",
+	} {
 		if _, err := NewType(typ, "", nil); err == nil {
 			t.Errorf("malformed type %s parsed without error", typ)
 		}

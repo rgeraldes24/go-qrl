@@ -181,15 +181,15 @@ func setStruct(dst, src reflect.Value) error {
 // variable is expected to be mapped into, if it exists and has not been used, pair them.
 //
 // Note this function assumes the given value is a struct value.
-func mapArgNamesToStructFields(argNames []string, value reflect.Value) (map[string]string, error) {
-	return mapArgNamesToStructFieldsWithAllowedMissingTags(argNames, value, nil)
-}
-
-func mapArgNamesToStructFieldsWithAllowedMissingTags(argNames []string, value reflect.Value, allowedMissingTags map[string]struct{}) (map[string]string, error) {
+func mapArgNamesToStructFields(argNames []string, value reflect.Value, allowedMissingTags ...map[string]struct{}) (map[string]string, error) {
 	typ := value.Type()
 
 	abi2struct := make(map[string]string)
 	struct2abi := make(map[string]string)
+	var allowed map[string]struct{}
+	if len(allowedMissingTags) > 0 {
+		allowed = allowedMissingTags[0]
+	}
 
 	// first round ~~~
 	for i := range typ.NumField() {
@@ -223,7 +223,7 @@ func mapArgNamesToStructFieldsWithAllowedMissingTags(argNames []string, value re
 		}
 		// check if this tag has been mapped.
 		if !found {
-			if _, ok := allowedMissingTags[tagName]; ok {
+			if _, ok := allowed[tagName]; ok {
 				struct2abi[structFieldName] = tagName
 				continue
 			}

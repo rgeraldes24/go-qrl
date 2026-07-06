@@ -130,6 +130,9 @@ func NewType(t string, internalType string, components []ArgumentMarshaling) (ty
 	var varSize int
 	hasSize := len(parsedType[3]) > 0
 	if hasSize {
+		if len(parsedType[3]) > 1 && parsedType[3][0] == '0' {
+			return Type{}, fmt.Errorf("unsupported arg type: %s", t)
+		}
 		var err error
 		varSize, err = strconv.Atoi(parsedType[3])
 		if err != nil {

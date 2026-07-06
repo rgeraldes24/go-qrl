@@ -476,6 +476,7 @@ func TestEmbeddedWeb3RejectsMalformedDynamicOutput(t *testing.T) {
 	unalignedOffset := replaceWord(outputHex, 1, word(65))
 	truncatedTail := outputHex[:len(outputHex)-2]
 	nonZeroPadding := outputHex[:len(outputHex)-2] + "01"
+	trailingWord := outputHex + strings.Repeat("0", 128)
 
 	script := fmt.Sprintf(`
 var response = "0x";
@@ -504,13 +505,14 @@ function errorFor(output) {
     return err.message;
   }
 }
-JSON.stringify({
-  zeroOffset: errorFor(%q),
-  unalignedOffset: errorFor(%q),
-  truncatedTail: errorFor(%q),
-  nonZeroPadding: errorFor(%q)
-});
-`, abiJSON, zeroOffset, unalignedOffset, truncatedTail, nonZeroPadding)
+	JSON.stringify({
+	  zeroOffset: errorFor(%q),
+	  unalignedOffset: errorFor(%q),
+	  truncatedTail: errorFor(%q),
+	  nonZeroPadding: errorFor(%q),
+	  trailingWord: errorFor(%q)
+	});
+	`, abiJSON, zeroOffset, unalignedOffset, truncatedTail, nonZeroPadding, trailingWord)
 
 	value, err := re.Run(script)
 	if err != nil {
@@ -866,11 +868,17 @@ var provider = {
 };
 var Web3 = require("web3");
 var web3 = new Web3(provider);
-var abi = [{
-  type: "function",
-  name: "flag",
-  constant: true,
-  inputs: [],
+	var abi = [{
+	  type: "function",
+	  name: "noOut",
+	  constant: true,
+	  inputs: [],
+	  outputs: []
+	}, {
+	  type: "function",
+	  name: "flag",
+	  constant: true,
+	  inputs: [],
   outputs: [{name: "", type: "bool"}]
 }, {
   type: "function",
@@ -896,10 +904,12 @@ response = %q;
 var invalidError = errorOf(function() { contract.flag.call(); });
 response = "0x1";
 var shortWordError = errorOf(function() { contract.flag.call(); });
-response = "zz" + %q.slice(2);
-var malformedNoPrefixError = errorOf(function() { contract.flag.call(); });
-response = %q;
-var encodedFalse = contract.echo.call(false);
+	response = "zz" + %q.slice(2);
+	var malformedNoPrefixError = errorOf(function() { contract.flag.call(); });
+	response = %q;
+	var noOutputTrailingError = errorOf(function() { contract.noOut.call(); });
+	response = %q;
+	var encodedFalse = contract.echo.call(false);
 response = %q;
 var encodedTrue = contract.echo.call(true);
 var encodedFalseData = contract.echo.getData(false);
@@ -909,17 +919,18 @@ var invalidNumberInputError = errorOf(function() { contract.echo.call(2); });
 JSON.stringify({
   decodedFalse: decodedFalse,
   decodedTrue: decodedTrue,
-  invalidError: invalidError,
-  shortWordError: shortWordError,
-  malformedNoPrefixError: malformedNoPrefixError,
-  encodedFalse: encodedFalse,
+	  invalidError: invalidError,
+	  shortWordError: shortWordError,
+	  malformedNoPrefixError: malformedNoPrefixError,
+	  noOutputTrailingError: noOutputTrailingError,
+	  encodedFalse: encodedFalse,
   encodedTrue: encodedTrue,
   encodedFalseData: encodedFalseData,
   encodedTrueData: encodedTrueData,
   invalidStringInputError: invalidStringInputError,
   invalidNumberInputError: invalidNumberInputError
 });
-`, boolWord(0), boolWord(1), boolWord(2), boolWord(1), boolWord(0), boolWord(1))
+	`, boolWord(0), boolWord(1), boolWord(2), boolWord(1), boolWord(0), boolWord(0), boolWord(1))
 
 	value, err := re.Run(script)
 	if err != nil {
@@ -931,6 +942,7 @@ JSON.stringify({
 		InvalidError            string `json:"invalidError"`
 		ShortWordError          string `json:"shortWordError"`
 		MalformedNoPrefixError  string `json:"malformedNoPrefixError"`
+		NoOutputTrailingError   string `json:"noOutputTrailingError"`
 		EncodedFalse            bool   `json:"encodedFalse"`
 		EncodedTrue             bool   `json:"encodedTrue"`
 		EncodedFalseData        string `json:"encodedFalseData"`
@@ -955,6 +967,9 @@ JSON.stringify({
 	}
 	if got.MalformedNoPrefixError == "" {
 		t.Fatalf("malformed no-prefix bool output should fail")
+	}
+	if got.NoOutputTrailingError == "" {
+		t.Fatalf("zero-output function should reject non-empty ABI data")
 	}
 	if got.EncodedFalse {
 		t.Fatalf("encoded false bool mismatch")

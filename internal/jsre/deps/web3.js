@@ -393,6 +393,111 @@ var assertHexBytes = function (bytes) {
     }
 };
 
+var wordBytes = 64;
+var wordHexLength = wordBytes * 2;
+var maxSafeIntegerHex = '1fffffffffffff';
+
+var byteLength = function (bytes) {
+    return bytes.length / 2;
+};
+
+var assertAvailable = function (bytes, offset, length, context) {
+    if (offset < 0 || length < 0 || offset + length > byteLength(bytes)) {
+        throw new Error('short ABI data for ' + context);
+    }
+};
+
+var readWord = function (bytes, offset, context) {
+    if (offset % wordBytes !== 0) {
+        throw new Error('unaligned ABI word for ' + context);
+    }
+    assertAvailable(bytes, offset, wordBytes, context);
+    var value = bytes.substr(offset * 2, wordHexLength);
+    if (value.length !== wordHexLength || !/^[0-9a-f]*$/i.test(value)) {
+        throw new Error('invalid ABI word for ' + context);
+    }
+    return value.toLowerCase();
+};
+
+var wordToNumber = function (word, context) {
+    var trimmed = word.replace(/^0+/, '') || '0';
+    if (trimmed.length > maxSafeIntegerHex.length ||
+        (trimmed.length === maxSafeIntegerHex.length && trimmed > maxSafeIntegerHex)) {
+        throw new Error('ABI value too large for ' + context);
+    }
+    return parseInt(trimmed, 16);
+};
+
+var readWordNumber = function (bytes, offset, context) {
+    return wordToNumber(readWord(bytes, offset, context), context);
+};
+
+var readOffset = function (bytes, offset, offsetBase, minDynamicOffset, context) {
+    var relativeOffset = readWordNumber(bytes, offset, context + ' offset');
+    var absoluteOffset = offsetBase + relativeOffset;
+    if (relativeOffset % wordBytes !== 0 || absoluteOffset % wordBytes !== 0) {
+        throw new Error('unaligned ABI offset for ' + context);
+    }
+    if (absoluteOffset < minDynamicOffset) {
+        throw new Error('ABI offset points into head for ' + context);
+    }
+    assertAvailable(bytes, absoluteOffset, wordBytes, context);
+    return absoluteOffset;
+};
+
+var encodedEnd = function (hyperionType, type, bytes, offset, offsetBase, minDynamicOffset) {
+    offsetBase = offsetBase || 0;
+    minDynamicOffset = minDynamicOffset || 0;
+
+    if (hyperionType.isDynamicArray(type)) {
+        var arrayOffset = readOffset(bytes, offset, offsetBase, minDynamicOffset, type);
+        var length = readWordNumber(bytes, arrayOffset, type + ' length');
+        var arrayStart = arrayOffset + wordBytes;
+        var nestedName = hyperionType.nestedName(type);
+        var nestedStaticPartLength = hyperionType.staticPartLength(nestedName);
+        var roundedNestedStaticPartLength = Math.floor((nestedStaticPartLength + wordBytes - 1) / wordBytes) * wordBytes;
+        var nestedHeadLength = isDynamic(hyperionType, nestedName) ? wordBytes : roundedNestedStaticPartLength;
+        var arrayHeadEnd = arrayStart + length * nestedHeadLength;
+        assertAvailable(bytes, arrayStart, length * nestedHeadLength, type);
+        var dynamicArrayEnd = arrayHeadEnd;
+        for (var i = 0; i < length * nestedHeadLength; i += nestedHeadLength) {
+            dynamicArrayEnd = Math.max(dynamicArrayEnd, encodedEnd(hyperionType, nestedName, bytes, arrayStart + i, arrayStart, arrayHeadEnd));
+        }
+        return dynamicArrayEnd;
+    }
+
+    if (hyperionType.isStaticArray(type)) {
+        var staticLength = hyperionType.staticArrayLength(type);
+        var arrayStart = offset;
+        if (isDynamic(hyperionType, type)) {
+            arrayStart = readOffset(bytes, offset, offsetBase, minDynamicOffset, type);
+        }
+        var staticNestedName = hyperionType.nestedName(type);
+        var staticNestedPartLength = hyperionType.staticPartLength(staticNestedName);
+        var roundedStaticNestedPartLength = Math.floor((staticNestedPartLength + wordBytes - 1) / wordBytes) * wordBytes;
+        var staticNestedHeadLength = isDynamic(hyperionType, staticNestedName) ? wordBytes : roundedStaticNestedPartLength;
+        var staticArrayHeadEnd = arrayStart + staticLength * staticNestedHeadLength;
+        assertAvailable(bytes, arrayStart, staticLength * staticNestedHeadLength, type);
+        var staticArrayEnd = staticArrayHeadEnd;
+        for (var j = 0; j < staticLength * staticNestedHeadLength; j += staticNestedHeadLength) {
+            staticArrayEnd = Math.max(staticArrayEnd, encodedEnd(hyperionType, staticNestedName, bytes, arrayStart + j, arrayStart, staticArrayHeadEnd));
+        }
+        return staticArrayEnd;
+    }
+
+    if (hyperionType.isDynamicType(type)) {
+        var dynamicOffset = readOffset(bytes, offset, offsetBase, minDynamicOffset, type);
+        var dynamicLength = readWordNumber(bytes, dynamicOffset, type + ' length');
+        var paddedLength = Math.floor((dynamicLength + wordBytes - 1) / wordBytes) * wordBytes;
+        assertAvailable(bytes, dynamicOffset, wordBytes + paddedLength, type);
+        return dynamicOffset + wordBytes + paddedLength;
+    }
+
+    var length = hyperionType.staticPartLength(type);
+    assertAvailable(bytes, offset, length, type);
+    return offset + length;
+};
+
 /**
  * HyperionCoder prototype should be used to encode/decode hyperion params of any type
  */
@@ -582,10 +687,17 @@ HyperionCoder.prototype.decodeParams = function (types, bytes) {
     var hyperionTypes = this.getHyperionTypes(types);
     var offsets = this.getOffsets(types, hyperionTypes);
     var headSize = hyperionTypes.reduce(function (acc, hyperionType, index) {
-        var staticPartLength = isDynamic(hyperionType, types[index]) ? 64 : hyperionType.staticPartLength(types[index]);
-        var roundedStaticPartLength = Math.floor((staticPartLength + 63) / 64) * 64;
+        var staticPartLength = isDynamic(hyperionType, types[index]) ? wordBytes : hyperionType.staticPartLength(types[index]);
+        var roundedStaticPartLength = Math.floor((staticPartLength + wordBytes - 1) / wordBytes) * wordBytes;
         return acc + roundedStaticPartLength;
     }, 0);
+    var consumedLength = headSize;
+    hyperionTypes.forEach(function (hyperionType, index) {
+        consumedLength = Math.max(consumedLength, encodedEnd(hyperionType, types[index], bytes, offsets[index], 0, headSize));
+    });
+    if (byteLength(bytes) !== consumedLength) {
+        throw new Error('ABI data has trailing bytes');
+    }
 
     return hyperionTypes.map(function (hyperionType, index) {
         return hyperionType.decode(bytes, offsets[index], types[index], 0, headSize);

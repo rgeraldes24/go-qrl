@@ -186,6 +186,9 @@ func Bind(types []string, abis []string, bytecodes []string, fsigs []map[string]
 			if original.Anonymous {
 				continue
 			}
+			if err := rejectDuplicateEventInputNames(original); err != nil {
+				return "", err
+			}
 			// Normalize the event for capital cases and non-anonymous outputs
 			normalized := original
 
@@ -478,6 +481,20 @@ func decapitalise(input string) string {
 
 func abiTag(name string) string {
 	return "`abi:" + strconv.Quote(name) + "`"
+}
+
+func rejectDuplicateEventInputNames(event abi.Event) error {
+	seen := make(map[string]struct{})
+	for _, input := range event.Inputs {
+		if input.Name == "" {
+			continue
+		}
+		if _, ok := seen[input.Name]; ok {
+			return fmt.Errorf("event %q has duplicate input name %q", event.RawName, input.Name)
+		}
+		seen[input.Name] = struct{}{}
+	}
+	return nil
 }
 
 // structured checks whether a list of ABI data types has enough information to

@@ -148,15 +148,7 @@ func parseTopics(out any, fields Arguments, topics []common.LogTopic, allowedMis
 	for i, arg := range fields {
 		argNames[i] = arg.Name
 	}
-	var (
-		abi2struct map[string]string
-		err        error
-	)
-	if allowedMissingTags == nil {
-		abi2struct, err = mapArgNamesToStructFields(argNames, value)
-	} else {
-		abi2struct, err = mapArgNamesToStructFieldsWithAllowedMissingTags(argNames, value, allowedMissingTags)
-	}
+	abi2struct, err := mapArgNamesToStructFields(argNames, value, allowedMissingTags)
 	if err != nil {
 		return err
 	}
