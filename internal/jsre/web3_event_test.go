@@ -673,6 +673,12 @@ var abi = [{
   constant: true,
   inputs: [],
   outputs: [{name: "", type: "bool"}]
+}, {
+  type: "function",
+  name: "echo",
+  constant: true,
+  inputs: [{name: "", type: "bool"}],
+  outputs: [{name: "", type: "bool"}]
 }];
 var contract = web3.qrl.contract(abi).at("Q00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000");
 function errorOf(fn) {
@@ -689,21 +695,35 @@ response = %q;
 var decodedTrue = contract.flag.call();
 response = %q;
 var invalidError = errorOf(function() { contract.flag.call(); });
+response = %q;
+var encodedFalse = contract.echo.call(false);
+response = %q;
+var encodedTrue = contract.echo.call(true);
+var invalidStringInputError = errorOf(function() { contract.echo.call("false"); });
+var invalidNumberInputError = errorOf(function() { contract.echo.call(2); });
 JSON.stringify({
   decodedFalse: decodedFalse,
   decodedTrue: decodedTrue,
-  invalidError: invalidError
+  invalidError: invalidError,
+  encodedFalse: encodedFalse,
+  encodedTrue: encodedTrue,
+  invalidStringInputError: invalidStringInputError,
+  invalidNumberInputError: invalidNumberInputError
 });
-`, boolWord(0), boolWord(1), boolWord(2))
+`, boolWord(0), boolWord(1), boolWord(2), boolWord(0), boolWord(1))
 
 	value, err := re.Run(script)
 	if err != nil {
 		t.Fatalf("run bool output validation script: %v", err)
 	}
 	var got struct {
-		DecodedFalse bool   `json:"decodedFalse"`
-		DecodedTrue  bool   `json:"decodedTrue"`
-		InvalidError string `json:"invalidError"`
+		DecodedFalse            bool   `json:"decodedFalse"`
+		DecodedTrue             bool   `json:"decodedTrue"`
+		InvalidError            string `json:"invalidError"`
+		EncodedFalse            bool   `json:"encodedFalse"`
+		EncodedTrue             bool   `json:"encodedTrue"`
+		InvalidStringInputError string `json:"invalidStringInputError"`
+		InvalidNumberInputError string `json:"invalidNumberInputError"`
 	}
 	if err := json.Unmarshal([]byte(value.String()), &got); err != nil {
 		t.Fatalf("decode script result %q: %v", value.String(), err)
@@ -716,6 +736,18 @@ JSON.stringify({
 	}
 	if got.InvalidError == "" {
 		t.Fatalf("malformed bool word should fail")
+	}
+	if got.EncodedFalse {
+		t.Fatalf("encoded false bool mismatch")
+	}
+	if !got.EncodedTrue {
+		t.Fatalf("encoded true bool mismatch")
+	}
+	if got.InvalidStringInputError == "" {
+		t.Fatalf("string bool input should fail")
+	}
+	if got.InvalidNumberInputError == "" {
+		t.Fatalf("number bool input should fail")
 	}
 }
 
@@ -887,7 +919,8 @@ func TestEmbeddedWeb3RawFilterTopicPadding(t *testing.T) {
 	}
 
 	expected := common.BytesToEventSignatureLogTopic(crypto.Keccak256([]byte("Transfer(address,uint512)"))).Hex()
-	script := `
+	mixedCaseTopic := "0X" + strings.Repeat("Aa", common.LogTopicLength)
+	script := fmt.Sprintf(`
 var capturedOptions = null;
 var provider = {
   send: function(payload) {
@@ -909,20 +942,22 @@ JSON.stringify({
   raw: rawTopic,
   rawIsTopic: web3._extend.utils.isTopic(rawTopic),
   paddedIsTopic: web3._extend.utils.isTopic(filter.options.topics[0]),
+  mixedCaseIsTopic: web3._extend.utils.isTopic(%q),
   options: filter.options.topics,
   captured: capturedOptions.topics
 });
-`
+`, mixedCaseTopic)
 	value, err := re.Run(script)
 	if err != nil {
 		t.Fatalf("run raw topic script: %v", err)
 	}
 	var got struct {
-		Raw           string   `json:"raw"`
-		RawIsTopic    bool     `json:"rawIsTopic"`
-		PaddedIsTopic bool     `json:"paddedIsTopic"`
-		Options       []string `json:"options"`
-		Captured      []string `json:"captured"`
+		Raw              string   `json:"raw"`
+		RawIsTopic       bool     `json:"rawIsTopic"`
+		PaddedIsTopic    bool     `json:"paddedIsTopic"`
+		MixedCaseIsTopic bool     `json:"mixedCaseIsTopic"`
+		Options          []string `json:"options"`
+		Captured         []string `json:"captured"`
 	}
 	if err := json.Unmarshal([]byte(value.String()), &got); err != nil {
 		t.Fatalf("decode script result %q: %v", value.String(), err)
@@ -935,6 +970,9 @@ JSON.stringify({
 	}
 	if !got.PaddedIsTopic {
 		t.Fatalf("padded 64-byte topic should pass VM64 topic validation")
+	}
+	if !got.MixedCaseIsTopic {
+		t.Fatalf("mixed-case 64-byte topic should pass VM64 topic validation")
 	}
 	if !reflect.DeepEqual(got.Options, []string{expected}) {
 		t.Fatalf("filter options topic mismatch: have %#v want %#v", got.Options, []string{expected})

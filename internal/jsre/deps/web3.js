@@ -881,6 +881,9 @@ var formatInputString = function (value) {
  * @returns {HyperionParam}
  */
 var formatInputBool = function (value) {
+    if (typeof value !== 'boolean') {
+        throw new Error('invalid bool value');
+    }
     return formatInputInt(value ? 1 : 0);
 };
 
@@ -2336,12 +2339,7 @@ var isBloom = function (bloom) {
  * @return {Boolean}
  */
 var isTopic = function (topic) {
-    if (!/^(0x)?[0-9a-f]{128}$/i.test(topic)) {
-        return false;
-    } else if (/^(0x)?[0-9a-f]{128}$/.test(topic) || /^(0x)?[0-9A-F]{128}$/.test(topic)) {
-        return true;
-    }
-    return false;
+    return /^(0x)?[0-9a-f]{128}$/i.test(topic);
 };
 
 module.exports = {
