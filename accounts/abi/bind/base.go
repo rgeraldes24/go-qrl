@@ -370,7 +370,8 @@ func (c *BoundContract) FilterLogs(opts *FilterOpts, name string, query ...[]any
 	if eventABI.Anonymous {
 		return nil, nil, errNoEventSignature
 	}
-	// Append the event selector to the query parameters and construct the topic set.
+	// Append the event signature topic to the query parameters and construct
+	// the topic set.
 	query = append([][]any{{eventABI.SignatureTopic()}}, query...)
 
 	topics, err := abi.MakeTopics(query...)
@@ -425,7 +426,8 @@ func (c *BoundContract) WatchLogs(opts *WatchOpts, name string, query ...[]any) 
 	if eventABI.Anonymous {
 		return nil, nil, errNoEventSignature
 	}
-	// Append the event selector to the query parameters and construct the topic set.
+	// Append the event signature topic to the query parameters and construct
+	// the topic set.
 	query = append([][]any{{eventABI.SignatureTopic()}}, query...)
 
 	topics, err := abi.MakeTopics(query...)

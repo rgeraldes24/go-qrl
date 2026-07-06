@@ -100,11 +100,15 @@ JSON.stringify({
   topics: filter.options.topics,
   captured: capturedOptions.topics,
   args: decoded.args,
+  missingTopicError: errorOf(function() { filter.formatter({address: %q, data: "0x", topics: filter.options.topics.slice(0, 3)}); }),
+  nullTopicError: errorOf(function() { filter.formatter({address: %q, data: "0x", topics: [filter.options.topics[0], filter.options.topics[1], null, filter.options.topics[3]]}); }),
+  invalidTopicError: errorOf(function() { filter.formatter({address: %q, data: "0x", topics: [filter.options.topics[0], "0xzz", filter.options.topics[2], filter.options.topics[3]]}); }),
+  shortTopicError: errorOf(function() { filter.formatter({address: %q, data: "0x", topics: [filter.options.topics[0], "0x1234", filter.options.topics[2], filter.options.topics[3]]}); }),
   oddBytesError: errorOf(function() { contract.E({data: "0x1"}, {}); }),
   nonHexBytesError: errorOf(function() { contract.E({data: "0xzz"}, {}); }),
   upperNonHexBytesError: errorOf(function() { contract.E({data: "0Xzz"}, {}); })
 });
-`, address, address)
+`, address, address, address, address, address, address)
 
 	value, err := re.Run(script)
 	if err != nil {
@@ -114,6 +118,10 @@ JSON.stringify({
 		Topics                []string          `json:"topics"`
 		Captured              []string          `json:"captured"`
 		Args                  map[string]string `json:"args"`
+		MissingTopicError     string            `json:"missingTopicError"`
+		NullTopicError        string            `json:"nullTopicError"`
+		InvalidTopicError     string            `json:"invalidTopicError"`
+		ShortTopicError       string            `json:"shortTopicError"`
 		OddBytesError         string            `json:"oddBytesError"`
 		NonHexBytesError      string            `json:"nonHexBytesError"`
 		UpperNonHexBytesError string            `json:"upperNonHexBytesError"`
@@ -129,6 +137,9 @@ JSON.stringify({
 	}
 	if got.Args["name"] != expected[1] || got.Args["data"] != expected[2] || got.Args["nums"] != expected[3] {
 		t.Fatalf("decoded indexed args mismatch: have %#v want name=%s data=%s nums=%s", got.Args, expected[1], expected[2], expected[3])
+	}
+	if got.MissingTopicError == "" || got.NullTopicError == "" || got.InvalidTopicError == "" || got.ShortTopicError == "" {
+		t.Fatalf("malformed decoded topics should fail: missing=%q null=%q invalid=%q short=%q", got.MissingTopicError, got.NullTopicError, got.InvalidTopicError, got.ShortTopicError)
 	}
 	if got.OddBytesError == "" || got.NonHexBytesError == "" || got.UpperNonHexBytesError == "" {
 		t.Fatalf("malformed indexed bytes filters should fail: odd=%q nonhex=%q upper=%q", got.OddBytesError, got.NonHexBytesError, got.UpperNonHexBytesError)

@@ -258,6 +258,17 @@ func TestGraphQLBlockSerializationEIP2718(t *testing.T) {
 	}
 }
 
+func graphQLVM64LogTopic(highIndex int, highByte, lowByte byte) common.LogTopic {
+	var topic common.LogTopic
+	topic[highIndex] = highByte
+	topic[common.LogTopicLength-1] = lowByte
+	return topic
+}
+
+func graphQLPushLogTopic(topic common.LogTopic) []byte {
+	return append([]byte{byte(vm.PUSH64)}, topic[:]...)
+}
+
 func TestGraphQLVM64StorageAndLogOutput(t *testing.T) {
 	var (
 		wallet, _ = wallet.Generate(wallet.ML_DSA_87)
@@ -266,30 +277,33 @@ func TestGraphQLVM64StorageAndLogOutput(t *testing.T) {
 		contract  = common.BytesToAddress(bytes.Repeat([]byte{0xc3}, common.AddressLength))
 		slot      = common.HexToHash("0x01")
 		storage   = common.BytesToStorageValue64(bytes.Repeat([]byte{0xab}, common.StorageValue64Length))
-		topicA    = common.BytesToLogTopic([]byte{0xbb})
-		topicB    = common.BytesToLogTopic([]byte{0xcc})
+		topicA    = graphQLVM64LogTopic(0, 0xbb, 0x01)
+		topicB    = graphQLVM64LogTopic(1, 0xcc, 0x02)
 		logData   = common.BytesToStorageValue64([]byte{0x12, 0x34, 0x56, 0x78})
-		genesis   = &core.Genesis{
+		code      = []byte{
+			byte(vm.PUSH4), 0x12, 0x34, 0x56, 0x78,
+			byte(vm.PUSH1), 0x00,
+			byte(vm.MSTORE),
+		}
+	)
+	code = append(code, graphQLPushLogTopic(topicB)...)
+	code = append(code, graphQLPushLogTopic(topicA)...)
+	code = append(code,
+		byte(vm.PUSH1), byte(common.StorageValue64Length),
+		byte(vm.PUSH1), 0x00,
+		byte(vm.LOG2),
+		byte(vm.PUSH1), 0x00,
+		byte(vm.PUSH1), 0x00,
+		byte(vm.RETURN),
+	)
+
+	var (
+		genesis = &core.Genesis{
 			Config:   params.AllBeaconProtocolChanges,
 			GasLimit: 11500000,
 			Alloc: core.GenesisAlloc{
-				address: {Balance: funds},
-				contract: {
-					Code: []byte{
-						byte(vm.PUSH4), 0x12, 0x34, 0x56, 0x78,
-						byte(vm.PUSH1), 0x00,
-						byte(vm.MSTORE),
-						byte(vm.PUSH1), 0xcc,
-						byte(vm.PUSH1), 0xbb,
-						byte(vm.PUSH1), byte(common.StorageValue64Length),
-						byte(vm.PUSH1), 0x00,
-						byte(vm.LOG2),
-						byte(vm.PUSH1), 0x00,
-						byte(vm.PUSH1), 0x00,
-						byte(vm.RETURN),
-					},
-					Storage: map[common.Hash]common.StorageValue64{slot: storage},
-				},
+				address:  {Balance: funds},
+				contract: {Code: code, Storage: map[common.Hash]common.StorageValue64{slot: storage}},
 			},
 			BaseFee: big.NewInt(params.InitialBaseFee),
 		}
@@ -326,6 +340,20 @@ func TestGraphQLVM64StorageAndLogOutput(t *testing.T) {
 	)
 	if string(have) != want {
 		t.Fatalf("response mismatch:\nhave %s\nwant %s", have, want)
+	}
+
+	query = fmt.Sprintf(`{block{logs(filter:{topics:[["%s"]]}){topics}}}`, topicA.Hex())
+	res = handler.Schema.Exec(t.Context(), query, "", map[string]any{})
+	if res.Errors != nil {
+		t.Fatalf("failed to execute topic-filter query: %v", res.Errors)
+	}
+	have, err = json.Marshal(res.Data)
+	if err != nil {
+		t.Fatalf("failed to encode topic-filter response: %v", err)
+	}
+	want = fmt.Sprintf(`{"block":{"logs":[{"topics":["%s","%s"]}]}}`, topicA.Hex(), topicB.Hex())
+	if string(have) != want {
+		t.Fatalf("topic-filter response mismatch:\nhave %s\nwant %s", have, want)
 	}
 }
 

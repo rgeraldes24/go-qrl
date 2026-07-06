@@ -3389,14 +3389,22 @@ HyperionEvent.prototype.decode = function (data) {
     data.data = data.data || '';
     data.topics = data.topics || [];
 
-    var argTopics = this._anonymous ? data.topics : data.topics.slice(1);
-    var indexedParams = this._params.filter(function (i) {
+    var indexedInputs = this._params.filter(function (i) {
         return i.indexed === true;
-    }).map(function (i, index) {
-        var topic = argTopics[index];
-        if (topic === undefined || topic === null) {
-            return null;
+    });
+    var expectedTopicCount = indexedInputs.length + (this._anonymous ? 0 : 1);
+    if (data.topics.length !== expectedTopicCount) {
+        throw new Error('event log topic count mismatch: got ' + data.topics.length + ', want ' + expectedTopicCount);
+    }
+    data.topics.forEach(function (topic) {
+        if (!utils.isTopic(topic)) {
+            throw new Error('event log topic must be a 64-byte topic');
         }
+    });
+
+    var argTopics = this._anonymous ? data.topics : data.topics.slice(1);
+    var indexedParams = indexedInputs.map(function (i, index) {
+        var topic = argTopics[index];
         if (isIndexedHashOnlyType(i.type) || isIndexedOpaqueTopicType(i.type)) {
             return '0x' + stripHexPrefix(topic);
         }
