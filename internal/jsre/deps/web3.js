@@ -972,7 +972,14 @@ var formatOutputUReal = function (param) {
  * @returns {Boolean} right-aligned input bytes formatted to bool
  */
 var formatOutputBool = function (param) {
-    return formatOutputUInt(param).equals(1);
+    var value = formatOutputUInt(param);
+    if (value.equals(0)) {
+        return false;
+    }
+    if (value.equals(1)) {
+        return true;
+    }
+    throw new Error('invalid bool value');
 };
 
 /**
@@ -1951,7 +1958,17 @@ var transformToFullName = function (json) {
         return json.name;
     }
 
-    var typeName = json.inputs.map(function(i){return i.type; }).join();
+    var canonicalType = function (input) {
+        if (input.type.indexOf('tuple') !== 0) {
+            return input.type;
+        }
+        if (!input.components) {
+            return input.type;
+        }
+        var suffix = input.type.slice('tuple'.length);
+        return '(' + input.components.map(canonicalType).join() + ')' + suffix;
+    };
+    var typeName = json.inputs.map(canonicalType).join();
     return json.name + '(' + typeName + ')';
 };
 

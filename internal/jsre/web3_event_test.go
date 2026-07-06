@@ -635,6 +635,90 @@ JSON.stringify({
 	}
 }
 
+func TestEmbeddedWeb3BoolOutputValidation(t *testing.T) {
+	t.Parallel()
+
+	re := New("", os.Stdout)
+	defer re.Stop(false)
+
+	if err := re.Compile("bignumber.js", deps.BigNumberJS); err != nil {
+		t.Fatalf("compile bignumber.js: %v", err)
+	}
+	if err := re.Compile("web3.js", deps.Web3JS); err != nil {
+		t.Fatalf("compile web3.js: %v", err)
+	}
+
+	boolWord := func(value uint64) string {
+		return fmt.Sprintf("0x%0128x", value)
+	}
+	script := fmt.Sprintf(`
+var response = "0x";
+var provider = {
+  send: function(payload) {
+    if (payload.method === "qrl_call") {
+      return {jsonrpc: "2.0", id: payload.id, result: response};
+    }
+    return {jsonrpc: "2.0", id: payload.id, result: null};
+  },
+  sendAsync: function(payload, cb) {
+    cb(null, this.send(payload));
+  },
+  isConnected: function() { return true; }
+};
+var Web3 = require("web3");
+var web3 = new Web3(provider);
+var abi = [{
+  type: "function",
+  name: "flag",
+  constant: true,
+  inputs: [],
+  outputs: [{name: "", type: "bool"}]
+}];
+var contract = web3.qrl.contract(abi).at("Q00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000");
+function errorOf(fn) {
+  try {
+    fn();
+    return "";
+  } catch (err) {
+    return err.message;
+  }
+}
+response = %q;
+var decodedFalse = contract.flag.call();
+response = %q;
+var decodedTrue = contract.flag.call();
+response = %q;
+var invalidError = errorOf(function() { contract.flag.call(); });
+JSON.stringify({
+  decodedFalse: decodedFalse,
+  decodedTrue: decodedTrue,
+  invalidError: invalidError
+});
+`, boolWord(0), boolWord(1), boolWord(2))
+
+	value, err := re.Run(script)
+	if err != nil {
+		t.Fatalf("run bool output validation script: %v", err)
+	}
+	var got struct {
+		DecodedFalse bool   `json:"decodedFalse"`
+		DecodedTrue  bool   `json:"decodedTrue"`
+		InvalidError string `json:"invalidError"`
+	}
+	if err := json.Unmarshal([]byte(value.String()), &got); err != nil {
+		t.Fatalf("decode script result %q: %v", value.String(), err)
+	}
+	if got.DecodedFalse {
+		t.Fatalf("decoded false bool mismatch")
+	}
+	if !got.DecodedTrue {
+		t.Fatalf("decoded true bool mismatch")
+	}
+	if got.InvalidError == "" {
+		t.Fatalf("malformed bool word should fail")
+	}
+}
+
 func TestEmbeddedWeb3IndexedTupleTopicsUsePrecomputedTopics(t *testing.T) {
 	t.Parallel()
 
@@ -649,6 +733,7 @@ func TestEmbeddedWeb3IndexedTupleTopicsUsePrecomputedTopics(t *testing.T) {
 	}
 
 	tupleTopic := common.BytesToLogTopic([]byte{0x12, 0x34}).Hex()
+	eventTopic := common.BytesToEventSignatureLogTopic(crypto.Keccak256([]byte("TupleEvent((uint512))"))).Hex()
 	address := "Q00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
 	script := fmt.Sprintf(`
 var capturedOptions = null;
@@ -669,7 +754,7 @@ var web3 = new Web3(provider);
 var abi = [{
   type: "event",
   name: "TupleEvent",
-  anonymous: true,
+  anonymous: false,
   inputs: [{
     name: "value",
     type: "tuple",
@@ -710,11 +795,12 @@ JSON.stringify({
 	if err := json.Unmarshal([]byte(value.String()), &got); err != nil {
 		t.Fatalf("decode script result %q: %v", value.String(), err)
 	}
-	if !reflect.DeepEqual(got.Topics, []string{tupleTopic}) {
-		t.Fatalf("encoded tuple topic mismatch: have %#v want %s", got.Topics, tupleTopic)
+	wantTopics := []string{eventTopic, tupleTopic}
+	if !reflect.DeepEqual(got.Topics, wantTopics) {
+		t.Fatalf("encoded tuple topics mismatch: have %#v want %#v", got.Topics, wantTopics)
 	}
-	if !reflect.DeepEqual(got.Captured, []string{tupleTopic}) {
-		t.Fatalf("captured tuple topic mismatch: have %#v want %s", got.Captured, tupleTopic)
+	if !reflect.DeepEqual(got.Captured, wantTopics) {
+		t.Fatalf("captured tuple topics mismatch: have %#v want %#v", got.Captured, wantTopics)
 	}
 	if got.Decoded != tupleTopic {
 		t.Fatalf("decoded tuple topic mismatch: have %s want %s", got.Decoded, tupleTopic)
