@@ -356,14 +356,10 @@ func ExampleJSON() {
 	// 1f2c409200000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001
 }
 
-// abiSlotSize is the width of a single ABI slot after the 64-byte-address /
-// 512-bit VM migration.
-const abiSlotSize = abiWordBytes
-
 // abiSlot returns a zero-padded big-endian encoding of v in a single ABI slot.
 func abiSlot(v uint64) []byte {
-	var b [abiSlotSize]byte
-	binary.BigEndian.PutUint64(b[abiSlotSize-8:], v)
+	var b [abiWordBytes]byte
+	binary.BigEndian.PutUint64(b[abiWordBytes-8:], v)
 	return b[:]
 }
 
@@ -373,8 +369,8 @@ func abiSlot(v uint64) []byte {
 func abiStringData(data []byte) []byte {
 	out := abiSlot(uint64(len(data)))
 	padded := len(data)
-	if rem := padded % abiSlotSize; rem != 0 {
-		padded += abiSlotSize - rem
+	if rem := padded % abiWordBytes; rem != 0 {
+		padded += abiWordBytes - rem
 	}
 	tail := make([]byte, padded)
 	copy(tail, data)
@@ -401,7 +397,7 @@ func TestInputVariableInputLength(t *testing.T) {
 		t.Error(err)
 	}
 	// Offset to data = 1 head slot.
-	exp := abiSlot(abiSlotSize)
+	exp := abiSlot(abiWordBytes)
 	exp = append(exp, abiStringData([]byte(strin))...)
 	strpack = strpack[4:]
 	if !bytes.Equal(strpack, exp) {
@@ -426,8 +422,8 @@ func TestInputVariableInputLength(t *testing.T) {
 		t.Error(err)
 	}
 	// Head is 2 offset slots = 2*64. Str1's tail is 2 slots (length + 1 data).
-	exp2 := abiSlot(2 * abiSlotSize)               // offset1
-	exp2 = append(exp2, abiSlot(4*abiSlotSize)...) // offset2 = head(2) + tail1(2)
+	exp2 := abiSlot(2 * abiWordBytes)               // offset1
+	exp2 = append(exp2, abiSlot(4*abiWordBytes)...) // offset2 = head(2) + tail1(2)
 	exp2 = append(exp2, abiStringData([]byte(str1))...)
 	exp2 = append(exp2, abiStringData([]byte(str2))...)
 	str2pack = str2pack[4:]
@@ -436,14 +432,14 @@ func TestInputVariableInputLength(t *testing.T) {
 	}
 
 	// test two strings, first > slot size, second < slot size
-	str1 = strings.Repeat("a", abiSlotSize+1)
+	str1 = strings.Repeat("a", abiWordBytes+1)
 	str2pack, err = abi.Pack("strTwo", str1, str2)
 	if err != nil {
 		t.Error(err)
 	}
 	// Str1 tail = 1 length + ceil((64+1)/64)=2 data slots = 3 slots.
-	exp2 = abiSlot(2 * abiSlotSize)
-	exp2 = append(exp2, abiSlot(5*abiSlotSize)...) // head(2) + tail1(3)
+	exp2 = abiSlot(2 * abiWordBytes)
+	exp2 = append(exp2, abiSlot(5*abiWordBytes)...) // head(2) + tail1(3)
 	exp2 = append(exp2, abiStringData([]byte(str1))...)
 	exp2 = append(exp2, abiStringData([]byte(str2))...)
 	str2pack = str2pack[4:]
@@ -452,14 +448,14 @@ func TestInputVariableInputLength(t *testing.T) {
 	}
 
 	// test two strings, both > slot size
-	str1 = strings.Repeat("a", abiSlotSize+1)
-	str2 = strings.Repeat("a", abiSlotSize+1)
+	str1 = strings.Repeat("a", abiWordBytes+1)
+	str2 = strings.Repeat("a", abiWordBytes+1)
 	str2pack, err = abi.Pack("strTwo", str1, str2)
 	if err != nil {
 		t.Error(err)
 	}
-	exp2 = abiSlot(2 * abiSlotSize)
-	exp2 = append(exp2, abiSlot(5*abiSlotSize)...)
+	exp2 = abiSlot(2 * abiWordBytes)
+	exp2 = append(exp2, abiSlot(5*abiWordBytes)...)
 	exp2 = append(exp2, abiStringData([]byte(str1))...)
 	exp2 = append(exp2, abiStringData([]byte(str2))...)
 	str2pack = str2pack[4:]
@@ -475,7 +471,7 @@ func TestInputFixedArrayAndVariableInputLength(t *testing.T) {
 		t.Error(err)
 	}
 
-	leftPad := func(v *big.Int) []byte { return common.LeftPadBytes(v.Bytes(), abiSlotSize) }
+	leftPad := func(v *big.Int) []byte { return common.LeftPadBytes(v.Bytes(), abiWordBytes) }
 
 	// test string, fixed array uint256[2]
 	strin := "hello world"
@@ -486,7 +482,7 @@ func TestInputFixedArrayAndVariableInputLength(t *testing.T) {
 	}
 	// Head: string offset (slot 0) + arr[0] + arr[1]. String lives after 3 head
 	// slots at byte 3*64 = 192.
-	exp := abiSlot(3 * abiSlotSize)
+	exp := abiSlot(3 * abiWordBytes)
 	exp = append(exp, leftPad(arrin[0])...)
 	exp = append(exp, leftPad(arrin[1])...)
 	exp = append(exp, abiStringData([]byte(strin))...)
@@ -517,9 +513,9 @@ func TestInputFixedArrayAndVariableInputLength(t *testing.T) {
 	}
 	// Head: 1 str offset + 2 fixed arr + 1 dyn offset = 4 slots.
 	headSlots := uint64(4)
-	strTailSlots := uint64(1 + (len(strin)+abiSlotSize-1)/abiSlotSize) // length + data
-	stroffset := abiSlot(headSlots * abiSlotSize)
-	dynoffset := abiSlot((headSlots + strTailSlots) * abiSlotSize)
+	strTailSlots := uint64(1 + (len(strin)+abiWordBytes-1)/abiWordBytes) // length + data
+	stroffset := abiSlot(headSlots * abiWordBytes)
+	dynoffset := abiSlot((headSlots + strTailSlots) * abiWordBytes)
 	exp = append([]byte{}, stroffset...)
 	exp = append(exp, leftPad(fixedarrin[0])...)
 	exp = append(exp, leftPad(fixedarrin[1])...)
@@ -543,7 +539,7 @@ func TestInputFixedArrayAndVariableInputLength(t *testing.T) {
 		t.Error(err)
 	}
 	// Head: 1 str offset + 2 fixed arr1 + 3 fixed arr2 = 6 slots.
-	exp = abiSlot(6 * abiSlotSize)
+	exp = abiSlot(6 * abiWordBytes)
 	exp = append(exp, leftPad(fixedarrin1[0])...)
 	exp = append(exp, leftPad(fixedarrin1[1])...)
 	exp = append(exp, leftPad(fixedarrin2[0])...)
@@ -566,9 +562,9 @@ func TestInputFixedArrayAndVariableInputLength(t *testing.T) {
 	}
 	// Head: 1 str offset + 2 fixed arr1 + 1 dyn offset + 3 fixed arr2 = 7 slots.
 	headSlots = 7
-	strTailSlots = uint64(1 + (len(strin)+abiSlotSize-1)/abiSlotSize)
-	stroffset = abiSlot(headSlots * abiSlotSize)
-	dynoffset = abiSlot((headSlots + strTailSlots) * abiSlotSize)
+	strTailSlots = uint64(1 + (len(strin)+abiWordBytes-1)/abiWordBytes)
+	stroffset = abiSlot(headSlots * abiWordBytes)
+	dynoffset = abiSlot((headSlots + strTailSlots) * abiWordBytes)
 	exp = append([]byte{}, stroffset...)
 	exp = append(exp, leftPad(fixedarrin1[0])...)
 	exp = append(exp, leftPad(fixedarrin1[1])...)

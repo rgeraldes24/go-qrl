@@ -543,9 +543,14 @@ func TestEmbeddedWeb3DeclaredIntegerBounds(t *testing.T) {
 	word := func(n *big.Int) string {
 		return fmt.Sprintf("0x%0128x", n)
 	}
+	hex := func(n *big.Int) string {
+		return fmt.Sprintf("%x", n)
+	}
 	uint256Overflow := new(big.Int).Lsh(common.Big1, 256)
 	maxUint512 := new(big.Int).Sub(new(big.Int).Lsh(common.Big1, uint512.WordBits), common.Big1)
+	uint512Overflow := new(big.Int).Lsh(common.Big1, uint512.WordBits)
 	int256Overflow := new(big.Int).Lsh(common.Big1, 255)
+	int256Underflow := new(big.Int).Neg(new(big.Int).Add(int256Overflow, common.Big1))
 	maxInt512 := new(big.Int).Sub(new(big.Int).Lsh(common.Big1, uint512.WordBits-1), common.Big1)
 
 	abiJSON := `[{
@@ -610,6 +615,12 @@ var provider = {
 var Web3 = require("web3");
 var web3 = new Web3(provider);
 var BN = web3.BigNumber;
+var uint256Overflow = new BN(%q, 16);
+var maxUint512 = new BN(%q, 16);
+var uint512Overflow = new BN(%q, 16);
+var int256Overflow = new BN(%q, 16);
+var int256Underflow = new BN(%q, 16).times(-1);
+var maxInt512 = new BN(%q, 16);
 var abi = JSON.parse(%q);
 var contract = web3.qrl.contract(abi).at("Q00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000");
 function errorOf(fn) {
@@ -621,19 +632,37 @@ function errorOf(fn) {
   }
 }
 JSON.stringify({
-  u256InputOverflow: errorOf(function() { contract.u256In.getData(new BN(2).pow(256)); }),
-  u512InputMax: errorOf(function() { contract.u512In.getData(new BN(2).pow(512).minus(1)); }),
-  u512InputOverflow: errorOf(function() { contract.u512In.getData(new BN(2).pow(512)); }),
-  i256InputOverflow: errorOf(function() { contract.i256In.getData(new BN(2).pow(255)); }),
-  i256InputUnderflow: errorOf(function() { contract.i256In.getData(new BN(2).pow(255).plus(1).times(-1)); }),
-  i512InputMax: errorOf(function() { contract.i512In.getData(new BN(2).pow(511).minus(1)); }),
+  u256InputOverflow: errorOf(function() { contract.u256In.getData(uint256Overflow); }),
+  u512InputMax: errorOf(function() { contract.u512In.getData(maxUint512); }),
+  u512InputMaxWord: contract.u512In.getData(maxUint512).slice(10),
+  u512InputOverflow: errorOf(function() { contract.u512In.getData(uint512Overflow); }),
+  i256InputOverflow: errorOf(function() { contract.i256In.getData(int256Overflow); }),
+  i256InputUnderflow: errorOf(function() { contract.i256In.getData(int256Underflow); }),
+  i512InputMax: errorOf(function() { contract.i512In.getData(maxInt512); }),
+  i512InputMaxWord: contract.i512In.getData(maxInt512).slice(10),
   u256OutputOverflow: errorOf(function() { response = %q; contract.u256Out.call(); }),
   u512OutputMax: errorOf(function() { response = %q; contract.u512Out.call(); }),
+  u512OutputMaxValue: (function() { response = %q; return contract.u512Out.call().toString(10); })(),
   i256OutputOverflow: errorOf(function() { response = %q; contract.i256Out.call(); }),
   i512OutputMax: errorOf(function() { response = %q; contract.i512Out.call(); }),
+  i512OutputMaxValue: (function() { response = %q; return contract.i512Out.call().toString(10); })(),
   u512ShortOutput: errorOf(function() { response = "0x1"; contract.u512Out.call(); })
 });
-`, abiJSON, word(uint256Overflow), word(maxUint512), word(int256Overflow), word(maxInt512))
+`,
+		hex(uint256Overflow),
+		hex(maxUint512),
+		hex(uint512Overflow),
+		hex(int256Overflow),
+		hex(new(big.Int).Abs(int256Underflow)),
+		hex(maxInt512),
+		abiJSON,
+		word(uint256Overflow),
+		word(maxUint512),
+		word(maxUint512),
+		word(int256Overflow),
+		word(maxInt512),
+		word(maxInt512),
+	)
 
 	value, err := re.Run(script)
 	if err != nil {
@@ -665,6 +694,18 @@ JSON.stringify({
 		if got[key] != "" {
 			t.Fatalf("%s should accept full-width integer value, got error %q in %#v", key, got[key], got)
 		}
+	}
+	if want := fmt.Sprintf("%0128x", maxUint512); got["u512InputMaxWord"] != want {
+		t.Fatalf("u512 input word mismatch:\nhave %q\nwant %q", got["u512InputMaxWord"], want)
+	}
+	if want := fmt.Sprintf("%0128x", maxInt512); got["i512InputMaxWord"] != want {
+		t.Fatalf("i512 input word mismatch:\nhave %q\nwant %q", got["i512InputMaxWord"], want)
+	}
+	if want := maxUint512.String(); got["u512OutputMaxValue"] != want {
+		t.Fatalf("u512 output value mismatch: have %q want %q", got["u512OutputMaxValue"], want)
+	}
+	if want := maxInt512.String(); got["i512OutputMaxValue"] != want {
+		t.Fatalf("i512 output value mismatch: have %q want %q", got["i512OutputMaxValue"], want)
 	}
 }
 

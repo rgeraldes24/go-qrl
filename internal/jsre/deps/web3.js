@@ -700,16 +700,20 @@ var parseIntegerSize = function (name) {
     return size;
 };
 
+var repeatHex = function (char, count) {
+    return new Array(count + 1).join(char);
+};
+
 var integerMax = function (size) {
-    return new BigNumber(2).pow(size).minus(1);
+    return new BigNumber(repeatHex('f', size / 4), 16);
 };
 
 var signedIntegerMin = function (size) {
-    return new BigNumber(2).pow(size - 1).times(-1);
+    return new BigNumber('8' + repeatHex('0', size / 4 - 1), 16).times(-1);
 };
 
 var signedIntegerMax = function (size) {
-    return new BigNumber(2).pow(size - 1).minus(1);
+    return new BigNumber('7' + repeatHex('f', size / 4 - 1), 16);
 };
 
 var integerValue = function (value) {
@@ -966,7 +970,7 @@ var formatInputReal = function (value) {
  * @returns {Boolean} true if it is negative, otherwise false
  */
 var signedIsNegative = function (value) {
-    return (new BigNumber(value.substr(0, 1), 16).toString(2).substr(0, 1)) === '1';
+    return parseInt(value.substr(0, 1), 16) >= 8;
 };
 
 /**

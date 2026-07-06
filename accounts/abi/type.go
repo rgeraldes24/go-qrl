@@ -117,7 +117,7 @@ func NewType(t string, internalType string, components []ArgumentMarshaling) (ty
 	// parse the type and size of the abi-type.
 	parsedType := typeRegex.FindStringSubmatch(t)
 	if len(parsedType) == 0 {
-		if !strings.HasPrefix(t, "tuple ") && !strings.HasPrefix(t, "tuple(") {
+		if !strings.HasPrefix(t, "tuple ") || len(components) == 0 {
 			return Type{}, fmt.Errorf("invalid type '%v'", t)
 		}
 		parsedType = []string{t, "tuple", "", "", "", ""}

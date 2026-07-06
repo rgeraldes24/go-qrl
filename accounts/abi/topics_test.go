@@ -303,7 +303,10 @@ func setupTopicsTests() []topicTest {
 	bytesType, _ := NewType("bytes5", "", nil)
 	int8Type, _ := NewType("int8", "", nil)
 	int256Type, _ := NewType("int256", "", nil)
-	tupleType, _ := NewType("tuple(int256,int8)", "", nil)
+	tupleType, _ := NewType("tuple", "", []ArgumentMarshaling{
+		{Name: "a", Type: "int256"},
+		{Name: "b", Type: "int8"},
+	})
 	stringType, _ := NewType("string", "", nil)
 	funcType, _ := NewType("function", "", nil)
 
