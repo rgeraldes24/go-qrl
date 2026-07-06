@@ -150,6 +150,7 @@ func (arguments Arguments) copyTuple(v any, marshalledValues []any) error {
 			argNames[i] = arg.Name
 		}
 		var err error
+		var abi2struct map[string]string
 		var allowedMissingTags map[string]struct{}
 		if len(nonIndexedArgs) != len(arguments) {
 			// Event structs may carry abi tags for indexed fields, which are
@@ -161,7 +162,11 @@ func (arguments Arguments) copyTuple(v any, marshalledValues []any) error {
 				}
 			}
 		}
-		abi2struct, err := mapArgNamesToStructFieldsWithAllowedMissingTags(argNames, value, allowedMissingTags)
+		if allowedMissingTags == nil {
+			abi2struct, err = mapArgNamesToStructFields(argNames, value)
+		} else {
+			abi2struct, err = mapArgNamesToStructFieldsWithAllowedMissingTags(argNames, value, allowedMissingTags)
+		}
 		if err != nil {
 			return err
 		}
