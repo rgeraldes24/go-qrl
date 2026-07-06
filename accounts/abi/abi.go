@@ -232,7 +232,7 @@ func (abi *ABI) EventBySignatureTopic(signatureTopic common.LogTopic) (*Event, e
 			return &event, nil
 		}
 	}
-	return nil, fmt.Errorf("no event with topic: %s", signatureTopic.Hex())
+	return nil, fmt.Errorf("no event with signature topic: %s", signatureTopic.Hex())
 }
 
 // ErrorByID looks up an error by the 4-byte id,
