@@ -783,11 +783,18 @@ var parseFixedBytesSize = function (name) {
 };
 
 var formatInputBytesHex = function (value) {
+    if (typeof value === 'string' && value.slice(0, 2).toLowerCase() === '0x') {
+        var hex = value.slice(2);
+        if (hex.length % 2 !== 0 || !/^[0-9a-f]*$/i.test(hex)) {
+            throw new Error('invalid ABI hex data');
+        }
+        return hex.toLowerCase();
+    }
     var result = utils.toHex(value).substr(2);
     if (result.length % 2 !== 0 || !/^[0-9a-f]*$/i.test(result)) {
         throw new Error('invalid ABI hex data');
     }
-    return result;
+    return result.toLowerCase();
 };
 
 var assertZeroRightPadding = function (value, start, type) {
@@ -3232,6 +3239,21 @@ var stripHexPrefix = function (value) {
     return value.replace(/^0x/i, '');
 };
 
+var eventBytesHex = function (value) {
+    if (typeof value === 'string' && value.slice(0, 2).toLowerCase() === '0x') {
+        var hex = value.slice(2);
+        if (hex.length % 2 !== 0 || !/^[0-9a-f]*$/i.test(hex)) {
+            throw new Error('invalid ABI hex data');
+        }
+        return hex.toLowerCase();
+    }
+    var result = utils.toHex(value).substr(2);
+    if (result.length % 2 !== 0 || !/^[0-9a-f]*$/i.test(result)) {
+        throw new Error('invalid ABI hex data');
+    }
+    return result.toLowerCase();
+};
+
 var padRightToWord = function (hex) {
     var rem = hex.length % 128;
     return rem === 0 ? hex : utils.padRight(hex, hex.length + 128 - rem);
@@ -3289,7 +3311,7 @@ var indexedEventEncoding = function (type, value, nested) {
         return nested ? padRightToWord(stringHex) : stringHex;
     }
     if (type === 'bytes') {
-        var bytesHex = utils.toHex(value).substr(2);
+        var bytesHex = eventBytesHex(value);
         return nested ? padRightToWord(bytesHex) : bytesHex;
     }
     return padRightToWord(coder.encodeParam(type, value));
@@ -3539,7 +3561,7 @@ var toTopic = function(value){
         value = utils.fromUtf8(value);
 
     var hex = value.slice(0, 2).toLowerCase() === '0x' ? value.slice(2) : value;
-    if (!/^[0-9a-f]*$/i.test(hex)) {
+    if (hex.length % 2 !== 0 || !/^[0-9a-f]*$/i.test(hex)) {
         throw new Error('invalid topic hex');
     }
     if (hex.length > 128) {

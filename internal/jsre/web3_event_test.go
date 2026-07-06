@@ -75,6 +75,14 @@ var provider = {
 };
 var Web3 = require("web3");
 var web3 = new Web3(provider);
+function errorOf(fn) {
+  try {
+    fn();
+    return "";
+  } catch (err) {
+    return err.message;
+  }
+}
 var abi = [{
   type: "event",
   name: "E",
@@ -88,7 +96,14 @@ var abi = [{
 var contract = web3.qrl.contract(abi).at(%q);
 var filter = contract.E({name: "hello", data: "0x010203", nums: ["1", "2"]}, {});
 var decoded = filter.formatter({address: %q, data: "0x", topics: filter.options.topics});
-JSON.stringify({topics: filter.options.topics, captured: capturedOptions.topics, args: decoded.args});
+JSON.stringify({
+  topics: filter.options.topics,
+  captured: capturedOptions.topics,
+  args: decoded.args,
+  oddBytesError: errorOf(function() { contract.E({data: "0x1"}, {}); }),
+  nonHexBytesError: errorOf(function() { contract.E({data: "0xzz"}, {}); }),
+  upperNonHexBytesError: errorOf(function() { contract.E({data: "0Xzz"}, {}); })
+});
 `, address, address)
 
 	value, err := re.Run(script)
@@ -96,9 +111,12 @@ JSON.stringify({topics: filter.options.topics, captured: capturedOptions.topics,
 		t.Fatalf("run event topic script: %v", err)
 	}
 	var got struct {
-		Topics   []string          `json:"topics"`
-		Captured []string          `json:"captured"`
-		Args     map[string]string `json:"args"`
+		Topics                []string          `json:"topics"`
+		Captured              []string          `json:"captured"`
+		Args                  map[string]string `json:"args"`
+		OddBytesError         string            `json:"oddBytesError"`
+		NonHexBytesError      string            `json:"nonHexBytesError"`
+		UpperNonHexBytesError string            `json:"upperNonHexBytesError"`
 	}
 	if err := json.Unmarshal([]byte(value.String()), &got); err != nil {
 		t.Fatalf("decode script result %q: %v", value.String(), err)
@@ -111,6 +129,9 @@ JSON.stringify({topics: filter.options.topics, captured: capturedOptions.topics,
 	}
 	if got.Args["name"] != expected[1] || got.Args["data"] != expected[2] || got.Args["nums"] != expected[3] {
 		t.Fatalf("decoded indexed args mismatch: have %#v want name=%s data=%s nums=%s", got.Args, expected[1], expected[2], expected[3])
+	}
+	if got.OddBytesError == "" || got.NonHexBytesError == "" || got.UpperNonHexBytesError == "" {
+		t.Fatalf("malformed indexed bytes filters should fail: odd=%q nonhex=%q upper=%q", got.OddBytesError, got.NonHexBytesError, got.UpperNonHexBytesError)
 	}
 }
 
@@ -691,8 +712,10 @@ var encodedWord = contract.fixedIn.getData("0x0102").slice(10);
 var tooLongInputError = errorOf(function() { contract.fixedIn.getData(%q); });
 var fixedOddHexError = errorOf(function() { contract.fixedIn.getData("0x1"); });
 var fixedNonHexError = errorOf(function() { contract.fixedIn.getData("0xzz"); });
+var fixedUpperNonHexError = errorOf(function() { contract.fixedIn.getData("0Xzz"); });
 var dynamicOddHexError = errorOf(function() { contract.dynamicIn.getData("0x1"); });
 var dynamicNonHexError = errorOf(function() { contract.dynamicIn.getData("0xzz"); });
+var dynamicUpperNonHexError = errorOf(function() { contract.dynamicIn.getData("0Xzz"); });
 response = %q;
 var validOut = contract.fixedOut.call();
 response = %q;
@@ -703,8 +726,10 @@ JSON.stringify({
   tooLongInputError: tooLongInputError,
   fixedOddHexError: fixedOddHexError,
   fixedNonHexError: fixedNonHexError,
+  fixedUpperNonHexError: fixedUpperNonHexError,
   dynamicOddHexError: dynamicOddHexError,
   dynamicNonHexError: dynamicNonHexError,
+  dynamicUpperNonHexError: dynamicUpperNonHexError,
   invalidOutputError: invalidOutputError
 });
 `, tooLongInput, validOutput, invalidOutput)
@@ -714,14 +739,16 @@ JSON.stringify({
 		t.Fatalf("run fixed-bytes bounds script: %v", err)
 	}
 	var got struct {
-		EncodedWord        string `json:"encodedWord"`
-		ValidOut           string `json:"validOut"`
-		TooLongInputError  string `json:"tooLongInputError"`
-		FixedOddHexError   string `json:"fixedOddHexError"`
-		FixedNonHexError   string `json:"fixedNonHexError"`
-		DynamicOddHexError string `json:"dynamicOddHexError"`
-		DynamicNonHexError string `json:"dynamicNonHexError"`
-		InvalidOutputError string `json:"invalidOutputError"`
+		EncodedWord             string `json:"encodedWord"`
+		ValidOut                string `json:"validOut"`
+		TooLongInputError       string `json:"tooLongInputError"`
+		FixedOddHexError        string `json:"fixedOddHexError"`
+		FixedNonHexError        string `json:"fixedNonHexError"`
+		FixedUpperNonHexError   string `json:"fixedUpperNonHexError"`
+		DynamicOddHexError      string `json:"dynamicOddHexError"`
+		DynamicNonHexError      string `json:"dynamicNonHexError"`
+		DynamicUpperNonHexError string `json:"dynamicUpperNonHexError"`
+		InvalidOutputError      string `json:"invalidOutputError"`
 	}
 	if err := json.Unmarshal([]byte(value.String()), &got); err != nil {
 		t.Fatalf("decode script result %q: %v", value.String(), err)
@@ -735,11 +762,11 @@ JSON.stringify({
 	if got.TooLongInputError == "" {
 		t.Fatalf("bytes32 input longer than 32 bytes should fail")
 	}
-	if got.FixedOddHexError == "" || got.FixedNonHexError == "" {
-		t.Fatalf("malformed bytes32 hex inputs should fail: odd=%q nonhex=%q", got.FixedOddHexError, got.FixedNonHexError)
+	if got.FixedOddHexError == "" || got.FixedNonHexError == "" || got.FixedUpperNonHexError == "" {
+		t.Fatalf("malformed bytes32 hex inputs should fail: odd=%q nonhex=%q upper=%q", got.FixedOddHexError, got.FixedNonHexError, got.FixedUpperNonHexError)
 	}
-	if got.DynamicOddHexError == "" || got.DynamicNonHexError == "" {
-		t.Fatalf("malformed dynamic bytes hex inputs should fail: odd=%q nonhex=%q", got.DynamicOddHexError, got.DynamicNonHexError)
+	if got.DynamicOddHexError == "" || got.DynamicNonHexError == "" || got.DynamicUpperNonHexError == "" {
+		t.Fatalf("malformed dynamic bytes hex inputs should fail: odd=%q nonhex=%q upper=%q", got.DynamicOddHexError, got.DynamicNonHexError, got.DynamicUpperNonHexError)
 	}
 	if got.InvalidOutputError == "" {
 		t.Fatalf("bytes32 output with non-zero right padding should fail")
@@ -1070,6 +1097,7 @@ JSON.stringify({
   rawIsTopic: web3._extend.utils.isTopic(rawTopic),
   paddedIsTopic: web3._extend.utils.isTopic(filter.options.topics[0]),
   mixedCaseIsTopic: web3._extend.utils.isTopic(%q),
+  oddHexError: errorOf(function() { web3.qrl.filter({topics: ["0xb"]}); }),
   invalidShortHexError: errorOf(function() { web3.qrl.filter({topics: ["0xzz"]}); }),
   invalidFullHexError: errorOf(function() { web3.qrl.filter({topics: [%q]}); }),
   options: filter.options.topics,
@@ -1085,6 +1113,7 @@ JSON.stringify({
 		RawIsTopic           bool     `json:"rawIsTopic"`
 		PaddedIsTopic        bool     `json:"paddedIsTopic"`
 		MixedCaseIsTopic     bool     `json:"mixedCaseIsTopic"`
+		OddHexError          string   `json:"oddHexError"`
 		InvalidShortHexError string   `json:"invalidShortHexError"`
 		InvalidFullHexError  string   `json:"invalidFullHexError"`
 		Options              []string `json:"options"`
@@ -1104,6 +1133,9 @@ JSON.stringify({
 	}
 	if !got.MixedCaseIsTopic {
 		t.Fatalf("mixed-case 64-byte topic should pass VM64 topic validation")
+	}
+	if got.OddHexError == "" {
+		t.Fatalf("odd-nibble topic hex should fail")
 	}
 	if got.InvalidShortHexError == "" {
 		t.Fatalf("invalid short topic hex should fail")

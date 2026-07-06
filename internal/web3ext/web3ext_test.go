@@ -113,6 +113,9 @@ JSON.stringify(capturedOptions);
 	if _, err := re.Run(`web3.qrl.getLogs({topics: ["0x` + strings.Repeat("1", 129) + `"]});`); err == nil {
 		t.Fatal("expected over-wide topic to be rejected")
 	}
+	if _, err := re.Run(`web3.qrl.getLogs({topics: ["0xb"]});`); err == nil {
+		t.Fatal("expected odd-nibble topic hex to be rejected")
+	}
 	if _, err := re.Run(`web3.qrl.getLogs({topics: ["0xzz"]});`); err == nil {
 		t.Fatal("expected invalid topic hex to be rejected")
 	}

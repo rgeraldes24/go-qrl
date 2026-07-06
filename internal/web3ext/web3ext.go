@@ -401,7 +401,7 @@ var qrlLogTopicFormatter = function(topic) {
 	topic = String(topic);
 	topic = topic.slice(0, 2).toLowerCase() === '0x' ? topic : web3._extend.utils.fromUtf8(topic);
 	var hex = topic.slice(0, 2).toLowerCase() === '0x' ? topic.slice(2) : topic;
-	if (!/^[0-9a-f]*$/i.test(hex)) {
+	if (hex.length % 2 !== 0 || !/^[0-9a-f]*$/i.test(hex)) {
 		throw new Error('invalid topic hex');
 	}
 	if (hex.length > 128) {

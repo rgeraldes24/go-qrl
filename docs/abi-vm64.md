@@ -200,6 +200,8 @@ This is a fork-level wire-format alignment.
 Out-of-tree consumers should check for:
 
 - code that stores or compares old 32-byte event topics,
+- code that used the removed `common.BytesToEventSignatureLogTopic` helper
+  should use `common.BytesToLogTopic(hash)` or `Event.SignatureTopic()`,
 - code that right-aligns `common.Hash` as if it were already a full log topic,
 - generated bindings that expect indexed dynamic/composite fields to be their
   preimage type instead of `common.LogTopic`,

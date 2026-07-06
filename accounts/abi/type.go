@@ -123,6 +123,9 @@ func NewType(t string, internalType string, components []ArgumentMarshaling) (ty
 		}
 		parsedType = []string{t, "tuple", "", "", "", ""}
 	}
+	if parsedType[4] != "" {
+		return Type{}, fmt.Errorf("unsupported arg type: %s", t)
+	}
 
 	// varSize is the size of the variable
 	var varSize int
