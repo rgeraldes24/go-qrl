@@ -113,7 +113,7 @@ var testWallet = testutil.MustLoadAccount("alice").MustWallet()
 //	 }
 const abiJSON = `[ { "constant": false, "inputs": [ { "name": "memo", "type": "bytes" } ], "name": "receive", "outputs": [ { "name": "res", "type": "string" } ], "payable": true, "stateMutability": "payable", "type": "function" }, { "anonymous": false, "inputs": [ { "indexed": false, "name": "sender", "type": "address" }, { "indexed": false, "name": "amount", "type": "uint256" }, { "indexed": false, "name": "memo", "type": "bytes" } ], "name": "received", "type": "event" }, { "anonymous": false, "inputs": [ { "indexed": false, "name": "sender", "type": "address" } ], "name": "receivedAddr", "type": "event" } ]`
 
-// abiBin is a hand-rolled replacement for the Solidity receive() fixture.
+// abiBin is a hand-rolled replacement for the Hyperion receive() fixture.
 // The 12-byte init CODECOPYs a 34-byte runtime that, regardless of the
 // incoming selector, lays out an ABI-encoded string "hello world" under
 // the 64-byte slot layout:
@@ -139,14 +139,6 @@ var expectedReturn = func() []byte {
 	copy(b[128:], []byte("hello world"))
 	return b
 }()
-
-const signedIntABI = `[{"inputs":[],"name":"signed","outputs":[{"name":"value","type":"int512"}],"stateMutability":"view","type":"function"}]`
-
-// signedIntBin returns a 64-byte all-ones word. The runtime builds it with
-// NOT(0), writes it through MSTORE, and returns it so the test exercises real
-// QRVM word serialization instead of synthetic ABI bytes.
-const signedIntBin = `0x600c600c600039600c6000f3` +
-	`60001960005260406000f3`
 
 func simTestBackend(testAddr common.Address) *SimulatedBackend {
 	return NewSimulatedBackend(
@@ -502,8 +494,8 @@ func TestEstimateGas(t *testing.T) {
 	//   OOG()        (0x50f6fe34) → tight JUMP loop → OOG
 	//   Assert()     (0xb9b046f9) → INVALID (consumes all gas)
 	// Unknown selectors (including a plain-value transfer with empty
-	// calldata) fall through to a bare REVERT(0,0), matching the Solidity
-	// original's behaviour when no receive/fallback matches.
+	// calldata) fall through to a bare REVERT(0,0), matching the original
+	// fixture's behavior when no receive/fallback matches.
 	const contractBin = "0x6083600c60003960836000f3" +
 		"6000356101e01c" + // selector = CALLDATALOAD(0) >> 480
 		"a063e09fface1461004357" + // DUP1 == Valid?     → 0x43
@@ -1192,6 +1184,14 @@ func TestPendingAndCallContract(t *testing.T) {
 	}
 }
 
+const signedIntABI = `[{"inputs":[],"name":"signed","outputs":[{"name":"value","type":"int512"}],"stateMutability":"view","type":"function"}]`
+
+// signedIntBin returns a 64-byte all-ones word. The runtime builds it with
+// NOT(0), writes it through MSTORE, and returns it so the test exercises real
+// QRVM word serialization instead of synthetic ABI bytes.
+const signedIntBin = `0x600c600c600039600c6000f3` +
+	`60001960005260406000f3`
+
 func TestSimulatedBackendCallDecodesSignedVMWord(t *testing.T) {
 	testAddr := testWallet.GetAddress()
 	sim := simTestBackend(testAddr)
@@ -1259,11 +1259,11 @@ func TestCallContractRevert(t *testing.T) {
 	bgCtx := t.Context()
 
 	reverterABI := `[{"inputs": [],"name": "noRevert","outputs": [],"stateMutability": "pure","type": "function"},{"inputs": [],"name": "revertASM","outputs": [],"stateMutability": "pure","type": "function"},{"inputs": [],"name": "revertNoString","outputs": [],"stateMutability": "pure","type": "function"},{"inputs": [],"name": "revertString","outputs": [],"stateMutability": "pure","type": "function"}]`
-	// Hand-rolled replacement for the Solidity Reverter fixture. Under the
+	// Hand-rolled replacement for the Hyperion Reverter fixture. Under the
 	// 64-byte ABI slot layout the Error(string) payload becomes
 	//   selector(4) | offset=0x40(64) | length(64) | data(64 padded)
 	// for a total of 196 bytes (132 for an empty string). Selectors match
-	// Solidity's keccak256(sig)[:4]:
+	// the Hyperion ABI keccak256(sig)[:4]:
 	//   revertString()   → 0x9bd61037  (Error("some error"))
 	//   revertNoString() → 0x4b409e01  (Error(""))
 	//   revertASM()      → 0x9b340e36  (REVERT(0,0))
@@ -1418,7 +1418,7 @@ Example contract to test event emission:
 */
 const callableAbi = "[{\"anonymous\":false,\"inputs\":[],\"name\":\"Called\",\"type\":\"event\"},{\"inputs\":[],\"name\":\"Call\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"}]"
 
-// Hand-rolled replacement for the Solidity fixture above. The original
+// Hand-rolled replacement for the Hyperion fixture above. The original
 // bytecode depended on LOG/DUP/SWAP opcodes that shifted when the VM
 // widened to 512-bit words. 12-byte init copies a 58-byte runtime that
 //   - reads calldata[0:4] (shifted in from the 64-byte CALLDATALOAD word),
