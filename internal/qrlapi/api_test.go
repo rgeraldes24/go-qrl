@@ -56,48 +56,6 @@ import (
 	"github.com/theQRL/go-qrl/rpc"
 )
 
-func receiptLogTopics() (common.LogTopic, common.LogTopic) {
-	var topicA, topicB common.LogTopic
-	topicA[0], topicA[common.LogTopicLength-1] = 0xbb, 0x01
-	topicB[1], topicB[common.LogTopicLength-1] = 0xcc, 0x02
-	return topicA, topicB
-}
-
-func pushLogTopic(topic common.LogTopic) []byte {
-	return append([]byte{byte(vm.PUSH64)}, topic[:]...)
-}
-
-func receiptLogContractCode() []byte {
-	topicA, topicB := receiptLogTopics()
-	code := []byte{
-		byte(vm.PUSH4), 0x12, 0x34, 0x56, 0x78,
-		byte(vm.PUSH1), 0x00,
-		byte(vm.MSTORE),
-	}
-	code = append(code, pushLogTopic(topicB)...)
-	code = append(code, pushLogTopic(topicA)...)
-	code = append(code,
-		byte(vm.PUSH1), byte(uint512.WordBytes),
-		byte(vm.PUSH1), 0x00,
-		byte(vm.LOG2),
-		byte(vm.PUSH1), 0x01,
-		byte(vm.PUSH1), 0x00,
-		byte(vm.MSTORE),
-		byte(vm.PUSH1), byte(uint512.WordBytes),
-		byte(vm.PUSH1), 0x00,
-		byte(vm.RETURN),
-	)
-	return code
-}
-
-func receiptLogCallData(seed byte) []byte {
-	data := make([]byte, 4+2*uint512.WordBytes)
-	copy(data[:4], []byte{0xa9, 0x05, 0x9c, 0xbb})
-	data[4+uint512.WordBytes-1] = seed
-	data[4+2*uint512.WordBytes-1] = seed + 1
-	return data
-}
-
 func testTransactionMarshal(t *testing.T, tests []txData, config *params.ChainConfig) {
 	t.Parallel()
 	var (
@@ -1144,6 +1102,48 @@ func TestRPCGetBlockOrHeader(t *testing.T) {
 
 		testRPCResponseWithFile(t, i, result, rpc, tt.file)
 	}
+}
+
+func receiptLogTopics() (common.LogTopic, common.LogTopic) {
+	var topicA, topicB common.LogTopic
+	topicA[0], topicA[common.LogTopicLength-1] = 0xbb, 0x01
+	topicB[1], topicB[common.LogTopicLength-1] = 0xcc, 0x02
+	return topicA, topicB
+}
+
+func pushLogTopic(topic common.LogTopic) []byte {
+	return append([]byte{byte(vm.PUSH64)}, topic[:]...)
+}
+
+func receiptLogContractCode() []byte {
+	topicA, topicB := receiptLogTopics()
+	code := []byte{
+		byte(vm.PUSH4), 0x12, 0x34, 0x56, 0x78,
+		byte(vm.PUSH1), 0x00,
+		byte(vm.MSTORE),
+	}
+	code = append(code, pushLogTopic(topicB)...)
+	code = append(code, pushLogTopic(topicA)...)
+	code = append(code,
+		byte(vm.PUSH1), byte(uint512.WordBytes),
+		byte(vm.PUSH1), 0x00,
+		byte(vm.LOG2),
+		byte(vm.PUSH1), 0x01,
+		byte(vm.PUSH1), 0x00,
+		byte(vm.MSTORE),
+		byte(vm.PUSH1), byte(uint512.WordBytes),
+		byte(vm.PUSH1), 0x00,
+		byte(vm.RETURN),
+	)
+	return code
+}
+
+func receiptLogCallData(seed byte) []byte {
+	data := make([]byte, 4+2*uint512.WordBytes)
+	copy(data[:4], []byte{0xa9, 0x05, 0x9c, 0xbb})
+	data[4+uint512.WordBytes-1] = seed
+	data[4+2*uint512.WordBytes-1] = seed + 1
+	return data
 }
 
 func setupReceiptBackend(t *testing.T, genBlocks int) (*testBackend, []common.Hash) {
