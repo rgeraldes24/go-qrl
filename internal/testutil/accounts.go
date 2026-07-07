@@ -27,8 +27,6 @@ import (
 
 	"github.com/theQRL/go-qrl/common"
 	"github.com/theQRL/go-qrl/crypto/pqcrypto/wallet"
-	cryptomldsa87 "github.com/theQRL/go-qrllib/crypto/ml_dsa_87"
-	qrllibwalletcommon "github.com/theQRL/go-qrllib/wallet/common"
 )
 
 // Account is the decoded form of one entry in testdata/addresses.json. Wallet
@@ -58,13 +56,6 @@ func (a Account) Wallet(t testing.TB) wallet.Wallet {
 		t.Fatalf("testutil: account %q: restore wallet from seed: %v", a.Label, err)
 	}
 	return w
-}
-
-// DeterministicWallet returns a fixture wallet that uses deterministic ML-DSA
-// signing. Use this only in tests that need stable signed transaction hashes.
-func (a Account) DeterministicWallet(t testing.TB) wallet.Wallet {
-	t.Helper()
-	return newDeterministicWallet(t, a.Wallet(t))
 }
 
 var (
@@ -143,12 +134,6 @@ func (a Account) MustWallet() wallet.Wallet {
 	return w
 }
 
-// MustDeterministicWallet is the counterpart of Account.DeterministicWallet
-// for callers without a testing handle.
-func (a Account) MustDeterministicWallet() wallet.Wallet {
-	return mustDeterministicWallet(a.MustWallet())
-}
-
 // MustAddressBytes is the counterpart of Account.AddressBytes for callers
 // without a testing handle. Panics if the stored address string is invalid.
 func (a Account) MustAddressBytes() common.Address {
@@ -157,52 +142,6 @@ func (a Account) MustAddressBytes() common.Address {
 		panic(fmt.Sprintf("testutil: account %q has invalid address %q: %v", a.Label, a.Address, err))
 	}
 	return addr
-}
-
-type deterministicWallet struct {
-	wallet.Wallet
-	signer *cryptomldsa87.MLDSA87
-}
-
-func newDeterministicWallet(t testing.TB, w wallet.Wallet) wallet.Wallet {
-	t.Helper()
-	dw, err := deterministicWalletFrom(w)
-	if err != nil {
-		t.Fatalf("testutil: deterministic fixture wallet: %v", err)
-	}
-	return dw
-}
-
-func mustDeterministicWallet(w wallet.Wallet) wallet.Wallet {
-	dw, err := deterministicWalletFrom(w)
-	if err != nil {
-		panic(fmt.Sprintf("testutil: deterministic fixture wallet: %v", err))
-	}
-	return dw
-}
-
-func deterministicWalletFrom(w wallet.Wallet) (wallet.Wallet, error) {
-	extendedSeed, err := w.GetSeed()
-	if err != nil {
-		return nil, fmt.Errorf("get fixture wallet seed: %w", err)
-	}
-	seed, err := extendedSeed.GetSeed()
-	if err != nil {
-		return nil, fmt.Errorf("decode fixture wallet seed: %w", err)
-	}
-	signer, err := cryptomldsa87.NewMLDSA87FromSeed(seed.HashSHA256())
-	if err != nil {
-		return nil, fmt.Errorf("restore fixture signer: %w", err)
-	}
-	return deterministicWallet{Wallet: w, signer: signer}, nil
-}
-
-func (w deterministicWallet) Sign(message []uint8) ([]byte, error) {
-	signature, err := w.signer.SignDeterministic(qrllibwalletcommon.SigningContext(w.GetDescriptor()), message)
-	if err != nil {
-		return nil, err
-	}
-	return signature[:], nil
 }
 
 // locateFixture walks up from the working directory until it finds a go.mod
