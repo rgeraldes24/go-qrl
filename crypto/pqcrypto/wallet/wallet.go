@@ -32,6 +32,7 @@ type Wallet interface {
 	GetDescriptor() descriptor.Descriptor
 	GetPK() []byte
 	Sign([]uint8) ([]byte, error)
+	SignDeterministic([]uint8) ([]byte, error)
 }
 
 type MLDSA87Wallet struct {
@@ -40,6 +41,14 @@ type MLDSA87Wallet struct {
 
 func (w *MLDSA87Wallet) Sign(message []uint8) ([]byte, error) {
 	sig, err := w.Wallet.Sign(message)
+	if err != nil {
+		return nil, err
+	}
+	return sig[:], nil
+}
+
+func (w *MLDSA87Wallet) SignDeterministic(message []uint8) ([]byte, error) {
+	sig, err := w.Wallet.SignDeterministic(message)
 	if err != nil {
 		return nil, err
 	}

@@ -26,6 +26,7 @@ import (
 	"testing"
 
 	"github.com/theQRL/go-qrl/common"
+	"golang.org/x/mod/modfile"
 )
 
 var bindTests = []struct {
@@ -1961,10 +1962,14 @@ func TestGolangBindings(t *testing.T) {
 		t.Fatalf("failed to convert binding test to modules: %v\n%s", err, out)
 	}
 	pwd, _ := os.Getwd()
-	replacer := exec.Command(gocmd, "mod", "edit", "-x", "-require", "github.com/theQRL/go-qrl@v0.0.0", "-replace", "github.com/theQRL/go-qrl="+filepath.Join(pwd, "..", "..", "..")) // Repo root
+	repoRoot := filepath.Join(pwd, "..", "..", "..")
+	replacer := exec.Command(gocmd, "mod", "edit", "-x", "-require", "github.com/theQRL/go-qrl@v0.0.0", "-replace", "github.com/theQRL/go-qrl="+repoRoot) // Repo root
 	replacer.Dir = pkg
 	if out, err := replacer.CombinedOutput(); err != nil {
 		t.Fatalf("failed to replace binding test dependency to current source tree: %v\n%s", err, out)
+	}
+	if err := applyRootModuleReplaces(gocmd, pkg, repoRoot); err != nil {
+		t.Fatalf("failed to apply root module replacements: %v", err)
 	}
 	tidier := exec.Command(gocmd, "mod", "tidy")
 	tidier.Dir = pkg
@@ -1983,4 +1988,33 @@ func TestGolangBindings(t *testing.T) {
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("failed to vet generated bindings: %v\n%s", err, out)
 	}
+}
+
+func applyRootModuleReplaces(gocmd, pkg, repoRoot string) error {
+	rootGoMod, err := os.ReadFile(filepath.Join(repoRoot, "go.mod"))
+	if err != nil {
+		return fmt.Errorf("read root go.mod: %w", err)
+	}
+	rootMod, err := modfile.Parse("go.mod", rootGoMod, nil)
+	if err != nil {
+		return fmt.Errorf("parse root go.mod: %w", err)
+	}
+	for _, replace := range rootMod.Replace {
+		old := replace.Old.Path
+		if replace.Old.Version != "" {
+			old += "@" + replace.Old.Version
+		}
+		newPath := replace.New.Path
+		if replace.New.Version != "" {
+			newPath += "@" + replace.New.Version
+		} else if !filepath.IsAbs(newPath) {
+			newPath = filepath.Join(repoRoot, newPath)
+		}
+		cmd := exec.Command(gocmd, "mod", "edit", "-replace", old+"="+newPath)
+		cmd.Dir = pkg
+		if out, err := cmd.CombinedOutput(); err != nil {
+			return fmt.Errorf("go mod edit -replace %s=%s: %w\n%s", old, newPath, err, out)
+		}
+	}
+	return nil
 }
