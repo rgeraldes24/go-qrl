@@ -139,8 +139,6 @@ func TestMessages(t *testing.T) {
 		Extra:           []byte{0x77, 0x88},
 		WithdrawalsHash: &withdrawalsHash,
 	}
-	// Init the transactions from a deterministic fixture signer so the
-	// protocol message wire fixtures remain stable.
 	{
 		genWallet := testutil.LoadAccount(t, "alice").DeterministicWallet(t)
 		signer := types.NewZondSigner(big.NewInt(1))
