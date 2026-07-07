@@ -32,7 +32,6 @@ type Wallet interface {
 	GetDescriptor() descriptor.Descriptor
 	GetPK() []byte
 	Sign([]uint8) ([]byte, error)
-	SignDeterministic([]uint8) ([]byte, error)
 }
 
 type MLDSA87Wallet struct {
@@ -47,8 +46,24 @@ func (w *MLDSA87Wallet) Sign(message []uint8) ([]byte, error) {
 	return sig[:], nil
 }
 
-func (w *MLDSA87Wallet) SignDeterministic(message []uint8) ([]byte, error) {
-	sig, err := w.Wallet.SignDeterministic(message)
+type deterministicWallet struct {
+	Wallet
+	signer *MLDSA87Wallet
+}
+
+// NewDeterministicWallet wraps w so calls to Sign use ML-DSA-87 deterministic
+// signing. This is intended for tests and fixtures that need stable signed
+// transaction bytes.
+func NewDeterministicWallet(w Wallet) (Wallet, error) {
+	signer, ok := w.(*MLDSA87Wallet)
+	if !ok {
+		return nil, fmt.Errorf("deterministic signing is only supported for ML-DSA-87 wallets, got %T", w)
+	}
+	return deterministicWallet{Wallet: w, signer: signer}, nil
+}
+
+func (w deterministicWallet) Sign(message []uint8) ([]byte, error) {
+	sig, err := w.signer.Wallet.SignDeterministic(message)
 	if err != nil {
 		return nil, err
 	}

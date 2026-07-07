@@ -62,7 +62,11 @@ func (a Account) Wallet(t testing.TB) wallet.Wallet {
 // signing. Use this only in tests that need stable signed transaction hashes.
 func (a Account) DeterministicWallet(t testing.TB) wallet.Wallet {
 	t.Helper()
-	return deterministicWallet{Wallet: a.Wallet(t)}
+	w, err := wallet.NewDeterministicWallet(a.Wallet(t))
+	if err != nil {
+		t.Fatalf("testutil: account %q: deterministic wallet: %v", a.Label, err)
+	}
+	return w
 }
 
 var (
@@ -144,7 +148,11 @@ func (a Account) MustWallet() wallet.Wallet {
 // MustDeterministicWallet is the counterpart of Account.DeterministicWallet
 // for callers without a testing handle.
 func (a Account) MustDeterministicWallet() wallet.Wallet {
-	return deterministicWallet{Wallet: a.MustWallet()}
+	w, err := wallet.NewDeterministicWallet(a.MustWallet())
+	if err != nil {
+		panic(fmt.Sprintf("testutil: account %q: deterministic wallet: %v", a.Label, err))
+	}
+	return w
 }
 
 // MustAddressBytes is the counterpart of Account.AddressBytes for callers
@@ -155,14 +163,6 @@ func (a Account) MustAddressBytes() common.Address {
 		panic(fmt.Sprintf("testutil: account %q has invalid address %q: %v", a.Label, a.Address, err))
 	}
 	return addr
-}
-
-type deterministicWallet struct {
-	wallet.Wallet
-}
-
-func (w deterministicWallet) Sign(message []uint8) ([]byte, error) {
-	return w.Wallet.SignDeterministic(message)
 }
 
 // locateFixture walks up from the working directory until it finds a go.mod
