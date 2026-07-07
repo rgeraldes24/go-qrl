@@ -102,7 +102,7 @@ func testTransactionMarshal(t *testing.T, tests []txData, config *params.ChainCo
 	t.Parallel()
 	var (
 		signer = types.LatestSigner(config)
-		wallet = testutil.MustLoadAccount("alice").MustDeterministicWallet()
+		wallet = testutil.LoadAccount(t, "alice").DeterministicWallet(t)
 	)
 
 	for i, tt := range tests {
