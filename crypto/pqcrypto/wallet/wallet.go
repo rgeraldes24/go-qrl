@@ -47,8 +47,7 @@ func (w *MLDSA87Wallet) Sign(message []uint8) ([]byte, error) {
 }
 
 type deterministicWallet struct {
-	Wallet
-	signer *MLDSA87Wallet
+	*MLDSA87Wallet
 }
 
 // NewDeterministicWallet wraps w so calls to Sign use ML-DSA-87 deterministic
@@ -59,11 +58,11 @@ func NewDeterministicWallet(w Wallet) (Wallet, error) {
 	if !ok {
 		return nil, fmt.Errorf("deterministic signing is only supported for ML-DSA-87 wallets, got %T", w)
 	}
-	return deterministicWallet{Wallet: w, signer: signer}, nil
+	return deterministicWallet{MLDSA87Wallet: signer}, nil
 }
 
 func (w deterministicWallet) Sign(message []uint8) ([]byte, error) {
-	sig, err := w.signer.Wallet.SignDeterministic(message)
+	sig, err := w.Wallet.SignDeterministic(message)
 	if err != nil {
 		return nil, err
 	}
