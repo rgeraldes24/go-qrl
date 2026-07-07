@@ -392,8 +392,8 @@ func NewBlockChain(db qrldb.Database, cacheConfig *CacheConfig, genesis *Genesis
 			}
 		}
 	}
-	// The first thing the node will do is reconstruct the verification data for
-	// the head block. Might as well do it in advance.
+	// Verify the current head once during startup, before normal block
+	// processing starts.
 	bc.engine.VerifyHeader(bc, bc.CurrentHeader())
 
 	// Load any existing snapshot, regenerating it if loading failed
