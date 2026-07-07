@@ -1911,8 +1911,7 @@ func TestGolangBindings(t *testing.T) {
 	// the normal github.com/theQRL/go-qrllib module path. This test compiles
 	// generated bindings inside a standalone temporary module, and Go does not
 	// apply dependency-module replace directives transitively. While this PR
-	// depends on a temporary fork replace for go-qrllib, the temp module resolves
-	// the older release and fails before it can vet the generated bindings.
+	// depends on a temporary fork replace for go-qrllib, keep this disabled.
 	t.Skip("temporarily disabled until go-qrllib wallet SignDeterministic is available without a fork replace")
 
 	// Skip the test if no Go command can be found
