@@ -1158,15 +1158,9 @@ func setupReceiptBackend(t *testing.T, genBlocks int) (*testBackend, []common.Ha
 			Alloc: core.GenesisAlloc{
 				acc1Addr: {Balance: big.NewInt(params.Quanta)},
 				acc2Addr: {Balance: big.NewInt(params.Quanta)},
-				// Hyperion-style source represented by receiptLogContractCode:
-				//
-				// contract Token {
-				//     event Transfer(bytes64 indexed from, bytes64 indexed to, bytes64 value);
-				//     function transfer(bytes64, bytes64) public returns (bool) {
-				//         emit Transfer(topicA, topicB, 0x12345678);
-				//         return true;
-				//     }
-				// }
+				// receiptLogContractCode stores 0x12345678 in memory, emits
+				// LOG2 with topicA/topicB and one 64-byte data word, then
+				// returns a 64-byte word containing 1.
 				contract: {Balance: big.NewInt(params.Quanta), Code: receiptLogContractCode()},
 			},
 		}
