@@ -1093,6 +1093,38 @@ func TestOOMMaliciousInput(t *testing.T) {
 				"0000000000000000000000000000000000000000000000000000000000000001" + // elem 1
 				"0000000000000000000000000000000000000000000000000000000000000002", // elem 2
 		},
+		{ // Dynamic offset points back into the head.
+			def: `[{"type": "string"}]`,
+			enc: abiWord("00"),
+		},
+		{ // Dynamic offsets must be ABI word-aligned.
+			def: `[{"type": "bytes"}]`,
+			enc: abiWord("41") + abiWord("00"),
+		},
+		{ // Dynamic payloads must include padding to the ABI word boundary.
+			def: `[{"type": "bytes"}]`,
+			enc: abiWord("40") + abiWord("41") + strings.Repeat("ff", 65),
+		},
+		{ // Dynamic payload padding must be zero.
+			def: `[{"type": "bytes"}]`,
+			enc: abiWord("40") + abiWord("01") + "ff" + strings.Repeat("00", 62) + "01",
+		},
+		{ // Fixed array dynamic element offsets must not point back into the array head.
+			def: `[{"type": "string[2]"}]`,
+			enc: abiWord("00") + abiWord("00"),
+		},
+		{ // Top-level dynamic offsets must not point into another output head word.
+			def: `[{"type": "string"}, {"type": "string"}]`,
+			enc: abiWord("40") + abiWord("80") + abiWord("00") + abiWord("00"),
+		},
+		{ // Fixed array dynamic element offsets must start after the full array head.
+			def: `[{"type": "string[2]"}]`,
+			enc: abiWord("40") + abiWord("40") + abiWord("00") + abiWord("00"),
+		},
+		{ // Fixed array with dynamic elements must reject full-width malformed offsets.
+			def: `[{"type": "string[2]"}]`,
+			enc: abiWord("010000000000000040"),
+		},
 	}
 	for i, test := range oomTests {
 		def := fmt.Sprintf(`[{ "name" : "method", "type": "function", "outputs": %s}]`, test.def)
@@ -1109,6 +1141,22 @@ func TestOOMMaliciousInput(t *testing.T) {
 			t.Fatalf("Expected error on malicious input, test %d", i)
 		}
 	}
+}
+
+func TestUnpackValuesRejectsUnalignedData(t *testing.T) {
+	t.Parallel()
+
+	def := `[{ "name" : "method", "type": "function", "outputs": [{"type": "uint256"}]}]`
+	abi, err := JSON(strings.NewReader(def))
+	require.NoError(t, err)
+
+	data := append(common.LeftPadBytes([]byte{1}, abiWordBytes), 0)
+	_, err = abi.Methods["method"].Outputs.UnpackValues(data)
+	require.ErrorContains(t, err, "abi: improperly formatted output")
+}
+
+func abiWord(hex string) string {
+	return strings.Repeat("0", abiWordBytes*2-len(hex)) + hex
 }
 
 func TestPackAndUnpackIncompatibleNumber(t *testing.T) {

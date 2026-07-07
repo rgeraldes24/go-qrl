@@ -182,17 +182,23 @@ func (arguments Arguments) copyTuple(v any, marshalledValues []any) error {
 // without supplying a struct to unpack into. Instead, this method returns a list containing the
 // values. An atomic argument will be a list with one element.
 func (arguments Arguments) UnpackValues(data []byte) ([]any, error) {
+	if len(data)%abiWordBytes != 0 {
+		return nil, fmt.Errorf("abi: improperly formatted output: %q - Bytes: %+v", data, data)
+	}
 	var (
 		retval      = make([]any, 0)
 		virtualArgs = 0
 		index       = 0
 	)
 
-	for _, arg := range arguments {
-		if arg.Indexed {
-			continue
-		}
-		marshalledValue, err := toGoType((index+virtualArgs)*64, arg.Type, data)
+	nonIndexedArgs := arguments.NonIndexed()
+	headSize := 0
+	for _, arg := range nonIndexedArgs {
+		headSize += getTypeSize(arg.Type)
+	}
+
+	for _, arg := range nonIndexedArgs {
+		marshalledValue, err := toGoTypeWithMinDynamicOffset((index+virtualArgs)*abiWordBytes, arg.Type, data, headSize)
 		if err != nil {
 			return nil, err
 		}
@@ -207,11 +213,11 @@ func (arguments Arguments) UnpackValues(data []byte) ([]any, error) {
 			//
 			// Calculate the full array size to get the correct offset for the next argument.
 			// Decrement it by 1, as the normal index increment is still applied.
-			virtualArgs += getTypeSize(arg.Type)/64 - 1
+			virtualArgs += getTypeSize(arg.Type)/abiWordBytes - 1
 		} else if arg.Type.T == TupleTy && !isDynamicType(arg.Type) {
 			// If we have a static tuple, like (uint256, bool, uint256), these are
 			// coded as just like uint256,bool,uint256
-			virtualArgs += getTypeSize(arg.Type)/64 - 1
+			virtualArgs += getTypeSize(arg.Type)/abiWordBytes - 1
 		}
 		retval = append(retval, marshalledValue)
 		index++

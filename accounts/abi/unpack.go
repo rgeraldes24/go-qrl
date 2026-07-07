@@ -17,7 +17,6 @@
 package abi
 
 import (
-	"encoding/binary"
 	"errors"
 	"fmt"
 	"math"
@@ -108,12 +107,12 @@ func ReadInteger(typ Type, b []byte) (any, error) {
 
 // readBool reads a bool.
 func readBool(word []byte) (bool, error) {
-	for _, b := range word[:63] {
+	for _, b := range word[:abiWordBytes-1] {
 		if b != 0 {
 			return false, errBadBool
 		}
 	}
-	switch word[63] {
+	switch word[abiWordBytes-1] {
 	case 0:
 		return false, nil
 	case 1:
@@ -161,8 +160,17 @@ func forEachUnpack(t Type, output []byte, start, size int) (any, error) {
 	if size < 0 {
 		return nil, fmt.Errorf("cannot marshal input to array, size is negative (%d)", size)
 	}
-	if start+64*size > len(output) {
-		return nil, fmt.Errorf("abi: cannot marshal into go array: offset %d would go over slice boundary (len=%d)", len(output), start+64*size)
+
+	// Walk elements by their encoded size. Static aggregate elements can occupy
+	// multiple ABI words; dynamic elements occupy one offset word.
+	elemSize := getTypeSize(*t.Elem)
+	maxInt := int(^uint(0) >> 1)
+	if start < 0 || size > 0 && elemSize > (maxInt-start)/size {
+		return nil, fmt.Errorf("abi: cannot marshal into go array: size overflow")
+	}
+	end := start + elemSize*size
+	if end > len(output) {
+		return nil, fmt.Errorf("abi: cannot marshal into go array: offset %d would go over slice boundary (len=%d)", end, len(output))
 	}
 
 	// this value will become our slice or our array, depending on the type
@@ -179,12 +187,8 @@ func forEachUnpack(t Type, output []byte, start, size int) (any, error) {
 		return nil, errors.New("abi: invalid type in array/slice unpacking stage")
 	}
 
-	// Arrays have packed elements, resulting in longer unpack steps.
-	// Slices have just 32 bytes per element (pointing to the contents).
-	elemSize := getTypeSize(*t.Elem)
-
 	for i, j := start, 0; j < size; i, j = i+elemSize, j+1 {
-		inter, err := toGoType(i, *t.Elem, output)
+		inter, err := toGoTypeWithMinDynamicOffset(i, *t.Elem, output, end)
 		if err != nil {
 			return nil, err
 		}
@@ -200,8 +204,12 @@ func forEachUnpack(t Type, output []byte, start, size int) (any, error) {
 func forTupleUnpack(t Type, output []byte) (any, error) {
 	retval := reflect.New(t.GetType()).Elem()
 	virtualArgs := 0
+	headSize := 0
+	for _, elem := range t.TupleElems {
+		headSize += getTypeSize(*elem)
+	}
 	for index, elem := range t.TupleElems {
-		marshalledValue, err := toGoType((index+virtualArgs)*64, *elem, output)
+		marshalledValue, err := toGoTypeWithMinDynamicOffset((index+virtualArgs)*abiWordBytes, *elem, output, headSize)
 		if err != nil {
 			return nil, err
 		}
@@ -216,11 +224,11 @@ func forTupleUnpack(t Type, output []byte) (any, error) {
 			//
 			// Calculate the full array size to get the correct offset for the next argument.
 			// Decrement it by 1, as the normal index increment is still applied.
-			virtualArgs += getTypeSize(*elem)/64 - 1
+			virtualArgs += getTypeSize(*elem)/abiWordBytes - 1
 		} else if elem.T == TupleTy && !isDynamicType(*elem) {
 			// If we have a static tuple, like (uint256, bool, uint256), these are
 			// coded as just like uint256,bool,uint256
-			virtualArgs += getTypeSize(*elem)/64 - 1
+			virtualArgs += getTypeSize(*elem)/abiWordBytes - 1
 		}
 		retval.Field(index).Set(reflect.ValueOf(marshalledValue))
 	}
@@ -230,8 +238,12 @@ func forTupleUnpack(t Type, output []byte) (any, error) {
 // toGoType parses the output bytes and recursively assigns the value of these bytes
 // into a go type with accordance with the ABI spec.
 func toGoType(index int, t Type, output []byte) (any, error) {
-	if index+64 > len(output) {
-		return nil, fmt.Errorf("abi: cannot marshal in to go type: length insufficient %d require %d", len(output), index+64)
+	return toGoTypeWithMinDynamicOffset(index, t, output, index+abiWordBytes)
+}
+
+func toGoTypeWithMinDynamicOffset(index int, t Type, output []byte, minDynamicOffset int) (any, error) {
+	if index+abiWordBytes > len(output) {
+		return nil, fmt.Errorf("abi: cannot marshal in to go type: length insufficient %d require %d", len(output), index+abiWordBytes)
 	}
 
 	var (
@@ -242,18 +254,18 @@ func toGoType(index int, t Type, output []byte) (any, error) {
 
 	// if we require a length prefix, find the beginning word and size returned.
 	if t.requiresLengthPrefix() {
-		begin, length, err = lengthPrefixPointsTo(index, output)
+		begin, length, err = lengthPrefixPointsTo(index, output, minDynamicOffset)
 		if err != nil {
 			return nil, err
 		}
 	} else {
-		returnOutput = output[index : index+64]
+		returnOutput = output[index : index+abiWordBytes]
 	}
 
 	switch t.T {
 	case TupleTy:
 		if isDynamicType(t) {
-			begin, err := tuplePointsTo(index, output)
+			begin, err := tuplePointsTo(index, output, minDynamicOffset)
 			if err != nil {
 				return nil, err
 			}
@@ -264,14 +276,17 @@ func toGoType(index int, t Type, output []byte) (any, error) {
 		return forEachUnpack(t, output[begin:], 0, length)
 	case ArrayTy:
 		if isDynamicType(*t.Elem) {
-			offset := binary.BigEndian.Uint64(returnOutput[len(returnOutput)-8:])
-			if offset > uint64(len(output)) {
-				return nil, fmt.Errorf("abi: toGoType offset greater than output length: offset: %d, len(output): %d", offset, len(output))
+			offset, err := tuplePointsTo(index, output, minDynamicOffset)
+			if err != nil {
+				return nil, err
 			}
 			return forEachUnpack(t, output[offset:], 0, t.Size)
 		}
 		return forEachUnpack(t, output[index:], 0, t.Size)
 	case StringTy: // variable arrays are written at the end of the return bytes
+		if err := validateDynamicPayloadPadding(output, begin, length); err != nil {
+			return nil, err
+		}
 		return string(output[begin : begin+length]), nil
 	case IntTy, UintTy:
 		return ReadInteger(t, returnOutput)
@@ -282,6 +297,9 @@ func toGoType(index int, t Type, output []byte) (any, error) {
 	case HashTy:
 		return common.BytesToHash(returnOutput), nil
 	case BytesTy:
+		if err := validateDynamicPayloadPadding(output, begin, length); err != nil {
+			return nil, err
+		}
 		return output[begin : begin+length], nil
 	case FixedBytesTy:
 		return ReadFixedBytes(t, returnOutput)
@@ -292,24 +310,28 @@ func toGoType(index int, t Type, output []byte) (any, error) {
 	}
 }
 
-// lengthPrefixPointsTo interprets a 64 byte slice as an offset and then determines which indices to look to decode the type.
-func lengthPrefixPointsTo(index int, output []byte) (start int, length int, err error) {
-	bigOffsetEnd := new(big.Int).SetBytes(output[index : index+64])
-	bigOffsetEnd.Add(bigOffsetEnd, common.Big64)
+// lengthPrefixPointsTo interprets an ABI word as an offset and then determines which indices to look to decode the type.
+func lengthPrefixPointsTo(index int, output []byte, minDynamicOffset int) (start int, length int, err error) {
+	offset, err := readDynamicOffset(index, output, minDynamicOffset)
+	if err != nil {
+		return 0, 0, err
+	}
 	outputLength := big.NewInt(int64(len(output)))
 
-	if bigOffsetEnd.Cmp(outputLength) > 0 {
-		return 0, 0, fmt.Errorf("abi: cannot marshal in to go slice: offset %v would go over slice boundary (len=%v)", bigOffsetEnd, outputLength)
+	if offset > len(output)-abiWordBytes {
+		return 0, 0, fmt.Errorf("abi: cannot marshal in to go slice: offset %d would go over slice boundary (len=%v)", offset+abiWordBytes, outputLength)
 	}
 
-	if bigOffsetEnd.BitLen() > 63 {
-		return 0, 0, fmt.Errorf("abi offset larger than int64: %v", bigOffsetEnd)
+	lengthBig := new(big.Int).SetBytes(output[offset : offset+abiWordBytes])
+
+	bigOffsetEnd := new(big.Int).SetInt64(int64(offset))
+	bigOffsetEnd.Add(bigOffsetEnd, big.NewInt(int64(abiWordBytes)))
+	wordBytes := big.NewInt(int64(abiWordBytes))
+	paddedLength := new(big.Int).Set(lengthBig)
+	if remainder := new(big.Int).Mod(paddedLength, wordBytes); remainder.Sign() != 0 {
+		paddedLength.Add(paddedLength, new(big.Int).Sub(wordBytes, remainder))
 	}
-
-	offsetEnd := int(bigOffsetEnd.Uint64())
-	lengthBig := new(big.Int).SetBytes(output[offsetEnd-64 : offsetEnd])
-
-	totalSize := new(big.Int).Add(bigOffsetEnd, lengthBig)
+	totalSize := new(big.Int).Add(bigOffsetEnd, paddedLength)
 	if totalSize.BitLen() > 63 {
 		return 0, 0, fmt.Errorf("abi: length larger than int64: %v", totalSize)
 	}
@@ -322,9 +344,30 @@ func lengthPrefixPointsTo(index int, output []byte) (start int, length int, err 
 	return
 }
 
+func validateDynamicPayloadPadding(output []byte, start, length int) error {
+	paddedLength := length
+	if remainder := paddedLength % abiWordBytes; remainder != 0 {
+		paddedLength += abiWordBytes - remainder
+	}
+	end := start + paddedLength
+	if end > len(output) {
+		return fmt.Errorf("abi: cannot marshal in to go type: length insufficient %d require %d", len(output), end)
+	}
+	for _, b := range output[start+length : end] {
+		if b != 0 {
+			return fmt.Errorf("abi: non-zero padding byte in dynamic data")
+		}
+	}
+	return nil
+}
+
 // tuplePointsTo resolves the location reference for dynamic tuple.
-func tuplePointsTo(index int, output []byte) (start int, err error) {
-	offset := new(big.Int).SetBytes(output[index : index+64])
+func tuplePointsTo(index int, output []byte, minDynamicOffset int) (start int, err error) {
+	return readDynamicOffset(index, output, minDynamicOffset)
+}
+
+func readDynamicOffset(index int, output []byte, minDynamicOffset int) (int, error) {
+	offset := new(big.Int).SetBytes(output[index : index+abiWordBytes])
 	outputLen := big.NewInt(int64(len(output)))
 
 	if offset.Cmp(outputLen) > 0 {
@@ -333,5 +376,15 @@ func tuplePointsTo(index int, output []byte) (start int, err error) {
 	if offset.BitLen() > 63 {
 		return 0, fmt.Errorf("abi offset larger than int64: %v", offset)
 	}
-	return int(offset.Uint64()), nil
+	offsetInt := int(offset.Uint64())
+	if offsetInt%abiWordBytes != 0 {
+		return 0, fmt.Errorf("abi offset %d is not word-aligned", offsetInt)
+	}
+	if minDynamicOffset < index+abiWordBytes {
+		minDynamicOffset = index + abiWordBytes
+	}
+	if offsetInt < minDynamicOffset {
+		return 0, fmt.Errorf("abi offset %d points into head; minimum dynamic offset is %d", offsetInt, minDynamicOffset)
+	}
+	return offsetInt, nil
 }
