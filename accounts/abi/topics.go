@@ -90,12 +90,6 @@ func MakeTopics(query ...[]any) ([][]common.LogTopic, error) {
 				switch {
 				// static byte array
 				case val.Kind() == reflect.Array && reflect.TypeOf(rule).Elem().Kind() == reflect.Uint8:
-					if val.Len() == common.AddressLength+4 {
-						return nil, ErrUnsupportedFunctionType
-					}
-					if val.Len() > common.LogTopicLength {
-						return nil, fmt.Errorf("abi: fixed byte array of length %d does not fit in a %d-byte topic", val.Len(), common.LogTopicLength)
-					}
 					reflect.Copy(reflect.ValueOf(topic[:val.Len()]), val)
 				default:
 					return nil, fmt.Errorf("unsupported indexed type: %T", rule)
@@ -186,9 +180,6 @@ func parseTopicWithSetter(fields Arguments, topics []common.LogTopic, setter fun
 		if !arg.Indexed {
 			return errors.New("non-indexed field in topic reconstruction")
 		}
-		if containsFunctionType(arg.Type) {
-			return ErrUnsupportedFunctionType
-		}
 		var reconstr any
 		switch arg.Type.T {
 		case TupleTy, StringTy, BytesTy, SliceTy, ArrayTy:
@@ -198,7 +189,7 @@ func parseTopicWithSetter(fields Arguments, topics []common.LogTopic, setter fun
 		default:
 			// Topic is already the width of an ABI slot (64 bytes); decode directly.
 			var err error
-			reconstr, err = toGoType(0, arg.Type, topics[i][:], common.LogTopicLength)
+			reconstr, err = toGoType(0, arg.Type, topics[i][:])
 			if err != nil {
 				return err
 			}

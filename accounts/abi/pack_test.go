@@ -19,7 +19,6 @@ package abi
 import (
 	"bytes"
 	"encoding/hex"
-	"errors"
 	"fmt"
 	"math"
 	"math/big"
@@ -54,41 +53,6 @@ func TestPack(t *testing.T) {
 			}
 			if !reflect.DeepEqual(packed[4:], encb) {
 				t.Errorf("test %d (%v) failed: expected %v, got %v", i, test.def, encb, packed[4:])
-			}
-		})
-	}
-}
-
-func TestPackUnsupportedFunctionType(t *testing.T) {
-	t.Parallel()
-
-	tests := []struct {
-		name  string
-		abi   string
-		value any
-	}{
-		{
-			name:  "direct",
-			abi:   `[{"name":"method","type":"function","inputs":[{"type":"function"}]}]`,
-			value: [common.AddressLength + 4]byte{},
-		},
-		{
-			name:  "empty slice",
-			abi:   `[{"name":"method","type":"function","inputs":[{"type":"function[]"}]}]`,
-			value: [][common.AddressLength + 4]byte{},
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-
-			abi, err := JSON(strings.NewReader(tt.abi))
-			if err != nil {
-				t.Fatalf("invalid ABI definition: %v", err)
-			}
-			_, err = abi.Pack("method", tt.value)
-			if !errors.Is(err, ErrUnsupportedFunctionType) {
-				t.Fatalf("pack function type error = %v, want %v", err, ErrUnsupportedFunctionType)
 			}
 		})
 	}

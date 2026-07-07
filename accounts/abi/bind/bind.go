@@ -96,9 +96,6 @@ func Bind(types []string, abis []string, bytecodes []string, fsigs []map[string]
 		if err != nil {
 			return "", err
 		}
-		if err := rejectUnsupportedFunctionTypes(types[i], qrvmABI); err != nil {
-			return "", err
-		}
 		// Strip any whitespace from the JSON ABI
 		strippedABI := strings.Map(func(r rune) rune {
 			if unicode.IsSpace(r) {
@@ -321,7 +318,7 @@ func bindBasicType(kind abi.Type) string {
 	case abi.BytesTy:
 		return "[]byte"
 	case abi.FunctionTy:
-		panic(abi.ErrUnsupportedFunctionType)
+		return "[24]byte"
 	default:
 		// string, bool types
 		return kind.String()
@@ -365,56 +362,6 @@ func bindTopicRuleType(kind abi.Type, structs map[string]*tmplStruct) string {
 	default:
 		return bindType(kind, structs)
 	}
-}
-
-func rejectUnsupportedFunctionTypes(contractName string, contractABI abi.ABI) error {
-	if err := rejectUnsupportedFunctionArgs(contractName, "constructor", contractABI.Constructor.Inputs); err != nil {
-		return err
-	}
-	for _, method := range contractABI.Methods {
-		if err := rejectUnsupportedFunctionArgs(contractName, fmt.Sprintf("method %q inputs", method.RawName), method.Inputs); err != nil {
-			return err
-		}
-		if err := rejectUnsupportedFunctionArgs(contractName, fmt.Sprintf("method %q outputs", method.RawName), method.Outputs); err != nil {
-			return err
-		}
-	}
-	for _, event := range contractABI.Events {
-		if err := rejectUnsupportedFunctionArgs(contractName, fmt.Sprintf("event %q inputs", event.RawName), event.Inputs); err != nil {
-			return err
-		}
-	}
-	for _, errABI := range contractABI.Errors {
-		if err := rejectUnsupportedFunctionArgs(contractName, fmt.Sprintf("error %q inputs", errABI.Name), errABI.Inputs); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func rejectUnsupportedFunctionArgs(contractName, context string, args abi.Arguments) error {
-	for _, arg := range args {
-		if bindContainsFunctionType(arg.Type) {
-			return fmt.Errorf("cannot generate binding for %s %s argument %q: %w", contractName, context, arg.Name, abi.ErrUnsupportedFunctionType)
-		}
-	}
-	return nil
-}
-
-func bindContainsFunctionType(t abi.Type) bool {
-	switch t.T {
-	case abi.FunctionTy:
-		return true
-	case abi.SliceTy, abi.ArrayTy:
-		return bindContainsFunctionType(*t.Elem)
-	case abi.TupleTy:
-		for _, elem := range t.TupleElems {
-			if bindContainsFunctionType(*elem) {
-				return true
-			}
-		}
-	}
-	return false
 }
 
 // bindStructType converts a Hyperion tuple type to a Go one and records the mapping

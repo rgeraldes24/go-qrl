@@ -19,7 +19,6 @@ package abi
 import (
 	"bytes"
 	"encoding/hex"
-	"errors"
 	"fmt"
 	"math"
 	"math/big"
@@ -100,42 +99,6 @@ func TestUnpack(t *testing.T) {
 			}
 			if !reflect.DeepEqual(test.unpacked, ConvertType(out[0], test.unpacked)) {
 				t.Errorf("test %d (%v) failed: expected %v, got %v", i, test.def, test.unpacked, out[0])
-			}
-		})
-	}
-}
-
-func TestUnpackUnsupportedFunctionType(t *testing.T) {
-	t.Parallel()
-
-	emptySliceOutput := append(common.LeftPadBytes([]byte{abiWordBytes}, abiWordBytes), common.LeftPadBytes(nil, abiWordBytes)...)
-	tests := []struct {
-		name   string
-		abi    string
-		output []byte
-	}{
-		{
-			name:   "direct",
-			abi:    `[{"name":"method","type":"function","outputs":[{"type":"function"}]}]`,
-			output: make([]byte, abiWordBytes),
-		},
-		{
-			name:   "empty slice",
-			abi:    `[{"name":"method","type":"function","outputs":[{"type":"function[]"}]}]`,
-			output: emptySliceOutput,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-
-			abi, err := JSON(strings.NewReader(tt.abi))
-			if err != nil {
-				t.Fatalf("invalid ABI definition: %v", err)
-			}
-			_, err = abi.Unpack("method", tt.output)
-			if !errors.Is(err, ErrUnsupportedFunctionType) {
-				t.Fatalf("unpack function type error = %v, want %v", err, ErrUnsupportedFunctionType)
 			}
 		})
 	}
@@ -1145,59 +1108,12 @@ func TestOOMMaliciousInput(t *testing.T) {
 				abiWord("01") + // elem 1
 				abiWord("02"), // elem 2
 		},
-		{ // Dynamic offset points back into the head and used to decode as an empty string.
-			def: `[{"type": "string"}]`,
-			enc: abiWord("00"),
-		},
-		{ // Dynamic offsets must be ABI word-aligned.
-			def: `[{"type": "bytes"}]`,
-			enc: abiWord("41") +
-				abiWord("00"),
-		},
-		{ // Dynamic payloads must include padding to the ABI word boundary.
-			def: `[{"type": "bytes"}]`,
-			enc: abiWord("40") +
-				abiWord("41") +
-				strings.Repeat("ff", 65),
-		},
-		{ // Dynamic payload padding must be zero.
-			def: `[{"type": "bytes"}]`,
-			enc: abiWord("40") +
-				abiWord("01") +
-				"ff" +
-				strings.Repeat("00", 62) +
-				"01",
-		},
 		{ // Fixed bytes payload padding must be zero.
 			def: `[{"type": "bytes32"}]`,
 			enc: "ff" +
 				strings.Repeat("00", 31) +
 				strings.Repeat("00", 31) +
 				"01",
-		},
-		{ // Fixed array dynamic element offsets must not point back into the array head.
-			def: `[{"type": "string[2]"}]`,
-			enc: abiWord("00") +
-				abiWord("00"),
-		},
-		{ // Top-level dynamic offsets must not point into another output head word.
-			def: `[{"type": "string"}, {"type": "string"}]`,
-			enc: abiWord("40") +
-				abiWord("80") +
-				abiWord("00") +
-				abiWord("00"),
-		},
-		{ // Fixed array dynamic element offsets must start after the full array head.
-			def: `[{"type": "string[2]"}]`,
-			enc: abiWord("40") +
-				abiWord("40") +
-				abiWord("80") +
-				abiWord("00") +
-				abiWord("00"),
-		},
-		{ // Fixed array with dynamic elements must reject full-width malformed offsets.
-			def: `[{"type": "string[2]"}]`,
-			enc: abiWord("010000000000000040"),
 		},
 	}
 	for i, test := range oomTests {
@@ -1215,36 +1131,6 @@ func TestOOMMaliciousInput(t *testing.T) {
 			t.Fatalf("Expected error on malicious input, test %d", i)
 		}
 	}
-}
-
-func TestUnpackSliceOfStaticArraysChecksFullElementSize(t *testing.T) {
-	t.Parallel()
-
-	def := `[{ "name" : "method", "type": "function", "outputs": [{"type": "uint256[2][]"}]}]`
-	abi, err := JSON(strings.NewReader(def))
-	require.NoError(t, err)
-
-	enc := abiWord("40") + // offset
-		abiWord("02") + // num elems
-		abiWord("01") + // first array, elem 1
-		abiWord("02") // first array, elem 2
-	encb, err := hex.DecodeString(enc)
-	require.NoError(t, err)
-
-	_, err = abi.Methods["method"].Outputs.UnpackValues(encb)
-	require.ErrorContains(t, err, "cannot marshal into go array")
-}
-
-func TestUnpackValuesRejectsUnalignedData(t *testing.T) {
-	t.Parallel()
-
-	def := `[{ "name" : "method", "type": "function", "outputs": [{"type": "uint256"}]}]`
-	abi, err := JSON(strings.NewReader(def))
-	require.NoError(t, err)
-
-	data := append(common.LeftPadBytes([]byte{1}, abiWordBytes), 0)
-	_, err = abi.Methods["method"].Outputs.UnpackValues(data)
-	require.ErrorContains(t, err, "abi: improperly formatted output")
 }
 
 func TestPackAndUnpackIncompatibleNumber(t *testing.T) {

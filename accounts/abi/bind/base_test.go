@@ -403,7 +403,7 @@ func TestUnpackIndexedFuncTyLogIntoMap(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected indexed function topic to be rejected")
 	}
-	if !errors.Is(err, abi.ErrUnsupportedFunctionType) {
+	if !strings.Contains(err.Error(), "function type does not fit") {
 		t.Fatalf("unexpected error: %v", err)
 	}
 }

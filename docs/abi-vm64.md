@@ -31,10 +31,9 @@ word sizes.
   - the raw payload bytes,
   - zero right-padding to the next 64-byte boundary.
 - Dynamic values in tuples, arrays, and multi-argument payloads are referenced by
-  byte offsets. Offsets must be 64-byte aligned and must point outside the
-  current head region.
+  byte offsets.
 - Decoding is strict: short words, invalid hex, non-zero padding, invalid bool
-  values, out-of-range integers, and malformed dynamic offsets are rejected.
+  values, and out-of-range integers are rejected.
 
 ## Supported ABI Types
 
@@ -93,17 +92,6 @@ The following are rejected:
 - `bytes65` and wider fixed bytes.
 - Fixed-point types.
 - Hash pseudo-types that are not represented as ABI fixed bytes.
-- ABI `function` values at packing, unpacking, topic, or binding use sites.
-
-ABI `function` values are still parseable from JSON ABI metadata so callers can
-inspect ABI definitions. They are rejected when used because a QRL external
-function value would be:
-
-```text
-address64 + selector4 = 68 bytes
-```
-
-That cannot fit in one 64-byte ABI word.
 
 ## Events And Log Topics
 
@@ -153,9 +141,6 @@ Generated filter/watch parameters:
   can hash them.
 - Indexed tuple, array, and slice filters use `common.LogTopic` and require the
   caller to provide the precomputed topic.
-
-Bindings that contain ABI `function` values in constructors, methods, outputs,
-events, or errors are rejected.
 
 ## Embedded web3.js
 

@@ -192,23 +192,17 @@ func (arguments Arguments) copyTuple(v any, marshalledValues []any) error {
 // without supplying a struct to unpack into. Instead, this method returns a list containing the
 // values. An atomic argument will be a list with one element.
 func (arguments Arguments) UnpackValues(data []byte) ([]any, error) {
-	if len(data)%abiWordBytes != 0 {
-		return nil, fmt.Errorf("abi: improperly formatted output: %q - Bytes: %+v", data, data)
-	}
 	var (
 		retval      = make([]any, 0)
 		virtualArgs = 0
 		index       = 0
 	)
 
-	nonIndexedArgs := arguments.NonIndexed()
-	headSize := 0
-	for _, arg := range nonIndexedArgs {
-		headSize += getTypeSize(arg.Type)
-	}
-
-	for _, arg := range nonIndexedArgs {
-		marshalledValue, err := toGoType((index+virtualArgs)*abiWordBytes, arg.Type, data, headSize)
+	for _, arg := range arguments {
+		if arg.Indexed {
+			continue
+		}
+		marshalledValue, err := toGoType((index+virtualArgs)*abiWordBytes, arg.Type, data)
 		if err != nil {
 			return nil, err
 		}

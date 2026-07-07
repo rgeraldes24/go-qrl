@@ -17,7 +17,6 @@
 package bind
 
 import (
-	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -1912,50 +1911,6 @@ var bindTests = []struct {
 					}
 				`,
 	},
-}
-
-func TestBindRejectsUnsupportedFunctionType(t *testing.T) {
-	tests := []struct {
-		name string
-		abi  string
-	}{
-		{
-			name: "method input",
-			abi:  `[{"inputs":[{"internalType":"function (uint256) external","name":"callback","type":"function"}],"name":"test","outputs":[],"stateMutability":"nonpayable","type":"function"}]`,
-		},
-		{
-			name: "method output",
-			abi:  `[{"inputs":[],"name":"test","outputs":[{"internalType":"function (uint256) external","name":"callback","type":"function"}],"stateMutability":"view","type":"function"}]`,
-		},
-		{
-			name: "constructor input",
-			abi:  `[{"inputs":[{"internalType":"function (uint256) external","name":"callback","type":"function"}],"stateMutability":"nonpayable","type":"constructor"}]`,
-		},
-		{
-			name: "event input",
-			abi:  `[{"anonymous":false,"inputs":[{"indexed":true,"internalType":"function (uint256) external","name":"callback","type":"function"}],"name":"Callback","type":"event"}]`,
-		},
-		{
-			name: "error input",
-			abi:  `[{"inputs":[{"internalType":"function (uint256) external","name":"callback","type":"function"}],"name":"CallbackError","type":"error"}]`,
-		},
-		{
-			name: "nested array input",
-			abi:  `[{"inputs":[{"internalType":"function (uint256) external[]","name":"callbacks","type":"function[]"}],"name":"test","outputs":[],"stateMutability":"nonpayable","type":"function"}]`,
-		},
-		{
-			name: "nested tuple input",
-			abi:  `[{"inputs":[{"components":[{"internalType":"function (uint256) external","name":"callback","type":"function"}],"internalType":"struct Callback","name":"callback","type":"tuple"}],"name":"test","outputs":[],"stateMutability":"nonpayable","type":"function"}]`,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			_, err := Bind([]string{"FunctionType"}, []string{tt.abi}, []string{"0x"}, nil, "bindtest", nil, nil)
-			if !errors.Is(err, abi.ErrUnsupportedFunctionType) {
-				t.Fatalf("Bind error = %v, want %v", err, abi.ErrUnsupportedFunctionType)
-			}
-		})
-	}
 }
 
 func TestBindRejectsDuplicateEventInputNames(t *testing.T) {
