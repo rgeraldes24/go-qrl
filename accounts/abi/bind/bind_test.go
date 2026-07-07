@@ -1969,8 +1969,7 @@ func TestGolangBindings(t *testing.T) {
 		t.Fatalf("failed to convert binding test to modules: %v\n%s", err, out)
 	}
 	pwd, _ := os.Getwd()
-	repoRoot := filepath.Join(pwd, "..", "..", "..")
-	replacer := exec.Command(gocmd, "mod", "edit", "-x", "-require", "github.com/theQRL/go-qrl@v0.0.0", "-replace", "github.com/theQRL/go-qrl="+repoRoot) // Repo root
+	replacer := exec.Command(gocmd, "mod", "edit", "-x", "-require", "github.com/theQRL/go-qrl@v0.0.0", "-replace", "github.com/theQRL/go-qrl="+filepath.Join(pwd, "..", "..", "..")) // Repo root
 	replacer.Dir = pkg
 	if out, err := replacer.CombinedOutput(); err != nil {
 		t.Fatalf("failed to replace binding test dependency to current source tree: %v\n%s", err, out)
