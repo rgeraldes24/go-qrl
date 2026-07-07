@@ -62,7 +62,7 @@ func (a Account) Wallet(t testing.TB) wallet.Wallet {
 // signing. Use this only in tests that need stable signed transaction hashes.
 func (a Account) DeterministicWallet(t testing.TB) wallet.Wallet {
 	t.Helper()
-	return newDeterministicWallet(t, a.Wallet(t))
+	return deterministicWallet{Wallet: a.Wallet(t)}
 }
 
 var (
@@ -144,7 +144,7 @@ func (a Account) MustWallet() wallet.Wallet {
 // MustDeterministicWallet is the counterpart of Account.DeterministicWallet
 // for callers without a testing handle.
 func (a Account) MustDeterministicWallet() wallet.Wallet {
-	return mustDeterministicWallet(a.MustWallet())
+	return deterministicWallet{Wallet: a.MustWallet()}
 }
 
 // MustAddressBytes is the counterpart of Account.AddressBytes for callers
@@ -159,19 +159,6 @@ func (a Account) MustAddressBytes() common.Address {
 
 type deterministicWallet struct {
 	wallet.Wallet
-}
-
-func newDeterministicWallet(t testing.TB, w wallet.Wallet) wallet.Wallet {
-	t.Helper()
-	return deterministicWalletFrom(w)
-}
-
-func mustDeterministicWallet(w wallet.Wallet) wallet.Wallet {
-	return deterministicWalletFrom(w)
-}
-
-func deterministicWalletFrom(w wallet.Wallet) wallet.Wallet {
-	return deterministicWallet{Wallet: w}
 }
 
 func (w deterministicWallet) Sign(message []uint8) ([]byte, error) {
