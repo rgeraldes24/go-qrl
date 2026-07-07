@@ -40,6 +40,21 @@ func TestBytesConversion(t *testing.T) {
 	}
 }
 
+func TestBytesToEventSignatureLogTopic(t *testing.T) {
+	hash := bytes.Repeat([]byte{0xab}, HashLength)
+	topic := BytesToEventSignatureLogTopic(hash)
+
+	if !bytes.Equal(topic[:LogTopicLength-HashLength], make([]byte, LogTopicLength-HashLength)) {
+		t.Fatalf("event signature topic has non-zero high bytes: %x", topic[:LogTopicLength-HashLength])
+	}
+	if !bytes.Equal(topic[LogTopicLength-HashLength:], hash) {
+		t.Fatalf("event signature hash mismatch: got %x want %x", topic[LogTopicLength-HashLength:], hash)
+	}
+	if topic != BytesToLogTopic(hash) {
+		t.Fatalf("event signature topic should match VM64 log topic alignment")
+	}
+}
+
 func TestIsAddress(t *testing.T) {
 	tests := []struct {
 		str string

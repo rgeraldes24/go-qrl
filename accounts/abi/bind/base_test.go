@@ -202,6 +202,28 @@ func TestUnpackIndexedStringTyLogIntoMap(t *testing.T) {
 	unpackAndCheck(t, bc, expectedReceivedMap, mockLog)
 }
 
+func TestUnpackLogAcceptsVM64EventSignatureTopic(t *testing.T) {
+	hash := crypto.Keccak256Hash([]byte("testName"))
+	eventID := crypto.Keccak256Hash([]byte("received(string,address,uint256,bytes)"))
+	topics, err := abi.MakeTopics([]any{eventID}, []any{hash})
+	if err != nil {
+		t.Fatal(err)
+	}
+	mockLog := newMockLog([]common.LogTopic{topics[0][0], topics[1][0]}, common.HexToHash("0x0"))
+
+	abiString := `[{"anonymous":false,"inputs":[{"indexed":true,"name":"name","type":"string"},{"indexed":false,"name":"sender","type":"address"},{"indexed":false,"name":"amount","type":"uint256"},{"indexed":false,"name":"memo","type":"bytes"}],"name":"received","type":"event"}]`
+	parsedAbi, _ := abi.JSON(strings.NewReader(abiString))
+	bc := bind.NewBoundContract(common.Address{}, parsedAbi, nil, nil, nil)
+
+	expectedReceivedMap := map[string]any{
+		"name":   common.BytesToLogTopic(hash.Bytes()),
+		"sender": mockSender,
+		"amount": big.NewInt(1),
+		"memo":   []byte{88},
+	}
+	unpackAndCheck(t, bc, expectedReceivedMap, mockLog)
+}
+
 func TestUnpackAnonymousLogIntoMap(t *testing.T) {
 	mockLog := newMockLog(nil, common.HexToHash("0x0"))
 

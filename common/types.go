@@ -235,19 +235,13 @@ func BytesToLogTopic(b []byte) LogTopic {
 }
 
 // BytesToEventSignatureLogTopic copies an event signature hash into a LogTopic,
-// left-aligned.
+// right-aligned.
 //
-// Hyperion emits the 32-byte Keccak event signature hash as the HIGH half of
-// the 64-byte LOG topic after the VM word-size migration, so event selectors use
-// hash || zero-padding instead of the raw-value alignment used by
-// BytesToLogTopic.
+// Hyperion emits the 32-byte Keccak event signature hash as a VM64 stack word.
+// QRVM serializes that word with the hash in the low 32 bytes of the 64-byte
+// LOG topic, matching BytesToLogTopic.
 func BytesToEventSignatureLogTopic(b []byte) LogTopic {
-	var t LogTopic
-	if len(b) > len(t) {
-		b = b[len(b)-LogTopicLength:]
-	}
-	copy(t[:], b)
-	return t
+	return BytesToLogTopic(b)
 }
 
 // HexToLogTopic parses a hex string into a LogTopic.
