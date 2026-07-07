@@ -879,8 +879,11 @@ func TestRPCMarshalBlock(t *testing.T) {
 		fullTx bool
 		file   string
 	}{
+		// without txs
 		{file: "no-txs"},
+		// only tx hashes
 		{inclTx: true, file: "tx-hashes"},
+		// full tx details
 		{inclTx: true, fullTx: true, file: "full-tx"},
 	}
 
@@ -1155,8 +1158,15 @@ func setupReceiptBackend(t *testing.T, genBlocks int) (*testBackend, []common.Ha
 			Alloc: core.GenesisAlloc{
 				acc1Addr: {Balance: big.NewInt(params.Quanta)},
 				acc2Addr: {Balance: big.NewInt(params.Quanta)},
-				// VM64 test log contract: every call emits LOG2 with two
-				// 64-byte topics and one 64-byte data word.
+				// Hyperion-style source represented by receiptLogContractCode:
+				//
+				// contract Token {
+				//     event Transfer(bytes64 indexed from, bytes64 indexed to, bytes64 value);
+				//     function transfer(bytes64, bytes64) public returns (bool) {
+				//         emit Transfer(topicA, topicB, 0x12345678);
+				//         return true;
+				//     }
+				// }
 				contract: {Balance: big.NewInt(params.Quanta), Code: receiptLogContractCode()},
 			},
 		}
