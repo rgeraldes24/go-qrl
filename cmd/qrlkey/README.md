@@ -9,8 +9,8 @@ qrlkey is a simple command-line tool for working with QRL keyfiles.
 ### `qrlkey generate`
 
 Generate a new keyfile.
-If you want to encrypt an existing wallet seed, it can be specified by setting
-`--seed` with the location of the file containing the seed.
+If you want to use an existing wallet seed in the keyfile, it can be specified
+by setting `--seed` with the location of the file containing the wallet seed.
 
 
 ### `qrlkey inspect <keyfile>`
