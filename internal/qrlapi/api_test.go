@@ -1080,11 +1080,10 @@ func TestRPCGetBlockOrHeader(t *testing.T) {
 
 	// Initialize test accounts
 	var (
-		acc1Wallet                = testutil.MustLoadAccount("bob").MustWallet()
-		acc2Wallet                = testutil.MustLoadAccount("carol").MustWallet()
-		acc1Addr                  = acc1Wallet.GetAddress()
-		acc2Addr   common.Address = acc2Wallet.GetAddress()
-		genesis                   = &core.Genesis{
+		acc1Wallet = testutil.LoadAccount(t, "bob").DeterministicWallet(t)
+		acc1Addr   = acc1Wallet.GetAddress()
+		acc2Addr   = testutil.LoadAccount(t, "carol").AddressBytes(t)
+		genesis    = &core.Genesis{
 			Config: params.TestChainConfig,
 			Alloc: core.GenesisAlloc{
 				acc1Addr: {Balance: big.NewInt(params.Quanta)},
@@ -1331,12 +1330,11 @@ func TestRPCGetBlockOrHeader(t *testing.T) {
 func setupReceiptBackend(t *testing.T, genBlocks int) (*testBackend, []common.Hash) {
 	config := *params.TestChainConfig
 	var (
-		acc1Wallet                = testutil.MustLoadAccount("bob").MustWallet()
-		acc2Wallet                = testutil.MustLoadAccount("carol").MustWallet()
-		acc1Addr                  = acc1Wallet.GetAddress()
-		acc2Addr   common.Address = acc2Wallet.GetAddress()
-		contract                  = common.MustParseAddress("Q00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000031ec7")
-		genesis                   = &core.Genesis{
+		acc1Wallet = testutil.LoadAccount(t, "bob").DeterministicWallet(t)
+		acc1Addr   = acc1Wallet.GetAddress()
+		acc2Addr   = testutil.LoadAccount(t, "carol").AddressBytes(t)
+		contract   = common.MustParseAddress("Q00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000031ec7")
+		genesis    = &core.Genesis{
 			Config: &config,
 			Alloc: core.GenesisAlloc{
 				acc1Addr: {Balance: big.NewInt(params.Quanta)},
@@ -1604,18 +1602,7 @@ func TestRPCGetBlockReceipts(t *testing.T) {
 }
 
 func testRPCResponseWithFile(t *testing.T, testid int, result any, rpc string, file string) {
-	data, err := json.Marshal(result)
-	if err != nil {
-		t.Errorf("test %d: json marshal error", testid)
-		return
-	}
-	var normalizedResult any
-	if err := json.Unmarshal(data, &normalizedResult); err != nil {
-		t.Errorf("test %d: json unmarshal error", testid)
-		return
-	}
-	normalizedResult = normalizeRPCSnapshot(normalizedResult)
-	data, err = json.MarshalIndent(normalizedResult, "", "  ")
+	data, err := json.MarshalIndent(result, "", "  ")
 	if err != nil {
 		t.Errorf("test %d: json marshal error", testid)
 		return
@@ -1629,56 +1616,4 @@ func testRPCResponseWithFile(t *testing.T, testid int, result any, rpc string, f
 		t.Fatalf("error reading expected test file: %s output: %v", outputFile, err)
 	}
 	require.JSONEqf(t, string(want), string(data), "test %d: json not match, want: %s, have: %s", testid, string(want), string(data))
-}
-
-func normalizeRPCSnapshot(v any) any {
-	switch x := v.(type) {
-	case map[string]any:
-		out := make(map[string]any, len(x))
-		for k, v := range x {
-			if isVolatileRPCSnapshotHash(k) {
-				out[k] = "<volatile-hash>"
-				continue
-			}
-			if k == "transactions" {
-				out[k] = normalizeRPCSnapshotTransactions(v)
-				continue
-			}
-			out[k] = normalizeRPCSnapshot(v)
-		}
-		return out
-	case []any:
-		out := make([]any, len(x))
-		for i, v := range x {
-			out[i] = normalizeRPCSnapshot(v)
-		}
-		return out
-	default:
-		return v
-	}
-}
-
-func normalizeRPCSnapshotTransactions(v any) any {
-	txs, ok := v.([]any)
-	if !ok {
-		return normalizeRPCSnapshot(v)
-	}
-	out := make([]any, len(txs))
-	for i, tx := range txs {
-		if _, ok := tx.(string); ok {
-			out[i] = "<volatile-hash>"
-			continue
-		}
-		out[i] = normalizeRPCSnapshot(tx)
-	}
-	return out
-}
-
-func isVolatileRPCSnapshotHash(k string) bool {
-	switch k {
-	case "hash", "blockHash", "parentHash", "transactionHash", "transactionsRoot", "raw", "signature":
-		return true
-	default:
-		return false
-	}
 }
