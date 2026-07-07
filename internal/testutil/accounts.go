@@ -145,16 +145,6 @@ func (a Account) MustWallet() wallet.Wallet {
 	return w
 }
 
-// MustDeterministicWallet is the counterpart of Account.DeterministicWallet
-// for callers without a testing handle.
-func (a Account) MustDeterministicWallet() wallet.Wallet {
-	w, err := wallet.NewDeterministicWallet(a.MustWallet())
-	if err != nil {
-		panic(fmt.Sprintf("testutil: account %q: deterministic wallet: %v", a.Label, err))
-	}
-	return w
-}
-
 // MustAddressBytes is the counterpart of Account.AddressBytes for callers
 // without a testing handle. Panics if the stored address string is invalid.
 func (a Account) MustAddressBytes() common.Address {
