@@ -29,6 +29,8 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"github.com/theQRL/go-qrl/common"
+	qmath "github.com/theQRL/go-qrl/common/math"
+	"github.com/theQRL/go-qrl/common/uint512"
 )
 
 func BenchmarkUnpack(b *testing.B) {
@@ -1109,6 +1111,79 @@ func TestOOMMaliciousInput(t *testing.T) {
 			t.Fatalf("Expected error on malicious input, test %d", i)
 		}
 	}
+}
+
+func TestPackAndUnpackDeclaredIntegerBounds(t *testing.T) {
+	t.Parallel()
+
+	mustType := func(name string) Type {
+		t.Helper()
+		typ, err := NewType(name, "", nil)
+		require.NoError(t, err)
+		return typ
+	}
+	args := func(name string) Arguments {
+		return Arguments{{Type: mustType(name)}}
+	}
+	word := func(n *big.Int) []byte {
+		return qmath.U512Bytes(new(big.Int).Set(n))
+	}
+
+	uint256Args := args("uint256")
+	uint256Overflow := new(big.Int).Lsh(common.Big1, 256)
+	_, err := uint256Args.Pack(uint256Overflow)
+	require.ErrorIs(t, err, errBadUint256)
+	_, err = uint256Args.Unpack(word(uint256Overflow))
+	require.ErrorIs(t, err, errBadUint256)
+
+	uint512Args := args("uint512")
+	maxUint512 := new(big.Int).Sub(new(big.Int).Lsh(common.Big1, uint512.WordBits), common.Big1)
+	packed, err := uint512Args.Pack(maxUint512)
+	require.NoError(t, err)
+	decoded, err := uint512Args.Unpack(packed)
+	require.NoError(t, err)
+	require.Zero(t, decoded[0].(*big.Int).Cmp(maxUint512))
+	_, err = uint512Args.Pack(new(big.Int).Add(maxUint512, common.Big1))
+	require.ErrorContains(t, err, "uint512")
+
+	int256Args := args("int256")
+	int256Overflow := new(big.Int).Lsh(common.Big1, 255)
+	int256Underflow := new(big.Int).Neg(new(big.Int).Add(new(big.Int).Lsh(common.Big1, 255), common.Big1))
+	_, err = int256Args.Pack(int256Overflow)
+	require.ErrorIs(t, err, errBadInt256)
+	_, err = int256Args.Unpack(word(int256Overflow))
+	require.ErrorIs(t, err, errBadInt256)
+	_, err = int256Args.Pack(int256Underflow)
+	require.ErrorIs(t, err, errBadInt256)
+	_, err = int256Args.Unpack(word(int256Underflow))
+	require.ErrorIs(t, err, errBadInt256)
+
+	int512Args := args("int512")
+	maxInt512 := new(big.Int).Sub(new(big.Int).Lsh(common.Big1, uint512.WordBits-1), common.Big1)
+	minInt512 := new(big.Int).Neg(new(big.Int).Lsh(common.Big1, uint512.WordBits-1))
+	_, err = int512Args.Pack(new(big.Int).Add(maxInt512, common.Big1))
+	require.ErrorContains(t, err, "int512")
+	_, err = int512Args.Pack(new(big.Int).Sub(minInt512, common.Big1))
+	require.ErrorContains(t, err, "int512")
+	for _, value := range []*big.Int{maxInt512, minInt512} {
+		packed, err = int512Args.Pack(value)
+		require.NoError(t, err)
+		decoded, err = int512Args.Unpack(packed)
+		require.NoError(t, err)
+		require.Zero(t, decoded[0].(*big.Int).Cmp(value))
+	}
+
+	uint264Args := args("uint264")
+	maxUint264 := new(big.Int).Sub(new(big.Int).Lsh(common.Big1, 264), common.Big1)
+	packed, err = uint264Args.Pack(maxUint264)
+	require.NoError(t, err)
+	decoded, err = uint264Args.Unpack(packed)
+	require.NoError(t, err)
+	require.Zero(t, decoded[0].(*big.Int).Cmp(maxUint264))
+	_, err = uint264Args.Pack(new(big.Int).Add(maxUint264, common.Big1))
+	require.ErrorContains(t, err, "uint264")
+	_, err = uint264Args.Unpack(word(new(big.Int).Add(maxUint264, common.Big1)))
+	require.ErrorContains(t, err, "uint264")
 }
 
 func TestPackAndUnpackIncompatibleNumber(t *testing.T) {
