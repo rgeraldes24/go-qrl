@@ -46,9 +46,7 @@ func TestMakeTopics(t *testing.T) {
 	}
 	uintTopic := func(v uint64) common.LogTopic {
 		var t common.LogTopic
-		bi := new(big.Int).SetUint64(v)
-		blob := bi.Bytes()
-		copy(t[common.LogTopicLength-len(blob):], blob)
+		copy(t[:], math.U512Bytes(new(big.Int).SetUint64(v)))
 		return t
 	}
 
