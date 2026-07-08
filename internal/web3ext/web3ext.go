@@ -407,6 +407,12 @@ var qrlLogTopicFormatter = function(topic) {
 	if (hex.length > 128) {
 		throw new Error('invalid topic length');
 	}
+	// A 32-byte value in topic position is a Keccak hash (event signature or
+	// hash of an indexed dynamic value) and is left-aligned in the 64-byte
+	// topic like bytes32; other short values keep numeric right-alignment.
+	if (hex.length === 64) {
+		return '0x' + web3._extend.utils.padRight(hex, 128);
+	}
 	return '0x' + web3._extend.utils.padLeft(hex, 128);
 };
 

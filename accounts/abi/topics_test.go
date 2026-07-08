@@ -177,14 +177,14 @@ func TestMakeTopics(t *testing.T) {
 		{
 			"support string types in topics",
 			args{[][]any{{"hello world"}}},
-			// Keccak256 hash right-aligned in the slot (low 32 bytes).
-			[][]common.LogTopic{{common.BytesToLogTopic(crypto.Keccak256([]byte("hello world")))}},
+			// Indexed dynamic values store the Keccak256 hash as ABI bytes32 (left-aligned).
+			[][]common.LogTopic{{common.HashToLogTopic(crypto.Keccak256Hash([]byte("hello world")))}},
 			false,
 		},
 		{
 			"support byte slice types in topics",
 			args{[][]any{{[]byte{1, 2, 3}}}},
-			[][]common.LogTopic{{common.BytesToLogTopic(crypto.Keccak256([]byte{1, 2, 3}))}},
+			[][]common.LogTopic{{common.HashToLogTopic(crypto.Keccak256Hash([]byte{1, 2, 3}))}},
 			false,
 		},
 	}
@@ -246,7 +246,7 @@ type int256Struct struct {
 
 // hashStruct receives the indexed keccak256 hash of a dynamic type. Topics
 // are 64 bytes; the reconstructed value uses the full LogTopic slot (hash
-// right-aligned in the low 32 bytes).
+// left-aligned in the high 32 bytes).
 type hashStruct struct {
 	HashValue common.LogTopic
 }
@@ -349,10 +349,10 @@ func setupTopicsTests() []topicTest {
 			args: args{
 				createObj: func() any { return &hashStruct{} },
 				resultObj: func() any {
-					return &hashStruct{common.BytesToLogTopic(crypto.Keccak256([]byte("stringtopic")))}
+					return &hashStruct{common.HashToLogTopic(crypto.Keccak256Hash([]byte("stringtopic")))}
 				},
 				resultMap: func() map[string]any {
-					return map[string]any{"hashValue": common.BytesToLogTopic(crypto.Keccak256([]byte("stringtopic")))}
+					return map[string]any{"hashValue": common.HashToLogTopic(crypto.Keccak256Hash([]byte("stringtopic")))}
 				},
 				fields: Arguments{Argument{
 					Name:    "hashValue",
@@ -360,7 +360,7 @@ func setupTopicsTests() []topicTest {
 					Indexed: true,
 				}},
 				topics: []common.LogTopic{
-					common.BytesToLogTopic(crypto.Keccak256([]byte("stringtopic"))),
+					common.HashToLogTopic(crypto.Keccak256Hash([]byte("stringtopic"))),
 				},
 			},
 			wantErr: false,

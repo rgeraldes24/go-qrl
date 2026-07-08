@@ -101,7 +101,9 @@ Non-anonymous event topic0:
 
 - The event signature hash remains a 32-byte Keccak-256 value.
 - QRVM logs carry that value in a 64-byte topic.
-- The 32-byte hash is right-aligned in the low half of the topic.
+- Hyperion pushes the hash as a `bytes32` value, so the 32-byte hash is
+  left-aligned in the high half of the topic (`hash || zero-padding`), matching
+  `common.HashToLogTopic`.
 
 Indexed event arguments:
 
@@ -110,7 +112,8 @@ Indexed event arguments:
 - Indexed integers and booleans are right-aligned.
 - Indexed fixed bytes are left-aligned and right-padded.
 - Indexed dynamic `string` and `bytes` values are Keccak-hashed and the 32-byte
-  hash is right-aligned inside the 64-byte topic.
+  hash is left-aligned inside the 64-byte topic, like every other `bytes32`
+  value.
 - Indexed tuple, array, and slice values are exposed as opaque `common.LogTopic`
   values because the original value cannot be reconstructed from the log topic.
 
@@ -118,9 +121,9 @@ Indexed event arguments:
 
 - Use `common.LogTopic` when the caller already has a final 64-byte topic.
 - `common.Hash` is treated as an ABI `bytes32` value and is left-aligned like
-  other fixed bytes.
+  other fixed bytes (`common.HashToLogTopic`).
 - `string` and `[]byte` inputs are treated as indexed dynamic preimages and are
-  hashed.
+  hashed; the hash is left-aligned like `common.Hash`.
 - Tuple, array, and slice filter rules require precomputed `common.LogTopic`
   values.
 

@@ -2811,7 +2811,7 @@ AllHyperionEvents.prototype.decode = function (data) {
     });
     var eventTopic = String(data.topics[0] || '').replace(/^0x/i, '').toLowerCase();
     var match = this._json.filter(function (j) {
-        return eventTopic === utils.padLeft(sha3(utils.transformToFullName(j)), 128).toLowerCase();
+        return eventTopic === utils.padRight(sha3(utils.transformToFullName(j)), 128).toLowerCase();
     })[0];
 
     if (!match) { // cannot find matching event?
@@ -3389,7 +3389,7 @@ var padRightToWord = function (hex) {
 };
 
 var topicFromHash = function (hash) {
-    return '0x' + utils.padLeft(stripHexPrefix(hash), 128);
+    return '0x' + utils.padRight(stripHexPrefix(hash), 128);
 };
 
 var isArrayType = function (type) {
@@ -3482,7 +3482,7 @@ HyperionEvent.prototype.encode = function (indexed, options) {
 
     result.address = this._address;
     if (!this._anonymous) {
-        result.topics.push('0x' + utils.padLeft(this.signature(), 128));
+        result.topics.push('0x' + utils.padRight(this.signature(), 128));
     }
 
     var indexedTopics = this._params.filter(function (i) {
@@ -3709,6 +3709,12 @@ var toTopic = function(value){
     }
     if (hex.length > 128) {
         throw new Error('invalid topic length');
+    }
+    // A 32-byte value in topic position is a Keccak hash (event signature or
+    // hash of an indexed dynamic value) and is left-aligned in the 64-byte
+    // topic like bytes32; other short values keep numeric right-alignment.
+    if (hex.length === 64) {
+        return '0x' + utils.padRight(hex, 128);
     }
     return '0x' + utils.padLeft(hex, 128);
 };

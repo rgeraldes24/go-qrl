@@ -85,7 +85,7 @@ func TestEventTopic(t *testing.T) {
 	t.Parallel()
 
 	event := NewEvent("Called", "Called", false, nil)
-	want := common.BytesToLogTopic(crypto.Keccak256([]byte("Called()")))
+	want := common.HashToLogTopic(crypto.Keccak256Hash([]byte("Called()")))
 	if event.SignatureTopic() != want {
 		t.Fatalf("event topic mismatch: got %x want %x", event.SignatureTopic(), want)
 	}

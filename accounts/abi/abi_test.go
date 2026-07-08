@@ -1077,7 +1077,7 @@ func TestABI_EventBySignatureTopic(t *testing.T) {
 		}
 
 		eventID := crypto.Keccak256Hash([]byte(test.eventSignature))
-		signatureTopic := common.BytesToLogTopic(eventID.Bytes())
+		signatureTopic := common.HashToLogTopic(eventID)
 		signatureTopicEvent, err := abi.EventBySignatureTopic(signatureTopic)
 		if err != nil {
 			t.Fatalf("Failed to look up ABI event by signature topic: %v, test #%d", err, testnum)
@@ -1088,14 +1088,13 @@ func TestABI_EventBySignatureTopic(t *testing.T) {
 			t.Errorf("Event signature topic %s does not match signature topic %s, test #%d", signatureTopicEvent.SignatureTopic().Hex(), signatureTopic.Hex(), testnum)
 		}
 
-		var leftAlignedSignatureTopic common.LogTopic
-		copy(leftAlignedSignatureTopic[:common.HashLength], eventID.Bytes())
-		if event, err := abi.EventBySignatureTopic(leftAlignedSignatureTopic); err == nil {
-			t.Errorf("EventBySignatureTopic should not match left-aligned signature topic %s, matched %v, test #%d", leftAlignedSignatureTopic.Hex(), event, testnum)
+		rightAlignedSignatureTopic := common.BytesToLogTopic(eventID.Bytes())
+		if event, err := abi.EventBySignatureTopic(rightAlignedSignatureTopic); err == nil {
+			t.Errorf("EventBySignatureTopic should not match right-aligned signature topic %s, matched %v, test #%d", rightAlignedSignatureTopic.Hex(), event, testnum)
 		}
 
 		unknownEventID := crypto.Keccak256Hash([]byte("unknownEvent"))
-		unknownSignatureTopic := common.BytesToLogTopic(unknownEventID.Bytes())
+		unknownSignatureTopic := common.HashToLogTopic(unknownEventID)
 		unknownSignatureTopicEvent, err := abi.EventBySignatureTopic(unknownSignatureTopic)
 		if err == nil {
 			t.Errorf("EventBySignatureTopic should return an error if a signature topic is not found, test #%d", testnum)

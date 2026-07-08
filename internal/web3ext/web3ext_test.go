@@ -66,15 +66,16 @@ var web3 = new Web3(provider);
 	}
 
 	const address = "Q00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+	hashHex := strings.Repeat("ab", 32)
 	value, err := re.Run(fmt.Sprintf(`
 web3.qrl.getLogs({
   fromBlock: "0x1",
   toBlock: "latest",
   address: %q,
-  topics: ["0xbb", null, ["0xcc", "hello"]]
+  topics: ["0xbb", null, ["0xcc", "hello"], "0x%s"]
 });
 JSON.stringify(capturedOptions);
-`, address))
+`, address, hashHex))
 	if err != nil {
 		t.Fatalf("run getLogs script: %v", err)
 	}
@@ -90,8 +91,8 @@ JSON.stringify(capturedOptions);
 	if got.FromBlock != "0x1" || got.ToBlock != "latest" || got.Address != address {
 		t.Fatalf("unexpected filter fields: %#v", got)
 	}
-	if len(got.Topics) != 3 {
-		t.Fatalf("topic count mismatch: have %d want 3", len(got.Topics))
+	if len(got.Topics) != 4 {
+		t.Fatalf("topic count mismatch: have %d want 4", len(got.Topics))
 	}
 	if got.Topics[0] != vm64Topic("bb") {
 		t.Fatalf("short hex topic mismatch: have %#v", got.Topics[0])
@@ -109,6 +110,10 @@ JSON.stringify(capturedOptions);
 	if orTopics[1] != vm64Topic("68656c6c6f") {
 		t.Fatalf("string topic mismatch: have %#v", orTopics[1])
 	}
+	// A 32-byte input is a Keccak hash and must be left-aligned (bytes32).
+	if got.Topics[3] != vm64HashTopic(hashHex) {
+		t.Fatalf("hash topic mismatch: have %#v", got.Topics[3])
+	}
 
 	if _, err := re.Run(`web3.qrl.getLogs({topics: ["0x` + strings.Repeat("1", 129) + `"]});`); err == nil {
 		t.Fatal("expected over-wide topic to be rejected")
@@ -123,4 +128,8 @@ JSON.stringify(capturedOptions);
 
 func vm64Topic(hex string) string {
 	return "0x" + strings.Repeat("0", 128-len(hex)) + hex
+}
+
+func vm64HashTopic(hex string) string {
+	return "0x" + hex + strings.Repeat("0", 128-len(hex))
 }

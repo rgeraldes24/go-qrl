@@ -446,14 +446,34 @@ func TestAddress_Value(t *testing.T) {
 }
 
 func TestBytesToLogTopic(t *testing.T) {
-	hash := bytes.Repeat([]byte{0xab}, HashLength)
-	topic := BytesToLogTopic(hash)
+	raw := bytes.Repeat([]byte{0xab}, HashLength)
+	topic := BytesToLogTopic(raw)
 
 	if !bytes.Equal(topic[:LogTopicLength-HashLength], make([]byte, LogTopicLength-HashLength)) {
-		t.Fatalf("event signature hash should be right-aligned: %x", topic)
+		t.Fatalf("raw topic value should be right-aligned: %x", topic)
 	}
-	if !bytes.Equal(topic[LogTopicLength-HashLength:], hash) {
-		t.Fatalf("event signature hash mismatch: got %x want %x", topic[LogTopicLength-HashLength:], hash)
+	if !bytes.Equal(topic[LogTopicLength-HashLength:], raw) {
+		t.Fatalf("raw topic value mismatch: got %x want %x", topic[LogTopicLength-HashLength:], raw)
+	}
+}
+
+func TestHashToLogTopic(t *testing.T) {
+	var hash Hash
+	for i := range hash {
+		hash[i] = byte(i + 1)
+	}
+	topic := HashToLogTopic(hash)
+
+	// The hash occupies the high 32 bytes; the low 32 bytes are zero padding.
+	for i := 0; i < HashLength; i++ {
+		if topic[i] != hash[i] {
+			t.Fatalf("byte %d: expected %x got %x", i, hash[i], topic[i])
+		}
+	}
+	for i := HashLength; i < LogTopicLength; i++ {
+		if topic[i] != 0 {
+			t.Fatalf("byte %d: expected zero padding, got %x", i, topic[i])
+		}
 	}
 }
 

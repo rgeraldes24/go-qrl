@@ -28,9 +28,9 @@ import (
 )
 
 // MakeTopics converts a filter query argument list into a filter topic set.
-// Topics are 64-byte values; scalar arguments are right-aligned (big-endian).
-// Use common.LogTopic for already-formed full topics. Fixed byte arrays,
-// including common.Hash, are encoded as ABI fixed bytes.
+// Topics are 64-byte ABI slots: numeric values are right-aligned, while
+// fixed bytes and Keccak hash topics are left-aligned like ABI bytes32 values.
+// Use common.LogTopic for already-formed full topics.
 func MakeTopics(query ...[]any) ([][]common.LogTopic, error) {
 	topics := make([][]common.LogTopic, len(query))
 	for i, filter := range query {
@@ -42,7 +42,7 @@ func MakeTopics(query ...[]any) ([][]common.LogTopic, error) {
 			case common.LogTopic:
 				copy(topic[:], rule[:])
 			case common.Hash:
-				copy(topic[:common.HashLength], rule[:])
+				topic = common.HashToLogTopic(rule)
 			case common.Address:
 				copy(topic[common.LogTopicLength-common.AddressLength:], rule[:])
 			case *big.Int:
@@ -73,11 +73,9 @@ func MakeTopics(query ...[]any) ([][]common.LogTopic, error) {
 				blob := new(big.Int).SetUint64(rule).Bytes()
 				copy(topic[common.LogTopicLength-len(blob):], blob)
 			case string:
-				hash := crypto.Keccak256Hash([]byte(rule))
-				copy(topic[common.LogTopicLength-common.HashLength:], hash[:])
+				topic = common.HashToLogTopic(crypto.Keccak256Hash([]byte(rule)))
 			case []byte:
-				hash := crypto.Keccak256Hash(rule)
-				copy(topic[common.LogTopicLength-common.HashLength:], hash[:])
+				topic = common.HashToLogTopic(crypto.Keccak256Hash(rule))
 
 			default:
 				// Indexed dynamic values are stored as the Keccak256 hash of their
