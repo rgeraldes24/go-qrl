@@ -43,7 +43,7 @@ func MakeTopics(query ...[]any) ([][]common.LogTopic, error) {
 			case common.Hash:
 				copy(topic[:common.HashLength], rule[:])
 			case common.Address:
-				copy(topic[common.LogTopicLength-common.AddressLength:], rule[:])
+				copy(topic[:], rule[:])
 			case *big.Int:
 				blob := math.U256Bytes(new(big.Int).Set(rule))
 				copy(topic[common.LogTopicLength-len(blob):], blob)
