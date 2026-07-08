@@ -55,6 +55,16 @@ type Event struct {
 	ID common.Hash
 }
 
+// SignatureTopic returns the VM64 log topic emitted for this event signature.
+//
+// Event IDs remain 32-byte Keccak-256 hashes, but non-anonymous QRVM logs
+// encode that hash as a bytes32 value left-aligned in a full 64-byte LogTopic.
+// Anonymous events do not emit a signature topic; callers must not use this
+// value to filter or match their logs.
+func (e Event) SignatureTopic() common.LogTopic {
+	return common.HashToLogTopic(e.ID)
+}
+
 // NewEvent creates a new Event.
 // It sanitizes the input arguments to remove unnamed arguments.
 // It also precomputes the id, signature and string representation

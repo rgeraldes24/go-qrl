@@ -37,6 +37,37 @@ import (
 
 func mockSign(addr common.Address, tx *types.Transaction) (*types.Transaction, error) { return tx, nil }
 
+type mockSubscription struct {
+	err chan error
+}
+
+func (ms mockSubscription) Unsubscribe() {
+	close(ms.err)
+}
+
+func (ms mockSubscription) Err() <-chan error {
+	return ms.err
+}
+
+type mockFilterer struct {
+	filterQuery    qrl.FilterQuery
+	subscribeQuery qrl.FilterQuery
+	filterCalled   bool
+	watchCalled    bool
+}
+
+func (mf *mockFilterer) FilterLogs(ctx context.Context, query qrl.FilterQuery) ([]types.Log, error) {
+	mf.filterCalled = true
+	mf.filterQuery = query
+	return nil, nil
+}
+
+func (mf *mockFilterer) SubscribeFilterLogs(ctx context.Context, query qrl.FilterQuery, ch chan<- types.Log) (qrl.Subscription, error) {
+	mf.watchCalled = true
+	mf.subscribeQuery = query
+	return mockSubscription{err: make(chan error)}, nil
+}
+
 type mockTransactor struct {
 	baseFee                *big.Int
 	gasTipCap              *big.Int
@@ -200,6 +231,107 @@ func TestUnpackIndexedStringTyLogIntoMap(t *testing.T) {
 		"memo":   []byte{88},
 	}
 	unpackAndCheck(t, bc, expectedReceivedMap, mockLog)
+}
+
+func TestUnpackLogAcceptsVM64EventSignatureTopic(t *testing.T) {
+	hash := crypto.Keccak256Hash([]byte("testName"))
+	eventID := crypto.Keccak256Hash([]byte("received(string,address,uint256,bytes)"))
+	topics, err := abi.MakeTopics([]any{eventID}, []any{hash})
+	if err != nil {
+		t.Fatal(err)
+	}
+	mockLog := newMockLog([]common.LogTopic{topics[0][0], topics[1][0]}, common.HexToHash("0x0"))
+
+	abiString := `[{"anonymous":false,"inputs":[{"indexed":true,"name":"name","type":"string"},{"indexed":false,"name":"sender","type":"address"},{"indexed":false,"name":"amount","type":"uint256"},{"indexed":false,"name":"memo","type":"bytes"}],"name":"received","type":"event"}]`
+	parsedAbi, _ := abi.JSON(strings.NewReader(abiString))
+	bc := bind.NewBoundContract(common.Address{}, parsedAbi, nil, nil, nil)
+
+	expectedReceivedMap := map[string]any{
+		"name":   common.HashToLogTopic(hash),
+		"sender": mockSender,
+		"amount": big.NewInt(1),
+		"memo":   []byte{88},
+	}
+	unpackAndCheck(t, bc, expectedReceivedMap, mockLog)
+}
+
+func TestBoundContractFiltersUseEventSignatureTopic(t *testing.T) {
+	abiString := `[{"anonymous":false,"inputs":[{"indexed":true,"name":"name","type":"string"}],"name":"received","type":"event"}]`
+	parsedAbi, err := abi.JSON(strings.NewReader(abiString))
+	if err != nil {
+		t.Fatal(err)
+	}
+	filterer := new(mockFilterer)
+	bc := bind.NewBoundContract(common.Address{}, parsedAbi, nil, nil, filterer)
+
+	logs, sub, err := bc.FilterLogs(&bind.FilterOpts{}, "received")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if sub != nil {
+		sub.Unsubscribe()
+	}
+	if logs == nil {
+		t.Fatal("expected logs channel")
+	}
+	if !filterer.filterCalled {
+		t.Fatal("expected FilterLogs to be called")
+	}
+	want := parsedAbi.Events["received"].SignatureTopic()
+	if len(filterer.filterQuery.Topics) != 1 || len(filterer.filterQuery.Topics[0]) != 1 {
+		t.Fatalf("unexpected filter topics: %#v", filterer.filterQuery.Topics)
+	}
+	if got := filterer.filterQuery.Topics[0][0]; got != want {
+		t.Fatalf("filter topic mismatch: got %s want %s", got.Hex(), want.Hex())
+	}
+
+	logs, sub, err = bc.WatchLogs(&bind.WatchOpts{}, "received")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if sub != nil {
+		sub.Unsubscribe()
+	}
+	if logs == nil {
+		t.Fatal("expected watch logs channel")
+	}
+	if !filterer.watchCalled {
+		t.Fatal("expected SubscribeFilterLogs to be called")
+	}
+	if len(filterer.subscribeQuery.Topics) != 1 || len(filterer.subscribeQuery.Topics[0]) != 1 {
+		t.Fatalf("unexpected watch topics: %#v", filterer.subscribeQuery.Topics)
+	}
+	if got := filterer.subscribeQuery.Topics[0][0]; got != want {
+		t.Fatalf("watch topic mismatch: got %s want %s", got.Hex(), want.Hex())
+	}
+}
+
+func TestBoundContractRejectsAnonymousEventSignatureTopic(t *testing.T) {
+	abiString := `[{"anonymous":true,"inputs":[{"indexed":true,"name":"name","type":"string"}],"name":"received","type":"event"}]`
+	parsedAbi, err := abi.JSON(strings.NewReader(abiString))
+	if err != nil {
+		t.Fatal(err)
+	}
+	filterer := new(mockFilterer)
+	bc := bind.NewBoundContract(common.Address{}, parsedAbi, nil, nil, filterer)
+
+	if _, _, err := bc.FilterLogs(&bind.FilterOpts{}, "received"); err == nil || err.Error() != "no event signature" {
+		t.Fatalf("unexpected FilterLogs error: %v", err)
+	}
+	if filterer.filterCalled {
+		t.Fatal("FilterLogs should not be called for anonymous events")
+	}
+	if _, _, err := bc.WatchLogs(&bind.WatchOpts{}, "received"); err == nil || err.Error() != "no event signature" {
+		t.Fatalf("unexpected WatchLogs error: %v", err)
+	}
+	if filterer.watchCalled {
+		t.Fatal("SubscribeFilterLogs should not be called for anonymous events")
+	}
+
+	log := newMockLog([]common.LogTopic{common.BytesToLogTopic([]byte{0x01})}, common.Hash{})
+	if err := bc.UnpackLogIntoMap(map[string]any{}, "received", log); err == nil || err.Error() != "no event signature" {
+		t.Fatalf("unexpected UnpackLogIntoMap error: %v", err)
+	}
 }
 
 func TestUnpackAnonymousLogIntoMap(t *testing.T) {

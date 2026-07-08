@@ -364,8 +364,15 @@ func (c *BoundContract) FilterLogs(opts *FilterOpts, name string, query ...[]any
 	if opts == nil {
 		opts = new(FilterOpts)
 	}
-	// Append the event selector to the query parameters and construct the topic set
-	query = append([][]any{{c.abi.Events[name].ID}}, query...)
+	eventABI := c.abi.Events[name]
+	// Anonymous events do not emit a signature topic, so the bound event path
+	// cannot construct a topic0 filter for them.
+	if eventABI.Anonymous {
+		return nil, nil, errNoEventSignature
+	}
+	// Append the event signature topic to the query parameters and construct
+	// the topic set.
+	query = append([][]any{{eventABI.SignatureTopic()}}, query...)
 
 	topics, err := abi.MakeTopics(query...)
 	if err != nil {
@@ -413,8 +420,15 @@ func (c *BoundContract) WatchLogs(opts *WatchOpts, name string, query ...[]any) 
 	if opts == nil {
 		opts = new(WatchOpts)
 	}
-	// Append the event selector to the query parameters and construct the topic set
-	query = append([][]any{{c.abi.Events[name].ID}}, query...)
+	eventABI := c.abi.Events[name]
+	// Anonymous events do not emit a signature topic, so the bound event path
+	// cannot construct a topic0 filter for them.
+	if eventABI.Anonymous {
+		return nil, nil, errNoEventSignature
+	}
+	// Append the event signature topic to the query parameters and construct
+	// the topic set.
+	query = append([][]any{{eventABI.SignatureTopic()}}, query...)
 
 	topics, err := abi.MakeTopics(query...)
 	if err != nil {
@@ -439,11 +453,16 @@ func (c *BoundContract) WatchLogs(opts *WatchOpts, name string, query ...[]any) 
 
 // UnpackLog unpacks a retrieved log into the provided output structure.
 func (c *BoundContract) UnpackLog(out any, event string, log types.Log) error {
-	// Anonymous events are not supported.
+	eventABI := c.abi.Events[event]
+	// Anonymous events are not supported by this path because topic0 is an
+	// indexed argument, not the event signature.
+	if eventABI.Anonymous {
+		return errNoEventSignature
+	}
 	if len(log.Topics) == 0 {
 		return errNoEventSignature
 	}
-	if log.Topics[0] != common.HashToLogTopic(c.abi.Events[event].ID) {
+	if log.Topics[0] != eventABI.SignatureTopic() {
 		return errEventSignatureMismatch
 	}
 	if len(log.Data) > 0 {
@@ -452,7 +471,7 @@ func (c *BoundContract) UnpackLog(out any, event string, log types.Log) error {
 		}
 	}
 	var indexed abi.Arguments
-	for _, arg := range c.abi.Events[event].Inputs {
+	for _, arg := range eventABI.Inputs {
 		if arg.Indexed {
 			indexed = append(indexed, arg)
 		}
@@ -462,11 +481,16 @@ func (c *BoundContract) UnpackLog(out any, event string, log types.Log) error {
 
 // UnpackLogIntoMap unpacks a retrieved log into the provided map.
 func (c *BoundContract) UnpackLogIntoMap(out map[string]any, event string, log types.Log) error {
-	// Anonymous events are not supported.
+	eventABI := c.abi.Events[event]
+	// Anonymous events are not supported by this path because topic0 is an
+	// indexed argument, not the event signature.
+	if eventABI.Anonymous {
+		return errNoEventSignature
+	}
 	if len(log.Topics) == 0 {
 		return errNoEventSignature
 	}
-	if log.Topics[0] != common.HashToLogTopic(c.abi.Events[event].ID) {
+	if log.Topics[0] != eventABI.SignatureTopic() {
 		return errEventSignatureMismatch
 	}
 	if len(log.Data) > 0 {
@@ -475,7 +499,7 @@ func (c *BoundContract) UnpackLogIntoMap(out map[string]any, event string, log t
 		}
 	}
 	var indexed abi.Arguments
-	for _, arg := range c.abi.Events[event].Inputs {
+	for _, arg := range eventABI.Inputs {
 		if arg.Indexed {
 			indexed = append(indexed, arg)
 		}
