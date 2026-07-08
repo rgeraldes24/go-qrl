@@ -10,7 +10,5 @@ package abi
 
 import "github.com/theQRL/go-qrl/common/uint512"
 
-const (
-	abiWordBits  = uint512.WordBits
-	abiWordBytes = uint512.WordBytes
-)
+// abiWordBytes is the width of one ABI slot, matching the VM64 stack word.
+const abiWordBytes = uint512.WordBytes
