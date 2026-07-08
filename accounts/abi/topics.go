@@ -28,7 +28,8 @@ import (
 )
 
 // MakeTopics converts a filter query argument list into a filter topic set.
-// Topics are 64-byte values; scalar arguments are right-aligned (big-endian).
+// Topics are 64-byte ABI slots: numeric values are right-aligned, while
+// fixed bytes and Keccak hash topics are left-aligned like ABI bytes32 values.
 func MakeTopics(query ...[]any) ([][]common.LogTopic, error) {
 	topics := make([][]common.LogTopic, len(query))
 	for i, filter := range query {
@@ -40,7 +41,7 @@ func MakeTopics(query ...[]any) ([][]common.LogTopic, error) {
 			case common.LogTopic:
 				copy(topic[:], rule[:])
 			case common.Hash:
-				copy(topic[common.LogTopicLength-common.HashLength:], rule[:])
+				copy(topic[:common.HashLength], rule[:])
 			case common.Address:
 				copy(topic[common.LogTopicLength-common.AddressLength:], rule[:])
 			case *big.Int:
@@ -72,10 +73,10 @@ func MakeTopics(query ...[]any) ([][]common.LogTopic, error) {
 				copy(topic[common.LogTopicLength-len(blob):], blob)
 			case string:
 				hash := crypto.Keccak256Hash([]byte(rule))
-				copy(topic[common.LogTopicLength-common.HashLength:], hash[:])
+				copy(topic[:common.HashLength], hash[:])
 			case []byte:
 				hash := crypto.Keccak256Hash(rule)
-				copy(topic[common.LogTopicLength-common.HashLength:], hash[:])
+				copy(topic[:common.HashLength], hash[:])
 
 			default:
 				// todo(rjl493456442) according to hyperion documentation, indexed event

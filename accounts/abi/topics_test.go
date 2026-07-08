@@ -52,6 +52,11 @@ func TestMakeTopics(t *testing.T) {
 		copy(t[common.LogTopicLength-len(blob):], blob)
 		return t
 	}
+	hashTopic := func(hash []byte) common.LogTopic {
+		var t common.LogTopic
+		copy(t[:common.HashLength], hash)
+		return t
+	}
 
 	type args struct {
 		query [][]any
@@ -71,13 +76,11 @@ func TestMakeTopics(t *testing.T) {
 		{
 			"support common hash types in topics",
 			args{[][]any{{common.Hash{1, 2, 3, 4, 5}}}},
-			// Hash right-aligned in the 64-byte slot: low 32 bytes hold the
-			// hash, upper 32 are zero.
+			// Hash topics are ABI bytes32 values: high 32 bytes hold the
+			// hash, low 32 bytes are zero padding.
 			[][]common.LogTopic{{func() common.LogTopic {
-				var t common.LogTopic
 				h := common.Hash{1, 2, 3, 4, 5}
-				copy(t[common.LogTopicLength-common.HashLength:], h[:])
-				return t
+				return hashTopic(h[:])
 			}()}},
 			false,
 		},
@@ -182,14 +185,14 @@ func TestMakeTopics(t *testing.T) {
 		{
 			"support string types in topics",
 			args{[][]any{{"hello world"}}},
-			// Keccak256 hash right-aligned in the slot (low 32 bytes).
-			[][]common.LogTopic{{common.BytesToLogTopic(crypto.Keccak256([]byte("hello world")))}},
+			// Indexed dynamic values store the Keccak256 hash as ABI bytes32.
+			[][]common.LogTopic{{hashTopic(crypto.Keccak256([]byte("hello world")))}},
 			false,
 		},
 		{
 			"support byte slice types in topics",
 			args{[][]any{{[]byte{1, 2, 3}}}},
-			[][]common.LogTopic{{common.BytesToLogTopic(crypto.Keccak256([]byte{1, 2, 3}))}},
+			[][]common.LogTopic{{hashTopic(crypto.Keccak256([]byte{1, 2, 3}))}},
 			false,
 		},
 	}
@@ -288,6 +291,11 @@ func setupTopicsTests() []topicTest {
 	tupleType, _ := NewType("tuple(int256,int8)", "", nil)
 	stringType, _ := NewType("string", "", nil)
 	funcType, _ := NewType("function", "", nil)
+	hashTopic := func(hash []byte) common.LogTopic {
+		var t common.LogTopic
+		copy(t[:common.HashLength], hash)
+		return t
+	}
 
 	tests := []topicTest{
 		{
@@ -349,10 +357,10 @@ func setupTopicsTests() []topicTest {
 			args: args{
 				createObj: func() any { return &hashStruct{} },
 				resultObj: func() any {
-					return &hashStruct{common.BytesToLogTopic(crypto.Keccak256([]byte("stringtopic")))}
+					return &hashStruct{hashTopic(crypto.Keccak256([]byte("stringtopic")))}
 				},
 				resultMap: func() map[string]any {
-					return map[string]any{"hashValue": common.BytesToLogTopic(crypto.Keccak256([]byte("stringtopic")))}
+					return map[string]any{"hashValue": hashTopic(crypto.Keccak256([]byte("stringtopic")))}
 				},
 				fields: Arguments{Argument{
 					Name:    "hashValue",
@@ -360,7 +368,7 @@ func setupTopicsTests() []topicTest {
 					Indexed: true,
 				}},
 				topics: []common.LogTopic{
-					common.BytesToLogTopic(crypto.Keccak256([]byte("stringtopic"))),
+					hashTopic(crypto.Keccak256([]byte("stringtopic"))),
 				},
 			},
 			wantErr: false,
