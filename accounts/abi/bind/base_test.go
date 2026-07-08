@@ -172,14 +172,6 @@ var mockSender = func() common.Address {
 	return common.BytesToAddress(raw)
 }()
 
-// hashTopic left-aligns a 32-byte Keccak hash in a 64-byte log topic, the
-// shape QRVM logs use for hashes of indexed dynamic values (ABI bytes32).
-func hashTopic(hash []byte) common.LogTopic {
-	var t common.LogTopic
-	copy(t[:common.HashLength], hash)
-	return t
-}
-
 // hexData is the ABI-encoded non-indexed payload (address, uint256, bytes) =
 // (mockSender, 1, [88]) as produced by abi.Pack with a 64-byte slot width.
 var hexData = func() []byte {
@@ -192,8 +184,8 @@ var hexData = func() []byte {
 func TestUnpackIndexedStringTyLogIntoMap(t *testing.T) {
 	hash := crypto.Keccak256Hash([]byte("testName"))
 	topics := []common.LogTopic{
-		common.BytesToEventSignatureLogTopic(crypto.Keccak256([]byte("received(string,address,uint256,bytes)"))),
-		hashTopic(hash.Bytes()),
+		common.HashToLogTopic(crypto.Keccak256Hash([]byte("received(string,address,uint256,bytes)"))),
+		common.HashToLogTopic(hash),
 	}
 	mockLog := newMockLog(topics, common.HexToHash("0x0"))
 
@@ -202,7 +194,7 @@ func TestUnpackIndexedStringTyLogIntoMap(t *testing.T) {
 	bc := bind.NewBoundContract(common.Address{}, parsedAbi, nil, nil, nil)
 
 	expectedReceivedMap := map[string]any{
-		"name":   hashTopic(hash.Bytes()),
+		"name":   common.HashToLogTopic(hash),
 		"sender": mockSender,
 		"amount": big.NewInt(1),
 		"memo":   []byte{88},
@@ -235,8 +227,8 @@ func TestUnpackIndexedSliceTyLogIntoMap(t *testing.T) {
 	}
 	hash := crypto.Keccak256Hash(sliceBytes)
 	topics := []common.LogTopic{
-		common.BytesToEventSignatureLogTopic(crypto.Keccak256([]byte("received(string[],address,uint256,bytes)"))),
-		hashTopic(hash.Bytes()),
+		common.HashToLogTopic(crypto.Keccak256Hash([]byte("received(string[],address,uint256,bytes)"))),
+		common.HashToLogTopic(hash),
 	}
 	mockLog := newMockLog(topics, common.HexToHash("0x0"))
 
@@ -245,7 +237,7 @@ func TestUnpackIndexedSliceTyLogIntoMap(t *testing.T) {
 	bc := bind.NewBoundContract(common.Address{}, parsedAbi, nil, nil, nil)
 
 	expectedReceivedMap := map[string]any{
-		"names":  hashTopic(hash.Bytes()),
+		"names":  common.HashToLogTopic(hash),
 		"sender": mockSender,
 		"amount": big.NewInt(1),
 		"memo":   []byte{88},
@@ -262,8 +254,8 @@ func TestUnpackIndexedArrayTyLogIntoMap(t *testing.T) {
 	}
 	hash := crypto.Keccak256Hash(arrBytes)
 	topics := []common.LogTopic{
-		common.BytesToEventSignatureLogTopic(crypto.Keccak256([]byte("received(address[2],address,uint256,bytes)"))),
-		hashTopic(hash.Bytes()),
+		common.HashToLogTopic(crypto.Keccak256Hash([]byte("received(address[2],address,uint256,bytes)"))),
+		common.HashToLogTopic(hash),
 	}
 	mockLog := newMockLog(topics, common.HexToHash("0x0"))
 
@@ -272,7 +264,7 @@ func TestUnpackIndexedArrayTyLogIntoMap(t *testing.T) {
 	bc := bind.NewBoundContract(common.Address{}, parsedAbi, nil, nil, nil)
 
 	expectedReceivedMap := map[string]any{
-		"addresses": hashTopic(hash.Bytes()),
+		"addresses": common.HashToLogTopic(hash),
 		"sender":    mockSender,
 		"amount":    big.NewInt(1),
 		"memo":      []byte{88},
@@ -286,7 +278,7 @@ func TestUnpackIndexedFuncTyLogIntoMap(t *testing.T) {
 	functionSelector := hash[:4]
 	functionTyBytes := append(addrBytes, functionSelector...)
 	topics := []common.LogTopic{
-		common.BytesToEventSignatureLogTopic(crypto.Keccak256([]byte("received(function,address,uint256,bytes)"))),
+		common.HashToLogTopic(crypto.Keccak256Hash([]byte("received(function,address,uint256,bytes)"))),
 		common.BytesToLogTopic(functionTyBytes),
 	}
 	mockLog := newMockLog(topics, common.HexToHash("0x5c698f13940a2153440c6d19660878bc90219d9298fdcf37365aa8d88d40fc42"))
@@ -308,8 +300,8 @@ func TestUnpackIndexedBytesTyLogIntoMap(t *testing.T) {
 	bytes := []byte{1, 2, 3, 4, 5}
 	hash := crypto.Keccak256Hash(bytes)
 	topics := []common.LogTopic{
-		common.BytesToEventSignatureLogTopic(crypto.Keccak256([]byte("received(bytes,address,uint256,bytes)"))),
-		hashTopic(hash.Bytes()),
+		common.HashToLogTopic(crypto.Keccak256Hash([]byte("received(bytes,address,uint256,bytes)"))),
+		common.HashToLogTopic(hash),
 	}
 	mockLog := newMockLog(topics, common.HexToHash("0x5c698f13940a2153440c6d19660878bc90219d9298fdcf37365aa8d88d40fc42"))
 
@@ -318,7 +310,7 @@ func TestUnpackIndexedBytesTyLogIntoMap(t *testing.T) {
 	bc := bind.NewBoundContract(common.Address{}, parsedAbi, nil, nil, nil)
 
 	expectedReceivedMap := map[string]any{
-		"content": hashTopic(hash.Bytes()),
+		"content": common.HashToLogTopic(hash),
 		"sender":  mockSender,
 		"amount":  big.NewInt(1),
 		"memo":    []byte{88},

@@ -228,25 +228,26 @@ type LogTopic [LogTopicLength]byte
 // via Bytes64(). A value of N bytes sits in the LOW N bytes of that big-endian
 // encoding — the high (LogTopicLength-N) bytes are zero padding. Mirroring that
 // layout here keeps raw topic values comparable to on-chain topics.
+//
+// Note this is the layout of numeric topic values only. Keccak hashes used as
+// topics (event signatures, hashes of indexed dynamic values) are bytes32
+// values and live in the HIGH bytes of the topic — use HashToLogTopic for
+// those.
 func BytesToLogTopic(b []byte) LogTopic {
 	var t LogTopic
 	t.SetBytes(b)
 	return t
 }
 
-// BytesToEventSignatureLogTopic copies an event signature hash into a LogTopic,
-// left-aligned.
+// HashToLogTopic left-aligns a 32-byte hash in a LogTopic (hash || zero-padding).
 //
-// Hyperion emits the 32-byte Keccak event signature hash as the HIGH half of
-// the 64-byte LOG topic after the VM word-size migration, so event selectors use
-// hash || zero-padding instead of the raw-value alignment used by
-// BytesToLogTopic.
-func BytesToEventSignatureLogTopic(b []byte) LogTopic {
+// Hyperion treats Keccak hashes as bytes32 values, which occupy the high bytes
+// of the 64-byte VM word: event signature hashes and hashes of indexed dynamic
+// values are pushed left-shifted before LOG serializes the word. Use this for
+// any hash-derived topic; raw numeric topics use BytesToLogTopic.
+func HashToLogTopic(h Hash) LogTopic {
 	var t LogTopic
-	if len(b) > len(t) {
-		b = b[len(b)-LogTopicLength:]
-	}
-	copy(t[:], b)
+	copy(t[:HashLength], h[:])
 	return t
 }
 
