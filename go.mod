@@ -128,3 +128,5 @@ tool (
 	golang.org/x/tools/cmd/stringer
 	google.golang.org/protobuf/cmd/protoc-gen-go
 )
+
+replace github.com/theQRL/go-qrllib => github.com/rgeraldes24/go-qrllib v0.1.1-0.20260707094212-a6d78f111b1f
