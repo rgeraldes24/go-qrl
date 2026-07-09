@@ -44,8 +44,7 @@ func MakeTopics(query ...[]any) ([][]common.LogTopic, error) {
 			case common.Address:
 				copy(topic[common.LogTopicLength-common.AddressLength:], rule[:])
 			case *big.Int:
-				blob := math.U256Bytes(new(big.Int).Set(rule))
-				copy(topic[common.LogTopicLength-len(blob):], blob)
+				copy(topic[:], math.U512Bytes(new(big.Int).Set(rule)))
 			case bool:
 				if rule {
 					topic[common.LogTopicLength-1] = 1
