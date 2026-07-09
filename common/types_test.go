@@ -40,6 +40,26 @@ func TestBytesConversion(t *testing.T) {
 	}
 }
 
+func TestHashToLogTopic(t *testing.T) {
+	var hash Hash
+	for i := range hash {
+		hash[i] = byte(i + 1)
+	}
+	topic := HashToLogTopic(hash)
+
+	// The hash occupies the high 32 bytes; the low 32 bytes are zero padding.
+	for i := 0; i < HashLength; i++ {
+		if topic[i] != hash[i] {
+			t.Fatalf("byte %d: expected %x got %x", i, hash[i], topic[i])
+		}
+	}
+	for i := HashLength; i < LogTopicLength; i++ {
+		if topic[i] != 0 {
+			t.Fatalf("byte %d: expected zero padding, got %x", i, topic[i])
+		}
+	}
+}
+
 func TestIsAddress(t *testing.T) {
 	tests := []struct {
 		str string
