@@ -222,37 +222,80 @@ func (h UnprefixedHash) MarshalText() ([]byte, error) {
 // width.
 type LogTopic [LogTopicLength]byte
 
-// BytesToLogTopic copies b into a LogTopic, right-aligned.
+// BytesToRightAlignedLogTopic copies b into a LogTopic, right-aligned.
 //
 // QRVM LOG{0..4} opcodes push a uint512 stack word and serialize it big-endian
 // via Bytes64(). A value of N bytes sits in the LOW N bytes of that big-endian
 // encoding — the high (LogTopicLength-N) bytes are zero padding. Mirroring that
 // layout here keeps raw topic values comparable to on-chain topics.
 //
-// Note this is the layout of numeric topic values only. Keccak hashes used as
-// topics (event signatures, hashes of indexed dynamic values) are bytes32
-// values and live in the HIGH bytes of the topic — use HashToLogTopic for
-// those.
-func BytesToLogTopic(b []byte) LogTopic {
+// Inputs longer than LogTopicLength are cropped from the left, keeping the
+// last LogTopicLength bytes.
+func BytesToRightAlignedLogTopic(b []byte) LogTopic {
 	var t LogTopic
-	t.SetBytes(b)
+	if len(b) > len(t) {
+		b = b[len(b)-LogTopicLength:]
+	}
+	copy(t[LogTopicLength-len(b):], b)
 	return t
 }
 
-// HashToLogTopic left-aligns a 32-byte hash in a LogTopic (hash || zero-padding).
+// BytesToLeftAlignedLogTopic copies b into a LogTopic, left-aligned.
 //
-// Hyperion treats Keccak hashes as bytes32 values, which occupy the high bytes
-// of the 64-byte VM word: event signature hashes and hashes of indexed dynamic
-// values are pushed left-shifted before LOG serializes the word. Use this for
-// any hash-derived topic; raw numeric topics use BytesToLogTopic.
-func HashToLogTopic(h Hash) LogTopic {
+// ABI bytesN values, including bytes32 Keccak hashes used as event signature
+// topics and indexed dynamic-value topics, occupy the HIGH bytes of a VM64 ABI
+// word: bytes || zero-padding.
+//
+// Inputs longer than LogTopicLength are cropped from the right, keeping the
+// first LogTopicLength bytes.
+func BytesToLeftAlignedLogTopic(b []byte) LogTopic {
 	var t LogTopic
-	copy(t[:HashLength], h[:])
+	copy(t[:], b)
 	return t
 }
 
-// HexToLogTopic parses a hex string into a LogTopic.
-func HexToLogTopic(s string) LogTopic { return BytesToLogTopic(FromHex(s)) }
+// ParseLogTopic parses s as a complete serialized topic: a 0x-prefixed hex
+// string decoding to exactly LogTopicLength bytes, preserved verbatim without
+// re-alignment. Use the alignment helpers to build topics from shorter ABI
+// values.
+func ParseLogTopic(s string) (LogTopic, error) {
+	var t LogTopic
+	b, err := hexutil.Decode(s)
+	if err != nil {
+		return t, err
+	}
+	if len(b) != LogTopicLength {
+		return t, fmt.Errorf("hex has invalid length %d after decoding; expected %d for topic", len(b), LogTopicLength)
+	}
+	copy(t[:], b)
+	return t, nil
+}
+
+// MustParseLogTopic calls ParseLogTopic and panics on error.
+// It is intended for tests and package-level initializations with hard-coded strings.
+func MustParseLogTopic(s string) LogTopic {
+	t, err := ParseLogTopic(s)
+	if err != nil {
+		panic(fmt.Errorf("invalid log topic %q: %w", s, err))
+	}
+	return t
+}
+
+// HashToLogTopic left-aligns a 32-byte hash in a LogTopic (hash || zero-padding),
+// since Hyperion treats Keccak hashes as ABI bytes32 values; see
+// BytesToLeftAlignedLogTopic for the alignment rationale.
+func HashToLogTopic(h Hash) LogTopic {
+	return BytesToLeftAlignedLogTopic(h[:])
+}
+
+// AddressToLogTopic converts a full-width address to a LogTopic.
+//
+// VM64 addresses are LogTopicLength bytes and fill the ABI word exactly. The
+// conversion (rather than a copy) makes that width match a compile-time
+// invariant: this line stops building if the two ever diverge.
+func AddressToLogTopic(a Address) LogTopic {
+	return LogTopic(a)
+}
 
 // Bytes returns a slice view of the topic.
 func (t LogTopic) Bytes() []byte { return t[:] }
@@ -274,22 +317,6 @@ func (t LogTopic) IsZero() bool {
 		}
 	}
 	return true
-}
-
-// SetBytes copies b into t, right-aligned.
-//
-// See BytesToLogTopic for the rationale: QRVM LOG opcodes serialize the 512-bit
-// stack word in big-endian order, so a value of N bytes lands in
-// topic[LogTopicLength-N:] and the leading bytes are zero padding. SetBytes
-// mirrors that layout for inputs shorter than 64 bytes.
-func (t *LogTopic) SetBytes(b []byte) {
-	if len(b) > len(t) {
-		b = b[len(b)-LogTopicLength:]
-	}
-	for i := range t {
-		t[i] = 0
-	}
-	copy(t[LogTopicLength-len(b):], b)
 }
 
 // MarshalText encodes t as a 0x-prefixed hex string.
