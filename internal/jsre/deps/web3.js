@@ -379,8 +379,7 @@ var HyperionTypeInt = require('./int');
 var HyperionTypeUInt = require('./uint');
 var HyperionTypeDynamicBytes = require('./dynamicbytes');
 var HyperionTypeString = require('./string');
-var HyperionTypeReal = require('./real');
-var HyperionTypeUReal = require('./ureal');
+var HyperionTypeTuple = require('./tuple');
 var HyperionTypeBytes = require('./bytes');
 
 var c = require('../utils/config');
@@ -394,6 +393,66 @@ var HyperionCoder = function (types) {
     this._types = types;
 };
 
+HyperionCoder.prototype._typeName = function (type) {
+    if (typeof type === 'string') {
+        return type;
+    }
+    if (type && typeof type.type === 'string') {
+        return type.type;
+    }
+    throw Error('invalid ABI type descriptor');
+};
+
+HyperionCoder.prototype._isTuple = function (type) {
+    return this._typeName(type).indexOf('tuple') === 0;
+};
+
+HyperionCoder.prototype._tupleComponents = function (type) {
+    if (!type || !(type.components instanceof Array) || type.components.length === 0) {
+        throw Error('tuple ABI type is missing components');
+    }
+    return type.components;
+};
+
+HyperionCoder.prototype._nestedType = function (type, hyperionType) {
+    var nestedName = hyperionType.nestedName(this._typeName(type));
+    if (typeof type === 'string') {
+        return nestedName;
+    }
+    return {type: nestedName, components: type.components};
+};
+
+HyperionCoder.prototype._validateDenseArray = function (value, label) {
+    if (!(value instanceof Array)) {
+        throw Error('expected array value for ' + label);
+    }
+    for (var i = 0; i < value.length; i++) {
+        if (!Object.prototype.hasOwnProperty.call(value, i)) {
+            throw Error('sparse ABI arrays are not supported');
+        }
+    }
+};
+
+HyperionCoder.prototype._tupleValues = function (type, value) {
+    var components = this._tupleComponents(type);
+    if (value instanceof Array) {
+        this._validateDenseArray(value, this._typeName(type));
+        if (value.length !== components.length) {
+            throw Error('tuple value count mismatch');
+        }
+        return value;
+    }
+    if (!value || typeof value !== 'object') {
+        throw Error('expected tuple value for ' + this._typeName(type));
+    }
+    return components.map(function (component) {
+        if (!component.name || !Object.prototype.hasOwnProperty.call(value, component.name)) {
+            throw Error('tuple value is missing component ' + component.name);
+        }
+        return value[component.name];
+    });
+};
+
 /**
  * This method should be used to transform type to HyperionType
  *
@@ -403,6 +462,7 @@ var HyperionCoder = function (types) {
  * @throws {Error} throws if no matching type is found
  */
 HyperionCoder.prototype._requireType = function (type) {
+    type = this._typeName(type);
     var hyperionType = this._types.filter(function (t) {
         return t.isType(type);
     })[0];
@@ -435,30 +495,45 @@ HyperionCoder.prototype.encodeParam = function (type, param) {
  * @return {String} encoded list of params
  */
 HyperionCoder.prototype.encodeParams = function (types, params) {
-    var hyperionTypes = this.getHyperionTypes(types);
     if (types.length !== params.length) {
         throw Error('types/values length mismatch');
     }
+    this._validateDenseArray(params, 'ABI values');
+    var hyperionTypes = this.getHyperionTypes(types);
     return this._encodeSequence(types, hyperionTypes, params);
 };
 
 HyperionCoder.prototype._isDynamic = function (type, hyperionType) {
-    if (hyperionType.isDynamicArray(type)) {
+    var name = this._typeName(type);
+    if (hyperionType.isDynamicArray(name)) {
         return true;
     }
-    if (hyperionType.isStaticArray(type)) {
-        return this._isDynamic(hyperionType.nestedName(type), hyperionType);
+    if (hyperionType.isStaticArray(name)) {
+        return this._isDynamic(this._nestedType(type, hyperionType), hyperionType);
     }
-    return hyperionType.isDynamicType(type);
+    if (this._isTuple(type)) {
+        var self = this;
+        return this._tupleComponents(type).some(function (component) {
+            return self._isDynamic(component, self._requireType(component));
+        });
+    }
+    return hyperionType.isDynamicType(name);
 };
 
 HyperionCoder.prototype._staticSize = function (type, hyperionType) {
     if (this._isDynamic(type, hyperionType)) {
-        throw Error('dynamic type has no static size: ' + type);
+        throw Error('dynamic type has no static size: ' + this._typeName(type));
     }
-    if (hyperionType.isStaticArray(type)) {
-        return hyperionType.staticArrayLength(type) *
-            this._staticSize(hyperionType.nestedName(type), hyperionType);
+    var name = this._typeName(type);
+    if (hyperionType.isStaticArray(name)) {
+        return hyperionType.staticArrayLength(name) *
+            this._staticSize(this._nestedType(type, hyperionType), hyperionType);
+    }
+    if (this._isTuple(type)) {
+        var self = this;
+        return this._tupleComponents(type).reduce(function (size, component) {
+            return size + self._staticSize(component, self._requireType(component));
+        }, 0);
     }
     return wordBytes;
 };
@@ -493,11 +568,11 @@ HyperionCoder.prototype._encodeSequence = function (types, hyperionTypes, values
 // Builds the parallel (types, hyperionTypes) arrays for a homogeneous run of
 // count elements. Index-based on purpose: mapping over a caller-supplied
 // array would preserve holes in sparse arrays, silently dropping their words.
-HyperionCoder.prototype._repeatTypes = function (name, hyperionType, count) {
+HyperionCoder.prototype._repeatTypes = function (type, hyperionType, count) {
     var types = [];
     var hyperionTypes = [];
     for (var i = 0; i < count; i++) {
-        types.push(name);
+        types.push(type);
         hyperionTypes.push(hyperionType);
     }
     return {types: types, hyperionTypes: hyperionTypes};
@@ -505,26 +580,27 @@ HyperionCoder.prototype._repeatTypes = function (name, hyperionType, count) {
 
 HyperionCoder.prototype._encodeValue = function (type, hyperionType, value) {
     var self = this;
-    if (hyperionType.isDynamicArray(type)) {
-        if (!(value instanceof Array)) {
-            throw Error('expected array value for ' + type);
-        }
-        var nested = self._repeatTypes(hyperionType.nestedName(type), hyperionType, value.length);
+    var name = self._typeName(type);
+    if (hyperionType.isDynamicArray(name)) {
+        self._validateDenseArray(value, name);
+        var nested = self._repeatTypes(self._nestedType(type, hyperionType), hyperionType, value.length);
         return f.formatInputInt(value.length).encode() +
             self._encodeSequence(nested.types, nested.hyperionTypes, value);
     }
-    if (hyperionType.isStaticArray(type)) {
-        if (!(value instanceof Array)) {
-            throw Error('expected array value for ' + type);
-        }
-        var length = hyperionType.staticArrayLength(type);
+    if (hyperionType.isStaticArray(name)) {
+        self._validateDenseArray(value, name);
+        var length = hyperionType.staticArrayLength(name);
         if (value.length !== length) {
-            throw Error('expected ' + length + ' values for ' + type);
+            throw Error('expected ' + length + ' values for ' + name);
         }
-        var elements = self._repeatTypes(hyperionType.nestedName(type), hyperionType, length);
+        var elements = self._repeatTypes(self._nestedType(type, hyperionType), hyperionType, length);
         return self._encodeSequence(elements.types, elements.hyperionTypes, value);
     }
-    return hyperionType.encode(value, type);
+    if (self._isTuple(type)) {
+        var components = self._tupleComponents(type);
+        return self._encodeSequence(components, self.getHyperionTypes(components), self._tupleValues(type, value));
+    }
+    return hyperionType.encode(value, name);
 };
 
 /**
@@ -561,12 +637,11 @@ HyperionCoder.prototype.decodeParams = function (types, bytes) {
         return [];
     }
     var hyperionTypes = this.getHyperionTypes(types);
-    var context = {decodedEnd: 0};
-    var result = this._decodeSequence(types, hyperionTypes, bytes, 0, context);
-    if (context.decodedEnd !== bytes.length / 2) {
+    var decoded = this._decodeSequence(types, hyperionTypes, bytes, 0);
+    if (decoded.end !== bytes.length / 2) {
         throw Error('unexpected trailing ABI data');
     }
-    return result;
+    return decoded.values;
 };
 
 HyperionCoder.prototype._readWord = function (bytes, offset) {
@@ -585,7 +660,7 @@ HyperionCoder.prototype._readSize = function (bytes, offset, label) {
     return value.toNumber();
 };
 
-HyperionCoder.prototype._decodeSequence = function (types, hyperionTypes, bytes, start, context) {
+HyperionCoder.prototype._decodeSequence = function (types, hyperionTypes, bytes, start) {
     var self = this;
     var headSize = types.reduce(function (size, type, index) {
         return size + self._headSize(type, hyperionTypes[index]);
@@ -593,50 +668,78 @@ HyperionCoder.prototype._decodeSequence = function (types, hyperionTypes, bytes,
     if ((start + headSize) * 2 > bytes.length) {
         throw Error('ABI head is outside the available data');
     }
-    context.decodedEnd = Math.max(context.decodedEnd, start + headSize);
     var cursor = start;
+    var tailEnd = start + headSize;
+    var values = [];
 
-    return types.map(function (type, index) {
+    types.forEach(function (type, index) {
         var hyperionType = hyperionTypes[index];
         if (self._isDynamic(type, hyperionType)) {
             var relativeOffset = self._readSize(bytes, cursor, 'ABI offset');
-            if (relativeOffset % wordBytes !== 0 || relativeOffset < headSize) {
+            if (relativeOffset % wordBytes !== 0 || start + relativeOffset !== tailEnd) {
                 throw Error('invalid ABI dynamic offset');
             }
             cursor += wordBytes;
-            return self._decodeValue(type, hyperionType, bytes, start + relativeOffset, context);
+            var dynamicValue = self._decodeValue(type, hyperionType, bytes, tailEnd);
+            tailEnd = dynamicValue.end;
+            values.push(dynamicValue.value);
+            return;
         }
-        var value = self._decodeValue(type, hyperionType, bytes, cursor, context);
-        cursor += self._staticSize(type, hyperionType);
-        return value;
+        var staticSize = self._staticSize(type, hyperionType);
+        var staticValue = self._decodeValue(type, hyperionType, bytes, cursor);
+        if (staticValue.end !== cursor + staticSize) {
+            throw Error('invalid ABI static value size');
+        }
+        cursor += staticSize;
+        values.push(staticValue.value);
     });
+
+    return {values: values, end: tailEnd};
 };
 
-HyperionCoder.prototype._decodeValue = function (type, hyperionType, bytes, start, context) {
+HyperionCoder.prototype._decodeValue = function (type, hyperionType, bytes, start) {
     var self = this;
-    if (hyperionType.isDynamicArray(type)) {
+    var name = self._typeName(type);
+    if (hyperionType.isDynamicArray(name)) {
         var length = self._readSize(bytes, start, 'ABI array length');
-        context.decodedEnd = Math.max(context.decodedEnd, start + wordBytes);
-        var nestedName = hyperionType.nestedName(type);
-        var nestedHeadSize = self._headSize(nestedName, hyperionType);
+        var nestedType = self._nestedType(type, hyperionType);
+        var nestedHeadSize = self._headSize(nestedType, hyperionType);
         var available = bytes.length / 2 - (start + wordBytes);
+        if (nestedHeadSize <= 0) {
+            throw Error('invalid zero-sized ABI array element');
+        }
         if (length > Math.floor(available / nestedHeadSize)) {
             throw Error('ABI array head is outside the available data');
         }
-        var nested = self._repeatTypes(nestedName, hyperionType, length);
-        return self._decodeSequence(nested.types, nested.hyperionTypes, bytes, start + wordBytes, context);
+        var nested = self._repeatTypes(nestedType, hyperionType, length);
+        var decodedArray = self._decodeSequence(nested.types, nested.hyperionTypes, bytes, start + wordBytes);
+        return {value: decodedArray.values, end: decodedArray.end};
     }
-    if (hyperionType.isStaticArray(type)) {
-        var arrayLength = hyperionType.staticArrayLength(type);
-        var elementName = hyperionType.nestedName(type);
-        var elementHeadSize = self._headSize(elementName, hyperionType);
+    if (hyperionType.isStaticArray(name)) {
+        var arrayLength = hyperionType.staticArrayLength(name);
+        var elementType = self._nestedType(type, hyperionType);
+        var elementHeadSize = self._headSize(elementType, hyperionType);
+        if (elementHeadSize <= 0 && arrayLength > 0) {
+            throw Error('invalid zero-sized ABI array element');
+        }
         if (arrayLength > Math.floor((bytes.length / 2 - start) / elementHeadSize)) {
             throw Error('ABI array head is outside the available data');
         }
-        var elements = self._repeatTypes(elementName, hyperionType, arrayLength);
-        return self._decodeSequence(elements.types, elements.hyperionTypes, bytes, start, context);
+        var elements = self._repeatTypes(elementType, hyperionType, arrayLength);
+        var decodedElements = self._decodeSequence(elements.types, elements.hyperionTypes, bytes, start);
+        return {value: decodedElements.values, end: decodedElements.end};
     }
-    if (hyperionType.isDynamicType(type)) {
+    if (self._isTuple(type)) {
+        var components = self._tupleComponents(type);
+        var decodedTuple = self._decodeSequence(components, self.getHyperionTypes(components), bytes, start);
+        components.forEach(function (component, index) {
+            if (component.name && !Object.prototype.hasOwnProperty.call(decodedTuple.values, component.name)) {
+                decodedTuple.values[component.name] = decodedTuple.values[index];
+            }
+        });
+        return {value: decodedTuple.values, end: decodedTuple.end};
+    }
+    if (hyperionType.isDynamicType(name)) {
         var valueLength = self._readSize(bytes, start, 'ABI value length');
         var valueStart = start + wordBytes;
         var paddedLength = Math.ceil(valueLength / wordBytes) * wordBytes;
@@ -648,19 +751,17 @@ HyperionCoder.prototype._decodeValue = function (type, hyperionType, bytes, star
         if (!/^0*$/.test(padding)) {
             throw Error('ABI dynamic value has non-zero padding');
         }
-        context.decodedEnd = Math.max(context.decodedEnd, valueEnd);
         var dynamicParam = new HyperionParam(bytes.substring(start * 2, valueEnd * 2), 0);
-        return hyperionType._outputFormatter(dynamicParam, type);
+        return {value: hyperionType._outputFormatter(dynamicParam, name), end: valueEnd};
     }
     var word = self._readWord(bytes, start);
-    context.decodedEnd = Math.max(context.decodedEnd, start + wordBytes);
-    return hyperionType._outputFormatter(new HyperionParam(word), type);
+    return {value: hyperionType._outputFormatter(new HyperionParam(word), name), end: start + wordBytes};
 };
 
 HyperionCoder.prototype.getHyperionTypes = function (types) {
     var self = this;
     return types.map(function (type) {
-        return self._requireType(type);
+        return self._requireType(self._typeName(type));
     });
 };
 
@@ -672,13 +773,12 @@ var coder = new HyperionCoder([
     new HyperionTypeDynamicBytes(),
     new HyperionTypeBytes(),
     new HyperionTypeString(),
-    new HyperionTypeReal(),
-    new HyperionTypeUReal()
+    new HyperionTypeTuple()
 ]);
 
 module.exports = coder;
 
-},{"../utils/config":18,"./address":4,"./bool":5,"./bytes":6,"./dynamicbytes":8,"./formatters":9,"./int":10,"./param":11,"./real":12,"./string":13,"./uint":15,"./ureal":16,"bignumber.js":"bignumber.js"}],8:[function(require,module,exports){
+},{"../utils/config":18,"./address":4,"./bool":5,"./bytes":6,"./dynamicbytes":8,"./formatters":9,"./int":10,"./param":11,"./string":13,"./tuple":12,"./uint":15,"bignumber.js":"bignumber.js"}],8:[function(require,module,exports){
 var f = require('./formatters');
 var HyperionType = require('./type');
 
@@ -768,8 +868,8 @@ var integerValue = function (value) {
         value = value.toString(10);
     }
     var result;
-    if (typeof value === 'string' && (value.indexOf('0x') === 0 || value.indexOf('-0x') === 0)) {
-        result = new BigNumber(value.replace('0x', ''), 16);
+    if (typeof value === 'string' && /^-?0x/i.test(value)) {
+        result = new BigNumber(value.replace(/^(-?)0x/i, '$1'), 16);
     } else {
         result = new BigNumber(value);
     }
@@ -822,10 +922,8 @@ var formatInputInt = function (value) {
 };
 
 var inputBytes = function (value) {
-    if (typeof value === 'string' && value.indexOf('0X') === 0) {
-        throw Error('invalid ABI bytes value');
-    }
-    var result = utils.toHex(value);
+    var result = typeof value === 'string' && /^0x/i.test(value) ?
+        '0x' + value.substr(2) : utils.toHex(value);
     if (!/^0x([0-9a-f]{2})*$/i.test(result)) {
         throw Error('invalid ABI bytes value');
     }
@@ -872,7 +970,7 @@ var formatInputDynamicBytes = function (value) {
  * @returns {HyperionParam}
  */
 var formatInputString = function (value) {
-    var result = utils.fromUtf8(value).substr(2);
+    var result = utils.fromUtf8Raw(value).substr(2);
     var length = result.length / 2;
     var l = Math.floor((result.length + wordHexLength - 1) / wordHexLength);
     result = utils.padRight(result, l * wordHexLength);
@@ -880,6 +978,9 @@ var formatInputString = function (value) {
 };
 
 var formatInputAddress = function (value) {
+    if (!utils.isAddress(value)) {
+        throw Error('invalid ABI address value');
+    }
     return new HyperionParam(utils.toAddress(value).substr(1).toLowerCase());
 };
 
@@ -896,22 +997,6 @@ var formatInputBool = function (value) {
     }
     var result = utils.padLeft(value ? '1' : '0', wordHexLength);
     return new HyperionParam(result);
-};
-
-/**
- * Formats input value to byte representation of real
- * Values are multiplied by 2^m and encoded as integers
- *
- * @method formatInputReal
- * @param {String|Number|BigNumber}
- * @returns {HyperionParam}
- */
-var formatInputReal = function (value) {
-    return formatInputSignedInt(new BigNumber(value).times(powerOfTwo(128)), 'int512');
-};
-
-var formatInputUReal = function (value) {
-    return formatInputUInt(new BigNumber(value).times(powerOfTwo(128)), 'uint512');
 };
 
 /**
@@ -960,28 +1045,6 @@ var formatOutputUInt = function (param, name) {
         throw Error('decoded value out of range for ' + name);
     }
     return result;
-};
-
-/**
- * Formats right-aligned output bytes to real
- *
- * @method formatOutputReal
- * @param {HyperionParam}
- * @returns {BigNumber} input bytes formatted to real
- */
-var formatOutputReal = function (param) {
-    return formatOutputInt(param, 'int512').dividedBy(new BigNumber(2).pow(128));
-};
-
-/**
- * Formats right-aligned output bytes to ureal
- *
- * @method formatOutputUReal
- * @param {HyperionParam}
- * @returns {BigNumber} input bytes formatted to ureal
- */
-var formatOutputUReal = function (param) {
-    return formatOutputUInt(param, 'uint512').dividedBy(new BigNumber(2).pow(128));
 };
 
 /**
@@ -1041,7 +1104,7 @@ var formatOutputDynamicBytes = function (param) {
  */
 var formatOutputString = function (param) {
     var length = (new BigNumber(param.dynamicPart().slice(0, wordHexLength), 16)).toNumber() * 2;
-    return utils.toUtf8(param.dynamicPart().substr(wordHexLength, length));
+    return utils.toUtf8Raw(param.dynamicPart().substr(wordHexLength, length));
 };
 
 /**
@@ -1065,12 +1128,8 @@ module.exports = {
     formatInputAddress: formatInputAddress,
     formatInputString: formatInputString,
     formatInputBool: formatInputBool,
-    formatInputReal: formatInputReal,
-    formatInputUReal: formatInputUReal,
     formatOutputInt: formatOutputInt,
     formatOutputUInt: formatOutputUInt,
-    formatOutputReal: formatOutputReal,
-    formatOutputUReal: formatOutputUReal,
     formatOutputBool: formatOutputBool,
     formatOutputBytes: formatOutputBytes,
     formatOutputDynamicBytes: formatOutputDynamicBytes,
@@ -1276,40 +1335,20 @@ module.exports = HyperionParam;
 
 
 },{"../utils/config":18,"../utils/utils":20}],12:[function(require,module,exports){
-var f = require('./formatters');
 var HyperionType = require('./type');
 
-/**
- * HyperionTypeReal is a prototype that represents real type
- * It matches:
- * real
- * real[]
- * real[4]
- * real[][]
- * real[3][]
- * real[][6][], ...
- * real32
- * real64[]
- * real8[4]
- * real256[][]
- * real[3][]
- * real64[][6][], ...
- */
-var HyperionTypeReal = function () {
-    this._inputFormatter = f.formatInputReal;
-    this._outputFormatter = f.formatOutputReal;
+var HyperionTypeTuple = function () {};
+
+HyperionTypeTuple.prototype = new HyperionType({});
+HyperionTypeTuple.prototype.constructor = HyperionTypeTuple;
+
+HyperionTypeTuple.prototype.isType = function (name) {
+    return /^tuple(\[[0-9]*\])*$/.test(name);
 };
 
-HyperionTypeReal.prototype = new HyperionType({});
-HyperionTypeReal.prototype.constructor = HyperionTypeReal;
+module.exports = HyperionTypeTuple;
 
-HyperionTypeReal.prototype.isType = function (name) {
-    return !!name.match(/real([0-9]*)?(\[([0-9]*)\])?/);
-};
-
-module.exports = HyperionTypeReal;
-
-},{"./formatters":9,"./type":14}],13:[function(require,module,exports){
+},{"./type":14}],13:[function(require,module,exports){
 var f = require('./formatters');
 var HyperionType = require('./type');
 
@@ -1542,40 +1581,6 @@ HyperionTypeUInt.prototype.isType = function (name) {
 };
 
 module.exports = HyperionTypeUInt;
-
-},{"./formatters":9,"./type":14}],16:[function(require,module,exports){
-var f = require('./formatters');
-var HyperionType = require('./type');
-
-/**
- * HyperionTypeUReal is a prototype that represents ureal type
- * It matches:
- * ureal
- * ureal[]
- * ureal[4]
- * ureal[][]
- * ureal[3][]
- * ureal[][6][], ...
- * ureal32
- * ureal64[]
- * ureal8[4]
- * ureal256[][]
- * ureal[3][]
- * ureal64[][6][], ...
- */
-var HyperionTypeUReal = function () {
-    this._inputFormatter = f.formatInputUReal;
-    this._outputFormatter = f.formatOutputUReal;
-};
-
-HyperionTypeUReal.prototype = new HyperionType({});
-HyperionTypeUReal.prototype.constructor = HyperionTypeUReal;
-
-HyperionTypeUReal.prototype.isType = function (name) {
-    return !!name.match(/^ureal([0-9]*)?(\[([0-9]*)\])*$/);
-};
-
-module.exports = HyperionTypeUReal;
 
 },{"./formatters":9,"./type":14}],17:[function(require,module,exports){
 'use strict';
@@ -1821,6 +1826,18 @@ var toUtf8 = function(hex) {
     return utf8.decode(str);
 };
 
+// ABI strings are length-delimited, so embedded zero bytes are data rather
+// than terminators. Keep the legacy public helpers unchanged and use these
+// exact helpers only for ABI string encoding and decoding.
+var toUtf8Raw = function(hex) {
+    var str = "";
+    var i = /^0x/i.test(hex) ? 2 : 0;
+    for (; i < hex.length; i += 2) {
+        str += String.fromCharCode(parseInt(hex.substr(i, 2), 16));
+    }
+    return utf8.decode(str);
+};
+
 /**
  * Should be called to get ascii from it's hex representation
  *
@@ -1865,6 +1882,16 @@ var fromUtf8 = function(str) {
     return "0x" + hex;
 };
 
+var fromUtf8Raw = function(str) {
+    str = utf8.encode(str);
+    var hex = "";
+    for (var i = 0; i < str.length; i++) {
+        var n = str.charCodeAt(i).toString(16);
+        hex += n.length < 2 ? '0' + n : n;
+    }
+    return "0x" + hex;
+};
+
 /**
  * Should be called to get hex representation (prefixed by 0x) of ascii string
  *
@@ -1906,11 +1933,10 @@ var canonicalTypeName = function (input) {
 };
 
 var transformToFullName = function (json) {
+    var typeName = json.inputs.map(canonicalTypeName).join();
     if (json.name.indexOf('(') !== -1) {
         return json.name;
     }
-
-    var typeName = json.inputs.map(canonicalTypeName).join();
     return json.name + '(' + typeName + ')';
 };
 
@@ -2283,12 +2309,7 @@ var isBloom = function (bloom) {
  * @return {Boolean}
  */
 var isTopic = function (topic) {
-    if (!/^(0x)?[0-9a-f]{128}$/i.test(topic)) {
-        return false;
-    } else if (/^(0x)?[0-9a-f]{128}$/.test(topic) || /^(0x)?[0-9A-F]{128}$/.test(topic)) {
-        return true;
-    }
-    return false;
+    return /^(0x)?[0-9a-f]{128}$/i.test(topic);
 };
 
 module.exports = {
@@ -2298,8 +2319,10 @@ module.exports = {
     toDecimal: toDecimal,
     fromDecimal: fromDecimal,
     toUtf8: toUtf8,
+    toUtf8Raw: toUtf8Raw,
     toAscii: toAscii,
     fromUtf8: fromUtf8,
+    fromUtf8Raw: fromUtf8Raw,
     fromAscii: fromAscii,
     transformToFullName: transformToFullName,
     extractDisplayName: extractDisplayName,
@@ -2531,7 +2554,7 @@ AllHyperionEvents.prototype.decode = function (data) {
         return data;
     }
 
-    var event = this._eventByTopic(data.topics[0].slice(2).toLowerCase());
+    var event = this._eventByTopic(data.topics[0].replace(/^0x/i, '').toLowerCase());
     if (!event) { // cannot find matching event?
         console.warn('cannot find event for log');
         return data;
@@ -2620,7 +2643,15 @@ Batch.prototype.execute = function () {
                     return requests[index].callback(errors.InvalidResponse(result));
                 }
 
-                requests[index].callback(null, (requests[index].format ? requests[index].format(result.result) : result.result));
+                var value = result.result;
+                if (requests[index].format) {
+                    try {
+                        value = requests[index].format(value);
+                    } catch (formatError) {
+                        return requests[index].callback(formatError);
+                    }
+                }
+                requests[index].callback(null, value);
             }
         });
     }); 
@@ -2669,12 +2700,12 @@ var encodeConstructorParams = function (abi, params) {
     return abi.filter(function (json) {
         return json.type === 'constructor' && json.inputs.length === params.length;
     }).map(function (json) {
-        return json.inputs.map(function (input) {
-            return input.type;
-        });
-    }).map(function (types) {
-        return coder.encodeParams(types, params);
+        return coder.encodeParams(json.inputs, params);
     })[0] || '';
+};
+
+var isPayableABI = function (json) {
+    return json.payable !== undefined ? json.payable : json.stateMutability === 'payable';
 };
 
 /**
@@ -2832,7 +2863,7 @@ var ContractFactory = function (qrl, abi) {
                 return json.type === 'constructor' && json.inputs.length === args.length;
             })[0] || {};
 
-            if (!constructorAbi.payable) {
+            if (!isPayableABI(constructorAbi)) {
                 throw new Error('Cannot send value to non-payable constructor');
             }
         }
@@ -3037,8 +3068,6 @@ var HyperionEvent = function (requestManager, json, address) {
 HyperionEvent.prototype.types = function (indexed) {
     return this._params.filter(function (i) {
         return i.indexed === indexed;
-    }).map(function (i) {
-        return i.type;
     });
 };
 
@@ -3085,26 +3114,33 @@ HyperionEvent.prototype.signatureTopic = function () {
 var logTopicHexLength = 128;
 
 var stripHexPrefix = function (value) {
-    return value.indexOf('0x') === 0 ? value.substr(2) : value;
+    return /^0x/i.test(value) ? value.substr(2) : value;
 };
 
 var leftAlignedLogTopic = function (value) {
     return utils.padRight(stripHexPrefix(value), logTopicHexLength);
 };
 
+var abiTypeName = function (type) {
+    return typeof type === 'string' ? type : type.type;
+};
+
 var isCompositeIndexedType = function (type) {
-    return type.indexOf('[') !== -1 || type.indexOf('tuple') === 0;
+    var name = abiTypeName(type);
+    return name.indexOf('[') !== -1 || name.indexOf('tuple') === 0;
 };
 
 var isDynamicIndexedType = function (type) {
-    return type === 'string' || type === 'bytes' || isCompositeIndexedType(type);
+    var name = abiTypeName(type);
+    return name === 'string' || name === 'bytes' || isCompositeIndexedType(type);
 };
 
 var indexedTopic = function (type, value) {
-    if (type === 'string') {
+    var name = abiTypeName(type);
+    if (name === 'string') {
         return leftAlignedLogTopic(sha3(value));
     }
-    if (type === 'bytes') {
+    if (name === 'bytes') {
         var hex = stripHexPrefix(utils.toHex(value));
         if (!/^([0-9a-fA-F]{2})*$/.test(hex)) {
             throw Error('invalid hex bytes value for indexed filter');
@@ -3171,6 +3207,9 @@ HyperionEvent.prototype.encode = function (indexed, options) {
                 if (!Object.prototype.hasOwnProperty.call(value, index)) {
                     throw Error('sparse topic alternatives are not supported');
                 }
+                if (value[index] === null || value[index] === undefined) {
+                    return null;
+                }
                 alternatives.push('0x' + indexedTopic(i.type, value[index]));
             }
             return alternatives;
@@ -3211,7 +3250,7 @@ HyperionEvent.prototype.decode = function (data) {
         return decodeIndexedTopic(type, argTopics[index]);
     });
 
-    var notIndexedData = data.data.indexOf('0x') === 0 ? data.data.slice(2) : data.data;
+    var notIndexedData = data.data.replace(/^0x/i, '');
     var notIndexedParams = coder.decodeParams(this.types(false), notIndexedData);
 
     var result = formatters.outputLogFormatter(data);
@@ -3365,7 +3404,7 @@ var toTopic = function(value){
 
     value = String(value);
 
-    if(value.indexOf('0x') === 0)
+    if(/^0x/i.test(value))
         return value;
     else
         return utils.fromUtf8(value);
@@ -3923,14 +3962,11 @@ var sha3 = require('../utils/sha3');
  */
 var HyperionFunction = function (qrl, json, address) {
     this._qrl = qrl;
-    this._inputTypes = json.inputs.map(function (i) {
-        return i.type;
-    });
-    this._outputTypes = json.outputs.map(function (i) {
-        return i.type;
-    });
-    this._constant = json.constant;
-    this._payable = json.payable;
+    this._inputTypes = json.inputs;
+    this._outputTypes = json.outputs;
+    this._constant = json.constant !== undefined ? json.constant :
+        json.stateMutability === 'view' || json.stateMutability === 'pure';
+    this._payable = json.payable !== undefined ? json.payable : json.stateMutability === 'payable';
     this._name = utils.transformToFullName(json);
     this._address = address;
 };
@@ -3955,14 +3991,7 @@ HyperionFunction.prototype.extractDefaultBlock = function (args) {
  * @throws {Error} if it is not
  */
 HyperionFunction.prototype.validateArgs = function (args) {
-    var inputArgs = args.filter(function (a) {
-      // filter the options object but not arguments that are arrays
-      return !( (utils.isObject(a) === true) &&
-                (utils.isArray(a) === false) &&
-                (utils.isBigNumber(a) === false)
-              );
-    });
-    if (inputArgs.length !== this._inputTypes.length) {
+    if (args.length !== this._inputTypes.length) {
         throw errors.InvalidNumberOfHyperionArgs();
     }
 };
@@ -3977,7 +4006,7 @@ HyperionFunction.prototype.validateArgs = function (args) {
 HyperionFunction.prototype.toPayload = function (args) {
     var options = {};
     if (args.length > this._inputTypes.length && utils.isObject(args[args.length -1])) {
-        options = args[args.length - 1];
+        options = args.pop();
     }
     this.validateArgs(args);
     options.to = this._address;
@@ -4001,7 +4030,7 @@ HyperionFunction.prototype.unpackOutput = function (output) {
         return;
     }
 
-    output = output.indexOf('0x') === 0 ? output.slice(2) : output;
+    output = output.replace(/^0x/i, '');
     var result = coder.decodeParams(this._outputTypes, output);
     return result.length === 1 ? result[0] : result;
 };

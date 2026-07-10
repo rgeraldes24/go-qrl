@@ -78,6 +78,7 @@ func TestEmbeddedWeb3RawFilterTopicFormatting(t *testing.T) {
 	eventID := crypto.Keccak256([]byte("Transfer(address,uint512,string)"))
 	expectedEventTopic := common.HashToLogTopic(common.BytesToHash(eventID)).Hex()
 	expectedAllEventsTopic := common.HashToLogTopic(crypto.Keccak256Hash([]byte("Ping(address,uint512,string)"))).Hex()
+	upperAllEventsTopic := "0X" + strings.ToUpper(expectedAllEventsTopic[2:])
 	indexedAddress := "Q" + strings.Repeat("a", common.AddressLength*2)
 	expectedIndexedAddressTopic := "0x" + strings.Repeat("a", common.AddressLength*2)
 	expectedIndexedValueTopic := common.BytesToRightAlignedLogTopic([]byte{2}).Hex()
@@ -140,7 +141,7 @@ JSON.stringify({
   allEventsDecodedValue: allEventsDecoded.args.value.toString(10),
   allEventsDecodedLabel: allEventsDecoded.args.label
 });
-`, expectedEventTopic, address, address, indexedAddress, address, address, expectedAllEventsTopic, expectedIndexedAddressTopic, expectedIndexedValueTopic, expectedIndexedLabelTopic)
+`, expectedEventTopic, address, address, indexedAddress, address, address, upperAllEventsTopic, expectedIndexedAddressTopic, expectedIndexedValueTopic, expectedIndexedLabelTopic)
 	value, err := re.Run(script)
 	if err != nil {
 		t.Fatalf("run raw topic script: %v", err)
@@ -190,8 +191,8 @@ JSON.stringify({
 	assertWeb3IsTopic(t, re, eventIDHex, false, "event ID")
 	assertWeb3IsTopic(t, re, expectedEventTopic, true, "full-width VM64 event topic")
 	assertWeb3IsTopic(t, re, upperCaseTopic, true, "uppercase 64-byte topic")
-	assertWeb3IsTopic(t, re, mixedCaseTopic, false, "mixed-case 64-byte topic")
-	assertWeb3IsTopic(t, re, upperPrefixTopic, false, "uppercase 0X-prefixed topic")
+	assertWeb3IsTopic(t, re, mixedCaseTopic, true, "mixed-case 64-byte topic")
+	assertWeb3IsTopic(t, re, upperPrefixTopic, true, "uppercase 0X-prefixed topic")
 }
 
 func TestEmbeddedWeb3ABICoderUsesVM64Words(t *testing.T) {
@@ -308,6 +309,8 @@ func TestEmbeddedWeb3ABICoderValidatesVM64Scalars(t *testing.T) {
 	signedSelector := common.Bytes2Hex(crypto.Keccak256([]byte("encodeSigned(int512)"))[:4])
 	wantSignedData := "0x" + signedSelector + strings.Repeat("f", common.LogTopicLength*2)
 	truncatedString := "0x" + abiWordHexUint64(common.LogTopicLength) + abiWordHexUint64(5)
+	gappedString := "0x" + abiWordHexUint64(2*common.LogTopicLength) + abiWordHexUint64(99) + abiWordHexUint64(0)
+	aliasedStrings := "0x" + abiWordHexUint64(2*common.LogTopicLength) + abiWordHexUint64(2*common.LogTopicLength) + abiWordHexUint64(0)
 
 	script := fmt.Sprintf(echoProviderJS+`
 currentOutput = "0x";
@@ -327,7 +330,8 @@ var contract = web3.qrl.contract([
   {name: "decodeBool", inputs: [], outputs: [{name: "value", type: "bool"}], type: "function"},
   {name: "decodeUint512", inputs: [], outputs: [{name: "value", type: "uint512"}], type: "function"},
   {name: "decodeUint8", inputs: [], outputs: [{name: "value", type: "uint8"}], type: "function"},
-  {name: "decodeString", inputs: [], outputs: [{name: "value", type: "string"}], type: "function"}
+  {name: "decodeString", inputs: [], outputs: [{name: "value", type: "string"}], type: "function"},
+  {name: "decodeStrings", inputs: [], outputs: [{name: "a", type: "string"}, {name: "b", type: "string"}], type: "function"}
 ]).at(%q);
 
 function rejects(fn) {
@@ -355,6 +359,10 @@ currentOutput = "0x" + %q + %q;
 var rejectsTrailingWord = rejects(function() { contract.decodeUint512.call(); });
 currentOutput = %q;
 var rejectsTruncatedString = rejects(function() { contract.decodeString.call(); });
+currentOutput = %q;
+var rejectsGappedString = rejects(function() { contract.decodeString.call(); });
+currentOutput = %q;
+var rejectsAliasedStrings = rejects(function() { contract.decodeStrings.call(); });
 
 JSON.stringify({
   signedData: signedData,
@@ -374,9 +382,11 @@ JSON.stringify({
   rejectsDecodedUint8Overflow: rejectsDecodedUint8Overflow,
   rejectsTruncatedWord: rejectsTruncatedWord,
   rejectsTrailingWord: rejectsTrailingWord,
-  rejectsTruncatedString: rejectsTruncatedString
+  rejectsTruncatedString: rejectsTruncatedString,
+  rejectsGappedString: rejectsGappedString,
+  rejectsAliasedStrings: rejectsAliasedStrings
 });
-`, contractAddress, maxSignedHex, abiWordHexUint64(2), abiWordHexUint64(256), abiWordHexUint64(1), abiWordHexUint64(2), truncatedString, twoTo512.String())
+`, contractAddress, maxSignedHex, abiWordHexUint64(2), abiWordHexUint64(256), abiWordHexUint64(1), abiWordHexUint64(2), truncatedString, gappedString, aliasedStrings, twoTo512.String())
 
 	value, err := re.Run(script)
 	if err != nil {
@@ -401,6 +411,8 @@ JSON.stringify({
 		RejectsTruncatedWord   bool   `json:"rejectsTruncatedWord"`
 		RejectsTrailingWord    bool   `json:"rejectsTrailingWord"`
 		RejectsTruncatedString bool   `json:"rejectsTruncatedString"`
+		RejectsGappedString    bool   `json:"rejectsGappedString"`
+		RejectsAliasedStrings  bool   `json:"rejectsAliasedStrings"`
 	}
 	if err := json.Unmarshal([]byte(value.String()), &got); err != nil {
 		t.Fatalf("decode scalar ABI validation result %q: %v", value.String(), err)
@@ -430,6 +442,8 @@ JSON.stringify({
 		"truncated static word":  got.RejectsTruncatedWord,
 		"trailing static word":   got.RejectsTrailingWord,
 		"truncated string":       got.RejectsTruncatedString,
+		"gapped string tail":     got.RejectsGappedString,
+		"aliased string tails":   got.RejectsAliasedStrings,
 	}
 	for name, rejected := range checks {
 		if !rejected {
@@ -518,6 +532,184 @@ JSON.stringify({
 	}
 }
 
+func TestEmbeddedWeb3HandlesHyperionTupleABI(t *testing.T) {
+	t.Parallel()
+
+	const contractABI = `[
+  {"inputs":[{"components":[{"name":"count","type":"uint512"},{"name":"owner","type":"address"},{"name":"label","type":"string"}],"name":"item","type":"tuple"},{"components":[{"name":"count","type":"uint512"},{"name":"owner","type":"address"},{"name":"label","type":"string"}],"name":"items","type":"tuple[]"}],"name":"storeTuples","outputs":[],"stateMutability":"payable","type":"function"},
+  {"inputs":[],"name":"loadTuples","outputs":[{"components":[{"name":"count","type":"uint512"},{"name":"owner","type":"address"},{"name":"label","type":"string"}],"name":"item","type":"tuple"},{"components":[{"name":"count","type":"uint512"},{"name":"owner","type":"address"},{"name":"label","type":"string"}],"name":"items","type":"tuple[]"}],"stateMutability":"view","type":"function"},
+  {"inputs":[{"components":[{"name":"count","type":"uint512"},{"name":"owner","type":"address"},{"name":"label","type":"string"}],"name":"item","type":"tuple"}],"name":"storeNonPayable","outputs":[],"stateMutability":"nonpayable","type":"function"}
+]`
+	type tupleValue struct {
+		Count *big.Int
+		Owner common.Address
+		Label string
+	}
+
+	parsedABI, err := abi.JSON(strings.NewReader(contractABI))
+	if err != nil {
+		t.Fatal(err)
+	}
+	owner := common.MustParseAddress("Q" + strings.Repeat("a", common.AddressLength*2))
+	item := tupleValue{Count: big.NewInt(1), Owner: owner, Label: "a\x00b"}
+	items := []tupleValue{{Count: big.NewInt(2), Owner: owner, Label: "nested"}}
+	wantData, err := parsedABI.Pack("storeTuples", item, items)
+	if err != nil {
+		t.Fatal(err)
+	}
+	wantOutput, err := parsedABI.Methods["loadTuples"].Outputs.Pack(item, items)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	re := newEmbeddedWeb3(t)
+	contractAddress := "Q" + strings.Repeat("0", common.AddressLength*2)
+	script := fmt.Sprintf(echoProviderJS+`
+currentOutput = %q;
+
+var Web3 = require("web3");
+var web3 = new Web3(provider);
+var contract = web3.qrl.contract(%s).at(%q);
+var item = {count: 1, owner: %q, label: "a\u0000b"};
+var items = [{count: 2, owner: %q, label: "nested"}];
+var data = contract.storeTuples.getData(item, items, {from: %q, gas: 123456});
+var loadRequest = contract.loadTuples.request();
+var storeRequest = contract.storeTuples.request(item, items, {from: %q});
+
+currentOutput = "0xabc";
+var txHash = contract.storeTuples.sendTransaction(item, items, {from: %q, value: 1});
+var rejectsNonPayableValue = false;
+try {
+  contract.storeNonPayable.sendTransaction(item, {from: %q, value: 1});
+} catch (err) {
+  rejectsNonPayableValue = true;
+}
+
+currentOutput = %q;
+var decoded = contract.loadTuples.call();
+
+JSON.stringify({
+  data: data,
+  txHash: txHash,
+  loadMethod: loadRequest.method,
+  storeMethod: storeRequest.method,
+  rejectsNonPayableValue: rejectsNonPayableValue,
+  itemCount: decoded[0].count.toString(10),
+  itemOwner: decoded[0].owner,
+  itemLabel: decoded[0].label,
+  nestedCount: decoded[1][0].count.toString(10),
+  nestedOwner: decoded[1][0].owner,
+  nestedLabel: decoded[1][0].label
+});
+`, "0x"+common.Bytes2Hex(wantOutput), contractABI, contractAddress, owner.Hex(), owner.Hex(), contractAddress, contractAddress, contractAddress, contractAddress, "0x"+common.Bytes2Hex(wantOutput))
+	value, err := re.Run(script)
+	if err != nil {
+		t.Fatalf("run tuple ABI script: %v", err)
+	}
+	var got struct {
+		Data                   string `json:"data"`
+		TxHash                 string `json:"txHash"`
+		LoadMethod             string `json:"loadMethod"`
+		StoreMethod            string `json:"storeMethod"`
+		RejectsNonPayableValue bool   `json:"rejectsNonPayableValue"`
+		ItemCount              string `json:"itemCount"`
+		ItemOwner              string `json:"itemOwner"`
+		ItemLabel              string `json:"itemLabel"`
+		NestedCount            string `json:"nestedCount"`
+		NestedOwner            string `json:"nestedOwner"`
+		NestedLabel            string `json:"nestedLabel"`
+	}
+	if err := json.Unmarshal([]byte(value.String()), &got); err != nil {
+		t.Fatalf("decode tuple result %q: %v", value.String(), err)
+	}
+	if want := "0x" + common.Bytes2Hex(wantData); got.Data != want {
+		t.Fatalf("tuple calldata mismatch:\nhave %s\nwant %s", got.Data, want)
+	}
+	if got.TxHash != "0xabc" || got.LoadMethod != "qrl_call" || got.StoreMethod != "qrl_sendTransaction" || !got.RejectsNonPayableValue {
+		t.Fatalf("state mutability mismatch: hash=%q load=%q store=%q rejectsNonPayable=%t", got.TxHash, got.LoadMethod, got.StoreMethod, got.RejectsNonPayableValue)
+	}
+	if got.ItemCount != "1" || got.ItemOwner != owner.Hex() || got.ItemLabel != item.Label {
+		t.Fatalf("decoded tuple mismatch: count=%q owner=%q label=%q", got.ItemCount, got.ItemOwner, got.ItemLabel)
+	}
+	if got.NestedCount != "2" || got.NestedOwner != owner.Hex() || got.NestedLabel != items[0].Label {
+		t.Fatalf("decoded nested tuple mismatch: count=%q owner=%q label=%q", got.NestedCount, got.NestedOwner, got.NestedLabel)
+	}
+}
+
+func TestEmbeddedWeb3BatchContinuesAfterDecodeError(t *testing.T) {
+	t.Parallel()
+
+	re := newEmbeddedWeb3(t)
+	contractAddress := "Q" + strings.Repeat("0", common.AddressLength*2)
+	wordOne := abiWordHexUint64(1)
+	script := fmt.Sprintf(`
+var seenMethods = [];
+var provider = {
+  send: function(payload) {
+    return {jsonrpc: "2.0", id: payload.id, result: "0x"};
+  },
+  sendAsync: function(payload, callback) {
+    if (payload instanceof Array) {
+      seenMethods = payload.map(function(request) { return request.method; });
+      callback(null, [
+        {jsonrpc: "2.0", id: payload[0].id, result: "0x"},
+        {jsonrpc: "2.0", id: payload[1].id, result: %q}
+      ]);
+      return;
+    }
+    callback(null, {jsonrpc: "2.0", id: payload.id, result: "0x"});
+  },
+  isConnected: function() { return true; }
+};
+
+var Web3 = require("web3");
+var web3 = new Web3(provider);
+var contract = web3.qrl.contract([
+  {inputs: [], name: "first", outputs: [{name: "value", type: "uint512"}], stateMutability: "view", type: "function"},
+  {inputs: [], name: "second", outputs: [{name: "value", type: "uint512"}], stateMutability: "pure", type: "function"}
+]).at(%q);
+var firstErrored = false;
+var secondValue = null;
+var callbackCount = 0;
+var batch = web3.createBatch();
+batch.add(contract.first.request(function(error) {
+  firstErrored = !!error;
+  callbackCount++;
+}));
+batch.add(contract.second.request(function(error, value) {
+  if (!error) secondValue = value.toString(10);
+  callbackCount++;
+}));
+batch.execute();
+
+JSON.stringify({
+  firstErrored: firstErrored,
+  secondValue: secondValue,
+  callbackCount: callbackCount,
+  seenMethods: seenMethods
+});
+`, "0X"+strings.ToUpper(wordOne), contractAddress)
+	value, err := re.Run(script)
+	if err != nil {
+		t.Fatalf("run batch script: %v", err)
+	}
+	var got struct {
+		FirstErrored  bool     `json:"firstErrored"`
+		SecondValue   string   `json:"secondValue"`
+		CallbackCount int      `json:"callbackCount"`
+		SeenMethods   []string `json:"seenMethods"`
+	}
+	if err := json.Unmarshal([]byte(value.String()), &got); err != nil {
+		t.Fatalf("decode batch result %q: %v", value.String(), err)
+	}
+	if !got.FirstErrored || got.SecondValue != "1" || got.CallbackCount != 2 {
+		t.Fatalf("batch callback mismatch: error=%t second=%q count=%d", got.FirstErrored, got.SecondValue, got.CallbackCount)
+	}
+	if want := []string{"qrl_call", "qrl_call"}; !reflect.DeepEqual(got.SeenMethods, want) {
+		t.Fatalf("batch methods mismatch: have %#v want %#v", got.SeenMethods, want)
+	}
+}
+
 func TestEmbeddedWeb3CompositeEventFiltersRequirePrecomputedTopics(t *testing.T) {
 	t.Parallel()
 
@@ -561,6 +753,7 @@ var rejectsArrayValue = rejects(function() { contract.Values({value: [1, 2]}); }
 contract.Composite({value: %q});
 contract.Values({value: %q});
 contract.Composite({value: [%q, %q]});
+contract.Composite({value: [%q, null]});
 
 var decoded = contract.allEvents().formatter({
   address: %q,
@@ -574,12 +767,13 @@ var decoded = contract.allEvents().formatter({
 JSON.stringify({
   captured: captured.slice(0, 2).map(function (options) { return options.topics; }),
   compositeOrTopics: captured[2].topics,
+  compositeWildcardTopics: captured[3].topics,
   rejectsTupleValue: rejectsTupleValue,
   rejectsArrayValue: rejectsArrayValue,
   decodedEvent: decoded.event,
   decodedTupleTopic: decoded.args.value
 });
-`, address, owner, tupleTopic, arrayTopic, tupleTopic, arrayTopic, address, tupleSignatureTopic, tupleTopic)
+`, address, owner, tupleTopic, arrayTopic, tupleTopic, arrayTopic, tupleTopic, address, tupleSignatureTopic, tupleTopic)
 	value, err := re.Run(script)
 	if err != nil {
 		t.Fatalf("run composite event script: %v", err)
@@ -587,6 +781,7 @@ JSON.stringify({
 	var got struct {
 		Captured          [][]string `json:"captured"`
 		CompositeOrTopics []any      `json:"compositeOrTopics"`
+		WildcardTopics    []any      `json:"compositeWildcardTopics"`
 		RejectsTupleValue bool       `json:"rejectsTupleValue"`
 		RejectsArrayValue bool       `json:"rejectsArrayValue"`
 		DecodedEvent      string     `json:"decodedEvent"`
@@ -605,6 +800,10 @@ JSON.stringify({
 	wantOrTopics := []any{tupleSignatureTopic, []any{tupleTopic, arrayTopic}}
 	if !reflect.DeepEqual(got.CompositeOrTopics, wantOrTopics) {
 		t.Fatalf("composite OR topics mismatch: have %#v want %#v", got.CompositeOrTopics, wantOrTopics)
+	}
+	wantWildcardTopics := []any{tupleSignatureTopic, nil}
+	if !reflect.DeepEqual(got.WildcardTopics, wantWildcardTopics) {
+		t.Fatalf("composite wildcard topics mismatch: have %#v want %#v", got.WildcardTopics, wantWildcardTopics)
 	}
 	if !got.RejectsTupleValue || !got.RejectsArrayValue {
 		t.Fatalf("composite event values should require precomputed topics: tuple=%t array=%t", got.RejectsTupleValue, got.RejectsArrayValue)
@@ -626,10 +825,26 @@ var web3 = new Web3(provider);
 
 function rejects(type) {
   try {
-    web3.qrl.contract([{
+    var contract = web3.qrl.contract([{
       constant: false,
       inputs: [{name: "value", type: type}],
       name: "store",
+      outputs: [],
+      type: "function"
+    }]).at(%q);
+    contract.store.getData(0);
+    return false;
+  } catch (err) {
+    return true;
+  }
+}
+
+function rejectsQualifiedBareInt() {
+  try {
+    web3.qrl.contract([{
+      constant: false,
+      inputs: [{name: "value", type: "uint"}],
+      name: "store(uint)",
       outputs: [],
       type: "function"
     }]).at(%q);
@@ -643,9 +858,12 @@ JSON.stringify({
   uint: rejects("uint"),
   int: rejects("int"),
   uintArray: rejects("uint[]"),
-  intArray: rejects("int[2]")
+  intArray: rejects("int[2]"),
+  qualifiedUint: rejectsQualifiedBareInt(),
+  real: rejects("real"),
+  ureal: rejects("ureal")
 });
-`, contractAddress)
+`, contractAddress, contractAddress)
 	value, err := re.Run(script)
 	if err != nil {
 		t.Fatalf("run bare integer script: %v", err)
@@ -748,46 +966,55 @@ function rejects(fn) {
 
 JSON.stringify({
   hexString: contract.encU512.getData("0x10"),
+  upperHexString: contract.encU512.getData("0X10"),
   negativeHexString: contract.encI512.getData("-0x10"),
+  upperNegativeHexString: contract.encI512.getData("-0X10"),
   maxSafeInteger: contract.encU512.getData(9007199254740991),
   maxUint512: contract.encU512.getData(%q),
   int8Max: contract.encI8.getData(127),
   int8Min: contract.encI8.getData(-128),
   bytes64: contract.encB64.getData("0x%s"),
+  upperBytes64: contract.encB64.getData("0X%s"),
   twosComplementNeg1: web3._extend.utils.toTwosComplement(-1).toString(16),
   sendFormatIsNull: contract.encU512.request(1).format === null,
   callFormatIsFunction: typeof contract.load.request().format === "function",
   rejectsFractionString: rejects(function() { contract.encU512.getData("1.5"); })
 });
-`, contractAddress, maxUint512.String(), bytes64Value)
+`, contractAddress, maxUint512.String(), bytes64Value, bytes64Value)
 	value, err := re.Run(script)
 	if err != nil {
 		t.Fatalf("run integer input script: %v", err)
 	}
 	var got struct {
-		HexString            string `json:"hexString"`
-		NegativeHexString    string `json:"negativeHexString"`
-		MaxSafeInteger       string `json:"maxSafeInteger"`
-		MaxUint512           string `json:"maxUint512"`
-		Int8Max              string `json:"int8Max"`
-		Int8Min              string `json:"int8Min"`
-		Bytes64              string `json:"bytes64"`
-		TwosComplementNeg1   string `json:"twosComplementNeg1"`
-		SendFormatIsNull     bool   `json:"sendFormatIsNull"`
-		CallFormatIsFunction bool   `json:"callFormatIsFunction"`
-		RejectsFraction      bool   `json:"rejectsFractionString"`
+		HexString              string `json:"hexString"`
+		UpperHexString         string `json:"upperHexString"`
+		NegativeHexString      string `json:"negativeHexString"`
+		UpperNegativeHexString string `json:"upperNegativeHexString"`
+		MaxSafeInteger         string `json:"maxSafeInteger"`
+		MaxUint512             string `json:"maxUint512"`
+		Int8Max                string `json:"int8Max"`
+		Int8Min                string `json:"int8Min"`
+		Bytes64                string `json:"bytes64"`
+		UpperBytes64           string `json:"upperBytes64"`
+		TwosComplementNeg1     string `json:"twosComplementNeg1"`
+		SendFormatIsNull       bool   `json:"sendFormatIsNull"`
+		CallFormatIsFunction   bool   `json:"callFormatIsFunction"`
+		RejectsFraction        bool   `json:"rejectsFractionString"`
 	}
 	if err := json.Unmarshal([]byte(value.String()), &got); err != nil {
 		t.Fatalf("decode integer input result %q: %v", value.String(), err)
 	}
 	for _, tc := range []struct{ name, have, want string }{
 		{"hex string", got.HexString, wantHex16},
+		{"uppercase hex string", got.UpperHexString, wantHex16},
 		{"negative hex string", got.NegativeHexString, wantNegHex16},
+		{"uppercase negative hex string", got.UpperNegativeHexString, wantNegHex16},
 		{"max safe integer", got.MaxSafeInteger, wantMaxSafe},
 		{"max uint512", got.MaxUint512, wantMaxUint512},
 		{"int8 max", got.Int8Max, wantInt8Max},
 		{"int8 min", got.Int8Min, wantInt8Min},
 		{"bytes64", got.Bytes64, wantBytes64},
+		{"uppercase bytes64", got.UpperBytes64, wantBytes64},
 		{"toTwosComplement(-1)", got.TwosComplementNeg1, wantTwosComplementNeg1},
 	} {
 		if tc.have != tc.want {
@@ -820,6 +1047,9 @@ var web3 = new Web3(provider);
 var contract = web3.qrl.contract([
   {name: "arr", inputs: [{name: "v", type: "uint512[2]"}], outputs: [], type: "function", constant: false},
   {name: "dyn", inputs: [{name: "v", type: "uint512[]"}], outputs: [], type: "function", constant: false},
+  {name: "addr", inputs: [{name: "v", type: "address"}], outputs: [], type: "function", constant: false},
+  {name: "addrArr", inputs: [{name: "v", type: "address[2]"}], outputs: [], type: "function", constant: false},
+  {name: "addrDyn", inputs: [{name: "v", type: "address[]"}], outputs: [], type: "function", constant: false},
   {anonymous: false, inputs: [{indexed: true, name: "payload", type: "bytes"}], name: "Blob", type: "event"}
 ]).at(%q);
 
@@ -830,6 +1060,9 @@ function rejects(fn) {
 JSON.stringify({
   rejectsSparseStatic: rejects(function() { contract.arr.getData(new Array(2)); }),
   rejectsSparseDynamic: rejects(function() { contract.dyn.getData(new Array(3)); }),
+  rejectsInvalidAddress: rejects(function() { contract.addr.getData("not-an-address"); }),
+  rejectsSparseAddressStatic: rejects(function() { contract.addrArr.getData(new Array(2)); }),
+  rejectsSparseAddressDynamic: rejects(function() { contract.addrDyn.getData(new Array(2)); }),
   rejectsOddBytesFilter: rejects(function() { contract.Blob({payload: "0x1"}); }),
   rejectsNonHexBytesFilter: rejects(function() { contract.Blob({payload: "0xzz"}); }),
   validBytesTopic: contract.Blob({payload: "0xabcd"}).options.topics[1]
@@ -840,17 +1073,23 @@ JSON.stringify({
 		t.Fatalf("run sparse array script: %v", err)
 	}
 	var got struct {
-		RejectsSparseStatic  bool   `json:"rejectsSparseStatic"`
-		RejectsSparseDynamic bool   `json:"rejectsSparseDynamic"`
-		RejectsOddBytes      bool   `json:"rejectsOddBytesFilter"`
-		RejectsNonHexBytes   bool   `json:"rejectsNonHexBytesFilter"`
-		ValidBytesTopic      string `json:"validBytesTopic"`
+		RejectsSparseStatic   bool   `json:"rejectsSparseStatic"`
+		RejectsSparseDynamic  bool   `json:"rejectsSparseDynamic"`
+		RejectsInvalidAddress bool   `json:"rejectsInvalidAddress"`
+		RejectsAddressStatic  bool   `json:"rejectsSparseAddressStatic"`
+		RejectsAddressDynamic bool   `json:"rejectsSparseAddressDynamic"`
+		RejectsOddBytes       bool   `json:"rejectsOddBytesFilter"`
+		RejectsNonHexBytes    bool   `json:"rejectsNonHexBytesFilter"`
+		ValidBytesTopic       string `json:"validBytesTopic"`
 	}
 	if err := json.Unmarshal([]byte(value.String()), &got); err != nil {
 		t.Fatalf("decode sparse array result %q: %v", value.String(), err)
 	}
 	if !got.RejectsSparseStatic || !got.RejectsSparseDynamic {
 		t.Errorf("sparse arrays should be rejected: static=%t dynamic=%t", got.RejectsSparseStatic, got.RejectsSparseDynamic)
+	}
+	if !got.RejectsInvalidAddress || !got.RejectsAddressStatic || !got.RejectsAddressDynamic {
+		t.Errorf("invalid address inputs should be rejected: scalar=%t static=%t dynamic=%t", got.RejectsInvalidAddress, got.RejectsAddressStatic, got.RejectsAddressDynamic)
 	}
 	if !got.RejectsOddBytes || !got.RejectsNonHexBytes {
 		t.Errorf("malformed hex bytes filters should be rejected: odd=%t nonhex=%t", got.RejectsOddBytes, got.RejectsNonHexBytes)
