@@ -598,35 +598,50 @@ JSON.stringify({
 	}
 }
 
-func TestEmbeddedWeb3BareIntegerAliasesUseVM64Width(t *testing.T) {
+func TestEmbeddedWeb3RejectsBareIntegerTypes(t *testing.T) {
 	t.Parallel()
 
 	re := newEmbeddedWeb3(t)
 	contractAddress := "Q" + strings.Repeat("0", common.AddressLength*2)
-	// Needs more than 256 bits, so it only encodes if bare uint aliases uint512.
-	amount := new(big.Int).Lsh(big.NewInt(1), 300)
-	selector := common.Bytes2Hex(crypto.Keccak256([]byte("store(uint512)"))[:4])
-	expectedData := "0x" + selector + fmt.Sprintf("%0*x", common.LogTopicLength*2, amount)
 
 	script := fmt.Sprintf(echoProviderJS+`
 var Web3 = require("web3");
 var web3 = new Web3(provider);
-var contract = web3.qrl.contract([{
-  constant: false,
-  inputs: [{name: "amount", type: "uint"}],
-  name: "store",
-  outputs: [],
-  type: "function"
-}]).at(%q);
 
-contract.store.getData(%q);
-`, contractAddress, amount.String())
+function rejects(type) {
+  try {
+    web3.qrl.contract([{
+      constant: false,
+      inputs: [{name: "value", type: type}],
+      name: "store",
+      outputs: [],
+      type: "function"
+    }]).at(%q);
+    return false;
+  } catch (err) {
+    return true;
+  }
+}
+
+JSON.stringify({
+  uint: rejects("uint"),
+  int: rejects("int"),
+  uintArray: rejects("uint[]"),
+  intArray: rejects("int[2]")
+});
+`, contractAddress)
 	value, err := re.Run(script)
 	if err != nil {
 		t.Fatalf("run bare integer script: %v", err)
 	}
-	if got := value.String(); got != expectedData {
-		t.Fatalf("bare uint calldata mismatch:\nhave %s\nwant %s", got, expectedData)
+	var got map[string]bool
+	if err := json.Unmarshal([]byte(value.String()), &got); err != nil {
+		t.Fatalf("decode bare integer result %q: %v", value.String(), err)
+	}
+	for name, rejected := range got {
+		if !rejected {
+			t.Errorf("embedded web3 accepted bare ABI type %s", name)
+		}
 	}
 }
 

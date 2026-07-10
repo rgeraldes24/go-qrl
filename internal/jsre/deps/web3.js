@@ -741,13 +741,12 @@ var twoToWordBits = powerOfTwo(wordHexLength * 4);
 var integerBitsRegexes = {};
 var integerBits = function (name, prefix) {
     var regex = integerBitsRegexes[prefix] ||
-        (integerBitsRegexes[prefix] = new RegExp('^' + prefix + '([0-9]*)$'));
-    var match = (name || prefix + '512').match(regex);
+        (integerBitsRegexes[prefix] = new RegExp('^' + prefix + '([0-9]+)$'));
+    var match = name && name.match(regex);
     if (!match) {
         throw Error('invalid ABI integer type: ' + name);
     }
-    // bare int/uint alias the full VM64 width
-    return match[1] ? parseInt(match[1], 10) : 512;
+    return parseInt(match[1], 10);
 };
 
 var integerValue = function (value) {
@@ -962,7 +961,7 @@ var formatOutputUInt = function (param, name) {
  * @returns {BigNumber} input bytes formatted to real
  */
 var formatOutputReal = function (param) {
-    return formatOutputInt(param).dividedBy(new BigNumber(2).pow(128));
+    return formatOutputInt(param, 'int512').dividedBy(new BigNumber(2).pow(128));
 };
 
 /**
@@ -973,7 +972,7 @@ var formatOutputReal = function (param) {
  * @returns {BigNumber} input bytes formatted to ureal
  */
 var formatOutputUReal = function (param) {
-    return formatOutputUInt(param).dividedBy(new BigNumber(2).pow(128));
+    return formatOutputUInt(param, 'uint512').dividedBy(new BigNumber(2).pow(128));
 };
 
 /**
@@ -1099,11 +1098,11 @@ HyperionTypeInt.prototype = new HyperionType({});
 HyperionTypeInt.prototype.constructor = HyperionTypeInt;
 
 HyperionTypeInt.prototype.isType = function (name) {
-    var match = name.match(/^int([0-9]*)(\[[0-9]*\])*$/);
+    var match = name.match(/^int([0-9]+)(\[[0-9]*\])*$/);
     if (!match) {
         return false;
     }
-    var size = match[1] ? parseInt(match[1], 10) : 512;
+    var size = parseInt(match[1], 10);
     return size >= 8 && size <= 512 && size % 8 === 0;
 };
 
@@ -1525,11 +1524,11 @@ HyperionTypeUInt.prototype = new HyperionType({});
 HyperionTypeUInt.prototype.constructor = HyperionTypeUInt;
 
 HyperionTypeUInt.prototype.isType = function (name) {
-    var match = name.match(/^uint([0-9]*)(\[[0-9]*\])*$/);
+    var match = name.match(/^uint([0-9]+)(\[[0-9]*\])*$/);
     if (!match) {
         return false;
     }
-    var size = match[1] ? parseInt(match[1], 10) : 512;
+    var size = parseInt(match[1], 10);
     return size >= 8 && size <= 512 && size % 8 === 0;
 };
 
@@ -1885,9 +1884,10 @@ var fromAscii = function(str) {
  */
 var canonicalTypeName = function (input) {
     if (input.type.indexOf('tuple') !== 0) {
-        // bare int/uint alias the full VM64 width; canonicalize them so
-        // selectors and event signature topics match what the chain hashes
-        return input.type.replace(/^(u?int)(?=$|\[)/, '$1512');
+        if (/^(u?int)(?=$|\[)/.test(input.type)) {
+            throw Error('ABI integer types require an explicit width: ' + input.type);
+        }
+        return input.type;
     }
     if (!(input.components instanceof Array)) {
         throw Error('tuple ABI type is missing components');
