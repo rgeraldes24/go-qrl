@@ -561,7 +561,12 @@ HyperionCoder.prototype.decodeParams = function (types, bytes) {
         return [];
     }
     var hyperionTypes = this.getHyperionTypes(types);
-    return this._decodeSequence(types, hyperionTypes, bytes, 0);
+    var context = {decodedEnd: 0};
+    var result = this._decodeSequence(types, hyperionTypes, bytes, 0, context);
+    if (context.decodedEnd !== bytes.length / 2) {
+        throw Error('unexpected trailing ABI data');
+    }
+    return result;
 };
 
 HyperionCoder.prototype._readWord = function (bytes, offset) {
@@ -580,7 +585,7 @@ HyperionCoder.prototype._readSize = function (bytes, offset, label) {
     return value.toNumber();
 };
 
-HyperionCoder.prototype._decodeSequence = function (types, hyperionTypes, bytes, start) {
+HyperionCoder.prototype._decodeSequence = function (types, hyperionTypes, bytes, start, context) {
     var self = this;
     var headSize = types.reduce(function (size, type, index) {
         return size + self._headSize(type, hyperionTypes[index]);
@@ -588,6 +593,7 @@ HyperionCoder.prototype._decodeSequence = function (types, hyperionTypes, bytes,
     if ((start + headSize) * 2 > bytes.length) {
         throw Error('ABI head is outside the available data');
     }
+    context.decodedEnd = Math.max(context.decodedEnd, start + headSize);
     var cursor = start;
 
     return types.map(function (type, index) {
@@ -598,18 +604,19 @@ HyperionCoder.prototype._decodeSequence = function (types, hyperionTypes, bytes,
                 throw Error('invalid ABI dynamic offset');
             }
             cursor += wordBytes;
-            return self._decodeValue(type, hyperionType, bytes, start + relativeOffset);
+            return self._decodeValue(type, hyperionType, bytes, start + relativeOffset, context);
         }
-        var value = self._decodeValue(type, hyperionType, bytes, cursor);
+        var value = self._decodeValue(type, hyperionType, bytes, cursor, context);
         cursor += self._staticSize(type, hyperionType);
         return value;
     });
 };
 
-HyperionCoder.prototype._decodeValue = function (type, hyperionType, bytes, start) {
+HyperionCoder.prototype._decodeValue = function (type, hyperionType, bytes, start, context) {
     var self = this;
     if (hyperionType.isDynamicArray(type)) {
         var length = self._readSize(bytes, start, 'ABI array length');
+        context.decodedEnd = Math.max(context.decodedEnd, start + wordBytes);
         var nestedName = hyperionType.nestedName(type);
         var nestedHeadSize = self._headSize(nestedName, hyperionType);
         var available = bytes.length / 2 - (start + wordBytes);
@@ -617,7 +624,7 @@ HyperionCoder.prototype._decodeValue = function (type, hyperionType, bytes, star
             throw Error('ABI array head is outside the available data');
         }
         var nested = self._repeatTypes(nestedName, hyperionType, length);
-        return self._decodeSequence(nested.types, nested.hyperionTypes, bytes, start + wordBytes);
+        return self._decodeSequence(nested.types, nested.hyperionTypes, bytes, start + wordBytes, context);
     }
     if (hyperionType.isStaticArray(type)) {
         var arrayLength = hyperionType.staticArrayLength(type);
@@ -627,7 +634,7 @@ HyperionCoder.prototype._decodeValue = function (type, hyperionType, bytes, star
             throw Error('ABI array head is outside the available data');
         }
         var elements = self._repeatTypes(elementName, hyperionType, arrayLength);
-        return self._decodeSequence(elements.types, elements.hyperionTypes, bytes, start);
+        return self._decodeSequence(elements.types, elements.hyperionTypes, bytes, start, context);
     }
     if (hyperionType.isDynamicType(type)) {
         var valueLength = self._readSize(bytes, start, 'ABI value length');
@@ -641,10 +648,12 @@ HyperionCoder.prototype._decodeValue = function (type, hyperionType, bytes, star
         if (!/^0*$/.test(padding)) {
             throw Error('ABI dynamic value has non-zero padding');
         }
+        context.decodedEnd = Math.max(context.decodedEnd, valueEnd);
         var dynamicParam = new HyperionParam(bytes.substring(start * 2, valueEnd * 2), 0);
         return hyperionType._outputFormatter(dynamicParam, type);
     }
     var word = self._readWord(bytes, start);
+    context.decodedEnd = Math.max(context.decodedEnd, start + wordBytes);
     return hyperionType._outputFormatter(new HyperionParam(word), type);
 };
 
@@ -1044,7 +1053,7 @@ var formatOutputString = function (param) {
  */
 var formatOutputAddress = function (param) {
     var value = param.staticPart();
-    return "Q" + value.slice(value.length - wordHexLength, value.length).toLowerCase();
+    return utils.toChecksumAddress("Q" + value.slice(value.length - wordHexLength, value.length));
 };
 
 module.exports = {
@@ -3156,10 +3165,15 @@ HyperionEvent.prototype.encode = function (indexed, options) {
             return null;
         }
 
-        if (utils.isArray(value) && !isCompositeIndexedType(i.type)) {
-            return value.map(function (v) {
-                return '0x' + indexedTopic(i.type, v);
-            });
+        if (utils.isArray(value)) {
+            var alternatives = [];
+            for (var index = 0; index < value.length; index++) {
+                if (!Object.prototype.hasOwnProperty.call(value, index)) {
+                    throw Error('sparse topic alternatives are not supported');
+                }
+                alternatives.push('0x' + indexedTopic(i.type, value[index]));
+            }
+            return alternatives;
         }
         return '0x' + indexedTopic(i.type, value);
     });

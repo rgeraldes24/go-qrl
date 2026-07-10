@@ -83,6 +83,7 @@ func TestEmbeddedWeb3RawFilterTopicFormatting(t *testing.T) {
 	expectedIndexedValueTopic := common.BytesToRightAlignedLogTopic([]byte{2}).Hex()
 	expectedIndexedLabelTopic := common.HashToLogTopic(crypto.Keccak256Hash([]byte("hello"))).Hex()
 	expectedRawStringFilterValue := "0x" + common.Bytes2Hex([]byte("hello"))
+	expectedDecodedAddress := common.MustParseAddress(indexedAddress).Hex()
 	address := "Q" + strings.Repeat("0", common.AddressLength*2)
 
 	script := fmt.Sprintf(captureProviderJS+`
@@ -135,6 +136,7 @@ JSON.stringify({
   eventCaptured: captured[1].topics,
   allEventsDecodedEvent: allEventsDecoded.event,
   allEventsDecodedFrom: allEventsDecoded.args.from,
+  allEventsDecodedFromIsChecksum: web3.isChecksumAddress(allEventsDecoded.args.from),
   allEventsDecodedValue: allEventsDecoded.args.value.toString(10),
   allEventsDecodedLabel: allEventsDecoded.args.label
 });
@@ -148,6 +150,7 @@ JSON.stringify({
 		EventCaptured         []any  `json:"eventCaptured"`
 		AllEventsDecodedEvent string `json:"allEventsDecodedEvent"`
 		AllEventsDecodedFrom  string `json:"allEventsDecodedFrom"`
+		AllEventsFromChecksum bool   `json:"allEventsDecodedFromIsChecksum"`
 		AllEventsDecodedValue string `json:"allEventsDecodedValue"`
 		AllEventsDecodedLabel string `json:"allEventsDecodedLabel"`
 	}
@@ -165,8 +168,8 @@ JSON.stringify({
 	if got.AllEventsDecodedEvent != "Ping" {
 		t.Fatalf("allEvents should decode VM64 signature topic, have event %q", got.AllEventsDecodedEvent)
 	}
-	if got.AllEventsDecodedFrom != indexedAddress {
-		t.Fatalf("allEvents decoded address mismatch: have %q want %q", got.AllEventsDecodedFrom, indexedAddress)
+	if got.AllEventsDecodedFrom != expectedDecodedAddress || !got.AllEventsFromChecksum {
+		t.Fatalf("allEvents decoded address is not canonical: have %q want %q", got.AllEventsDecodedFrom, expectedDecodedAddress)
 	}
 	if got.AllEventsDecodedValue != "2" {
 		t.Fatalf("allEvents decoded value mismatch: have %q want 2", got.AllEventsDecodedValue)
@@ -197,6 +200,7 @@ func TestEmbeddedWeb3ABICoderUsesVM64Words(t *testing.T) {
 	re := newEmbeddedWeb3(t)
 
 	address := "Q" + strings.Repeat("a", common.AddressLength*2)
+	expectedDecodedAddress := common.MustParseAddress(address).Hex()
 	contractAddress := "Q" + strings.Repeat("0", common.AddressLength*2)
 	amountWord := abiWordHexUint64(2)
 	offsetWord := abiWordHexUint64(5 * common.LogTopicLength)
@@ -277,8 +281,8 @@ JSON.stringify({
 	if got.Data != expectedData {
 		t.Fatalf("calldata mismatch:\nhave %s\nwant %s", got.Data, expectedData)
 	}
-	if got.DecodedAddress != address {
-		t.Fatalf("decoded address mismatch: have %q want %q", got.DecodedAddress, address)
+	if got.DecodedAddress != expectedDecodedAddress {
+		t.Fatalf("decoded address mismatch: have %q want %q", got.DecodedAddress, expectedDecodedAddress)
 	}
 	if got.DecodedAmount != "2" {
 		t.Fatalf("decoded amount mismatch: have %q want 2", got.DecodedAmount)
@@ -347,6 +351,8 @@ currentOutput = "0x" + %q;
 var rejectsDecodedUint8Overflow = rejects(function() { contract.decodeUint8.call(); });
 currentOutput = "0x";
 var rejectsTruncatedWord = rejects(function() { contract.decodeUint512.call(); });
+currentOutput = "0x" + %q + %q;
+var rejectsTrailingWord = rejects(function() { contract.decodeUint512.call(); });
 currentOutput = %q;
 var rejectsTruncatedString = rejects(function() { contract.decodeString.call(); });
 
@@ -367,9 +373,10 @@ JSON.stringify({
   rejectsBoolTwo: rejectsBoolTwo,
   rejectsDecodedUint8Overflow: rejectsDecodedUint8Overflow,
   rejectsTruncatedWord: rejectsTruncatedWord,
+  rejectsTrailingWord: rejectsTrailingWord,
   rejectsTruncatedString: rejectsTruncatedString
 });
-`, contractAddress, maxSignedHex, abiWordHexUint64(2), abiWordHexUint64(256), truncatedString, twoTo512.String())
+`, contractAddress, maxSignedHex, abiWordHexUint64(2), abiWordHexUint64(256), abiWordHexUint64(1), abiWordHexUint64(2), truncatedString, twoTo512.String())
 
 	value, err := re.Run(script)
 	if err != nil {
@@ -392,6 +399,7 @@ JSON.stringify({
 		RejectsBoolTwo         bool   `json:"rejectsBoolTwo"`
 		RejectsDecodedUint8    bool   `json:"rejectsDecodedUint8Overflow"`
 		RejectsTruncatedWord   bool   `json:"rejectsTruncatedWord"`
+		RejectsTrailingWord    bool   `json:"rejectsTrailingWord"`
 		RejectsTruncatedString bool   `json:"rejectsTruncatedString"`
 	}
 	if err := json.Unmarshal([]byte(value.String()), &got); err != nil {
@@ -420,6 +428,7 @@ JSON.stringify({
 		"noncanonical bool":      got.RejectsBoolTwo,
 		"decoded uint8 overflow": got.RejectsDecodedUint8,
 		"truncated static word":  got.RejectsTruncatedWord,
+		"trailing static word":   got.RejectsTrailingWord,
 		"truncated string":       got.RejectsTruncatedString,
 	}
 	for name, rejected := range checks {
@@ -551,6 +560,7 @@ var rejectsTupleValue = rejects(function() { contract.Composite({value: {count: 
 var rejectsArrayValue = rejects(function() { contract.Values({value: [1, 2]}); });
 contract.Composite({value: %q});
 contract.Values({value: %q});
+contract.Composite({value: [%q, %q]});
 
 var decoded = contract.allEvents().formatter({
   address: %q,
@@ -562,19 +572,21 @@ var decoded = contract.allEvents().formatter({
 });
 
 JSON.stringify({
-  captured: captured.map(function (options) { return options.topics; }),
+  captured: captured.slice(0, 2).map(function (options) { return options.topics; }),
+  compositeOrTopics: captured[2].topics,
   rejectsTupleValue: rejectsTupleValue,
   rejectsArrayValue: rejectsArrayValue,
   decodedEvent: decoded.event,
   decodedTupleTopic: decoded.args.value
 });
-`, address, owner, tupleTopic, arrayTopic, address, tupleSignatureTopic, tupleTopic)
+`, address, owner, tupleTopic, arrayTopic, tupleTopic, arrayTopic, address, tupleSignatureTopic, tupleTopic)
 	value, err := re.Run(script)
 	if err != nil {
 		t.Fatalf("run composite event script: %v", err)
 	}
 	var got struct {
 		Captured          [][]string `json:"captured"`
+		CompositeOrTopics []any      `json:"compositeOrTopics"`
 		RejectsTupleValue bool       `json:"rejectsTupleValue"`
 		RejectsArrayValue bool       `json:"rejectsArrayValue"`
 		DecodedEvent      string     `json:"decodedEvent"`
@@ -589,6 +601,10 @@ JSON.stringify({
 	}
 	if !reflect.DeepEqual(got.Captured[:2], wantCaptured) {
 		t.Fatalf("composite event topics mismatch: have %#v want %#v", got.Captured[:2], wantCaptured)
+	}
+	wantOrTopics := []any{tupleSignatureTopic, []any{tupleTopic, arrayTopic}}
+	if !reflect.DeepEqual(got.CompositeOrTopics, wantOrTopics) {
+		t.Fatalf("composite OR topics mismatch: have %#v want %#v", got.CompositeOrTopics, wantOrTopics)
 	}
 	if !got.RejectsTupleValue || !got.RejectsArrayValue {
 		t.Fatalf("composite event values should require precomputed topics: tuple=%t array=%t", got.RejectsTupleValue, got.RejectsArrayValue)
