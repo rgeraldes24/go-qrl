@@ -981,7 +981,7 @@ var formatInputAddress = function (value) {
     if (!utils.isAddress(value)) {
         throw Error('invalid ABI address value');
     }
-    return new HyperionParam(utils.toAddress(value).substr(1).toLowerCase());
+    return new HyperionParam(value.slice(1).toLowerCase());
 };
 
 /**
