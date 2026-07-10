@@ -52,11 +52,6 @@ func has0xPrefix(str string) bool {
 	return len(str) >= 2 && str[0] == '0' && (str[1] == 'x' || str[1] == 'X')
 }
 
-// hasQPrefix validates str begins with 'Q'.
-func hasQPrefix(str string) bool {
-	return len(str) >= 1 && str[0] == 'Q'
-}
-
 // isHexCharacter returns bool of c being a valid hexadecimal.
 func isHexCharacter(c byte) bool {
 	return ('0' <= c && c <= '9') || ('a' <= c && c <= 'f') || ('A' <= c && c <= 'F')

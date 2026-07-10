@@ -60,6 +60,66 @@ func TestHashToLogTopic(t *testing.T) {
 	}
 }
 
+func TestParseAddress(t *testing.T) {
+	var b [AddressLength]byte
+	for i := range b {
+		b[i] = byte(i + 1)
+	}
+	want := Address(b)
+
+	// The canonical QIP-55 mixed-case form and both uniform casings parse to
+	// the same address; the checksum casing is not validated.
+	for _, input := range []string{
+		want.Hex(),
+		"Q" + strings.ToLower(want.Hex()[1:]),
+		"Q" + strings.ToUpper(want.Hex()[1:]),
+	} {
+		got, err := ParseAddress(input)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got != want {
+			t.Fatalf("address changed during parsing: got %x, want %x", got, want)
+		}
+		if must := MustParseAddress(input); must != want {
+			t.Fatalf("MustParseAddress mismatch: got %x, want %x", must, want)
+		}
+	}
+
+	// Anything but a Q-prefixed string of exactly AddressLength bytes is rejected.
+	for _, invalid := range []string{
+		"",
+		"Q",
+		"0x" + strings.Repeat("11", AddressLength),
+		strings.Repeat("11", AddressLength),
+		"Q" + strings.Repeat("11", AddressLength-1),
+		"Q" + strings.Repeat("11", AddressLength+1),
+		"Q" + strings.Repeat("11", AddressLength-1) + "zz",
+	} {
+		if _, err := ParseAddress(invalid); err == nil {
+			t.Fatalf("expected error parsing %q", invalid)
+		}
+	}
+
+	// The RPC filter API returns these errors verbatim; the granular texts are
+	// part of the user-visible contract.
+	for _, tt := range []struct {
+		input string
+		want  string
+	}{
+		{"", "empty hex string"},
+		{strings.Repeat("11", AddressLength), "hex string without Q prefix"},
+		{"Q123", "hex string of odd length"},
+		{"Qzz", "invalid hex string"},
+		{"Q" + strings.Repeat("11", 20), fmt.Sprintf("hex has invalid length %d after decoding; expected %d for address", 20, AddressLength)},
+	} {
+		_, err := ParseAddress(tt.input)
+		if err == nil || err.Error() != tt.want {
+			t.Fatalf("ParseAddress(%q) error = %v, want %q", tt.input, err, tt.want)
+		}
+	}
+}
+
 func TestIsAddress(t *testing.T) {
 	tests := []struct {
 		str string

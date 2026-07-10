@@ -183,3 +183,55 @@ func TestUnmarshalJSONNewFilterArgs(t *testing.T) {
 		t.Fatalf("expected 0 topics, got %d topics", len(test7.Topics[2]))
 	}
 }
+
+// TestUnmarshalJSONInvalidAddresses pins the exact error strings returned for
+// malformed address criteria; they are part of the user-visible RPC contract.
+func TestUnmarshalJSONInvalidAddresses(t *testing.T) {
+	valid := common.MustParseAddress("Q000000000000000000000000000000000000000000000000000000000000000000000000000000000000000070c87d191324e6712a591f304b4eedef6ad9bb9d")
+
+	tests := []struct {
+		vector string
+		err    string
+	}{
+		{
+			`{"address": ""}`,
+			"invalid address: empty hex string",
+		},
+		{
+			`{"address": "0x70c87d191324e6712a591f304b4eedef6ad9bb9d"}`,
+			"invalid address: hex string without Q prefix",
+		},
+		{
+			`{"address": "Q123"}`,
+			"invalid address: hex string of odd length",
+		},
+		{
+			`{"address": "Qzz"}`,
+			"invalid address: invalid hex string",
+		},
+		{
+			`{"address": "Q70c87d191324e6712a591f304b4eedef6ad9bb9d"}`,
+			"invalid address: hex has invalid length 20 after decoding; expected 64 for address",
+		},
+		{
+			fmt.Sprintf(`{"address": ["%s", "Q1234"]}`, valid.Hex()),
+			"invalid address at index 1: hex has invalid length 2 after decoding; expected 64 for address",
+		},
+		{
+			fmt.Sprintf(`{"address": ["%s", 1]}`, valid.Hex()),
+			"non-string address at index 1",
+		},
+		{
+			`{"address": 1}`,
+			"invalid addresses in query",
+		},
+	}
+
+	for _, tt := range tests {
+		var args FilterCriteria
+		err := json.Unmarshal([]byte(tt.vector), &args)
+		if err == nil || err.Error() != tt.err {
+			t.Fatalf("unmarshal %s: error = %v, want %q", tt.vector, err, tt.err)
+		}
+	}
+}

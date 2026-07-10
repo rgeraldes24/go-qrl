@@ -418,19 +418,39 @@ func BytesToAddress(b []byte) Address {
 // If b is larger than len(h), b will be cropped from the left.
 func BigToAddress(b *big.Int) Address { return BytesToAddress(b.Bytes()) }
 
-// NewAddressFromString returns Address with byte values of s.
-func NewAddressFromString(hexaddr string) (Address, error) {
-	if !IsAddress(hexaddr) {
-		return Address{}, ErrInvalidAddress
+// ParseAddress parses s as a complete serialized address: a Q-prefixed hex
+// string decoding to exactly AddressLength bytes. Both nibble casings are
+// accepted; the QIP-55 checksum casing is not validated. It is the canonical
+// strict parser; use NewAddressFromString when a single sentinel error is
+// preferred over the granular parse errors.
+func ParseAddress(s string) (Address, error) {
+	var a Address
+	b, err := hexutil.DecodeQ(s)
+	if err != nil {
+		return a, err
 	}
-	rawAddr, _ := hex.DecodeString(hexaddr[1:])
-	return BytesToAddress(rawAddr), nil
+	if len(b) != AddressLength {
+		return a, fmt.Errorf("hex has invalid length %d after decoding; expected %d for address", len(b), AddressLength)
+	}
+	copy(a[:], b)
+	return a, nil
 }
 
-// MustParseAddress calls NewAddressFromString and panics on error.
+// NewAddressFromString returns Address with byte values of s.
+// It collapses all parse failures into ErrInvalidAddress; use ParseAddress
+// when the caller needs to report why the input was rejected.
+func NewAddressFromString(hexaddr string) (Address, error) {
+	addr, err := ParseAddress(hexaddr)
+	if err != nil {
+		return Address{}, ErrInvalidAddress
+	}
+	return addr, nil
+}
+
+// MustParseAddress calls ParseAddress and panics on error.
 // It is intended for tests and package-level initializations with hard-coded strings.
 func MustParseAddress(hexaddr string) Address {
-	addr, err := NewAddressFromString(hexaddr)
+	addr, err := ParseAddress(hexaddr)
 	if err != nil {
 		panic(fmt.Errorf("invalid QRL address %q: %w", hexaddr, err))
 	}
@@ -440,12 +460,8 @@ func MustParseAddress(hexaddr string) Address {
 // IsAddress verifies whether a string can represent a valid hex-encoded
 // QRL address or not.
 func IsAddress(s string) bool {
-	if !hasQPrefix(s) {
-		return false
-	}
-	s = s[1:]
-
-	return len(s) == 2*AddressLength && isHex(s)
+	_, err := ParseAddress(s)
+	return err == nil
 }
 
 // IsHexEncodedHash verifies whether a string can represent a valid hex-encoded
@@ -611,11 +627,11 @@ func NewMixedcaseAddress(addr Address) MixedcaseAddress {
 
 // NewMixedcaseAddressFromString is mainly meant for unit-testing
 func NewMixedcaseAddressFromString(hexaddr string) (*MixedcaseAddress, error) {
-	if !IsAddress(hexaddr) {
+	addr, err := ParseAddress(hexaddr)
+	if err != nil {
 		return nil, ErrInvalidAddress
 	}
-	rawAddr, _ := hex.DecodeString(hexaddr[1:])
-	return &MixedcaseAddress{addr: BytesToAddress(rawAddr), original: hexaddr}, nil
+	return &MixedcaseAddress{addr: addr, original: hexaddr}, nil
 }
 
 // MustParseMixedcaseAddress calls NewMixedcaseAddressFromString and panics on
