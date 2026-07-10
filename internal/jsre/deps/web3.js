@@ -2135,12 +2135,7 @@ var isBloom = function (bloom) {
  * @return {Boolean}
  */
 var isTopic = function (topic) {
-    if (!/^(0x)?[0-9a-f]{64}$/i.test(topic)) {
-        return false;
-    } else if (/^(0x)?[0-9a-f]{64}$/.test(topic) || /^(0x)?[0-9A-F]{64}$/.test(topic)) {
-        return true;
-    }
-    return false;
+    return /^(0x)?[0-9a-f]{128}$/i.test(topic);
 };
 
 module.exports = {
@@ -2330,7 +2325,6 @@ module.exports = Web3;
  * @date 2014
  */
 
-var sha3 = require('../utils/sha3');
 var HyperionEvent = require('./event');
 var formatters = require('./formatters');
 var utils = require('../utils/utils');
@@ -2358,21 +2352,38 @@ AllHyperionEvents.prototype.encode = function (options) {
     return result;
 };
 
+// Lazily maps signature topics to decoder instances: the formatter runs per
+// log, and recomputing every event's keccak per log is O(logs x events).
+AllHyperionEvents.prototype._eventByTopic = function (topic) {
+    if (!this._topicToEvent) {
+        var self = this;
+        var map = {};
+        this._json.forEach(function (json) {
+            var event = new HyperionEvent(self._requestManager, json, self._address);
+            var key = event.signatureTopic();
+            if (!(key in map)) { // first match wins, like the filter()[0] it replaces
+                map[key] = event;
+            }
+        });
+        this._topicToEvent = map;
+    }
+    return this._topicToEvent[topic];
+};
+
 AllHyperionEvents.prototype.decode = function (data) {
     data.data = data.data || '';
     data.topics = data.topics || [];
 
-    var eventTopic = data.topics[0].slice(2);
-    var match = this._json.filter(function (j) {
-        return eventTopic === sha3(utils.transformToFullName(j));
-    })[0];
+    if (!data.topics.length) { // LOG0/anonymous logs carry no signature topic
+        return data;
+    }
 
-    if (!match) { // cannot find matching event?
+    var event = this._eventByTopic(data.topics[0].replace(/^0x/i, '').toLowerCase());
+    if (!event) { // cannot find matching event?
         console.warn('cannot find event for log');
         return data;
     }
 
-    var event = new HyperionEvent(this._requestManager, match, this._address);
     return event.decode(data);
 };
 
@@ -2397,7 +2408,7 @@ AllHyperionEvents.prototype.attachToContract = function (contract) {
 module.exports = AllHyperionEvents;
 
 
-},{"../utils/sha3":19,"../utils/utils":20,"./event":27,"./filter":29,"./formatters":30,"./methods/watches":43}],24:[function(require,module,exports){
+},{"../utils/utils":20,"./event":27,"./filter":29,"./formatters":30,"./methods/watches":43}],24:[function(require,module,exports){
 /*
     This file is part of web3.js.
 
@@ -2873,8 +2884,6 @@ var HyperionEvent = function (requestManager, json, address) {
 HyperionEvent.prototype.types = function (indexed) {
     return this._params.filter(function (i) {
         return i.indexed === indexed;
-    }).map(function (i) {
-        return i.type;
     });
 };
 
@@ -2908,6 +2917,72 @@ HyperionEvent.prototype.signature = function () {
     return sha3(this._name);
 };
 
+HyperionEvent.prototype.signatureTopic = function () {
+    // memoized: decode recomputes it for every log in a getLogs response
+    if (!this._signatureTopic) {
+        this._signatureTopic = leftAlignedLogTopic(this.signature());
+    }
+    return this._signatureTopic;
+};
+
+// VM64 word = 64 bytes = 128 hex chars; keep in sync with QRL_PADDING in
+// utils/config and the isTopic/address regexes in utils/utils.
+var logTopicHexLength = 128;
+
+var stripHexPrefix = function (value) {
+    return /^0x/i.test(value) ? value.substr(2) : value;
+};
+
+var leftAlignedLogTopic = function (value) {
+    return utils.padRight(stripHexPrefix(value), logTopicHexLength);
+};
+
+var abiTypeName = function (type) {
+    return typeof type === 'string' ? type : type.type;
+};
+
+var isCompositeIndexedType = function (type) {
+    var name = abiTypeName(type);
+    return name.indexOf('[') !== -1 || name.indexOf('tuple') === 0;
+};
+
+var isDynamicIndexedType = function (type) {
+    var name = abiTypeName(type);
+    return name === 'string' || name === 'bytes' || isCompositeIndexedType(type);
+};
+
+var indexedTopic = function (type, value) {
+    var name = abiTypeName(type);
+    if (name === 'string') {
+        return leftAlignedLogTopic(sha3(value));
+    }
+    if (name === 'bytes') {
+        var hex = stripHexPrefix(utils.toHex(value));
+        if (!/^([0-9a-fA-F]{2})*$/.test(hex)) {
+            throw Error('invalid hex bytes value for indexed filter');
+        }
+        return leftAlignedLogTopic(sha3(hex, {encoding: 'hex'}));
+    }
+    if (isCompositeIndexedType(type)) {
+        if (utils.isString(value) && utils.isTopic(value)) {
+            return stripHexPrefix(value);
+        }
+        throw Error('indexed array and tuple filters require a precomputed 64-byte topic');
+    }
+    return coder.encodeParam(type, value);
+};
+
+var decodeIndexedTopic = function (type, topic) {
+    if (!utils.isString(topic) || !utils.isTopic(topic)) {
+        throw Error('invalid indexed event topic');
+    }
+    var value = stripHexPrefix(topic);
+    if (isDynamicIndexedType(type)) {
+        return '0x' + value;
+    }
+    return coder.decodeParam(type, value);
+};
+
 /**
  * Should be used to encode indexed params and options to one final object
  *
@@ -2931,7 +3006,7 @@ HyperionEvent.prototype.encode = function (indexed, options) {
 
     result.address = this._address;
     if (!this._anonymous) {
-        result.topics.push('0x' + this.signature());
+        result.topics.push('0x' + this.signatureTopic());
     }
 
     var indexedTopics = this._params.filter(function (i) {
@@ -2943,11 +3018,19 @@ HyperionEvent.prototype.encode = function (indexed, options) {
         }
 
         if (utils.isArray(value)) {
-            return value.map(function (v) {
-                return '0x' + coder.encodeParam(i.type, v);
-            });
+            var alternatives = [];
+            for (var index = 0; index < value.length; index++) {
+                if (!Object.prototype.hasOwnProperty.call(value, index)) {
+                    throw Error('sparse topic alternatives are not supported');
+                }
+                if (value[index] === null || value[index] === undefined) {
+                    return null;
+                }
+                alternatives.push('0x' + indexedTopic(i.type, value[index]));
+            }
+            return alternatives;
         }
-        return '0x' + coder.encodeParam(i.type, value);
+        return '0x' + indexedTopic(i.type, value);
     });
 
     result.topics = result.topics.concat(indexedTopics);
@@ -2967,11 +3050,23 @@ HyperionEvent.prototype.decode = function (data) {
     data.data = data.data || '';
     data.topics = data.topics || [];
 
-    var argTopics = this._anonymous ? data.topics : data.topics.slice(1);
-    var indexedData = argTopics.map(function (topics) { return topics.slice(2); }).join("");
-    var indexedParams = coder.decodeParams(this.types(true), indexedData);
+    var indexedTypes = this.types(true);
+    var expectedTopicCount = indexedTypes.length + (this._anonymous ? 0 : 1);
+    if (data.topics.length !== expectedTopicCount || data.topics.some(function (topic) {
+        return !utils.isString(topic) || !utils.isTopic(topic);
+    })) {
+        throw Error('invalid event topics');
+    }
+    if (!this._anonymous && stripHexPrefix(data.topics[0]).toLowerCase() !== this.signatureTopic()) {
+        throw Error('event signature topic does not match');
+    }
 
-    var notIndexedData = data.data.slice(2);
+    var argTopics = this._anonymous ? data.topics : data.topics.slice(1);
+    var indexedParams = indexedTypes.map(function (type, index) {
+        return decodeIndexedTopic(type, argTopics[index]);
+    });
+
+    var notIndexedData = data.data.replace(/^0x/i, '');
     var notIndexedParams = coder.decodeParams(this.types(false), notIndexedData);
 
     var result = formatters.outputLogFormatter(data);
@@ -3125,7 +3220,7 @@ var toTopic = function(value){
 
     value = String(value);
 
-    if(value.indexOf('0x') === 0)
+    if(/^0x/i.test(value))
         return value;
     else
         return utils.fromUtf8(value);
