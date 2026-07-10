@@ -236,6 +236,37 @@ func TestMakeTopics(t *testing.T) {
 	})
 }
 
+// TestMakeTopicsFunctionValue checks that an indexed function value is hashed
+// like other reference types: keccak256 of the packed 68-byte
+// (address || selector) encoding, left-aligned in the topic.
+func TestMakeTopicsFunctionValue(t *testing.T) {
+	t.Parallel()
+
+	var value [common.AddressLength + 4]byte
+	value[0] = 0x01
+	copy(value[common.AddressLength:], []byte{0xde, 0xad, 0xbe, 0xef})
+
+	topics, err := MakeTopics([]any{value})
+	if err != nil {
+		t.Fatalf("MakeTopics function value: %v", err)
+	}
+	var want common.LogTopic
+	copy(want[:common.HashLength], crypto.Keccak256(value[:]))
+	if topics[0][0] != want {
+		t.Fatalf("function value topic = %x, want %x", topics[0][0], want)
+	}
+}
+
+func TestMakeTopicsRejectsOversizedFixedByteArray(t *testing.T) {
+	t.Parallel()
+
+	var value [common.LogTopicLength + 1]byte
+	_, err := MakeTopics([]any{value})
+	if err == nil {
+		t.Fatal("MakeTopics accepted oversized fixed byte array")
+	}
+}
+
 type args struct {
 	createObj func() any
 	resultObj func() any
@@ -261,11 +292,12 @@ type hashStruct struct {
 	HashValue common.LogTopic
 }
 
-// funcStruct mirrors the Solidity `function` type, which is address followed
-// by a 4-byte selector. With 64-byte addresses it no longer fits in one
-// 64-byte ABI word and is rejected by encoder/decoder paths.
+// funcStruct receives an indexed Hyperion `function` value. Like other
+// reference types, indexed function values are stored as the keccak256 hash
+// of their packed 68-byte (address || selector) encoding, so the topic is
+// handed back verbatim rather than reconstructed.
 type funcStruct struct {
-	FuncValue [common.AddressLength + 4]byte
+	FuncValue common.LogTopic
 }
 
 type topicTest struct {
@@ -377,26 +409,20 @@ func setupTopicsTests() []topicTest {
 			name: "function type",
 			args: args{
 				createObj: func() any { return &funcStruct{} },
-				resultObj: func() any { return &funcStruct{} },
+				resultObj: func() any { return &funcStruct{FuncValue: allOnesTopic} },
 				resultMap: func() map[string]any {
-					return map[string]any{}
+					return map[string]any{"funcValue": allOnesTopic}
 				},
 				fields: Arguments{Argument{
 					Name:    "funcValue",
 					Type:    funcType,
 					Indexed: true,
 				}},
-				// 64-byte addresses leave no room for the extra 4-byte selector,
-				// so ABI function values are rejected.
-				topics: []common.LogTopic{func() common.LogTopic {
-					var t common.LogTopic
-					for i := range t {
-						t[i] = 0xff
-					}
-					return t
-				}()},
+				// Indexed function values are hashed, so the topic is handed
+				// back verbatim.
+				topics: []common.LogTopic{allOnesTopic},
 			},
-			wantErr: true,
+			wantErr: false,
 		},
 		{
 			name: "error on topic/field count mismatch",
@@ -443,31 +469,6 @@ func setupTopicsTests() []topicTest {
 			},
 			wantErr: true,
 		},
-		{
-			name: "error on improper encoded function",
-			args: args{
-				createObj: func() any { return &funcStruct{} },
-				resultObj: func() any { return &funcStruct{} },
-				resultMap: func() map[string]any {
-					return make(map[string]any)
-				},
-				fields: Arguments{Argument{
-					Name:    "funcValue",
-					Type:    funcType,
-					Indexed: true,
-				}},
-				// 64-byte addresses leave no room for the extra 4-byte selector,
-				// so ABI function values are rejected.
-				topics: []common.LogTopic{func() common.LogTopic {
-					var t common.LogTopic
-					for i := range t {
-						t[i] = 0xff
-					}
-					return t
-				}()},
-			},
-			wantErr: true,
-		},
 	}
 
 	return tests
@@ -489,6 +490,41 @@ func TestParseTopics(t *testing.T) {
 				t.Errorf("parseTopics() = %v, want %v", createObj, resultObj)
 			}
 		})
+	}
+}
+
+// TestFunctionTypeTopicRoundTrip checks that a topic built by MakeTopics for
+// a function value comes back verbatim from ParseTopics — the value itself is
+// not reconstructible from its keccak256 hash.
+func TestFunctionTypeTopicRoundTrip(t *testing.T) {
+	t.Parallel()
+
+	var value [common.AddressLength + 4]byte
+	value[0] = 0x01
+	copy(value[common.AddressLength:], []byte{0xde, 0xad, 0xbe, 0xef})
+
+	topics, err := MakeTopics([]any{value})
+	if err != nil {
+		t.Fatalf("MakeTopics function value: %v", err)
+	}
+
+	funcType, err := NewType("function", "", nil)
+	if err != nil {
+		t.Fatalf("build function type: %v", err)
+	}
+	out := funcStruct{}
+	err = ParseTopics(&out, Arguments{{
+		Name:    "funcValue",
+		Type:    funcType,
+		Indexed: true,
+	}}, topics[0])
+	if err != nil {
+		t.Fatalf("ParseTopics function value: %v", err)
+	}
+	var want common.LogTopic
+	copy(want[:common.HashLength], crypto.Keccak256(value[:]))
+	if out.FuncValue != want {
+		t.Fatalf("ParseTopics function value = %x, want %x", out.FuncValue, want)
 	}
 }
 

@@ -199,6 +199,27 @@ func TestCalldataDecoding(t *testing.T) {
 	}
 }
 
+func TestCalldataDecodingFunctionValue(t *testing.T) {
+	t.Parallel()
+
+	const spec = `[{"type":"function","name":"setCallback","inputs":[{"name":"callback","type":"function"}]}]`
+	var callback [common.AddressLength + 4]byte
+	callback[0] = 0x01
+	copy(callback[common.AddressLength:], []byte{0xde, 0xad, 0xbe, 0xef})
+	calldata := common.Hex2Bytes(mustPack(t, spec, "setCallback", callback))
+
+	decoded, err := parseCallData(calldata, spec)
+	if err != nil {
+		t.Fatalf("decode function calldata: %v", err)
+	}
+	if len(decoded.inputs) != 1 {
+		t.Fatalf("decoded %d inputs, want 1", len(decoded.inputs))
+	}
+	if got := decoded.inputs[0].value.([common.AddressLength + 4]byte); got != callback {
+		t.Fatalf("decoded function value = %x, want %x", got, callback)
+	}
+}
+
 func TestValidateCallDataRequiresABIWordAlignment(t *testing.T) {
 	t.Parallel()
 

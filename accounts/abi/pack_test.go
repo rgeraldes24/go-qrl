@@ -32,7 +32,6 @@ import (
 
 // TestPack tests the general pack/unpack tests in packing_test.go
 func TestPack(t *testing.T) {
-	
 	t.Parallel()
 	for i, test := range packUnpackTests {
 		t.Run(strconv.Itoa(i), func(t *testing.T) {
@@ -56,6 +55,77 @@ func TestPack(t *testing.T) {
 				t.Errorf("test %d (%v) failed: expected %v, got %v", i, test.def, encb, packed[4:])
 			}
 		})
+	}
+}
+
+// TestPackFunctionTypeHeadOffsets checks that a function value ahead of a
+// dynamic argument occupies two head slots, pushing the dynamic tail offset
+// to 128+64 = 192 bytes.
+func TestPackFunctionTypeHeadOffsets(t *testing.T) {
+	t.Parallel()
+
+	fn := functionValue(1, [4]byte{0xde, 0xad, 0xbe, 0xef})
+	def := `[{"name":"method","type":"function","inputs":[{"type":"function"},{"type":"string"}]}]`
+	abi, err := JSON(strings.NewReader(def))
+	if err != nil {
+		t.Fatalf("invalid ABI definition: %v", err)
+	}
+	packed, err := abi.Pack("method", fn, "hyperion")
+	if err != nil {
+		t.Fatalf("pack function type: %v", err)
+	}
+
+	var want []byte
+	want = append(want, fn[:common.AddressLength]...)                          // address word
+	want = append(want, common.LeftPadBytes(fn[common.AddressLength:], 64)...) // selector word, right-aligned
+	want = append(want, common.LeftPadBytes([]byte{192}, 64)...)               // string offset past the 3-slot head
+	want = append(want, common.LeftPadBytes([]byte{8}, 64)...)                 // string length
+	want = append(want, common.RightPadBytes([]byte("hyperion"), 64)...)       // string contents
+	if !bytes.Equal(packed[4:], want) {
+		t.Fatalf("packed function+string mismatch:\ngot  %x\nwant %x", packed[4:], want)
+	}
+}
+
+// TestPackFunctionArrayHeadOffsets checks that a static array of two-word
+// function values contributes its complete inline size to the surrounding
+// argument head.
+func TestPackFunctionArrayHeadOffsets(t *testing.T) {
+	t.Parallel()
+
+	functions := [2][common.AddressLength + 4]byte{
+		functionValue(1, [4]byte{0xde, 0xad, 0xbe, 0xef}),
+		functionValue(2, [4]byte{0xca, 0xfe, 0xba, 0xbe}),
+	}
+	def := `[{"name":"method","type":"function","inputs":[{"type":"function[2]"},{"type":"string"}]}]`
+	abi, err := JSON(strings.NewReader(def))
+	if err != nil {
+		t.Fatalf("invalid ABI definition: %v", err)
+	}
+	packed, err := abi.Pack("method", functions, "hyperion")
+	if err != nil {
+		t.Fatalf("pack function array: %v", err)
+	}
+
+	// The array occupies four words. The string's offset word follows it and
+	// points past the complete five-word head.
+	wantOffset := common.LeftPadBytes([]byte{0x01, 0x40}, 64)
+	if got := packed[4+4*64 : 4+5*64]; !bytes.Equal(got, wantOffset) {
+		t.Fatalf("string offset after function array = %x, want %x", got, wantOffset)
+	}
+}
+
+// TestPackFunctionTypeWrongLength checks that missized fixed byte arrays are
+// rejected by the function type's pack type check.
+func TestPackFunctionTypeWrongLength(t *testing.T) {
+	t.Parallel()
+
+	def := `[{"name":"method","type":"function","inputs":[{"type":"function"}]}]`
+	abi, err := JSON(strings.NewReader(def))
+	if err != nil {
+		t.Fatalf("invalid ABI definition: %v", err)
+	}
+	if _, err = abi.Pack("method", [common.AddressLength]byte{}); err == nil {
+		t.Fatal("packed an address-sized array as a function value")
 	}
 }
 
@@ -96,7 +166,7 @@ func TestMethodPack(t *testing.T) {
 
 	var addrC, addrD = common.Address{3}, common.Address{4}
 	sig = abi.Methods["sliceMultiAddress"].ID
-	sig = append(sig, common.LeftPadBytes([]byte{0x80}, 64)...)     // 2 head slots * 64 = 128
+	sig = append(sig, common.LeftPadBytes([]byte{0x80}, 64)...)       // 2 head slots * 64 = 128
 	sig = append(sig, common.LeftPadBytes([]byte{0x01, 0x40}, 64)...) // 128 + count + 2 elems = 320
 	sig = append(sig, common.LeftPadBytes([]byte{2}, 64)...)
 	sig = append(sig, common.LeftPadBytes(addrA[:], 64)...)
@@ -161,7 +231,7 @@ func TestMethodPack(t *testing.T) {
 	}
 
 	sig = abi.Methods["nestedSlice"].ID
-	sig = append(sig, common.LeftPadBytes([]byte{0x40}, 64)...)       // 0x20 → 0x40
+	sig = append(sig, common.LeftPadBytes([]byte{0x40}, 64)...) // 0x20 → 0x40
 	sig = append(sig, common.LeftPadBytes([]byte{0x02}, 64)...)
 	sig = append(sig, common.LeftPadBytes([]byte{0x80}, 64)...)       // 0x40 → 0x80
 	sig = append(sig, common.LeftPadBytes([]byte{0x01, 0x40}, 64)...) // 0xa0 → 0x140

@@ -123,25 +123,27 @@ func readBool(word []byte) (bool, error) {
 	}
 }
 
-// A function type is simply the address with the function selection signature at the end.
+// readFunctionType reconstructs a Hyperion external function value from its
+// two-word ABI encoding: the 64-byte address occupies the first word and the
+// 4-byte selector sits right-aligned in the second. The Go representation is
+// the 68-byte concatenation address || selector.
 //
-// readFunctionType enforces that standard by always presenting it as an array of
-// (AddressLength + 4) bytes (address + 4-byte selector).
-func readFunctionType(t Type, word []byte) (funcTy [common.AddressLength + 4]byte, err error) {
+// Hyperion's own decoder masks the selector word with 0xffffffff and silently
+// discards dirty high bytes; this decoder is stricter and rejects them, in
+// line with the package's other canonical-encoding checks.
+func readFunctionType(t Type, words []byte) (funcTy [common.AddressLength + 4]byte, err error) {
 	if t.T != FunctionTy {
-		return [common.AddressLength + 4]byte{}, errors.New("abi: invalid type in call to make function type byte array")
+		return funcTy, errors.New("abi: invalid type in call to make function type")
 	}
-	if common.AddressLength+4 > len(word) {
-		return [common.AddressLength + 4]byte{}, errors.New("abi: function type does not fit in a 64-byte ABI word with 64-byte addresses")
-	}
-	for _, b := range word[common.AddressLength+4:] {
+	selectorWord := words[64:128]
+	for _, b := range selectorWord[:60] {
 		if b != 0 {
-			err = fmt.Errorf("abi: got improperly encoded function type, got %v", word)
-			return
+			return funcTy, errBadFunctionSelector
 		}
 	}
-	copy(funcTy[:], word[0:common.AddressLength+4])
-	return
+	copy(funcTy[:common.AddressLength], words[:64])
+	copy(funcTy[common.AddressLength:], selectorWord[60:])
+	return funcTy, nil
 }
 
 // ReadFixedBytes uses reflection to create a fixed array to be read from.
@@ -161,8 +163,13 @@ func forEachUnpack(t Type, output []byte, start, size int) (any, error) {
 	if size < 0 {
 		return nil, fmt.Errorf("cannot marshal input to array, size is negative (%d)", size)
 	}
-	if start+64*size > len(output) {
-		return nil, fmt.Errorf("abi: cannot marshal into go array: offset %d would go over slice boundary (len=%d)", len(output), start+64*size)
+
+	// Static elements are encoded inline at their full size. Dynamic elements
+	// occupy one 64-byte offset word in the array head.
+	elemSize := getTypeSize(*t.Elem)
+
+	if start+elemSize*size > len(output) {
+		return nil, fmt.Errorf("abi: cannot marshal into go array: offset %d would go over slice boundary (len=%d)", len(output), start+elemSize*size)
 	}
 
 	// this value will become our slice or our array, depending on the type
@@ -178,10 +185,6 @@ func forEachUnpack(t Type, output []byte, start, size int) (any, error) {
 	default:
 		return nil, errors.New("abi: invalid type in array/slice unpacking stage")
 	}
-
-	// Arrays have packed elements, resulting in longer unpack steps.
-	// Slices have just 32 bytes per element (pointing to the contents).
-	elemSize := getTypeSize(*t.Elem)
 
 	for i, j := start, 0; j < size; i, j = i+elemSize, j+1 {
 		inter, err := toGoType(i, *t.Elem, output)
@@ -221,6 +224,10 @@ func forTupleUnpack(t Type, output []byte) (any, error) {
 			// If we have a static tuple, like (uint256, bool, uint256), these are
 			// coded as just like uint256,bool,uint256
 			virtualArgs += getTypeSize(*elem)/64 - 1
+		} else if elem.T == FunctionTy {
+			// function values are static but span two words (address word +
+			// selector word), so they consume one extra head slot.
+			virtualArgs += getTypeSize(*elem)/64 - 1
 		}
 		retval.Field(index).Set(reflect.ValueOf(marshalledValue))
 	}
@@ -230,6 +237,14 @@ func forTupleUnpack(t Type, output []byte) (any, error) {
 // toGoType parses the output bytes and recursively assigns the value of these bytes
 // into a go type with accordance with the ABI spec.
 func toGoType(index int, t Type, output []byte) (any, error) {
+	if t.T == FunctionTy {
+		// function values span two words instead of the single word every
+		// other head element occupies.
+		if index+128 > len(output) {
+			return nil, fmt.Errorf("abi: cannot marshal in to go type: length insufficient %d require %d", len(output), index+128)
+		}
+		return readFunctionType(t, output[index:index+128])
+	}
 	if index+64 > len(output) {
 		return nil, fmt.Errorf("abi: cannot marshal in to go type: length insufficient %d require %d", len(output), index+64)
 	}
@@ -285,8 +300,6 @@ func toGoType(index int, t Type, output []byte) (any, error) {
 		return output[begin : begin+length], nil
 	case FixedBytesTy:
 		return ReadFixedBytes(t, returnOutput)
-	case FunctionTy:
-		return readFunctionType(t, returnOutput)
 	default:
 		return nil, fmt.Errorf("abi: unknown type %v", t.T)
 	}

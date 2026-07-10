@@ -33,6 +33,10 @@ var (
 	errBadInt32    = errors.New("abi: improperly encoded int32 value")
 	errBadInt64    = errors.New("abi: improperly encoded int64 value")
 	errInvalidSign = errors.New("abi: negatively-signed value cannot be packed into uint parameter")
+
+	// errBadFunctionSelector is returned when the selector word of a two-word
+	// function value carries non-zero bytes above the low 4-byte selector.
+	errBadFunctionSelector = errors.New("abi: improperly encoded function value selector word")
 )
 
 // formatSliceString formats the reflection kind with the given slice size
@@ -77,7 +81,7 @@ func typeCheck(t Type, value reflect.Value) error {
 	// Check base type validity. Element types will be checked later on.
 	if t.GetType().Kind() != value.Kind() {
 		return typeErr(t.GetType().Kind(), value.Kind())
-	} else if t.T == FixedBytesTy && t.Size != value.Len() {
+	} else if (t.T == FixedBytesTy || t.T == FunctionTy) && t.Size != value.Len() {
 		return typeErr(t.GetType(), value.Type())
 	} else {
 		return nil

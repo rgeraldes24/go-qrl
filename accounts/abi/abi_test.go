@@ -275,6 +275,22 @@ func TestMethodSignature(t *testing.T) {
 	if m.Sig != exp {
 		t.Error("signature mismatch", exp, "!=", m.Sig)
 	}
+
+	// Method with a function-typed argument: the canonical signature form is
+	// "function", so the selector matches Hyperion's.
+	fn, err := NewType("function", "", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	m = NewMethod("test", "test", Function, "", []Argument{{"callback", fn, false}}, nil)
+	exp = "test(function)"
+	if m.Sig != exp {
+		t.Error("signature mismatch", exp, "!=", m.Sig)
+	}
+	idexp = crypto.Keccak256([]byte(exp))[:4]
+	if !bytes.Equal(m.ID, idexp) {
+		t.Errorf("expected ids to match %x != %x", m.ID, idexp)
+	}
 }
 
 func TestOverloadedMethodSignature(t *testing.T) {

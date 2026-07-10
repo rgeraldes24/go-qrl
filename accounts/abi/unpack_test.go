@@ -96,6 +96,66 @@ func TestUnpack(t *testing.T) {
 	}
 }
 
+// TestUnpackFunctionTypeHeadOffsets checks that an argument following a
+// two-word function value is read from the third head slot.
+func TestUnpackFunctionTypeHeadOffsets(t *testing.T) {
+	t.Parallel()
+
+	def := `[{"name":"method","type":"function","outputs":[{"type":"function"},{"type":"uint256"}]}]`
+	abi, err := JSON(strings.NewReader(def))
+	if err != nil {
+		t.Fatalf("invalid ABI definition: %v", err)
+	}
+	fn := functionValue(1, [4]byte{0xde, 0xad, 0xbe, 0xef})
+	var output []byte
+	output = append(output, fn[:common.AddressLength]...)                          // address word
+	output = append(output, common.LeftPadBytes(fn[common.AddressLength:], 64)...) // selector word
+	output = append(output, common.LeftPadBytes([]byte{42}, 64)...)                // uint256 in the third slot
+
+	out, err := abi.Unpack("method", output)
+	if err != nil {
+		t.Fatalf("unpack function type: %v", err)
+	}
+	if got := out[0].([common.AddressLength + 4]byte); got != fn {
+		t.Errorf("unpacked function value mismatch: got %x, want %x", got, fn)
+	}
+	if got := out[1].(*big.Int); got.Cmp(big.NewInt(42)) != 0 {
+		t.Errorf("unpacked trailing uint256 mismatch: got %v, want 42", got)
+	}
+}
+
+// TestUnpackFunctionArrayHeadOffsets checks that an argument following a
+// static array of two-word function values is read after all four array words.
+func TestUnpackFunctionArrayHeadOffsets(t *testing.T) {
+	t.Parallel()
+
+	def := `[{"name":"method","type":"function","outputs":[{"type":"function[2]"},{"type":"uint256"}]}]`
+	abi, err := JSON(strings.NewReader(def))
+	if err != nil {
+		t.Fatalf("invalid ABI definition: %v", err)
+	}
+	functions := [2][common.AddressLength + 4]byte{
+		functionValue(1, [4]byte{0xde, 0xad, 0xbe, 0xef}),
+		functionValue(2, [4]byte{0xca, 0xfe, 0xba, 0xbe}),
+	}
+	encodedFunctions, err := abi.Methods["method"].Outputs[0].Type.pack(reflect.ValueOf(functions))
+	if err != nil {
+		t.Fatalf("pack function array: %v", err)
+	}
+	output := append(encodedFunctions, common.LeftPadBytes([]byte{42}, 64)...)
+
+	out, err := abi.Unpack("method", output)
+	if err != nil {
+		t.Fatalf("unpack function array: %v", err)
+	}
+	if got := out[0].([2][common.AddressLength + 4]byte); got != functions {
+		t.Errorf("unpacked function array mismatch: got %x, want %x", got, functions)
+	}
+	if got := out[1].(*big.Int); got.Cmp(big.NewInt(42)) != 0 {
+		t.Errorf("unpacked trailing uint256 mismatch: got %v, want 42", got)
+	}
+}
+
 type unpackTest struct {
 	def  string // ABI definition JSON
 	enc  string // qrvm return data
@@ -158,6 +218,22 @@ var unpackTests = []unpackTest{
 		enc:  z32 + "0000000000000000000000000000000000000000000000000000000000000001",
 		want: int16(0),
 		err:  "abi: cannot unmarshal *big.Int in to int16",
+	},
+	// Function values: two words, and unlike Hyperion's decoder (which masks
+	// the selector word with 0xffffffff) dirty high bytes are rejected.
+	{
+		def: `[{"type": "function"}]`,
+		enc: "01000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000" +
+			z32 + "01000000000000000000000000000000000000000000000000000000deadbeef",
+		want: [common.AddressLength + 4]byte{},
+		err:  "abi: improperly encoded function value selector word",
+	},
+	{
+		// A single word is not enough for the two-word encoding.
+		def:  `[{"type": "function"}]`,
+		enc:  "01000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+		want: [common.AddressLength + 4]byte{},
+		err:  "abi: cannot marshal in to go type: length insufficient 64 require 128",
 	},
 	{
 		// Dynamic bytes: offset (0x40, past the single-head slot),

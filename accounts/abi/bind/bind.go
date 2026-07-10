@@ -311,7 +311,9 @@ func bindBasicType(kind abi.Type) string {
 	case abi.BytesTy:
 		return "[]byte"
 	case abi.FunctionTy:
-		return "[24]byte"
+		// External function values are the 64-byte address followed by the
+		// 4-byte selector.
+		return fmt.Sprintf("[%d]byte", kind.Size)
 	default:
 		// string, bool types
 		return kind.String()
@@ -347,6 +349,10 @@ func bindTopicType(kind abi.Type, structs map[string]*tmplStruct) string {
 	// array(both fixed-size and dynamic-size) and struct.
 	if bound == "string" || bound == "[]byte" {
 		bound = "common.Hash"
+	} else if kind.T == abi.FunctionTy {
+		// Indexed function values are stored as the keccak256 hash of their
+		// packed encoding; ParseTopics hands the 64-byte topic back verbatim.
+		bound = "common.LogTopic"
 	}
 	return bound
 }
