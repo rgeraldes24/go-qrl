@@ -107,24 +107,9 @@ func keccakToAddress(data ...[]byte) common.Address {
 
 // ToECDSA creates a private key with the given D value.
 func ToECDSA(d []byte) (*ecdsa.PrivateKey, error) {
-	return toECDSA(d, true)
-}
-
-// ToECDSAUnsafe blindly converts a binary blob to a private key. It should almost
-// never be used unless you are sure the input is valid and want to avoid hitting
-// errors due to bad origin encoding (0 prefixes cut off).
-func ToECDSAUnsafe(d []byte) *ecdsa.PrivateKey {
-	priv, _ := toECDSA(d, false)
-	return priv
-}
-
-// toECDSA creates a private key with the given D value. The strict parameter
-// controls whether the key's length should be enforced at the curve size or
-// it can also accept legacy encodings (0 prefixes).
-func toECDSA(d []byte, strict bool) (*ecdsa.PrivateKey, error) {
 	priv := new(ecdsa.PrivateKey)
 	priv.PublicKey.Curve = S256()
-	if strict && 8*len(d) != priv.Params().BitSize {
+	if 8*len(d) != priv.Params().BitSize {
 		return nil, fmt.Errorf("invalid length, need %d bits", priv.Params().BitSize)
 	}
 	priv.D = new(big.Int).SetBytes(d)
@@ -219,11 +204,6 @@ func SaveECDSA(file string, key *ecdsa.PrivateKey) error {
 // GenerateKey generates a new private key.
 func GenerateKey() (*ecdsa.PrivateKey, error) {
 	return ecdsa.GenerateKey(S256(), rand.Reader)
-}
-
-func PubkeyToAddress(p ecdsa.PublicKey) common.Address {
-	pubBytes := FromECDSAPub(&p)
-	return keccakToAddress(pubBytes[1:])
 }
 
 func zeroBytes(bytes []byte) {

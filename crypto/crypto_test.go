@@ -103,10 +103,9 @@ func TestSign(t *testing.T) {
 	if err != nil {
 		t.Errorf("ECRecover error: %s", err)
 	}
-	pubKey, _ := UnmarshalPubkey(recoveredPub)
-	recoveredAddr := PubkeyToAddress(*pubKey)
-	if testAddr != recoveredAddr {
-		t.Errorf("Address mismatch: want: %x have: %x", testAddr, recoveredAddr)
+	wantPub := FromECDSAPub(&key.PublicKey)
+	if !bytes.Equal(wantPub, recoveredPub) {
+		t.Errorf("Public key mismatch: want: %x have: %x", wantPub, recoveredPub)
 	}
 
 	// should be equal to SigToPub
@@ -114,9 +113,9 @@ func TestSign(t *testing.T) {
 	if err != nil {
 		t.Errorf("ECRecover error: %s", err)
 	}
-	recoveredAddr2 := PubkeyToAddress(*recoveredPub2)
-	if testAddr != recoveredAddr2 {
-		t.Errorf("Address mismatch: want: %x have: %x", testAddr, recoveredAddr2)
+	gotPub := FromECDSAPub(recoveredPub2)
+	if !bytes.Equal(wantPub, gotPub) {
+		t.Errorf("Public key mismatch: want: %x have: %x", wantPub, gotPub)
 	}
 }
 
@@ -130,11 +129,6 @@ func TestInvalidSign(t *testing.T) {
 }
 
 func TestNewContractAddress(t *testing.T) {
-	key, _ := HexToECDSA(testPrivHex)
-	genAddr := PubkeyToAddress(key.PublicKey)
-	// sanity check before using addr to create contract address
-	checkAddr(t, genAddr, testAddr)
-
 	caddr0 := CreateAddress(testAddr, 0)
 	caddr1 := CreateAddress(testAddr, 1)
 	caddr2 := CreateAddress(testAddr, 2)

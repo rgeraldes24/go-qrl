@@ -32,7 +32,6 @@ import (
 	"github.com/theQRL/go-qrl/core/txpool/legacypool"
 	"github.com/theQRL/go-qrl/core/types"
 	"github.com/theQRL/go-qrl/core/vm"
-	"github.com/theQRL/go-qrl/crypto"
 	"github.com/theQRL/go-qrl/crypto/pqcrypto/wallet"
 	"github.com/theQRL/go-qrl/params"
 	"github.com/theQRL/go-qrl/qrldb"
@@ -48,8 +47,7 @@ var (
 	testBankAddress   = testBankWallet.GetAddress()
 	testBankFunds     = big.NewInt(1000000000000000000)
 
-	testUserKey, _  = crypto.GenerateKey()
-	testUserAddress = crypto.PubkeyToAddress(testUserKey.PublicKey)
+	testUserAddress = common.MustParseAddress("Q0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef")
 
 	// Test transactions
 	pendingTxs []*types.Transaction
