@@ -37,9 +37,25 @@ type Account struct {
 
 const (
 	MimetypeDataWithValidator = "data/validator"
-	MimetypeTypedData         = "data/typed"
+	MimetypeTypedData         = "application/vnd.qrl.typed-data+json"
 	MimetypeTextPlain         = "text/plain"
 )
+
+// HashSignature contains a signature and the public metadata required to
+// verify it without access to the signing wallet.
+type HashSignature struct {
+	Signature  []byte
+	PublicKey  []byte
+	Descriptor []byte
+}
+
+// HashSignerWithMetadata is an optional wallet extension for signature
+// protocols, such as QRL typed data, whose result must be independently
+// verifiable. Wallets that cannot export verification metadata need not
+// implement it.
+type HashSignerWithMetadata interface {
+	SignHashWithPassphraseAndMetadata(account Account, passphrase string, hash []byte) (*HashSignature, error)
+}
 
 // Wallet represents a software or hardware wallet that might contain one or more
 // accounts (derived from the same seed).

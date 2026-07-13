@@ -1,742 +1,462 @@
-// Copyright 2019 The go-ethereum Authors
-// This file is part of the go-ethereum library.
-//
-// The go-ethereum library is free software: you can redistribute it and/or modify
-// it under the terms of the GNU Lesser General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// The go-ethereum library is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU Lesser General Public License for more details.
-//
-// You should have received a copy of the GNU Lesser General Public License
-// along with the go-ethereum library. If not, see <http://www.gnu.org/licenses/>.
+// Copyright 2026 The go-qrl Authors
+// This file is part of the go-qrl library.
 
 package core_test
 
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
+	"errors"
 	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 
+	"github.com/theQRL/go-qrl/accounts"
 	"github.com/theQRL/go-qrl/accounts/keystore"
 	"github.com/theQRL/go-qrl/common"
 	"github.com/theQRL/go-qrl/common/hexutil"
 	"github.com/theQRL/go-qrl/common/math"
-	"github.com/theQRL/go-qrl/crypto"
+	"github.com/theQRL/go-qrl/crypto/pqcrypto"
 	"github.com/theQRL/go-qrl/signer/core"
 	"github.com/theQRL/go-qrl/signer/core/apitypes"
 )
 
-var typesStandard = apitypes.Types{
-	"EIP712Domain": {
-		{
-			Name: "name",
-			Type: "string",
-		},
-		{
-			Name: "version",
-			Type: "string",
-		},
-		{
-			Name: "chainId",
-			Type: "uint256",
-		},
-		{
-			Name: "verifyingContract",
-			Type: "address",
-		},
-	},
-	"Person": {
-		{
-			Name: "name",
-			Type: "string",
-		},
-		{
-			Name: "wallet",
-			Type: "address",
-		},
-	},
-	"Mail": {
-		{
-			Name: "from",
-			Type: "Person",
-		},
-		{
-			Name: "to",
-			Type: "Person",
-		},
-		{
-			Name: "contents",
-			Type: "string",
-		},
-	},
-}
+const (
+	typedDataAddressA  = "Q0102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f40"
+	typedDataAddressB  = "Q403f3e3d3c3b3a393837363534333231302f2e2d2c2b2a292827262524232221201f1e1d1c1b1a191817161514131211100f0e0d0c0b0a090807060504030201"
+	typedDataContract  = "Q11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111"
+	typedDataContract2 = "Q22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222"
+	typedDataSalt      = "0x000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f"
+)
 
-var jsonTypedData = `
-    {
-      "types": {
-        "EIP712Domain": [
-          {
-            "name": "name",
-            "type": "string"
-          },
-          {
-            "name": "version",
-            "type": "string"
-          },
-          {
-            "name": "chainId",
-            "type": "uint256"
-          },
-          {
-            "name": "verifyingContract",
-            "type": "address"
-          }
-        ],
-        "Person": [
-          {
-            "name": "name",
-            "type": "string"
-          },
-          {
-            "name": "test",
-            "type": "uint8"
-          },
-          {
-            "name": "wallet",
-            "type": "address"
-          }
-        ],
-        "Mail": [
-          {
-            "name": "from",
-            "type": "Person"
-          },
-          {
-            "name": "to",
-            "type": "Person"
-          },
-          {
-            "name": "contents",
-            "type": "string"
-          }
-        ]
-      },
-      "primaryType": "Mail",
-      "domain": {
-        "name": "Ether Mail",
-        "version": "1",
-        "chainId": "1",
-        "verifyingContract": "QCCCcCCCcCCCcCCCcCCCcCCCcCCCcCCCcCCCcCCCcCCCcCCCcCCCcCCCcCCCcCCCcCCCcCCCcCCCcCCCcCCCcCCCcCCCcCCCc99aabbccddeeff001122334455667788"
-      },
-      "message": {
-        "from": {
-          "name": "Cow",
-		  "test": 3,
-          "wallet": "QcD2a3d9F938E13CD947Ec05AbC7FE734Df8DD826cD2a3d9F938E13CD947Ec05AbC7FE734Df8DD826aabbccddeeff010299aabbccddeeff001122334455667788"
-        },
-        "to": {
-          "name": "Bob",
-          "wallet": "QbBbBBBBbbBBBbbbBbbBbbbbBBbBbbbbBbBbbBBbBbBbBBBBbbBBBbbbBbbBbbbbBBbBbbbbBbBbbBBbBaabbccddee01020399aabbccddeeff001122334455667788"
-        },
-        "contents": "Hello, Bob!"
-      }
-    }
-`
-
-const primaryType = "Mail"
-
-// 64-byte QRL addresses — any 128-char hex works; these extend the original
-// 20-byte fixtures to the full address width.
-var domainStandard = apitypes.TypedDataDomain{
-	Name:              "Ether Mail",
-	Version:           "1",
-	ChainId:           math.NewHexOrDecimal256(1),
-	VerifyingContract: "QCCCcCCCcCCCcCCCcCCCcCCCcCCCcCCCcCCCcCCCcCCCcCCCcCCCcCCCcCCCcCCCcCCCcCCCcCCCcCCCcCCCcCCCcCCCcCCCc99aabbccddeeff001122334455667788",
-	Salt:              "",
-}
-
-var messageStandard = map[string]any{
-	"from": map[string]any{
-		"name":   "Cow",
-		"wallet": "QCD2a3d9F938E13CD947Ec05AbC7FE734Df8DD826CD2a3d9F938E13CD947Ec05AbC7FE734Df8DD826aabbccddeeff010299aabbccddeeff001122334455667788",
-	},
-	"to": map[string]any{
-		"name":   "Bob",
-		"wallet": "QbBbBBBBbbBBBbbbBbbBbbbbBBbBbbbbBbBbbBBbBbBbBBBBbbBBBbbbBbbBbbbbBBbBbbbbBbBbbBBbBaabbccddee01020399aabbccddeeff001122334455667788",
-	},
-	"contents": "Hello, Bob!",
-}
-
-var typedData = apitypes.TypedData{
-	Types:       typesStandard,
-	PrimaryType: primaryType,
-	Domain:      domainStandard,
-	Message:     messageStandard,
+func qrlTypedDataFixture() apitypes.TypedData {
+	return apitypes.TypedData{
+		Types: apitypes.Types{
+			apitypes.TypedDataDomainType: {
+				{Name: "name", Type: "string"},
+				{Name: "version", Type: "string"},
+				{Name: "chainId", Type: "uint256"},
+				{Name: "verifyingContract", Type: "address"},
+				{Name: "salt", Type: "bytes32"},
+			},
+			"Approval": {
+				{Name: "signer", Type: "address"},
+				{Name: "approved", Type: "bool"},
+			},
+			"Transfer": {
+				{Name: "from", Type: "address"},
+				{Name: "to", Type: "address"},
+				{Name: "amount256", Type: "uint256"},
+				{Name: "amount512", Type: "uint512"},
+				{Name: "adjustment", Type: "int512"},
+				{Name: "reference", Type: "bytes32"},
+				{Name: "fixedPayload", Type: "bytes64"},
+				{Name: "data", Type: "bytes"},
+				{Name: "memo", Type: "string"},
+				{Name: "tags", Type: "string[]"},
+				{Name: "approvals", Type: "Approval[2]"},
+				{Name: "nonce", Type: "uint64"},
+				{Name: "deadline", Type: "uint64"},
+			},
+		},
+		PrimaryType: "Transfer",
+		Domain: apitypes.TypedDataDomain{
+			Name:              "QRL Wallet",
+			Version:           "1",
+			ChainId:           math.NewHexOrDecimal256(1337),
+			VerifyingContract: typedDataContract,
+			Salt:              typedDataSalt,
+		},
+		Message: apitypes.TypedDataMessage{
+			"from":         typedDataAddressA,
+			"to":           typedDataAddressB,
+			"amount256":    "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+			"amount512":    "0x" + strings.Repeat("f", 128),
+			"adjustment":   "-1",
+			"reference":    "0x" + strings.Repeat("ab", 32),
+			"fixedPayload": "0x" + strings.Repeat("cd", 64),
+			"data":         "0x0102030405",
+			"memo":         "VM64 transfer",
+			"tags":         []any{"wallet", "approval"},
+			"approvals": []any{
+				map[string]any{"signer": typedDataAddressA, "approved": true},
+				map[string]any{"signer": typedDataAddressB, "approved": false},
+			},
+			"nonce":    "42",
+			"deadline": "2000000000",
+		},
+	}
 }
 
 func TestSignData(t *testing.T) {
 	t.Parallel()
 	api, control := setup(t)
-	//Create two accounts
 	createAccount(control, api, t)
-	createAccount(control, api, t)
-	control.approveCh <- "1"
+	control.approveCh <- "A"
 	list, err := api.List(t.Context())
 	if err != nil {
 		t.Fatal(err)
 	}
-	a := common.NewMixedcaseAddress(list[0])
+	address := common.NewMixedcaseAddress(list[0])
 
 	control.approveCh <- "Y"
 	control.inputCh <- "wrongpassword"
-	signature, err := api.SignData(t.Context(), apitypes.TextPlain.Mime, a, hexutil.Encode([]byte("EHLO world")))
-	if signature != nil {
-		t.Errorf("Expected nil-data, got %x", signature)
+	signature, err := api.SignData(t.Context(), apitypes.TextPlain.Mime, address, hexutil.Encode([]byte("EHLO world")))
+	if signature != nil || !errors.Is(err, keystore.ErrDecrypt) {
+		t.Fatalf("wrong password: signature %x, error %v", signature, err)
 	}
-	if err != keystore.ErrDecrypt {
-		t.Errorf("Expected ErrDecrypt! '%v'", err)
-	}
+
 	control.approveCh <- "No way"
-	signature, err = api.SignData(t.Context(), apitypes.TextPlain.Mime, a, hexutil.Encode([]byte("EHLO world")))
-	if signature != nil {
-		t.Errorf("Expected nil-data, got %x", signature)
+	signature, err = api.SignData(t.Context(), apitypes.TextPlain.Mime, address, hexutil.Encode([]byte("EHLO world")))
+	if signature != nil || !errors.Is(err, core.ErrRequestDenied) {
+		t.Fatalf("denied request: signature %x, error %v", signature, err)
 	}
-	if err != core.ErrRequestDenied {
-		t.Errorf("Expected ErrRequestDenied! '%v'", err)
-	}
-	// text/plain
+
 	control.approveCh <- "Y"
 	control.inputCh <- "a_long_password"
-	signature, err = api.SignData(t.Context(), apitypes.TextPlain.Mime, a, hexutil.Encode([]byte("EHLO world")))
+	signature, err = api.SignData(t.Context(), apitypes.TextPlain.Mime, address, hexutil.Encode([]byte("EHLO world")))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if signature == nil || len(signature) != 4627 {
-		t.Errorf("Expected 4627 byte ML-DSA-87 signature (got %d bytes)", len(signature))
-	}
-	// data/typed via SignTypeData
-	control.approveCh <- "Y"
-	control.inputCh <- "a_long_password"
-	if signature, err = api.SignTypedData(t.Context(), a, typedData); err != nil {
-		t.Fatal(err)
-	} else if signature == nil || len(signature) != 4627 {
-		t.Errorf("Expected 4627 byte ML-DSA-87 signature (got %d bytes)", len(signature))
-	}
-	wantHash := append([]byte(nil), control.lastSignDataRequest.Hash...)
-
-	// data/typed via SignData / mimetype typed data
-	control.approveCh <- "Y"
-	control.inputCh <- "a_long_password"
-	if typedDataJson, err := json.Marshal(typedData); err != nil {
-		t.Fatal(err)
-	} else if signature, err = api.SignData(t.Context(), apitypes.DataTyped.Mime, a, hexutil.Encode(typedDataJson)); err != nil {
-		t.Fatal(err)
-	} else if signature == nil || len(signature) != 4627 {
-		t.Errorf("Expected 4627 byte ML-DSA-87 signature (got %d bytes)", len(signature))
-	} else if haveHash := control.lastSignDataRequest.Hash; !bytes.Equal(haveHash, wantHash) {
-		t.Fatalf("want hash %x, have hash %x", wantHash, haveHash)
+	if len(signature) != pqcrypto.MLDSA87SignatureLength {
+		t.Fatalf("signature length %d, want %d", len(signature), pqcrypto.MLDSA87SignatureLength)
 	}
 }
 
-func TestDomainChainId(t *testing.T) {
+func TestSignQRLTypedData(t *testing.T) {
 	t.Parallel()
-	withoutChainID := apitypes.TypedData{
-		Types: apitypes.Types{
-			"EIP712Domain": []apitypes.Type{
-				{Name: "name", Type: "string"},
+	api, control := setup(t)
+	createAccount(control, api, t)
+	control.approveCh <- "A"
+	accountsList, err := api.List(t.Context())
+	if err != nil {
+		t.Fatal(err)
+	}
+	address := common.NewMixedcaseAddress(accountsList[0])
+	typedData := qrlTypedDataFixture()
+
+	control.approveCh <- "Y"
+	control.inputCh <- "a_long_password"
+	result, err := api.SignTypedData(t.Context(), address, typedData)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Address != address.Address() {
+		t.Fatalf("signed address %s, want %s", result.Address, address.Address())
+	}
+	if len(result.Signature) != pqcrypto.MLDSA87SignatureLength ||
+		len(result.PublicKey) != pqcrypto.MLDSA87PublicKeyLength ||
+		len(result.Descriptor) != pqcrypto.DescriptorSize {
+		t.Fatalf("invalid envelope lengths: signature=%d publicKey=%d descriptor=%d",
+			len(result.Signature), len(result.PublicKey), len(result.Descriptor))
+	}
+	if err := result.Verify(typedData); err != nil {
+		t.Fatalf("verify signed envelope: %v", err)
+	}
+	encodedResult, err := json.Marshal(result)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var decodedResult apitypes.TypedDataSignature
+	if err := json.Unmarshal(encodedResult, &decodedResult); err != nil {
+		t.Fatal(err)
+	}
+	if err := decodedResult.Verify(typedData); err != nil {
+		t.Fatalf("verify JSON round-trip envelope: %v", err)
+	}
+	if control.lastSignDataRequest.ContentType != accounts.MimetypeTypedData {
+		t.Fatalf("content type %q, want %q", control.lastSignDataRequest.ContentType, accounts.MimetypeTypedData)
+	}
+	if !bytes.Equal(result.Digest[:], control.lastSignDataRequest.Hash) {
+		t.Fatalf("envelope digest %x, UI digest %x", result.Digest, control.lastSignDataRequest.Hash)
+	}
+
+	tampered := qrlTypedDataFixture()
+	tampered.Message["nonce"] = "43"
+	if err := result.Verify(tampered); err == nil {
+		t.Fatal("tampered message verified")
+	}
+	wrongAddress := *result
+	wrongAddress.Address = common.MustParseAddress(typedDataAddressA)
+	if wrongAddress.Address == result.Address {
+		wrongAddress.Address[0] ^= 0xff
+	}
+	if err := wrongAddress.Verify(typedData); err == nil {
+		t.Fatal("public key/address mismatch verified")
+	}
+	badSignature := *result
+	badSignature.Signature = append(hexutil.Bytes(nil), result.Signature...)
+	badSignature.Signature[0] ^= 0xff
+	if err := badSignature.Verify(typedData); err == nil {
+		t.Fatal("corrupted ML-DSA signature verified")
+	}
+}
+
+func TestTypedDataRequiresDedicatedAPI(t *testing.T) {
+	t.Parallel()
+	api, _ := setup(t)
+	address := common.NewMixedcaseAddress(common.Address{})
+	for _, mimeType := range []string{accounts.MimetypeTypedData, "data/typed"} {
+		result, err := api.SignData(t.Context(), mimeType, address, "0x00")
+		if result != nil || !errors.Is(err, core.ErrTypedDataRequiresDedicatedAPI) {
+			t.Fatalf("mime %q: result %x, error %v", mimeType, result, err)
+		}
+	}
+}
+
+func TestTypedDataSignerChainID(t *testing.T) {
+	t.Parallel()
+	api, _ := setup(t)
+	typedData := qrlTypedDataFixture()
+	typedData.Domain.ChainId = math.NewHexOrDecimal256(1)
+	_, err := api.SignTypedData(t.Context(), common.NewMixedcaseAddress(common.Address{}), typedData)
+	if err == nil || !strings.Contains(err.Error(), "chainId") {
+		t.Fatalf("expected chain ID mismatch, got %v", err)
+	}
+}
+
+func TestQRLTypedDataGolden(t *testing.T) {
+	t.Parallel()
+	encoded, err := os.ReadFile("testdata/qrl_typed_data_v1.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var vector struct {
+		TypedData apitypes.TypedData `json:"typedData"`
+		Expected  struct {
+			DomainType  string `json:"domainType"`
+			MessageType string `json:"messageType"`
+			TypeHash    string `json:"typeHash"`
+			DomainHash  string `json:"domainHash"`
+			MessageHash string `json:"messageHash"`
+			Digest      string `json:"digest"`
+		} `json:"expected"`
+	}
+	if err := json.Unmarshal(encoded, &vector); err != nil {
+		t.Fatal(err)
+	}
+	typedData := vector.TypedData
+	if got := string(typedData.EncodeType(apitypes.TypedDataDomainType)); got != vector.Expected.DomainType {
+		t.Errorf("domain type:\n have %s\n want %s", got, vector.Expected.DomainType)
+	}
+	if got := string(typedData.EncodeType(typedData.PrimaryType)); got != vector.Expected.MessageType {
+		t.Errorf("message type:\n have %s\n want %s", got, vector.Expected.MessageType)
+	}
+	if got := hexutil.Encode(typedData.TypeHash(typedData.PrimaryType)); got != vector.Expected.TypeHash {
+		t.Errorf("type hash: have %s, want %s", got, vector.Expected.TypeHash)
+	}
+	domainHash, err := typedData.HashStruct(apitypes.TypedDataDomainType, typedData.Domain.Map())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := hexutil.Encode(domainHash); got != vector.Expected.DomainHash {
+		t.Errorf("domain hash: have %s, want %s", got, vector.Expected.DomainHash)
+	}
+	messageHash, err := typedData.HashStruct(typedData.PrimaryType, typedData.Message)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := hexutil.Encode(messageHash); got != vector.Expected.MessageHash {
+		t.Errorf("message hash: have %s, want %s", got, vector.Expected.MessageHash)
+	}
+	digest, rawData, err := apitypes.TypedDataAndHash(typedData)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := hexutil.Encode(digest); got != vector.Expected.Digest {
+		t.Errorf("digest: have %s, want %s", got, vector.Expected.Digest)
+	}
+	if !strings.HasPrefix(rawData, apitypes.TypedDataPrefix) {
+		t.Fatalf("raw preimage does not start with %q", apitypes.TypedDataPrefix)
+	}
+	if len(rawData) != len(apitypes.TypedDataPrefix)+2*common.HashLength {
+		t.Fatalf("raw preimage length %d", len(rawData))
+	}
+}
+
+func TestQRLTypedDataDomainSeparation(t *testing.T) {
+	t.Parallel()
+	base := qrlTypedDataFixture()
+	baseDigest, _, err := apitypes.TypedDataAndHash(base)
+	if err != nil {
+		t.Fatal(err)
+	}
+	mutations := []func(*apitypes.TypedData){
+		func(data *apitypes.TypedData) { data.Domain.ChainId = math.NewHexOrDecimal256(1338) },
+		func(data *apitypes.TypedData) { data.Domain.VerifyingContract = typedDataContract2 },
+		func(data *apitypes.TypedData) { data.Message["nonce"] = "43" },
+		func(data *apitypes.TypedData) { data.Message["deadline"] = "2000000001" },
+	}
+	for index, mutate := range mutations {
+		candidate := qrlTypedDataFixture()
+		mutate(&candidate)
+		digest, _, err := apitypes.TypedDataAndHash(candidate)
+		if err != nil {
+			t.Fatalf("mutation %d: %v", index, err)
+		}
+		if bytes.Equal(baseDigest, digest) {
+			t.Errorf("mutation %d did not change digest", index)
+		}
+	}
+}
+
+func TestQRLTypedDataApprovalFormatting(t *testing.T) {
+	t.Parallel()
+	typedData := qrlTypedDataFixture()
+	formatted, err := typedData.Format()
+	if err != nil {
+		t.Fatal(err)
+	}
+	var output strings.Builder
+	for _, value := range formatted {
+		output.WriteString(value.Pprint(0))
+	}
+	text := output.String()
+	for _, expected := range []string{
+		"QRLTypedDataDomain [domain]",
+		"Transfer [primary type]",
+		"tags [string[]]",
+		"[0]: \"wallet\"",
+		"approvals [Approval[2]]",
+		"signer [address]",
+	} {
+		if !strings.Contains(text, expected) {
+			t.Errorf("approval output does not contain %q:\n%s", expected, text)
+		}
+	}
+	if strings.Contains(text, "%!") {
+		t.Fatalf("approval output contains a formatting error:\n%s", text)
+	}
+}
+
+func TestQRLTypedDataJSONRoundTrip(t *testing.T) {
+	t.Parallel()
+	original := qrlTypedDataFixture()
+	encoded, err := json.Marshal(original)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var decoded apitypes.TypedData
+	if err := json.Unmarshal(encoded, &decoded); err != nil {
+		t.Fatal(err)
+	}
+	originalDigest, _, err := apitypes.TypedDataAndHash(original)
+	if err != nil {
+		t.Fatal(err)
+	}
+	decodedDigest, _, err := apitypes.TypedDataAndHash(decoded)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(originalDigest, decodedDigest) {
+		t.Fatalf("round-trip digest %x, want %x", decodedDigest, originalDigest)
+	}
+	if err := json.Unmarshal(append(encoded, []byte(` {}`)...), &decoded); err == nil {
+		t.Fatal("multiple JSON values accepted")
+	}
+}
+
+func TestQRLTypedDataValidation(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name   string
+		mutate func(*apitypes.TypedData)
+	}{
+		{
+			name: "missing domain salt",
+			mutate: func(data *apitypes.TypedData) {
+				data.Domain.Salt = ""
 			},
 		},
-		Domain: apitypes.TypedDataDomain{
-			Name: "test",
-		},
-	}
-
-	if _, ok := withoutChainID.Domain.Map()["chainId"]; ok {
-		t.Errorf("Expected the chainId key to not be present in the domain map")
-	}
-	// should encode successfully
-	if _, err := withoutChainID.HashStruct("EIP712Domain", withoutChainID.Domain.Map()); err != nil {
-		t.Errorf("Expected the typedData to encode the domain successfully, got %v", err)
-	}
-	withChainID := apitypes.TypedData{
-		Types: apitypes.Types{
-			"EIP712Domain": []apitypes.Type{
-				{Name: "name", Type: "string"},
-				{Name: "chainId", Type: "uint256"},
+		{
+			name: "wrong domain field order",
+			mutate: func(data *apitypes.TypedData) {
+				fields := data.Types[apitypes.TypedDataDomainType]
+				fields[0], fields[1] = fields[1], fields[0]
 			},
 		},
-		Domain: apitypes.TypedDataDomain{
-			Name:    "test",
-			ChainId: math.NewHexOrDecimal256(1),
+		{
+			name: "bare integer",
+			mutate: func(data *apitypes.TypedData) {
+				data.Types["Transfer"][2].Type = "uint"
+			},
+		},
+		{
+			name: "over-wide integer type",
+			mutate: func(data *apitypes.TypedData) {
+				data.Types["Transfer"][3].Type = "uint520"
+			},
+		},
+		{
+			name: "function type",
+			mutate: func(data *apitypes.TypedData) {
+				data.Types["Transfer"][8].Type = "function"
+			},
+		},
+		{
+			name: "recursive type",
+			mutate: func(data *apitypes.TypedData) {
+				data.Types["Node"] = []apitypes.Type{{Name: "next", Type: "Node"}}
+			},
+		},
+		{
+			name: "undefined type",
+			mutate: func(data *apitypes.TypedData) {
+				data.Types["Transfer"][8].Type = "Undefined"
+			},
+		},
+		{
+			name: "duplicate field",
+			mutate: func(data *apitypes.TypedData) {
+				data.Types["Transfer"][1].Name = "from"
+			},
+		},
+		{
+			name: "extra message field",
+			mutate: func(data *apitypes.TypedData) {
+				data.Message["unexpected"] = true
+			},
+		},
+		{
+			name: "missing message field",
+			mutate: func(data *apitypes.TypedData) {
+				delete(data.Message, "nonce")
+			},
+		},
+		{
+			name: "wrong static array length",
+			mutate: func(data *apitypes.TypedData) {
+				data.Message["approvals"] = []any{map[string]any{"signer": typedDataAddressA, "approved": true}}
+			},
+		},
+		{
+			name: "uint256 overflow",
+			mutate: func(data *apitypes.TypedData) {
+				data.Message["amount256"] = "0x1" + strings.Repeat("0", 64)
+			},
+		},
+		{
+			name: "invalid bytes64 length",
+			mutate: func(data *apitypes.TypedData) {
+				data.Message["fixedPayload"] = "0x01"
+			},
+		},
+		{
+			name: "negative chain ID",
+			mutate: func(data *apitypes.TypedData) {
+				data.Domain.ChainId = math.NewHexOrDecimal256(-1)
+			},
 		},
 	}
-
-	if _, ok := withChainID.Domain.Map()["chainId"]; !ok {
-		t.Errorf("Expected the chainId key be present in the domain map")
-	}
-	// should encode successfully
-	if _, err := withChainID.HashStruct("EIP712Domain", withChainID.Domain.Map()); err != nil {
-		t.Errorf("Expected the typedData to encode the domain successfully, got %v", err)
-	}
-}
-
-func TestHashStruct(t *testing.T) {
-	t.Parallel()
-	hash, err := typedData.HashStruct(typedData.PrimaryType, typedData.Message)
-	if err != nil {
-		t.Fatal(err)
-	}
-	mainHash := fmt.Sprintf("0x%s", common.Bytes2Hex(hash))
-	if mainHash != "0xeffdb2572b96cf174446b4b5e29ea4cdfe99bdc1062c0e74d3f0f02d0e3627df" {
-		t.Errorf("Expected different hashStruct result (got %s)", mainHash)
-	}
-
-	hash, err = typedData.HashStruct("EIP712Domain", typedData.Domain.Map())
-	if err != nil {
-		t.Error(err)
-	}
-	domainHash := fmt.Sprintf("0x%s", common.Bytes2Hex(hash))
-	if domainHash != "0x924f059b0a641eed4ccf8aa0493fae0c3da1608bc27d6f3c1153c630564c2ceb" {
-		t.Errorf("Expected different domain hashStruct result (got %s)", domainHash)
-	}
-}
-
-func TestEncodeType(t *testing.T) {
-	t.Parallel()
-	domainTypeEncoding := string(typedData.EncodeType("EIP712Domain"))
-	if domainTypeEncoding != "EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)" {
-		t.Errorf("Expected different encodeType result (got %s)", domainTypeEncoding)
-	}
-
-	mailTypeEncoding := string(typedData.EncodeType(typedData.PrimaryType))
-	if mailTypeEncoding != "Mail(Person from,Person to,string contents)Person(string name,address wallet)" {
-		t.Errorf("Expected different encodeType result (got %s)", mailTypeEncoding)
-	}
-}
-
-func TestTypeHash(t *testing.T) {
-	t.Parallel()
-	mailTypeHash := fmt.Sprintf("0x%s", common.Bytes2Hex(typedData.TypeHash(typedData.PrimaryType)))
-	if mailTypeHash != "0xa0cedeb2dc280ba39b857546d74f5549c3a1d7bdc2dd96bf881f76108e23dac2" {
-		t.Errorf("Expected different typeHash result (got %s)", mailTypeHash)
-	}
-}
-
-func TestEncodeData(t *testing.T) {
-	t.Parallel()
-	hash, err := typedData.EncodeData(typedData.PrimaryType, typedData.Message, 0)
-	if err != nil {
-		t.Fatal(err)
-	}
-	dataEncoding := fmt.Sprintf("0x%s", common.Bytes2Hex(hash))
-	if dataEncoding != "0xa0cedeb2dc280ba39b857546d74f5549c3a1d7bdc2dd96bf881f76108e23dac2f888d4475c55744d89f6b79a6379db848638f3413c2fc14e12365fe5d631d900c4820e22bb4840c5fd1609ee923f74d281c863bd07b0933743bced0b7c5381dcb5aadf3154a261abdd9086fc627b61efca26ae5702701d05cd2305f7c52a2fc8" {
-		t.Errorf("Expected different encodeData result (got %s)", dataEncoding)
-	}
-}
-
-func TestFormatter(t *testing.T) {
-	t.Parallel()
-	var d apitypes.TypedData
-	err := json.Unmarshal([]byte(jsonTypedData), &d)
-	if err != nil {
-		t.Fatalf("unmarshalling failed '%v'", err)
-	}
-	formatted, _ := d.Format()
-	for _, item := range formatted {
-		t.Logf("'%v'\n", item.Pprint(0))
-	}
-
-	j, _ := json.Marshal(formatted)
-	t.Logf("'%v'\n", string(j))
-}
-
-func sign(typedData apitypes.TypedData) ([]byte, []byte, error) {
-	domainSeparator, err := typedData.HashStruct("EIP712Domain", typedData.Domain.Map())
-	if err != nil {
-		return nil, nil, err
-	}
-	typedDataHash, err := typedData.HashStruct(typedData.PrimaryType, typedData.Message)
-	if err != nil {
-		return nil, nil, err
-	}
-	rawData := fmt.Appendf(nil, "\x19\x01%s%s", string(domainSeparator), string(typedDataHash))
-	sighash := crypto.Keccak256(rawData)
-	return typedDataHash, sighash, nil
-}
-
-func TestJsonFiles(t *testing.T) {
-	t.Parallel()
-	testfiles, err := os.ReadDir("testdata/")
-	if err != nil {
-		t.Fatalf("failed reading files: %v", err)
-	}
-	for i, fInfo := range testfiles {
-		if !strings.HasSuffix(fInfo.Name(), "json") {
-			continue
-		}
-		expectedFailure := strings.HasPrefix(fInfo.Name(), "expfail")
-		data, err := os.ReadFile(filepath.Join("testdata", fInfo.Name()))
-		if err != nil {
-			t.Errorf("Failed to read file %v: %v", fInfo.Name(), err)
-			continue
-		}
-		var typedData apitypes.TypedData
-		err = json.Unmarshal(data, &typedData)
-		if err != nil {
-			t.Errorf("Test %d, file %v, json unmarshalling failed: %v", i, fInfo.Name(), err)
-			continue
-		}
-		_, _, err = sign(typedData)
-		t.Logf("Error %v\n", err)
-		if err != nil && !expectedFailure {
-			t.Errorf("Test %d failed, file %v: %v", i, fInfo.Name(), err)
-		}
-		if expectedFailure && err == nil {
-			t.Errorf("Test %d succeeded (expected failure), file %v: %v", i, fInfo.Name(), err)
-		}
-	}
-}
-
-// TestFuzzerFiles tests some files that have been found by fuzzing to cause
-// crashes or hangs.
-func TestFuzzerFiles(t *testing.T) {
-	t.Parallel()
-	corpusdir := filepath.Join("testdata", "fuzzing")
-	testfiles, err := os.ReadDir(corpusdir)
-	if err != nil {
-		t.Fatalf("failed reading files: %v", err)
-	}
-	verbose := false
-	for i, fInfo := range testfiles {
-		data, err := os.ReadFile(filepath.Join(corpusdir, fInfo.Name()))
-		if err != nil {
-			t.Errorf("Failed to read file %v: %v", fInfo.Name(), err)
-			continue
-		}
-		var typedData apitypes.TypedData
-		err = json.Unmarshal(data, &typedData)
-		if err != nil {
-			t.Errorf("Test %d, file %v, json unmarshalling failed: %v", i, fInfo.Name(), err)
-			continue
-		}
-		_, err = typedData.EncodeData("EIP712Domain", typedData.Domain.Map(), 1)
-		if verbose && err != nil {
-			t.Logf("%d, EncodeData[1] err: %v\n", i, err)
-		}
-		_, err = typedData.EncodeData(typedData.PrimaryType, typedData.Message, 1)
-		if verbose && err != nil {
-			t.Logf("%d, EncodeData[2] err: %v\n", i, err)
-		}
-		typedData.Format()
-	}
-}
-
-var complexTypedData = `
-{
-    "types": {
-        "EIP712Domain": [
-            {
-                "name": "chainId",
-                "type": "uint256"
-            },
-            {
-                "name": "name",
-                "type": "string"
-            },
-            {
-                "name": "verifyingContract",
-                "type": "address"
-            },
-            {
-                "name": "version",
-                "type": "string"
-            }
-        ],
-        "Action": [
-            {
-                "name": "action",
-                "type": "string"
-            },
-            {
-                "name": "params",
-                "type": "string"
-            }
-        ],
-        "Cell": [
-            {
-                "name": "capacity",
-                "type": "string"
-            },
-            {
-                "name": "lock",
-                "type": "string"
-            },
-            {
-                "name": "type",
-                "type": "string"
-            },
-            {
-                "name": "data",
-                "type": "string"
-            },
-            {
-                "name": "extraData",
-                "type": "string"
-            }
-        ],
-        "Transaction": [
-            {
-                "name": "DAS_MESSAGE",
-                "type": "string"
-            },
-            {
-                "name": "inputsCapacity",
-                "type": "string"
-            },
-            {
-                "name": "outputsCapacity",
-                "type": "string"
-            },
-            {
-                "name": "fee",
-                "type": "string"
-            },
-            {
-                "name": "action",
-                "type": "Action"
-            },
-            {
-                "name": "inputs",
-                "type": "Cell[]"
-            },
-            {
-                "name": "outputs",
-                "type": "Cell[]"
-            },
-            {
-                "name": "digest",
-                "type": "bytes32"
-            }
-        ]
-    },
-    "primaryType": "Transaction",
-    "domain": {
-        "chainId": "56",
-        "name": "da.systems",
-        "verifyingContract": "Q00000000000000000000000000000000202107220000000000000000000000000000000020210722112233445566778899aabbccddeeff001122334455667788",
-        "version": "1"
-    },
-    "message": {
-        "DAS_MESSAGE": "SELL mobcion.bit FOR 100000 CKB",
-        "inputsCapacity": "1216.9999 CKB",
-        "outputsCapacity": "1216.9998 CKB",
-        "fee": "0.0001 CKB",
-        "digest": "0x53a6c0f19ec281604607f5d6817e442082ad1882bef0df64d84d3810dae561eb",
-        "action": {
-            "action": "start_account_sale",
-            "params": "0x00"
-        },
-        "inputs": [
-            {
-                "capacity": "218 CKB",
-                "lock": "das-lock,0x01,0x051c152f77f8efa9c7c6d181cc97ee67c165c506...",
-                "type": "account-cell-type,0x01,0x",
-                "data": "{ account: mobcion.bit, expired_at: 1670913958 }",
-                "extraData": "{ status: 0, records_hash: 0x55478d76900611eb079b22088081124ed6c8bae21a05dd1a0d197efcc7c114ce }"
-            }
-        ],
-        "outputs": [
-            {
-                "capacity": "218 CKB",
-                "lock": "das-lock,0x01,0x051c152f77f8efa9c7c6d181cc97ee67c165c506...",
-                "type": "account-cell-type,0x01,0x",
-                "data": "{ account: mobcion.bit, expired_at: 1670913958 }",
-                "extraData": "{ status: 1, records_hash: 0x55478d76900611eb079b22088081124ed6c8bae21a05dd1a0d197efcc7c114ce }"
-            },
-            {
-                "capacity": "201 CKB",
-                "lock": "das-lock,0x01,0x051c152f77f8efa9c7c6d181cc97ee67c165c506...",
-                "type": "account-sale-cell-type,0x01,0x",
-                "data": "0x1209460ef3cb5f1c68ed2c43a3e020eec2d9de6e...",
-                "extraData": ""
-            }
-        ]
-    }
-}
-`
-
-func TestComplexTypedData(t *testing.T) {
-	t.Parallel()
-	var td apitypes.TypedData
-	err := json.Unmarshal([]byte(complexTypedData), &td)
-	if err != nil {
-		t.Fatalf("unmarshalling failed '%v'", err)
-	}
-	_, sighash, err := sign(td)
-	if err != nil {
-		t.Fatal(err)
-	}
-	expSigHash := common.FromHex("0xac3c843be9142fd326260349ab779f913083bb1b0d1d80010b55c3cd8d1e01eb")
-	if !bytes.Equal(expSigHash, sighash) {
-		t.Fatalf("Error, got %x, wanted %x", sighash, expSigHash)
-	}
-}
-
-var complexTypedDataLCRefType = `
-{
-    "types": {
-        "EIP712Domain": [
-            {
-                "name": "chainId",
-                "type": "uint256"
-            },
-            {
-                "name": "name",
-                "type": "string"
-            },
-            {
-                "name": "verifyingContract",
-                "type": "address"
-            },
-            {
-                "name": "version",
-                "type": "string"
-            }
-        ],
-        "Action": [
-            {
-                "name": "action",
-                "type": "string"
-            },
-            {
-                "name": "params",
-                "type": "string"
-            }
-        ],
-        "cCell": [
-            {
-                "name": "capacity",
-                "type": "string"
-            },
-            {
-                "name": "lock",
-                "type": "string"
-            },
-            {
-                "name": "type",
-                "type": "string"
-            },
-            {
-                "name": "data",
-                "type": "string"
-            },
-            {
-                "name": "extraData",
-                "type": "string"
-            }
-        ],
-        "Transaction": [
-            {
-                "name": "DAS_MESSAGE",
-                "type": "string"
-            },
-            {
-                "name": "inputsCapacity",
-                "type": "string"
-            },
-            {
-                "name": "outputsCapacity",
-                "type": "string"
-            },
-            {
-                "name": "fee",
-                "type": "string"
-            },
-            {
-                "name": "action",
-                "type": "Action"
-            },
-            {
-                "name": "inputs",
-                "type": "cCell[]"
-            },
-            {
-                "name": "outputs",
-                "type": "cCell[]"
-            },
-            {
-                "name": "digest",
-                "type": "bytes32"
-            }
-        ]
-    },
-    "primaryType": "Transaction",
-    "domain": {
-        "chainId": "56",
-        "name": "da.systems",
-        "verifyingContract": "Q00000000000000000000000000000000202107220000000000000000000000000000000020210722112233445566778899aabbccddeeff001122334455667788",
-        "version": "1"
-    },
-    "message": {
-        "DAS_MESSAGE": "SELL mobcion.bit FOR 100000 CKB",
-        "inputsCapacity": "1216.9999 CKB",
-        "outputsCapacity": "1216.9998 CKB",
-        "fee": "0.0001 CKB",
-        "digest": "0x53a6c0f19ec281604607f5d6817e442082ad1882bef0df64d84d3810dae561eb",
-        "action": {
-            "action": "start_account_sale",
-            "params": "0x00"
-        },
-        "inputs": [
-            {
-                "capacity": "218 CKB",
-                "lock": "das-lock,0x01,0x051c152f77f8efa9c7c6d181cc97ee67c165c506...",
-                "type": "account-cell-type,0x01,0x",
-                "data": "{ account: mobcion.bit, expired_at: 1670913958 }",
-                "extraData": "{ status: 0, records_hash: 0x55478d76900611eb079b22088081124ed6c8bae21a05dd1a0d197efcc7c114ce }"
-            }
-        ],
-        "outputs": [
-            {
-                "capacity": "218 CKB",
-                "lock": "das-lock,0x01,0x051c152f77f8efa9c7c6d181cc97ee67c165c506...",
-                "type": "account-cell-type,0x01,0x",
-                "data": "{ account: mobcion.bit, expired_at: 1670913958 }",
-                "extraData": "{ status: 1, records_hash: 0x55478d76900611eb079b22088081124ed6c8bae21a05dd1a0d197efcc7c114ce }"
-            },
-            {
-                "capacity": "201 CKB",
-                "lock": "das-lock,0x01,0x051c152f77f8efa9c7c6d181cc97ee67c165c506...",
-                "type": "account-sale-cell-type,0x01,0x",
-                "data": "0x1209460ef3cb5f1c68ed2c43a3e020eec2d9de6e...",
-                "extraData": ""
-            }
-        ]
-    }
-}
-`
-
-func TestComplexTypedDataWithLowercaseReftype(t *testing.T) {
-	t.Parallel()
-	var td apitypes.TypedData
-	err := json.Unmarshal([]byte(complexTypedDataLCRefType), &td)
-	if err != nil {
-		t.Fatalf("unmarshalling failed '%v'", err)
-	}
-	_, sighash, err := sign(td)
-	if err != nil {
-		t.Fatal(err)
-	}
-	expSigHash := common.FromHex("0x4f36ab9b7b50c6e7e91017a569cdfe8e4d8adb5e0901cb27f3d845879a8e5141")
-	if !bytes.Equal(expSigHash, sighash) {
-		t.Fatalf("Error, got %x, wanted %x", sighash, expSigHash)
+	for _, test := range tests {
+		test := test
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+			data := qrlTypedDataFixture()
+			test.mutate(&data)
+			if _, _, err := apitypes.TypedDataAndHash(data); err == nil {
+				t.Fatal("invalid typed data was accepted")
+			}
+		})
 	}
 }

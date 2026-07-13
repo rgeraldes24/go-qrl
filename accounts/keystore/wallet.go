@@ -108,6 +108,14 @@ func (w *keystoreWallet) SignDataWithPassphrase(account accounts.Account, passph
 	return w.keystore.SignHashWithPassphrase(account, passphrase, crypto.Keccak256(data))
 }
 
+// SignHashWithPassphraseAndMetadata implements accounts.HashSignerWithMetadata.
+func (w *keystoreWallet) SignHashWithPassphraseAndMetadata(account accounts.Account, passphrase string, hash []byte) (*accounts.HashSignature, error) {
+	if !w.Contains(account) {
+		return nil, accounts.ErrUnknownAccount
+	}
+	return w.keystore.SignHashWithPassphraseAndMetadata(account, passphrase, hash)
+}
+
 // SignText implements accounts.Wallet, attempting to sign the hash of
 // the given text with the given account.
 func (w *keystoreWallet) SignText(account accounts.Account, text []byte) ([]byte, error) {

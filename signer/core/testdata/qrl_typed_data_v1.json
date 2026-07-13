@@ -1,0 +1,72 @@
+{
+  "typedData": {
+    "types": {
+      "QRLTypedDataDomain": [
+        {"name": "name", "type": "string"},
+        {"name": "version", "type": "string"},
+        {"name": "chainId", "type": "uint256"},
+        {"name": "verifyingContract", "type": "address"},
+        {"name": "salt", "type": "bytes32"}
+      ],
+      "Approval": [
+        {"name": "signer", "type": "address"},
+        {"name": "approved", "type": "bool"}
+      ],
+      "Transfer": [
+        {"name": "from", "type": "address"},
+        {"name": "to", "type": "address"},
+        {"name": "amount256", "type": "uint256"},
+        {"name": "amount512", "type": "uint512"},
+        {"name": "adjustment", "type": "int512"},
+        {"name": "reference", "type": "bytes32"},
+        {"name": "fixedPayload", "type": "bytes64"},
+        {"name": "data", "type": "bytes"},
+        {"name": "memo", "type": "string"},
+        {"name": "tags", "type": "string[]"},
+        {"name": "approvals", "type": "Approval[2]"},
+        {"name": "nonce", "type": "uint64"},
+        {"name": "deadline", "type": "uint64"}
+      ]
+    },
+    "primaryType": "Transfer",
+    "domain": {
+      "name": "QRL Wallet",
+      "version": "1",
+      "chainId": "1337",
+      "verifyingContract": "Q11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111",
+      "salt": "0x000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f"
+    },
+    "message": {
+      "from": "Q0102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f40",
+      "to": "Q403f3e3d3c3b3a393837363534333231302f2e2d2c2b2a292827262524232221201f1e1d1c1b1a191817161514131211100f0e0d0c0b0a090807060504030201",
+      "amount256": "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+      "amount512": "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+      "adjustment": "-1",
+      "reference": "0xabababababababababababababababababababababababababababababababab",
+      "fixedPayload": "0xcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd",
+      "data": "0x0102030405",
+      "memo": "VM64 transfer",
+      "tags": ["wallet", "approval"],
+      "approvals": [
+        {
+          "signer": "Q0102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f40",
+          "approved": true
+        },
+        {
+          "signer": "Q403f3e3d3c3b3a393837363534333231302f2e2d2c2b2a292827262524232221201f1e1d1c1b1a191817161514131211100f0e0d0c0b0a090807060504030201",
+          "approved": false
+        }
+      ],
+      "nonce": "42",
+      "deadline": "2000000000"
+    }
+  },
+  "expected": {
+    "domainType": "QRLTypedDataDomain(string name,string version,uint256 chainId,address verifyingContract,bytes32 salt)",
+    "messageType": "Transfer(address from,address to,uint256 amount256,uint512 amount512,int512 adjustment,bytes32 reference,bytes64 fixedPayload,bytes data,string memo,string[] tags,Approval[2] approvals,uint64 nonce,uint64 deadline)Approval(address signer,bool approved)",
+    "typeHash": "0xf83b6906de1dd35c2089de5694091f4d5f514070a32365057a5767edf0d61955",
+    "domainHash": "0xc917c713560432d820854ef9fa03bedb230f7ff66fc9aa83df31c81d96b35484",
+    "messageHash": "0xe4bf84b96e16b2bbfe2844bd9b847d7bfa4f4b88093d67f24294f621a426d574",
+    "digest": "0x37ca63f91ec5cb22459c21a002724067bb6b7c806fe82b52f4237b478a209a69"
+  }
+}

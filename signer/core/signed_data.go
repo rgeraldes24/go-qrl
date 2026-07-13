@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math/big"
 	"mime"
 
 	"github.com/theQRL/go-qrl/accounts"
@@ -30,31 +31,40 @@ import (
 	"github.com/theQRL/go-qrl/signer/core/apitypes"
 )
 
-// sign receives a request and produces a signature
-func (api *SignerAPI) sign(req *SignDataRequest) (hexutil.Bytes, error) {
-	// We make the request prior to looking up if we actually have the account, to prevent
-	// account-enumeration via the API
+// ErrTypedDataRequiresDedicatedAPI prevents callers from receiving a raw,
+// metadata-less ML-DSA signature through account_signData.
+var ErrTypedDataRequiresDedicatedAPI = errors.New("typed data must be signed with account_signTypedData")
+
+func (api *SignerAPI) approvedSignDataWallet(req *SignDataRequest) (accounts.Account, accounts.Wallet, string, error) {
+	// Ask for approval before looking up the account to avoid account enumeration.
 	res, err := api.UI.ApproveSignData(req)
 	if err != nil {
-		return nil, err
+		return accounts.Account{}, nil, "", err
 	}
 	if !res.Approved {
-		return nil, ErrRequestDenied
+		return accounts.Account{}, nil, "", ErrRequestDenied
 	}
-	// Look up the wallet containing the requested signer
 	account := accounts.Account{Address: req.Address.Address()}
 	wallet, err := api.am.Find(account)
 	if err != nil {
-		return nil, err
+		return accounts.Account{}, nil, "", err
 	}
-	pw, err := api.lookupOrQueryPassword(account.Address,
+	password, err := api.lookupOrQueryPassword(account.Address,
 		"Password for signing",
 		fmt.Sprintf("Please enter password for signing data with account %s", account.Address.Hex()))
 	if err != nil {
+		return accounts.Account{}, nil, "", err
+	}
+	return account, wallet, password, nil
+}
+
+// sign receives a request and produces a signature
+func (api *SignerAPI) sign(req *SignDataRequest) (hexutil.Bytes, error) {
+	account, wallet, password, err := api.approvedSignDataWallet(req)
+	if err != nil {
 		return nil, err
 	}
-	// Sign the data with the wallet
-	signature, err := wallet.SignDataWithPassphrase(account, pw, req.ContentType, req.Rawdata)
+	signature, err := wallet.SignDataWithPassphrase(account, password, req.ContentType, req.Rawdata)
 	if err != nil {
 		return nil, err
 	}
@@ -123,13 +133,8 @@ func (api *SignerAPI) determineSignatureFormat(ctx context.Context, contentType 
 			},
 		}
 		req = &SignDataRequest{ContentType: mediaType, Rawdata: []byte(msg), Messages: messages, Hash: sighash}
-	case apitypes.DataTyped.Mime:
-		// EIP-712 conformant typed data
-		var err error
-		req, err = typedDataRequest(data)
-		if err != nil {
-			return nil, err
-		}
+	case accounts.MimetypeTypedData, "data/typed":
+		return nil, ErrTypedDataRequiresDedicatedAPI
 	default: // also case TextPlain.Mime:
 		// Calculates a QRL ML-DSA-87 signature for:
 		// hash = keccak256("\x19QRL Signed Message:\n${message length}${message}")
@@ -161,35 +166,52 @@ func SignTextValidator(validatorData apitypes.ValidatorData) (hexutil.Bytes, str
 	return crypto.Keccak256([]byte(msg)), msg
 }
 
-// SignTypedData signs EIP-712 conformant typed data
-// hash = keccak256("\x19${byteVersion}${domainSeparator}${hashStruct(message)}")
-// It returns
-// - the signature,
-// - and/or any error
-func (api *SignerAPI) SignTypedData(ctx context.Context, addr common.MixedcaseAddress, typedData apitypes.TypedData) (hexutil.Bytes, error) {
-	signature, _, err := api.signTypedData(ctx, addr, typedData, nil)
-	return signature, err
-}
-
-// signTypedData is identical to the capitalized version, except that it also returns the hash (preimage)
-// - the signature preimage (hash)
-func (api *SignerAPI) signTypedData(ctx context.Context, addr common.MixedcaseAddress,
-	typedData apitypes.TypedData, validationMessages *apitypes.ValidationMessages) (hexutil.Bytes, hexutil.Bytes, error) {
+// SignTypedData signs a QRL Typed Structured Data v1 digest and returns the
+// public metadata required for independent ML-DSA verification.
+func (api *SignerAPI) SignTypedData(ctx context.Context, addr common.MixedcaseAddress, typedData apitypes.TypedData) (*apitypes.TypedDataSignature, error) {
+	if api.chainID == nil {
+		return nil, errors.New("signer chainId is undefined")
+	}
+	if typedData.Domain.ChainId == nil || api.chainID.Cmp((*big.Int)(typedData.Domain.ChainId)) != 0 {
+		return nil, fmt.Errorf("typed data domain chainId does not match signer chainId %s", api.chainID)
+	}
 	req, err := typedDataRequest(typedData)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	req.Address = addr
 	req.Meta = MetadataFromContext(ctx)
-	if validationMessages != nil {
-		req.Callinfo = validationMessages.Messages
-	}
-	signature, err := api.sign(req)
+	account, wallet, password, err := api.approvedSignDataWallet(req)
 	if err != nil {
 		api.UI.ShowError(err.Error())
-		return nil, nil, err
+		return nil, err
 	}
-	return signature, req.Hash, nil
+	signer, ok := wallet.(accounts.HashSignerWithMetadata)
+	if !ok {
+		return nil, errors.New("wallet cannot provide typed data verification metadata")
+	}
+	signed, err := signer.SignHashWithPassphraseAndMetadata(account, password, req.Hash)
+	if err != nil {
+		api.UI.ShowError(err.Error())
+		return nil, err
+	}
+	if len(req.Hash) != common.HashLength {
+		return nil, fmt.Errorf("typed data digest has invalid length %d", len(req.Hash))
+	}
+	result := &apitypes.TypedDataSignature{
+		Version:    apitypes.TypedDataVersion,
+		Algorithm:  apitypes.TypedDataAlgorithm,
+		Address:    account.Address,
+		Digest:     common.BytesToHash(req.Hash),
+		PublicKey:  append(hexutil.Bytes(nil), signed.PublicKey...),
+		Descriptor: append(hexutil.Bytes(nil), signed.Descriptor...),
+		Signature:  append(hexutil.Bytes(nil), signed.Signature...),
+	}
+	if err := result.Verify(typedData); err != nil {
+		api.UI.ShowError(err.Error())
+		return nil, fmt.Errorf("verify generated typed data signature: %w", err)
+	}
+	return result, nil
 }
 
 // fromHex tries to interpret the data as type string, and convert from
@@ -225,7 +247,7 @@ func typedDataRequest(data any) (*SignDataRequest, error) {
 		return nil, err
 	}
 	return &SignDataRequest{
-		ContentType: apitypes.DataTyped.Mime,
+		ContentType: accounts.MimetypeTypedData,
 		Rawdata:     []byte(rawData),
 		Messages:    messages,
 		Hash:        sighash}, nil
