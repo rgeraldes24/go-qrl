@@ -490,7 +490,7 @@ Response
 {
     "jsonrpc": "2.0",
     "id": 0,
-    "result": "7.0.0"
+    "result": "1.0.0"
 }
 ```
 
@@ -820,8 +820,8 @@ Example call:
       "info": {
         "extapi_http": "http://localhost:8550",
         "extapi_ipc": null,
-        "extapi_version": "2.0.0",
-        "intapi_version": "1.2.0"
+        "extapi_version": "1.0.0",
+        "intapi_version": "1.0.0"
       }
     }
   ]

@@ -10,3 +10,6 @@ TL;DR: Given a version number MAJOR.MINOR.PATCH, increment the:
 
 Additional labels for pre-release and build metadata are available as extensions to the MAJOR.MINOR.PATCH format.
 
+## 1.0.0
+
+- Established the initial QRL internal UI API version.

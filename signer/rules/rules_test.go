@@ -25,6 +25,7 @@ import (
 	"github.com/theQRL/go-qrl/accounts"
 	"github.com/theQRL/go-qrl/common"
 	"github.com/theQRL/go-qrl/common/hexutil"
+	commonmath "github.com/theQRL/go-qrl/common/math"
 	"github.com/theQRL/go-qrl/core/types"
 	"github.com/theQRL/go-qrl/internal/qrlapi"
 	"github.com/theQRL/go-qrl/signer/core"
@@ -629,5 +630,82 @@ function ApproveSignData(r){
 	}
 	if !resp.Approved {
 		t.Fatalf("Expected approved")
+	}
+}
+
+func TestTypedDataRulesApproveAndReject(t *testing.T) {
+	t.Parallel()
+	js := `function ApproveSignData(request) {
+		if (request.content_type !== "application/vnd.qrl.typed-data+json") {
+			return "Reject";
+		}
+		var message = request.messages[1];
+		if (message.name !== "Message" || message.type !== "primary type") {
+			return "Reject";
+		}
+		for (var i = 0; i < message.value.length; i++) {
+			if (message.value[i].name === "contents") {
+				return message.value[i].value === "allow" ? "Approve" : "Reject";
+			}
+		}
+		return "Reject";
+	}`
+	rules, err := initRuleEngine(js)
+	if err != nil {
+		t.Fatal(err)
+	}
+	address := common.MustParseMixedcaseAddress("Q0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000694267f14675d7e1b9494fd8d72fefe1755710fa")
+	for _, test := range []struct {
+		contents string
+		approved bool
+	}{
+		{contents: "allow", approved: true},
+		{contents: "deny", approved: false},
+	} {
+		t.Run(test.contents, func(t *testing.T) {
+			typedData := apitypes.TypedData{
+				Types: apitypes.Types{
+					apitypes.TypedDataDomainType: {
+						{Name: "name", Type: "string"},
+						{Name: "version", Type: "string"},
+						{Name: "chainId", Type: "uint256"},
+						{Name: "verifyingContract", Type: "address"},
+						{Name: "salt", Type: "bytes32"},
+					},
+					"Message": {{Name: "contents", Type: "string"}},
+				},
+				PrimaryType: "Message",
+				Domain: apitypes.TypedDataDomain{
+					Name:              "Rules test",
+					Version:           "1",
+					ChainId:           commonmath.NewHexOrDecimal256(1337),
+					VerifyingContract: "Q00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+					Salt:              "0x0000000000000000000000000000000000000000000000000000000000000000",
+				},
+				Message: apitypes.TypedDataMessage{"contents": test.contents},
+			}
+			messages, err := typedData.Format()
+			if err != nil {
+				t.Fatal(err)
+			}
+			digest, rawData, err := apitypes.TypedDataAndHash(typedData)
+			if err != nil {
+				t.Fatal(err)
+			}
+			response, err := rules.ApproveSignData(&core.SignDataRequest{
+				ContentType: accounts.MimetypeTypedData,
+				Address:     *address,
+				Rawdata:     []byte(rawData),
+				Messages:    messages,
+				Hash:        hexutil.Bytes(digest),
+				Meta:        core.Metadata{Remote: "remoteip", Local: "localip", Scheme: "inproc"},
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if response.Approved != test.approved {
+				t.Fatalf("approved %t, want %t", response.Approved, test.approved)
+			}
+		})
 	}
 }

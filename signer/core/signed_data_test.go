@@ -17,8 +17,12 @@ import (
 	"github.com/theQRL/go-qrl/common/hexutil"
 	"github.com/theQRL/go-qrl/common/math"
 	"github.com/theQRL/go-qrl/crypto/pqcrypto"
+	"github.com/theQRL/go-qrl/event"
+	"github.com/theQRL/go-qrl/rpc"
 	"github.com/theQRL/go-qrl/signer/core"
 	"github.com/theQRL/go-qrl/signer/core/apitypes"
+	"github.com/theQRL/go-qrl/signer/fourbyte"
+	"github.com/theQRL/go-qrl/signer/storage"
 )
 
 const (
@@ -28,6 +32,25 @@ const (
 	typedDataContract2 = "Q22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222"
 	typedDataSalt      = "0x000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f"
 )
+
+type metadataLessWallet struct {
+	accounts.Wallet
+}
+
+type staticWalletBackend struct {
+	wallets []accounts.Wallet
+}
+
+func (backend *staticWalletBackend) Wallets() []accounts.Wallet {
+	return backend.wallets
+}
+
+func (backend *staticWalletBackend) Subscribe(chan<- accounts.WalletEvent) event.Subscription {
+	return event.NewSubscription(func(quit <-chan struct{}) error {
+		<-quit
+		return nil
+	})
+}
 
 func qrlTypedDataFixture() apitypes.TypedData {
 	return apitypes.TypedData{
@@ -170,7 +193,6 @@ func TestSignQRLTypedData(t *testing.T) {
 	if !bytes.Equal(result.Digest[:], control.lastSignDataRequest.Hash) {
 		t.Fatalf("envelope digest %x, UI digest %x", result.Digest, control.lastSignDataRequest.Hash)
 	}
-
 	tampered := qrlTypedDataFixture()
 	tampered.Message["nonce"] = "43"
 	if err := result.Verify(tampered); err == nil {
@@ -189,6 +211,85 @@ func TestSignQRLTypedData(t *testing.T) {
 	badSignature.Signature[0] ^= 0xff
 	if err := badSignature.Verify(typedData); err == nil {
 		t.Fatal("corrupted ML-DSA signature verified")
+	}
+}
+
+func TestSignQRLTypedDataJSONRPC(t *testing.T) {
+	t.Parallel()
+	api, control := setup(t)
+	createAccount(control, api, t)
+	control.approveCh <- "A"
+	accountsList, err := api.List(t.Context())
+	if err != nil {
+		t.Fatal(err)
+	}
+	address := common.NewMixedcaseAddress(accountsList[0])
+	typedData := qrlTypedDataFixture()
+
+	server := rpc.NewServer()
+	t.Cleanup(server.Stop)
+	if err := server.RegisterName("account", api); err != nil {
+		t.Fatal(err)
+	}
+	client := rpc.DialInProc(server)
+	t.Cleanup(client.Close)
+
+	control.approveCh <- "Y"
+	control.inputCh <- "a_long_password"
+	var result apitypes.TypedDataSignature
+	if err := client.CallContext(t.Context(), &result, "account_signTypedData", address, typedData); err != nil {
+		t.Fatal(err)
+	}
+	if err := result.Verify(typedData); err != nil {
+		t.Fatalf("verify RPC signing result: %v", err)
+	}
+}
+
+func TestSignQRLTypedDataRejectsWalletWithoutMetadata(t *testing.T) {
+	t.Parallel()
+	password := "a_long_password"
+	keyStore := keystore.NewKeyStore(
+		tmpDirName(t),
+		keystore.LightArgon2idT,
+		keystore.LightArgon2idM,
+		keystore.LightArgon2idP,
+	)
+	account, err := keyStore.NewAccount(password)
+	if err != nil {
+		t.Fatal(err)
+	}
+	wallets := keyStore.Wallets()
+	if len(wallets) != 1 {
+		t.Fatalf("wallet count %d, want 1", len(wallets))
+	}
+	backend := &staticWalletBackend{wallets: []accounts.Wallet{metadataLessWallet{Wallet: wallets[0]}}}
+	manager := accounts.NewManager(backend)
+	t.Cleanup(func() {
+		if err := manager.Close(); err != nil {
+			t.Errorf("close account manager: %v", err)
+		}
+	})
+	db, err := fourbyte.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	control := &headlessUi{
+		approveCh: make(chan string, 1),
+		inputCh:   make(chan string, 1),
+	}
+	api := core.NewSignerAPI(manager, 1337, control, db, true, &storage.NoStorage{})
+	control.approveCh <- "Y"
+	control.inputCh <- password
+	result, err := api.SignTypedData(
+		t.Context(),
+		common.NewMixedcaseAddress(account.Address),
+		qrlTypedDataFixture(),
+	)
+	if result != nil {
+		t.Fatalf("signing result %v, want nil", result)
+	}
+	if err == nil || !strings.Contains(err.Error(), "wallet cannot provide typed data verification metadata") {
+		t.Fatalf("error %v, want unsupported wallet metadata error", err)
 	}
 }
 

@@ -10,7 +10,7 @@ TL;DR: Given a version number MAJOR.MINOR.PATCH, increment the:
 
 Additional labels for pre-release and build metadata are available as extensions to the MAJOR.MINOR.PATCH format.
 
-## 7.0.0
+## 1.0.0
 
 - Replaced EIP-712 hashing in `account_signTypedData` with QRL Typed Structured
   Data v1, using 64-byte VM words and full Q-addresses.
