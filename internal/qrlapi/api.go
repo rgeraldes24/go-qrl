@@ -280,12 +280,8 @@ func NewBlockChainAPI(b Backend) *BlockChainAPI {
 	return &BlockChainAPI{b}
 }
 
-// ChainId is the EIP-155 replay-protection chain id for the current QRL chain config.
-//
-// Note, this method does not conform to EIP-695 because the configured chain ID is always
-// returned, regardless of the current head block. We used to return an error when the chain
-// wasn't synced up to a block where EIP-155 is enabled, but this behavior caused issues
-// in CL clients.
+// ChainId returns the configured chain ID used to bind QRL transaction signatures
+// to this network. It is always available regardless of the current head block.
 func (api *BlockChainAPI) ChainId() *hexutil.Big {
 	return (*hexutil.Big)(api.b.ChainConfig().ChainID)
 }

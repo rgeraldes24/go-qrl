@@ -27,7 +27,7 @@ import (
 	"github.com/theQRL/go-qrl/crypto/pqcrypto/wallet"
 )
 
-func TestEIP155ChainId(t *testing.T) {
+func TestSignerChainID(t *testing.T) {
 	wallet, _ := wallet.Generate(wallet.ML_DSA_87)
 	addr := common.Address(wallet.GetAddress())
 

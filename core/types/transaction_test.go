@@ -158,16 +158,6 @@ func TestEIP2930Signer(t *testing.T) {
 			wantSignerHash: common.HexToHash("0dd9694ffcf29a75b23fd87a7a8e8517bec9b80f14d39272f2dae01c2e42b5ba"),
 			wantSenderErr:  ErrInvalidChainId,
 		},
-		// NOTE(rgeraldes24): not valid atm
-		/*
-			{
-				tx:             tx1,
-				signer:         signer1,
-				wantSenderErr:  ErrInvalidSig,
-				wantSignerHash: common.HexToHash("b6afee4d44e0392fb5d3204b350596d6677440bced7ebd998db73c9671527c57"),
-				wantHash:       common.HexToHash("1ccd12d8bbdb96ea391af49a35ab641e219b2dd638dea375f2bc94dd290f2549"),
-			},
-		*/
 		{
 			// This checks what happens when trying to sign an unsigned tx for the wrong chain.
 			tx:             tx1,
