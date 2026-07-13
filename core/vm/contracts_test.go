@@ -18,7 +18,6 @@ package vm
 
 import (
 	"bytes"
-	"crypto/sha256"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -170,66 +169,6 @@ func BenchmarkPrecompiledDepositroot(bench *testing.B) {
 		Name:     "",
 	}
 	benchmarkPrecompiled(precompileAddress("01"), t, bench)
-}
-
-// BenchmarkDepositRootGasCalibration compares deposit-root execution against
-// the SHA-256 and identity precompiles used to calibrate its consensus price.
-func BenchmarkDepositRootGasCalibration(b *testing.B) {
-	vectors, err := loadJson("depositroot")
-	if err != nil {
-		b.Fatal(err)
-	}
-	if len(vectors) != 1 {
-		b.Fatalf("deposit-root vectors %d, want 1", len(vectors))
-	}
-	depositInput := common.Hex2Bytes(vectors[0].Input)
-	depositOutput := common.Hex2Bytes(vectors[0].Expected)
-	shaInput := bytes.Repeat([]byte{0x5a}, 128)
-	shaOutput := sha256.Sum256(shaInput)
-	tests := []struct {
-		name       string
-		precompile PrecompiledContract
-		input      []byte
-		want       []byte
-	}{
-		{
-			name:       "DepositRoot",
-			precompile: new(depositroot),
-			input:      depositInput,
-			want:       depositOutput,
-		},
-		{
-			name:       "SHA256-128",
-			precompile: new(sha256hash),
-			input:      shaInput,
-			want:       shaOutput[:],
-		},
-		{
-			name:       "Identity-128",
-			precompile: new(dataCopy),
-			input:      shaInput,
-			want:       shaInput,
-		},
-	}
-	for _, test := range tests {
-		b.Run(test.name, func(b *testing.B) {
-			var (
-				output []byte
-				err    error
-			)
-			b.ReportAllocs()
-			for b.Loop() {
-				output, err = test.precompile.Run(test.input)
-			}
-			b.ReportMetric(float64(test.precompile.RequiredGas(test.input)), "gas/op")
-			if err != nil {
-				b.Fatal(err)
-			}
-			if !bytes.Equal(output, test.want) {
-				b.Fatalf("output %x, want %x", output, test.want)
-			}
-		})
-	}
 }
 
 // Benchmarks the sample inputs from the SHA256 precompile.
