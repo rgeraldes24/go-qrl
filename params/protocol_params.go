@@ -83,7 +83,7 @@ const (
 	MaxInitCodeSize = 2 * MaxCodeSize // Maximum initcode to permit in a creation transaction and create instructions
 
 	// Precompiled contract gas prices
-	DepositrootGas     uint64 = 18000 // Consensus price for one deposit-root computation
+	DepositrootGas     uint64 = 18000 // Price for one deposit-root computation
 	Sha256BaseGas      uint64 = 60    // Base price for a SHA256 operation
 	Sha256PerWordGas   uint64 = 12    // Per-word price for a SHA256 operation
 	IdentityBaseGas    uint64 = 15    // Base price for a data copy operation
