@@ -9,6 +9,8 @@ import (
 	"testing"
 )
 
+const emptyTypedDataJSON = `{"types":{"QRLTypedDataDomain":[{"name":"name","type":"string"},{"name":"version","type":"string"},{"name":"chainId","type":"uint256"},{"name":"verifyingContract","type":"address"},{"name":"salt","type":"bytes32"}],"Empty":[]},"primaryType":"Empty","domain":{"name":"test","version":"1","chainId":"1","verifyingContract":"Q00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000","salt":"0x0000000000000000000000000000000000000000000000000000000000000000"},"message":{}}`
+
 func TestIsPrimitive(t *testing.T) {
 	t.Parallel()
 	for _, typ := range []string{
@@ -45,6 +47,19 @@ func TestTypedDataRejectsReservedCustomType(t *testing.T) {
 	}
 }
 
+func TestTypedDataAcceptsPrimitivePrefixedCustomType(t *testing.T) {
+	t.Parallel()
+	for _, name := range []string{"bytesEnvelope", "intention", "uintConfig"} {
+		types := Types{
+			TypedDataDomainType: append([]Type(nil), qrlTypedDataDomain...),
+			name:                {{Name: "value", Type: "bool"}},
+		}
+		if err := validateTypedDataTypes(types); err != nil {
+			t.Errorf("type name %q: %v", name, err)
+		}
+	}
+}
+
 func TestTypedDataJSONRejectsUnknownFields(t *testing.T) {
 	t.Parallel()
 	for _, input := range []string{
@@ -68,6 +83,32 @@ func TestTypedDataJSONRejectsDuplicateKeys(t *testing.T) {
 		var typedData TypedData
 		if err := json.Unmarshal([]byte(input), &typedData); err == nil || !strings.Contains(err.Error(), "duplicate") {
 			t.Fatalf("duplicate key accepted in %s: %v", input, err)
+		}
+	}
+}
+
+func TestTypedDataJSONRequiresExactObjectShape(t *testing.T) {
+	t.Parallel()
+	var valid TypedData
+	if err := json.Unmarshal([]byte(emptyTypedDataJSON), &valid); err != nil {
+		t.Fatalf("valid empty struct: %v", err)
+	}
+	if _, _, err := TypedDataAndHash(valid); err != nil {
+		t.Fatalf("hash valid empty struct: %v", err)
+	}
+
+	tests := []string{
+		strings.Replace(emptyTypedDataJSON, `"types":`, `"Types":`, 1),
+		strings.Replace(emptyTypedDataJSON, `{"name":`, `{"Name":`, 1),
+		strings.Replace(emptyTypedDataJSON, `"chainId":`, `"ChainId":`, 1),
+		strings.Replace(emptyTypedDataJSON, `"Empty":[]`, `"Empty":null`, 1),
+		strings.Replace(emptyTypedDataJSON, `"message":{}`, `"message":null`, 1),
+		strings.Replace(emptyTypedDataJSON, `,"message":{}`, ``, 1),
+	}
+	for _, input := range tests {
+		var typedData TypedData
+		if err := json.Unmarshal([]byte(input), &typedData); err == nil {
+			t.Errorf("invalid typed-data shape accepted: %s", input)
 		}
 	}
 }

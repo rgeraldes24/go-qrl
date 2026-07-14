@@ -1,0 +1,23 @@
+{
+  "types": {
+    "QRLTypedDataDomain": [
+      {"name": "name", "type": "string"},
+      {"name": "version", "type": "string"},
+      {"name": "chainId", "type": "uint256"},
+      {"name": "verifyingContract", "type": "address"},
+      {"name": "salt", "type": "bytes32"}
+    ],
+    "0": [
+      {"name": "value", "type": "bool"}
+    ]
+  },
+  "primaryType": "0",
+  "domain": {
+    "name": "fuzz regression",
+    "version": "1",
+    "chainId": "1",
+    "verifyingContract": "Q11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111",
+    "salt": "0x0000000000000000000000000000000000000000000000000000000000000000"
+  },
+  "message": {"value": true}
+}

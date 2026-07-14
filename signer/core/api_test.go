@@ -17,6 +17,7 @@
 package core_test
 
 import (
+	"encoding/json"
 	"fmt"
 	"math/big"
 	"os"
@@ -28,8 +29,10 @@ import (
 	"github.com/theQRL/go-qrl/accounts/keystore"
 	"github.com/theQRL/go-qrl/common"
 	"github.com/theQRL/go-qrl/common/hexutil"
+	qrlmath "github.com/theQRL/go-qrl/common/math"
 	"github.com/theQRL/go-qrl/core/types"
 	"github.com/theQRL/go-qrl/internal/qrlapi"
+	"github.com/theQRL/go-qrl/rpc"
 	"github.com/theQRL/go-qrl/signer/core"
 	"github.com/theQRL/go-qrl/signer/core/apitypes"
 	"github.com/theQRL/go-qrl/signer/fourbyte"
@@ -126,6 +129,64 @@ func setup(t *testing.T) (*core.SignerAPI, *headlessUi) {
 	am := core.StartClefAccountManager(tmpDirName(t) /*false,*/, true /*, ""*/)
 	api := core.NewSignerAPI(am, 1337 /*true,*/, ui, db, true, &storage.NoStorage{})
 	return api, ui
+}
+
+func TestUIServerAPIChainID(t *testing.T) {
+	t.Parallel()
+	initial := new(big.Int).Lsh(big.NewInt(1), 200)
+	api := core.NewSignerAPIWithChainID(nil, initial, nil, nil, false, &storage.NoStorage{})
+	uiAPI := core.NewUIServerAPI(api)
+	got := uiAPI.ChainId()
+	if (*big.Int)(got).Cmp(initial) != 0 {
+		t.Fatalf("chain ID %s, want %s", (*big.Int)(got), initial)
+	}
+
+	updated := new(big.Int).Add(new(big.Int).Lsh(big.NewInt(1), 255), big.NewInt(7))
+	encoded := qrlmath.HexOrDecimal256(*updated)
+	got, err := uiAPI.SetChainId(encoded)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if (*big.Int)(got).Cmp(updated) != 0 {
+		t.Fatalf("updated chain ID %s, want %s", (*big.Int)(got), updated)
+	}
+
+	for _, invalid := range []*big.Int{
+		big.NewInt(-1),
+		new(big.Int).Lsh(big.NewInt(1), 256),
+	} {
+		encoded := qrlmath.HexOrDecimal256(*invalid)
+		if _, err := uiAPI.SetChainId(encoded); err == nil {
+			t.Errorf("invalid chain ID %s accepted", invalid)
+		}
+	}
+
+	server := rpc.NewServer()
+	t.Cleanup(server.Stop)
+	if err := server.RegisterName("clef", uiAPI); err != nil {
+		t.Fatal(err)
+	}
+	client := rpc.DialInProc(server)
+	t.Cleanup(client.Close)
+
+	var result json.RawMessage
+	if err := client.Call(&result, "clef_chainId"); err != nil {
+		t.Fatal(err)
+	}
+	want, err := json.Marshal(uiAPI.ChainId())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(result) != string(want) {
+		t.Fatalf("clef_chainId result %s, want %s", result, want)
+	}
+
+	if err := client.Call(&result, "clef_setChainId", "0x2a"); err != nil {
+		t.Fatal(err)
+	}
+	if string(result) != `"0x2a"` {
+		t.Fatalf("clef_setChainId result %s, want %q", result, "0x2a")
+	}
 }
 func createAccount(ui *headlessUi, api *core.SignerAPI, t *testing.T) {
 	ui.approveCh <- "Y"

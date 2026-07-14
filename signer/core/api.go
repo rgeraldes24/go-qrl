@@ -227,14 +227,21 @@ type (
 
 var ErrRequestDenied = errors.New("request denied")
 
-// NewSignerAPI creates a new API that can be used for Account management.
-// ksLocation specifies the directory where to store the password protected private
-// key that is generated when a new Account is created.
+// NewSignerAPI creates a new API that can be used for account management.
 func NewSignerAPI(am *accounts.Manager, chainID int64, ui UIClientAPI, validator Validator, advancedMode bool, credentials storage.Storage) *SignerAPI {
+	return NewSignerAPIWithChainID(am, big.NewInt(chainID), ui, validator, advancedMode, credentials)
+}
+
+// NewSignerAPIWithChainID creates a new API with a full-width chain ID.
+func NewSignerAPIWithChainID(am *accounts.Manager, chainID *big.Int, ui UIClientAPI, validator Validator, advancedMode bool, credentials storage.Storage) *SignerAPI {
 	if advancedMode {
 		log.Info("Clef is in advanced mode: will warn instead of reject")
 	}
-	signer := &SignerAPI{big.NewInt(chainID), am, ui, validator, !advancedMode, credentials}
+	configuredChainID := new(big.Int)
+	if chainID != nil {
+		configuredChainID.Set(chainID)
+	}
+	signer := &SignerAPI{configuredChainID, am, ui, validator, !advancedMode, credentials}
 
 	return signer
 }

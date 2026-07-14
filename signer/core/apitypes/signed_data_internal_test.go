@@ -6,6 +6,8 @@ package apitypes
 import (
 	"bytes"
 	"math/big"
+	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/theQRL/go-qrl/common"
@@ -215,5 +217,62 @@ func TestNestedArrayEncodingVM64(t *testing.T) {
 	want := append(encodeTypedDataHashWord(crypto.Keccak256([]byte("Matrix(uint16[2][] values)"))), wantArray...)
 	if !bytes.Equal(encoded, want) {
 		t.Fatalf("nested array encoding:\n have %x\n want %x", encoded, want)
+	}
+}
+
+func TestTypedDataNestingDepth(t *testing.T) {
+	t.Parallel()
+	for _, test := range []struct {
+		depth int
+		valid bool
+	}{
+		{depth: maxTypedDataDepth, valid: true},
+		{depth: maxTypedDataDepth + 1},
+	} {
+		typedData := nestedTypedData(test.depth)
+		_, _, hashErr := TypedDataAndHash(*typedData)
+		_, formatErr := typedData.Format()
+		if test.valid {
+			if hashErr != nil {
+				t.Errorf("depth %d hashing failed: %v", test.depth, hashErr)
+			}
+			if formatErr != nil {
+				t.Errorf("depth %d formatting failed: %v", test.depth, formatErr)
+			}
+			continue
+		}
+		if hashErr == nil || !strings.Contains(hashErr.Error(), "exceeds maximum depth") {
+			t.Errorf("depth %d hashing: expected maximum-depth error, got %v", test.depth, hashErr)
+		}
+		if formatErr == nil || !strings.Contains(formatErr.Error(), "exceeds maximum depth") {
+			t.Errorf("depth %d formatting: expected maximum-depth error, got %v", test.depth, formatErr)
+		}
+	}
+}
+
+func nestedTypedData(depth int) *TypedData {
+	types := Types{TypedDataDomainType: append([]Type(nil), qrlTypedDataDomain...)}
+	message := TypedDataMessage{"value": true}
+	for level := depth; level > 0; level-- {
+		typeName := "Level" + strconv.Itoa(level)
+		if level == depth {
+			types[typeName] = []Type{{Name: "value", Type: "bool"}}
+			continue
+		}
+		nextType := "Level" + strconv.Itoa(level+1)
+		types[typeName] = []Type{{Name: "next", Type: nextType}}
+		message = TypedDataMessage{"next": message}
+	}
+	return &TypedData{
+		Types:       types,
+		PrimaryType: "Level1",
+		Domain: TypedDataDomain{
+			Name:              "depth",
+			Version:           "1",
+			ChainId:           math.NewHexOrDecimal256(1),
+			VerifyingContract: common.Address{}.Hex(),
+			Salt:              hexutil.Encode(make([]byte, common.HashLength)),
+		},
+		Message: message,
 	}
 }

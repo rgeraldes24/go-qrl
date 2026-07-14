@@ -115,10 +115,81 @@ func (sig *TypedDataSignature) Verify(typedData TypedData) error {
 	return nil
 }
 
+// MarshalJSON converts schema-aware Go values to the canonical typed-data wire
+// representation before encoding them as JSON.
+func (typedData TypedData) MarshalJSON() ([]byte, error) {
+	if _, _, err := TypedDataAndHash(typedData); err != nil {
+		return nil, err
+	}
+	message, err := typedDataJSONValue(&typedData, parsedTypedDataType{base: typedData.PrimaryType}, typedData.Message)
+	if err != nil {
+		return nil, err
+	}
+	return json.Marshal(struct {
+		Types       Types           `json:"types"`
+		PrimaryType string          `json:"primaryType"`
+		Domain      TypedDataDomain `json:"domain"`
+		Message     any             `json:"message"`
+	}{
+		Types:       typedData.Types,
+		PrimaryType: typedData.PrimaryType,
+		Domain:      typedData.Domain,
+		Message:     message,
+	})
+}
+
+func typedDataJSONValue(typedData *TypedData, typ parsedTypedDataType, value any) (any, error) {
+	if typ.isArray() {
+		values, _ := typedDataSlice(value)
+		elements := make([]any, len(values))
+		for index, element := range values {
+			encoded, err := typedDataJSONValue(typedData, typ.elementType(), element)
+			if err != nil {
+				return nil, err
+			}
+			elements[index] = encoded
+		}
+		return elements, nil
+	}
+	if fields, custom := typedData.Types[typ.base]; custom {
+		message := value.(map[string]any)
+		encoded := make(map[string]any, len(fields))
+		for _, field := range fields {
+			fieldType, _ := parseTypedDataType(field.Type)
+			fieldValue, err := typedDataJSONValue(typedData, fieldType, message[field.Name])
+			if err != nil {
+				return nil, err
+			}
+			encoded[field.Name] = fieldValue
+		}
+		return encoded, nil
+	}
+	if _, _, integerType := splitNumericType(typ.base, "uint", "int"); integerType {
+		integer, err := parseTypedDataInteger(value)
+		if err != nil {
+			return nil, err
+		}
+		return integer.String(), nil
+	}
+	switch {
+	case typ.base == "address":
+		address, _ := parseTypedDataAddress(value)
+		return address.Hex(), nil
+	case typ.base == "bytes" || strings.HasPrefix(typ.base, "bytes"):
+		blob, _ := parseTypedDataBytes(value)
+		return hexutil.Encode(blob), nil
+	default:
+		return value, nil
+	}
+}
+
 // UnmarshalJSON preserves JSON integer tokens as json.Number. This avoids the
 // lossy float64 conversion performed when decoding into map[string]any.
 func (typedData *TypedData) UnmarshalJSON(input []byte) error {
 	if err := rejectDuplicateJSONKeys(input); err != nil {
+		return err
+	}
+	if err := validateTypedDataJSONShape(input); err != nil {
 		return err
 	}
 	type typedDataAlias TypedData
@@ -137,6 +208,65 @@ func (typedData *TypedData) UnmarshalJSON(input []byte) error {
 	}
 	*typedData = TypedData(decoded)
 	return nil
+}
+
+func validateTypedDataJSONShape(input []byte) error {
+	topLevel, err := decodeExactJSONObject(input, "typed data", "types", "primaryType", "domain", "message")
+	if err != nil {
+		return err
+	}
+	types, err := decodeJSONObject(topLevel["types"], "types")
+	if err != nil {
+		return err
+	}
+	for name, declaration := range types {
+		var fields []json.RawMessage
+		if err := json.Unmarshal(declaration, &fields); err != nil || fields == nil {
+			return fmt.Errorf("type %q declaration must be an array", name)
+		}
+		for index, field := range fields {
+			if _, err := decodeExactJSONObject(field, fmt.Sprintf("type %q field %d", name, index), "name", "type"); err != nil {
+				return err
+			}
+		}
+	}
+	if _, err := decodeExactJSONObject(topLevel["domain"], "domain", "name", "version", "chainId", "verifyingContract", "salt"); err != nil {
+		return err
+	}
+	if _, err := decodeJSONObject(topLevel["message"], "message"); err != nil {
+		return err
+	}
+	return nil
+}
+
+func decodeExactJSONObject(input []byte, label string, required ...string) (map[string]json.RawMessage, error) {
+	object, err := decodeJSONObject(input, label)
+	if err != nil {
+		return nil, err
+	}
+	allowed := make(map[string]struct{}, len(required))
+	for _, name := range required {
+		allowed[name] = struct{}{}
+	}
+	for name := range object {
+		if _, exists := allowed[name]; !exists {
+			return nil, fmt.Errorf("%s has unknown property %q", label, name)
+		}
+	}
+	for _, name := range required {
+		if _, exists := object[name]; !exists {
+			return nil, fmt.Errorf("%s is missing required property %q", label, name)
+		}
+	}
+	return object, nil
+}
+
+func decodeJSONObject(input []byte, label string) (map[string]json.RawMessage, error) {
+	var object map[string]json.RawMessage
+	if err := json.Unmarshal(input, &object); err != nil || object == nil {
+		return nil, fmt.Errorf("%s must be an object", label)
+	}
+	return object, nil
 }
 
 func rejectDuplicateJSONKeys(input []byte) error {
@@ -327,8 +457,7 @@ func validateBaseType(base string) error {
 		}
 		return nil
 	}
-	if strings.HasPrefix(base, "bytes") {
-		widthText := strings.TrimPrefix(base, "bytes")
+	if _, widthText, ok := splitNumericType(base, "bytes"); ok {
 		width, err := parseTypeWidth("bytes", widthText, uint512.WordBytes)
 		if err != nil {
 			return err
@@ -343,11 +472,23 @@ func validateBaseType(base string) error {
 
 func splitNumericType(input string, prefixes ...string) (string, string, bool) {
 	for _, prefix := range prefixes {
-		if strings.HasPrefix(input, prefix) {
-			return prefix, strings.TrimPrefix(input, prefix), true
+		if width, ok := strings.CutPrefix(input, prefix); ok && isDecimal(width) {
+			return prefix, width, true
 		}
 	}
 	return "", "", false
+}
+
+func isDecimal(input string) bool {
+	if input == "" {
+		return false
+	}
+	for index := range input {
+		if input[index] < '0' || input[index] > '9' {
+			return false
+		}
+	}
+	return true
 }
 
 func parseTypeWidth(prefix, input string, maximum int) (int, error) {
@@ -365,7 +506,7 @@ func isPrimitiveBase(base string) bool {
 	if base == "address" || base == "bool" || base == "string" || base == "bytes" {
 		return true
 	}
-	if strings.HasPrefix(base, "bytes") || strings.HasPrefix(base, "uint") || strings.HasPrefix(base, "int") {
+	if _, _, ok := splitNumericType(base, "bytes", "uint", "int"); ok {
 		return validateBaseType(base) == nil
 	}
 	return false
@@ -376,7 +517,8 @@ func isReservedTypeName(name string) bool {
 		name == "function" || name == "int" || name == "uint" {
 		return true
 	}
-	return strings.HasPrefix(name, "bytes") || strings.HasPrefix(name, "int") || strings.HasPrefix(name, "uint")
+	_, _, reserved := splitNumericType(name, "bytes", "int", "uint")
+	return reserved
 }
 
 func validateTypedDataTypes(types Types) error {
@@ -611,7 +753,7 @@ func typedDataEncodeData(typedData *TypedData, primaryType string, data TypedDat
 			return nil, fmt.Errorf("type %q is missing field %q", primaryType, field.Name)
 		}
 		parsed, _ := parseTypedDataType(field.Type)
-		fieldEncoding, err := typedDataEncodeValue(typedData, parsed, value, depth+1)
+		fieldEncoding, err := typedDataEncodeValue(typedData, parsed, value, depth)
 		if err != nil {
 			return nil, fmt.Errorf("type %q field %q: %w", primaryType, field.Name, err)
 		}
@@ -913,7 +1055,7 @@ func typedDataFormatData(typedData *TypedData, primaryType string, data TypedDat
 	formatted := make([]*NameValueType, 0, len(fields))
 	for _, field := range fields {
 		parsed, _ := parseTypedDataType(field.Type)
-		value, err := typedDataFormatValue(typedData, parsed, data[field.Name], depth+1)
+		value, err := typedDataFormatValue(typedData, parsed, data[field.Name], depth)
 		if err != nil {
 			return nil, err
 		}

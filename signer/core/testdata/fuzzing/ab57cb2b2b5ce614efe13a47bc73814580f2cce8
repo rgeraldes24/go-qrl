@@ -1,0 +1,17 @@
+{
+  "types": {
+    "QRLTypedDataDomain": [
+      {"Name": "name", "type": "string"},
+      {"name": "version", "Type": "string"},
+      {"name": "chainId", "type": "uint256"},
+      {"name": "verifyingContract", "type": "address"},
+      {"name": "salt", "type": "bytes32"}
+    ],
+    "Message": [
+      {"name": "value", "type": "bool", "unexpected": true}
+    ]
+  },
+  "primaryType": "Message",
+  "domain": null,
+  "message": {"value": true}
+}

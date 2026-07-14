@@ -7,7 +7,9 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"math/big"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -314,6 +316,34 @@ func TestTypedDataSignerChainID(t *testing.T) {
 	}
 }
 
+func TestTypedDataSignerWideChainID(t *testing.T) {
+	t.Parallel()
+	api, control := setup(t)
+	createAccount(control, api, t)
+	control.approveCh <- "A"
+	accountsList, err := api.List(t.Context())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	wideChainID := new(big.Int).Lsh(big.NewInt(1), 200)
+	encodedChainID := math.HexOrDecimal256(*wideChainID)
+	if _, err := core.NewUIServerAPI(api).SetChainId(encodedChainID); err != nil {
+		t.Fatal(err)
+	}
+	typedData := qrlTypedDataFixture()
+	typedData.Domain.ChainId = &encodedChainID
+	control.approveCh <- "Y"
+	control.inputCh <- "a_long_password"
+	result, err := api.SignTypedData(t.Context(), common.NewMixedcaseAddress(accountsList[0]), typedData)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := result.Verify(typedData); err != nil {
+		t.Fatalf("verify wide-chain-ID signature: %v", err)
+	}
+}
+
 func TestQRLTypedDataGolden(t *testing.T) {
 	t.Parallel()
 	encoded, err := os.ReadFile("testdata/qrl_typed_data_v1.json")
@@ -452,6 +482,49 @@ func TestQRLTypedDataJSONRoundTrip(t *testing.T) {
 	}
 	if err := json.Unmarshal(append(encoded, []byte(` {}`)...), &decoded); err == nil {
 		t.Fatal("multiple JSON values accepted")
+	}
+}
+
+func TestTypedDataFuzzRegressionCorpus(t *testing.T) {
+	t.Parallel()
+	valid := map[string]bool{
+		"36fb987a774011dc675e1b5246ac5c1d44d84d92": true,
+	}
+	directory := filepath.Join("testdata", "fuzzing")
+	entries, err := os.ReadDir(directory)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, entry := range entries {
+		entry := entry
+		t.Run(entry.Name(), func(t *testing.T) {
+			t.Parallel()
+			encoded, err := os.ReadFile(filepath.Join(directory, entry.Name()))
+			if err != nil {
+				t.Fatal(err)
+			}
+			var typedData apitypes.TypedData
+			if err := json.Unmarshal(encoded, &typedData); err != nil {
+				if valid[entry.Name()] {
+					t.Fatalf("valid corpus entry did not decode: %v", err)
+				}
+				return
+			}
+			_, _, hashErr := apitypes.TypedDataAndHash(typedData)
+			_, formatErr := typedData.Format()
+			if valid[entry.Name()] {
+				if hashErr != nil {
+					t.Fatalf("valid corpus entry did not hash: %v", hashErr)
+				}
+				if formatErr != nil {
+					t.Fatalf("valid corpus entry did not format: %v", formatErr)
+				}
+				return
+			}
+			if hashErr == nil {
+				t.Fatal("invalid corpus entry was accepted")
+			}
+		})
 	}
 }
 

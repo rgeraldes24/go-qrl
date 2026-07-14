@@ -134,19 +134,25 @@ func (api *UIServerAPI) ImportRawWallet(seed string, password string) (accounts.
 	return fetchKeystore(api.am).ImportWallet(wallet, password)
 }
 
-// ChainId returns the chainid in use for Eip-155 replay protection
+// ChainId returns the chain ID used for QRL signature binding.
 // Example call
 // {"jsonrpc":"2.0","method":"clef_chainId","params":[], "id":8}
-func (api *UIServerAPI) ChainId() math.HexOrDecimal64 {
-	return (math.HexOrDecimal64)(api.extApi.chainID.Uint64())
+func (api *UIServerAPI) ChainId() *math.HexOrDecimal256 {
+	chainID := new(big.Int).Set(api.extApi.chainID)
+	result := math.HexOrDecimal256(*chainID)
+	return &result
 }
 
 // SetChainId sets the chain id to use when signing transactions.
-// Example call to set Ropsten:
+// Example call:
 // {"jsonrpc":"2.0","method":"clef_setChainId","params":["3"], "id":8}
-func (api *UIServerAPI) SetChainId(id math.HexOrDecimal64) math.HexOrDecimal64 {
-	api.extApi.chainID = new(big.Int).SetUint64(uint64(id))
-	return api.ChainId()
+func (api *UIServerAPI) SetChainId(id math.HexOrDecimal256) (*math.HexOrDecimal256, error) {
+	chainID := (*big.Int)(&id)
+	if chainID.Sign() < 0 || chainID.BitLen() > 256 {
+		return api.ChainId(), errors.New("chain ID must be a non-negative uint256")
+	}
+	api.extApi.chainID = new(big.Int).Set(chainID)
+	return api.ChainId(), nil
 }
 
 // Export returns encrypted private key associated with the given address in web3 keystore format.

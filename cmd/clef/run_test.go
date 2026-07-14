@@ -19,6 +19,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/theQRL/go-qrl/internal/cmdtest"
@@ -26,6 +27,25 @@ import (
 )
 
 const registeredName = "clef-test"
+
+func TestParseChainID(t *testing.T) {
+	t.Parallel()
+	for _, test := range []struct {
+		input string
+		valid bool
+	}{
+		{input: "1", valid: true},
+		{input: "0x" + strings.Repeat("f", 64), valid: true},
+		{input: ""},
+		{input: "-1"},
+		{input: "0x1" + strings.Repeat("0", 64)},
+	} {
+		_, err := parseChainID(test.input)
+		if (err == nil) != test.valid {
+			t.Errorf("chain ID %q: valid=%t, error=%v", test.input, test.valid, err)
+		}
+	}
+}
 
 type testproc struct {
 	*cmdtest.TestCmd

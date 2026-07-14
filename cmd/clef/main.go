@@ -42,6 +42,7 @@ import (
 	"github.com/theQRL/go-qrl/cmd/utils"
 	"github.com/theQRL/go-qrl/common"
 	"github.com/theQRL/go-qrl/common/hexutil"
+	qrlmath "github.com/theQRL/go-qrl/common/math"
 	"github.com/theQRL/go-qrl/core/types"
 	"github.com/theQRL/go-qrl/crypto"
 	"github.com/theQRL/go-qrl/crypto/pqcrypto/wallet"
@@ -97,9 +98,9 @@ var (
 		Value: DefaultConfigDir(),
 		Usage: "Directory for Clef configuration",
 	}
-	chainIdFlag = &cli.Int64Flag{
+	chainIdFlag = &cli.StringFlag{
 		Name:  "chainid",
-		Value: params.MainnetChainConfig.ChainID.Int64(),
+		Value: params.MainnetChainConfig.ChainID.String(),
 		Usage: "Chain id to use for signing (1=mainnet)",
 	}
 	rpcPortFlag = &cli.IntFlag{
@@ -703,17 +704,20 @@ func signer(c *cli.Context) error {
 			}
 		}
 	}
+	chainID, err := parseChainID(c.String(chainIdFlag.Name))
+	if err != nil {
+		return err
+	}
 	var (
-		chainId  = c.Int64(chainIdFlag.Name)
 		ksLoc    = c.String(keystoreFlag.Name)
 		lightKdf = c.Bool(utils.LightKDFFlag.Name)
 		advanced = c.Bool(advancedMode.Name)
 	)
-	log.Info("Starting signer", "chainid", chainId, "keystore", ksLoc,
+	log.Info("Starting signer", "chainid", chainID, "keystore", ksLoc,
 		"light-kdf", lightKdf, "advanced", advanced)
 	am := core.StartClefAccountManager(ksLoc, lightKdf)
 	defer am.Close()
-	apiImpl := core.NewSignerAPI(am, chainId, ui, db, advanced, pwStorage)
+	apiImpl := core.NewSignerAPIWithChainID(am, chainID, ui, db, advanced, pwStorage)
 
 	// Establish the bidirectional communication, by creating a new UI backend and registering
 	// it with the UI.
@@ -903,6 +907,14 @@ func confirm(text string) bool {
 	return false
 }
 
+func parseChainID(input string) (*big.Int, error) {
+	chainID, ok := qrlmath.ParseBig256(input)
+	if input == "" || !ok || chainID.Sign() < 0 {
+		return nil, fmt.Errorf("invalid chain ID %q: must be a non-negative uint256", input)
+	}
+	return chainID, nil
+}
+
 func testExternalUI(api *core.SignerAPI) {
 	ctx := context.WithValue(context.Background(), "remote", "clef binary")
 	ctx = context.WithValue(ctx, "scheme", "in-proc")
@@ -955,8 +967,8 @@ func testExternalUI(api *core.SignerAPI) {
 		api.UI.ShowInfo("Please approve the next request for signing QRL typed data")
 		time.Sleep(delay)
 		addr := common.MustParseMixedcaseAddress("Q00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000011223344556677889900112233445566778899")
-		chainID := uint64(core.NewUIServerAPI(api).ChainId())
-		data := fmt.Sprintf(`{"types":{"QRLTypedDataDomain":[{"name":"name","type":"string"},{"name":"version","type":"string"},{"name":"chainId","type":"uint256"},{"name":"verifyingContract","type":"address"},{"name":"salt","type":"bytes32"}],"Message":[{"name":"contents","type":"string"}]},"primaryType":"Message","domain":{"name":"Clef self-test","version":"1","chainId":"%d","verifyingContract":"Q00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000","salt":"0x0000000000000000000000000000000000000000000000000000000000000000"},"message":{"contents":"Hello, QRL!"}}`, chainID)
+		chainID := core.NewUIServerAPI(api).ChainId()
+		data := fmt.Sprintf(`{"types":{"QRLTypedDataDomain":[{"name":"name","type":"string"},{"name":"version","type":"string"},{"name":"chainId","type":"uint256"},{"name":"verifyingContract","type":"address"},{"name":"salt","type":"bytes32"}],"Message":[{"name":"contents","type":"string"}]},"primaryType":"Message","domain":{"name":"Clef self-test","version":"1","chainId":"%s","verifyingContract":"Q00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000","salt":"0x0000000000000000000000000000000000000000000000000000000000000000"},"message":{"contents":"Hello, QRL!"}}`, (*big.Int)(chainID))
 		var typedData apitypes.TypedData
 		if err := json.Unmarshal([]byte(data), &typedData); err != nil {
 			addErr(fmt.Sprintf("decode QRL typed data: %v", err))
