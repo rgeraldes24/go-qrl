@@ -5,6 +5,7 @@ package apitypes
 
 import (
 	"bytes"
+	stdmath "math"
 	"math/big"
 	"strconv"
 	"strings"
@@ -54,6 +55,21 @@ func TestFixedBytesEncodingVM64(t *testing.T) {
 	}
 }
 
+func TestNamedByteArrayEncodingVM64(t *testing.T) {
+	t.Parallel()
+	type octet uint8
+
+	encoded, err := new(TypedData).EncodePrimitiveValue("bytes3", [3]octet{1, 2, 3}, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := make([]byte, uint512.WordBytes)
+	copy(want, []byte{1, 2, 3})
+	if !bytes.Equal(encoded, want) {
+		t.Fatalf("have %x, want %x", encoded, want)
+	}
+}
+
 func TestAddressEncodingVM64(t *testing.T) {
 	t.Parallel()
 	codec := new(TypedData)
@@ -98,6 +114,7 @@ func TestIntegerEncodingVM64(t *testing.T) {
 	codec := new(TypedData)
 	max256 := new(big.Int).Sub(new(big.Int).Lsh(big.NewInt(1), 256), big.NewInt(1))
 	max512 := new(big.Int).Sub(new(big.Int).Lsh(big.NewInt(1), 512), big.NewInt(1))
+	uint64HighBit := new(big.Int).Lsh(big.NewInt(1), 63)
 	tests := []struct {
 		typ   string
 		value any
@@ -105,6 +122,8 @@ func TestIntegerEncodingVM64(t *testing.T) {
 	}{
 		{typ: "uint256", value: max256, want: append(make([]byte, 32), bytes.Repeat([]byte{0xff}, 32)...)},
 		{typ: "uint512", value: max512, want: bytes.Repeat([]byte{0xff}, 64)},
+		{typ: "uint64", value: stdmath.Ldexp(1, 63), want: uint64HighBit.FillBytes(make([]byte, 64))},
+		{typ: "uint512", value: stdmath.Ldexp(1, 511), want: append([]byte{0x80}, make([]byte, 63)...)},
 		{typ: "int8", value: "-1", want: bytes.Repeat([]byte{0xff}, 64)},
 		{typ: "int8", value: "-128", want: append(bytes.Repeat([]byte{0xff}, 63), 0x80)},
 	}
@@ -127,6 +146,7 @@ func TestIntegerEncodingVM64(t *testing.T) {
 		{typ: "int8", value: -129},
 		{typ: "int8", value: 128},
 		{typ: "uint8", value: -1},
+		{typ: "uint64", value: float64(^uint64(0))},
 		{typ: "uint", value: 1},
 	} {
 		if _, err := codec.EncodePrimitiveValue(test.typ, test.value, 1); err == nil {

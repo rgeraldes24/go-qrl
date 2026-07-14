@@ -28,7 +28,6 @@ import (
 	"github.com/theQRL/go-qrl/common"
 	"github.com/theQRL/go-qrl/common/hexutil"
 	"github.com/theQRL/go-qrl/common/math"
-	"github.com/theQRL/go-qrl/common/uint512"
 	"github.com/theQRL/go-qrl/core/types"
 	"github.com/theQRL/go-qrl/crypto"
 )
@@ -174,20 +173,6 @@ type Type struct {
 	Type string `json:"type"`
 }
 
-func (t *Type) isArray() bool {
-	parsed, err := parseTypedDataType(t.Type)
-	return err == nil && parsed.isArray()
-}
-
-// typeName returns the base name of a possibly nested array type.
-func (t *Type) typeName() string {
-	parsed, err := parseTypedDataType(t.Type)
-	if err != nil {
-		return t.Type
-	}
-	return parsed.base
-}
-
 type Types map[string][]Type
 
 type TypePriority struct {
@@ -292,25 +277,6 @@ func parseBytes(encType any) ([]byte, bool) {
 	return parseTypedDataBytes(encType)
 }
 
-func parseInteger(encType string, encValue any) (*big.Int, error) {
-	prefix, widthText, ok := splitNumericType(encType, "uint", "int")
-	if !ok || widthText == "" {
-		return nil, fmt.Errorf("invalid integer type %q", encType)
-	}
-	width, err := parseTypeWidth(prefix, widthText, uint512.WordBits)
-	if err != nil || width%8 != 0 {
-		return nil, fmt.Errorf("invalid integer type %q", encType)
-	}
-	integer, err := parseTypedDataInteger(encValue)
-	if err != nil {
-		return nil, err
-	}
-	if err := validateTypedDataInteger(prefix == "int", width, integer); err != nil {
-		return nil, err
-	}
-	return integer, nil
-}
-
 // EncodePrimitiveValue deals with the primitive values found
 // while searching through the typed data
 func (typedData *TypedData) EncodePrimitiveValue(encType string, encValue any, depth int) ([]byte, error) {
@@ -353,14 +319,6 @@ func (typedData *TypedData) Map() map[string]any {
 // Format returns a human-readable representation for signing approval UIs.
 func (typedData *TypedData) Format() ([]*NameValueType, error) {
 	return typedDataFormat(typedData)
-}
-
-func (typedData *TypedData) formatData(primaryType string, data map[string]any) ([]*NameValueType, error) {
-	return typedDataFormatData(typedData, primaryType, data, 1)
-}
-
-func formatPrimitiveValue(encType string, encValue any) (string, error) {
-	return typedDataFormatPrimitive(encType, encValue)
 }
 
 // Validate checks if the types object is conformant to the specs

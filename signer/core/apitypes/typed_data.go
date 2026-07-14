@@ -14,6 +14,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	stdmath "math"
 	"math/big"
 	"reflect"
 	"sort"
@@ -912,7 +913,9 @@ func parseTypedDataBytes(value any) ([]byte, bool) {
 	reflected := reflect.ValueOf(value)
 	if reflected.Kind() == reflect.Array && reflected.Type().Elem().Kind() == reflect.Uint8 {
 		result := make([]byte, reflected.Len())
-		reflect.Copy(reflect.ValueOf(result), reflected)
+		for index := range result {
+			result[index] = byte(reflected.Index(index).Uint())
+		}
 		return result, true
 	}
 	switch value := value.(type) {
@@ -976,10 +979,14 @@ func parseTypedDataInteger(value any) (*big.Int, error) {
 	case uint64:
 		return new(big.Int).SetUint64(value), nil
 	case float64:
-		if value != float64(int64(value)) {
+		if stdmath.IsNaN(value) || stdmath.IsInf(value, 0) {
 			return nil, fmt.Errorf("non-integral number %v", value)
 		}
-		return big.NewInt(int64(value)), nil
+		integer, accuracy := new(big.Float).SetFloat64(value).Int(nil)
+		if accuracy != big.Exact {
+			return nil, fmt.Errorf("non-integral number %v", value)
+		}
+		return integer, nil
 	}
 	return nil, fmt.Errorf("invalid integer value %v", value)
 }

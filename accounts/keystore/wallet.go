@@ -18,6 +18,7 @@ package keystore
 
 import (
 	"math/big"
+	"mime"
 
 	qrl "github.com/theQRL/go-qrl"
 	"github.com/theQRL/go-qrl/accounts"
@@ -95,16 +96,16 @@ func (w *keystoreWallet) signHash(account accounts.Account, hash []byte) ([]byte
 
 // SignData signs keccak256(data). The mimetype parameter describes the type of data being signed.
 func (w *keystoreWallet) SignData(account accounts.Account, mimeType string, data []byte) ([]byte, error) {
-	if mimeType == accounts.MimetypeTypedData {
-		return nil, accounts.ErrTypedDataRequiresDedicatedAPI
+	if err := validateSignDataMimeType(mimeType); err != nil {
+		return nil, err
 	}
 	return w.signHash(account, crypto.Keccak256(data))
 }
 
 // SignDataWithPassphrase signs keccak256(data). The mimetype parameter describes the type of data being signed.
 func (w *keystoreWallet) SignDataWithPassphrase(account accounts.Account, passphrase, mimeType string, data []byte) ([]byte, error) {
-	if mimeType == accounts.MimetypeTypedData {
-		return nil, accounts.ErrTypedDataRequiresDedicatedAPI
+	if err := validateSignDataMimeType(mimeType); err != nil {
+		return nil, err
 	}
 	// Make sure the requested account is contained within
 	if !w.Contains(account) {
@@ -112,6 +113,17 @@ func (w *keystoreWallet) SignDataWithPassphrase(account accounts.Account, passph
 	}
 	// Account seems valid, request the keystore to sign
 	return w.keystore.SignHashWithPassphrase(account, passphrase, crypto.Keccak256(data))
+}
+
+func validateSignDataMimeType(contentType string) error {
+	mediaType, _, err := mime.ParseMediaType(contentType)
+	if err != nil {
+		return err
+	}
+	if mediaType == accounts.MimetypeTypedData {
+		return accounts.ErrTypedDataRequiresDedicatedAPI
+	}
+	return nil
 }
 
 // SignHashWithPassphraseAndMetadata implements accounts.HashSignerWithMetadata.

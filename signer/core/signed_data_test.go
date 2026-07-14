@@ -485,6 +485,74 @@ func TestQRLTypedDataJSONRoundTrip(t *testing.T) {
 	}
 }
 
+func TestQRLTypedDataJSONFixtures(t *testing.T) {
+	t.Parallel()
+	fixtures := []struct {
+		name      string
+		wantError string
+	}{
+		{name: "arrays-1.json"},
+		{name: "custom_arraytype.json"},
+		{name: "eip712.json"},
+		{name: "expfail_arraytype_overload.json", wantError: "Person[]"},
+		{name: "expfail_datamismatch_1.json", wantError: "contents"},
+		{name: "expfail_extradata.json", wantError: "exactly 3 fields"},
+		{name: "expfail_malformeddomainkeys.json", wantError: "domain"},
+		{name: "expfail_nonexistant_type.json", wantError: "Blahonga"},
+		{name: "expfail_nonexistant_type2.json", wantError: "chainId"},
+		{name: "expfail_toolargeuint.json", wantError: "uint8"},
+		{name: "expfail_toolargeuint2.json", wantError: "uint8"},
+		{name: "expfail_unconvertiblefloat.json", wantError: "uint8"},
+		{name: "expfail_unconvertiblefloat2.json", wantError: "uint8"},
+	}
+	for _, fixture := range fixtures {
+		fixture := fixture
+		t.Run(fixture.name, func(t *testing.T) {
+			t.Parallel()
+			encoded, err := os.ReadFile(filepath.Join("testdata", fixture.name))
+			if err != nil {
+				t.Fatal(err)
+			}
+			var typedData apitypes.TypedData
+			err = json.Unmarshal(encoded, &typedData)
+			if err == nil {
+				_, _, err = apitypes.TypedDataAndHash(typedData)
+			}
+			if fixture.wantError != "" {
+				if err == nil {
+					t.Fatal("invalid fixture was accepted")
+				}
+				if !strings.Contains(err.Error(), fixture.wantError) {
+					t.Fatalf("error %q does not contain %q", err, fixture.wantError)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+			canonical, err := json.Marshal(typedData)
+			if err != nil {
+				t.Fatal(err)
+			}
+			var roundTrip apitypes.TypedData
+			if err := json.Unmarshal(canonical, &roundTrip); err != nil {
+				t.Fatal(err)
+			}
+			originalDigest, _, err := apitypes.TypedDataAndHash(typedData)
+			if err != nil {
+				t.Fatal(err)
+			}
+			roundTripDigest, _, err := apitypes.TypedDataAndHash(roundTrip)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !bytes.Equal(originalDigest, roundTripDigest) {
+				t.Fatalf("round-trip digest %x, want %x", roundTripDigest, originalDigest)
+			}
+		})
+	}
+}
+
 func TestTypedDataFuzzRegressionCorpus(t *testing.T) {
 	t.Parallel()
 	valid := map[string]bool{

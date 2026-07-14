@@ -1,0 +1,32 @@
+{
+  "types": {
+    "QRLTypedDataDomain": [
+      { "name": "name", "type": "string" },
+      { "name": "version", "type": "string" },
+      { "name": "chainId", "type": "uint256" },
+      { "name": "verifyingContract", "type": "address" },
+      { "name": "salt", "type": "bytes32" }
+    ],
+    "Person": [
+      { "name": "name", "type": "string" }
+    ],
+    "Mail": [
+      { "name": "from", "type": "Person" },
+      { "name": "to", "type": "Person[]" },
+      { "name": "contents", "type": "string" }
+    ]
+  },
+  "primaryType": "Mail",
+  "domain": {
+    "name": "QRL Mail",
+    "version": "1",
+    "chainId": "1",
+    "verifyingContract": "Q11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111",
+    "salt": "0x0000000000000000000000000000000000000000000000000000000000000000"
+  },
+  "message": {
+    "from": { "name": "Cow" },
+    "to": [{ "name": "Moose" }, { "name": "Goose" }],
+    "contents": "Hello, Bob!"
+  }
+}
