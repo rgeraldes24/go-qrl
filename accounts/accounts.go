@@ -37,7 +37,7 @@ type Account struct {
 
 const (
 	MimetypeDataWithValidator = "data/validator"
-	MimetypeTypedData         = "application/vnd.qrl.typed-data+json"
+	MimetypeTypedData         = "data/typed"
 	MimetypeTextPlain         = "text/plain"
 )
 

@@ -16,6 +16,6 @@ Additional labels for pre-release and build metadata are available as extensions
   Data v1, using 64-byte VM words and full Q-addresses.
 - Changed `account_signTypedData` to return a verification envelope containing
   the ML-DSA-87 public key, wallet descriptor, digest, and signature.
-- Reserved `application/vnd.qrl.typed-data+json` for the dedicated typed-data
-  API. `account_signData` rejects typed data because its raw byte response
-  cannot carry the metadata required for ML-DSA verification.
+- Kept `data/typed` as the typed-data MIME identifier. `account_signData`
+  rejects typed data because its raw byte response cannot carry the metadata
+  required for ML-DSA verification; callers must use `account_signTypedData`.

@@ -297,11 +297,9 @@ func TestTypedDataRequiresDedicatedAPI(t *testing.T) {
 	t.Parallel()
 	api, _ := setup(t)
 	address := common.NewMixedcaseAddress(common.Address{})
-	for _, mimeType := range []string{accounts.MimetypeTypedData, "data/typed"} {
-		result, err := api.SignData(t.Context(), mimeType, address, "0x00")
-		if result != nil || !errors.Is(err, core.ErrTypedDataRequiresDedicatedAPI) {
-			t.Fatalf("mime %q: result %x, error %v", mimeType, result, err)
-		}
+	result, err := api.SignData(t.Context(), accounts.MimetypeTypedData, address, "0x00")
+	if result != nil || !errors.Is(err, core.ErrTypedDataRequiresDedicatedAPI) {
+		t.Fatalf("result %x, error %v", result, err)
 	}
 }
 

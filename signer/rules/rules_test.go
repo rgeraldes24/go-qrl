@@ -636,7 +636,7 @@ function ApproveSignData(r){
 func TestTypedDataRulesApproveAndReject(t *testing.T) {
 	t.Parallel()
 	js := `function ApproveSignData(request) {
-		if (request.content_type !== "application/vnd.qrl.typed-data+json") {
+		if (request.content_type !== "data/typed") {
 			return "Reject";
 		}
 		var message = request.messages[1];
