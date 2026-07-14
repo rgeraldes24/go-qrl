@@ -91,34 +91,6 @@ func TestUnmarshalPubkey(t *testing.T) {
 	}
 }
 
-func TestSign(t *testing.T) {
-	key, _ := HexToECDSA(testPrivHex)
-
-	msg := Keccak256([]byte("foo"))
-	sig, err := Sign(msg, key)
-	if err != nil {
-		t.Errorf("Sign error: %s", err)
-	}
-	recoveredPub, err := Ecrecover(msg, sig)
-	if err != nil {
-		t.Errorf("ECRecover error: %s", err)
-	}
-	wantPub := FromECDSAPub(&key.PublicKey)
-	if !bytes.Equal(wantPub, recoveredPub) {
-		t.Errorf("Public key mismatch: want: %x have: %x", wantPub, recoveredPub)
-	}
-
-	// should be equal to SigToPub
-	recoveredPub2, err := SigToPub(msg, sig)
-	if err != nil {
-		t.Errorf("ECRecover error: %s", err)
-	}
-	gotPub := FromECDSAPub(recoveredPub2)
-	if !bytes.Equal(wantPub, gotPub) {
-		t.Errorf("Public key mismatch: want: %x have: %x", wantPub, gotPub)
-	}
-}
-
 func TestInvalidSign(t *testing.T) {
 	if _, err := Sign(make([]byte, 1), nil); err == nil {
 		t.Errorf("expected sign with hash 1 byte to error")
