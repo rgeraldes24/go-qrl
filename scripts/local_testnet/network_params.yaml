@@ -1,0 +1,64 @@
+# Full configuration reference [here](https://github.com/theQRL/qrl-package?tab=readme-ov-file#configuration).
+participants:
+  - el_type: gqrl
+    # Locally built image (see start_local_testnet.sh). Testing local go-qrl
+    # changes is the point of this testnet, so unlike qrysm's equivalent
+    # setup the execution image is built from this repo. Consensus and genesis
+    # images are built by build_consensus_images.sh from their source repos.
+    el_image: theqrl-dev/go-qrl:latest
+    el_extra_params:
+      - "--graphql"
+      - "--graphql.vhosts=*"
+      - "--ws"
+      - "--ws.addr=0.0.0.0"
+      - "--ws.api=qrl,net,web3"
+    cl_type: qrysm
+    cl_image: local/qrysm-beacon:vm64
+    cl_extra_params:
+      - "--min-sync-peers=0"
+      - "--minimum-peers-per-subnet=0"
+      - "--sync-from=head"
+    vc_type: qrysm
+    vc_image: local/qrysm-validator:vm64
+    count: 2
+    # Clef remote signer (later phase, not exercised yet). The image config
+    # key in qrl-package is `remote_signer_image` and defaults to
+    # qrledger/go-qrl:alltools-stable; point it at the locally built alltools
+    # image (contains clef) to test local clef changes.
+    # use_remote_signer: true
+    # remote_signer_type: clef
+    # remote_signer_image: theqrl-dev/go-qrl-alltools:latest
+network_params:
+  preset: "mainnet"
+  # Prefunded dev accounts used by run_tests.sh (and by the tx spammer/clef
+  # flows in qrl-package). The seeds are published in qrl-package's
+  # src/prelaunch_data_generator/genesis_constants/genesis_constants.star
+  # (accounts 13 and 14); the addresses below are the 64-byte forms this
+  # repo derives from those seeds (qrysm's copy of this file still lists
+  # the pre-fork address encoding).
+  # 13: seed 010000f29f58aff0b00de2844f7e20bd9eeaacc379150043beeb328335817512b29fbb7184da84a092f842b2a06d72a24a5d28
+  # 14: seed 010000d665bd59e560503aba4f32edbc3d49523c602657e169cb6d71cce62e282a1320c0f12536318d7b5d713b296b8a35233b
+  prefunded_accounts:
+    Qd5812f6cf4a0f645aa620cd57319a0ed649dd8f5519a9dde7770ae5b0e49e547985f35eb972a2a07041561aa39c65a3991478f9b1e6749e05277dcf58a9a8b72:
+      balance: "2000000QRL"
+    Qa5aedb928f8300de98c66bb4bb66b9bb137e9a17e9d41039d98a664671b7c8a34bf63d49800d4ff8f4fd28aef583920e018988d994651b6f0f5966b1dbe11a8b:
+      balance: "2000000QRL"
+  light_kdf_enabled: True
+  # genesis_delay: 150 # required if light kdf is disabled!
+
+qrl_genesis_generator_params:
+  image: local/qrl-genesis-generator:vm64
+
+# global_log_level: debug
+
+# additional_services:
+#  - full_beaconchain_explorer
+#  - tx_spammer
+
+# tx_spammer_params:
+#   image: qrledger/qrl-tx-spammer:latest
+#   scenario: eoatx
+#   throughput: 100
+#   max_pending: 100
+#   max_wallets: 50
+#   tx_spammer_extra_args: []
