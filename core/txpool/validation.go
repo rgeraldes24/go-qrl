@@ -133,7 +133,7 @@ func ValidateTransactionWithState(tx *types.Transaction, signer types.Signer, op
 	// Ensure the transaction adheres to nonce ordering
 	from, err := signer.Sender(tx) // already validated (and cached), but cleaner to check
 	if err != nil {
-		log.Error("Transaction sender validation failed", "err", err)
+		log.Error("Transaction sender recovery failed", "err", err)
 		return err
 	}
 	next := opts.State.GetNonce(from)
