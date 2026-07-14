@@ -33,7 +33,7 @@ import (
 
 // ErrTypedDataRequiresDedicatedAPI prevents callers from receiving a raw,
 // metadata-less ML-DSA signature through account_signData.
-var ErrTypedDataRequiresDedicatedAPI = errors.New("typed data must be signed with account_signTypedData")
+var ErrTypedDataRequiresDedicatedAPI = accounts.ErrTypedDataRequiresDedicatedAPI
 
 func (api *SignerAPI) approvedSignDataWallet(req *SignDataRequest) (accounts.Account, accounts.Wallet, string, error) {
 	// Ask for approval before looking up the account to avoid account enumeration.

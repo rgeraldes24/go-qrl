@@ -19,6 +19,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/theQRL/go-qrl/common"
 	"github.com/theQRL/go-qrl/common/hexutil"
@@ -121,6 +122,13 @@ func (typedData TypedData) MarshalJSON() ([]byte, error) {
 	if _, _, err := TypedDataAndHash(typedData); err != nil {
 		return nil, err
 	}
+	types := make(Types, len(typedData.Types))
+	for name, fields := range typedData.Types {
+		if fields == nil {
+			fields = []Type{}
+		}
+		types[name] = fields
+	}
 	message, err := typedDataJSONValue(&typedData, parsedTypedDataType{base: typedData.PrimaryType}, typedData.Message)
 	if err != nil {
 		return nil, err
@@ -131,7 +139,7 @@ func (typedData TypedData) MarshalJSON() ([]byte, error) {
 		Domain      TypedDataDomain `json:"domain"`
 		Message     any             `json:"message"`
 	}{
-		Types:       typedData.Types,
+		Types:       types,
 		PrimaryType: typedData.PrimaryType,
 		Domain:      typedData.Domain,
 		Message:     message,
@@ -186,6 +194,9 @@ func typedDataJSONValue(typedData *TypedData, typ parsedTypedDataType, value any
 // UnmarshalJSON preserves JSON integer tokens as json.Number. This avoids the
 // lossy float64 conversion performed when decoding into map[string]any.
 func (typedData *TypedData) UnmarshalJSON(input []byte) error {
+	if !utf8.Valid(input) {
+		return errors.New("typed data JSON must be valid UTF-8")
+	}
 	if err := rejectDuplicateJSONKeys(input); err != nil {
 		return err
 	}
@@ -826,6 +837,9 @@ func typedDataEncodePrimitive(encType string, value any) ([]byte, error) {
 		text, ok := value.(string)
 		if !ok {
 			return nil, dataMismatchError(encType, value)
+		}
+		if !utf8.ValidString(text) {
+			return nil, errors.New("string value must be valid UTF-8")
 		}
 		return encodeTypedDataHashWord(crypto.Keccak256([]byte(text))), nil
 	case "bytes":

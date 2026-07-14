@@ -17,6 +17,7 @@
 package keystore
 
 import (
+	"errors"
 	"math/rand"
 	"os"
 	"runtime"
@@ -112,6 +113,33 @@ func TestSignWithPassphrase(t *testing.T) {
 
 	if _, err = ks.SignHashWithPassphrase(acc, "invalid passwd", testSigData); err == nil {
 		t.Fatal("expected SignHashWithPassphrase to fail with invalid password")
+	}
+}
+
+func TestWalletRejectsTypedDataSignData(t *testing.T) {
+	wallet := new(keystoreWallet)
+	for _, test := range []struct {
+		name string
+		sign func() ([]byte, error)
+	}{
+		{
+			name: "without passphrase",
+			sign: func() ([]byte, error) {
+				return wallet.SignData(accounts.Account{}, accounts.MimetypeTypedData, nil)
+			},
+		},
+		{
+			name: "with passphrase",
+			sign: func() ([]byte, error) {
+				return wallet.SignDataWithPassphrase(accounts.Account{}, "", accounts.MimetypeTypedData, nil)
+			},
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			if signature, err := test.sign(); signature != nil || !errors.Is(err, accounts.ErrTypedDataRequiresDedicatedAPI) {
+				t.Fatalf("result %x, error %v", signature, err)
+			}
+		})
 	}
 }
 

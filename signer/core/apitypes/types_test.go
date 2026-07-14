@@ -4,6 +4,7 @@
 package apitypes
 
 import (
+	"bytes"
 	"encoding/json"
 	"strings"
 	"testing"
@@ -110,5 +111,51 @@ func TestTypedDataJSONRequiresExactObjectShape(t *testing.T) {
 		if err := json.Unmarshal([]byte(input), &typedData); err == nil {
 			t.Errorf("invalid typed-data shape accepted: %s", input)
 		}
+	}
+}
+
+func TestTypedDataJSONNormalizesNilTypeDeclaration(t *testing.T) {
+	t.Parallel()
+	var typedData TypedData
+	if err := json.Unmarshal([]byte(emptyTypedDataJSON), &typedData); err != nil {
+		t.Fatal(err)
+	}
+	typedData.Types["Empty"] = nil
+	encoded, err := json.Marshal(typedData)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Contains(encoded, []byte(`"Empty":[]`)) {
+		t.Fatalf("nil type declaration was not normalized: %s", encoded)
+	}
+	var decoded TypedData
+	if err := json.Unmarshal(encoded, &decoded); err != nil {
+		t.Fatalf("normalized typed data did not round-trip: %v", err)
+	}
+}
+
+func TestTypedDataRejectsInvalidUTF8(t *testing.T) {
+	t.Parallel()
+	var typedData TypedData
+	if err := json.Unmarshal([]byte(emptyTypedDataJSON), &typedData); err != nil {
+		t.Fatal(err)
+	}
+	typedData.Domain.Name = string([]byte{0xff})
+	if _, _, err := TypedDataAndHash(typedData); err == nil {
+		t.Fatal("programmatic invalid UTF-8 accepted")
+	}
+	if _, err := json.Marshal(typedData); err == nil {
+		t.Fatal("invalid UTF-8 marshaled")
+	}
+
+	input := []byte(emptyTypedDataJSON)
+	marker := []byte(`"name":"test"`)
+	index := bytes.Index(input, marker)
+	if index == -1 {
+		t.Fatal("domain name marker not found")
+	}
+	input[index+len(`"name":"`)] = 0xff
+	if err := json.Unmarshal(input, new(TypedData)); err == nil {
+		t.Fatal("invalid UTF-8 JSON accepted")
 	}
 }

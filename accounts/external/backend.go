@@ -175,6 +175,12 @@ func (api *ExternalSigner) SignTypedData(account accounts.Account, typedData api
 	if err := api.client.Call(&result, "account_signTypedData", &signAddress, typedData); err != nil {
 		return nil, err
 	}
+	if err := result.Verify(typedData); err != nil {
+		return nil, fmt.Errorf("verify external typed data signature: %w", err)
+	}
+	if result.Address != account.Address {
+		return nil, fmt.Errorf("typed data signature address %s does not match requested account %s", result.Address, account.Address)
+	}
 	return &result, nil
 }
 

@@ -95,11 +95,17 @@ func (w *keystoreWallet) signHash(account accounts.Account, hash []byte) ([]byte
 
 // SignData signs keccak256(data). The mimetype parameter describes the type of data being signed.
 func (w *keystoreWallet) SignData(account accounts.Account, mimeType string, data []byte) ([]byte, error) {
+	if mimeType == accounts.MimetypeTypedData {
+		return nil, accounts.ErrTypedDataRequiresDedicatedAPI
+	}
 	return w.signHash(account, crypto.Keccak256(data))
 }
 
 // SignDataWithPassphrase signs keccak256(data). The mimetype parameter describes the type of data being signed.
 func (w *keystoreWallet) SignDataWithPassphrase(account accounts.Account, passphrase, mimeType string, data []byte) ([]byte, error) {
+	if mimeType == accounts.MimetypeTypedData {
+		return nil, accounts.ErrTypedDataRequiresDedicatedAPI
+	}
 	// Make sure the requested account is contained within
 	if !w.Contains(account) {
 		return nil, accounts.ErrUnknownAccount

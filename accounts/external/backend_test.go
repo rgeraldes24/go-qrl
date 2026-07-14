@@ -13,6 +13,7 @@ import (
 	"github.com/theQRL/go-qrl/common"
 	"github.com/theQRL/go-qrl/common/hexutil"
 	"github.com/theQRL/go-qrl/common/math"
+	pqwallet "github.com/theQRL/go-qrl/crypto/pqcrypto/wallet"
 	"github.com/theQRL/go-qrl/rpc"
 	"github.com/theQRL/go-qrl/signer/core/apitypes"
 )
@@ -36,7 +37,11 @@ func (api *typedDataAccountAPI) SignTypedData(address common.MixedcaseAddress, t
 }
 
 func TestExternalSignerSignTypedData(t *testing.T) {
-	account := accounts.Account{Address: common.BytesToAddress([]byte{1})}
+	signingWallet, err := pqwallet.Generate(pqwallet.ML_DSA_87)
+	if err != nil {
+		t.Fatal(err)
+	}
+	account := accounts.Account{Address: signingWallet.GetAddress()}
 	amount := *new(big.Int).Lsh(big.NewInt(1), 400)
 	nonce := math.HexOrDecimal256(*big.NewInt(42))
 	typedData := apitypes.TypedData{
@@ -76,14 +81,18 @@ func TestExternalSignerSignTypedData(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	signature, err := signingWallet.Sign(wantDigest)
+	if err != nil {
+		t.Fatal(err)
+	}
 	want := &apitypes.TypedDataSignature{
 		Version:    apitypes.TypedDataVersion,
 		Algorithm:  apitypes.TypedDataAlgorithm,
 		Address:    account.Address,
-		Digest:     common.BytesToHash([]byte{2}),
-		PublicKey:  hexutil.Bytes{},
-		Descriptor: hexutil.Bytes{},
-		Signature:  hexutil.Bytes{3},
+		Digest:     common.BytesToHash(wantDigest),
+		PublicKey:  append(hexutil.Bytes(nil), signingWallet.GetPK()...),
+		Descriptor: append(hexutil.Bytes(nil), signingWallet.GetDescriptor().ToBytes()...),
+		Signature:  append(hexutil.Bytes(nil), signature...),
 	}
 	service := &typedDataAccountAPI{result: want}
 	server := rpc.NewServer()
@@ -110,5 +119,19 @@ func TestExternalSignerSignTypedData(t *testing.T) {
 	}
 	if !bytes.Equal(service.digest, wantDigest) {
 		t.Fatalf("remote digest %x, want %x", service.digest, wantDigest)
+	}
+
+	invalid := *want
+	invalid.Digest[0] ^= 0xff
+	service.result = &invalid
+	if _, err := signer.SignTypedData(account, typedData); err == nil {
+		t.Fatal("invalid external signature envelope accepted")
+	}
+
+	service.result = want
+	wrongAccount := account
+	wrongAccount.Address[0] ^= 0xff
+	if _, err := signer.SignTypedData(wrongAccount, typedData); err == nil {
+		t.Fatal("external signature for a different account accepted")
 	}
 }

@@ -273,9 +273,10 @@ func (typedData *TypedData) TypeHash(primaryType string) hexutil.Bytes {
 }
 
 // EncodeData generates the following encoding:
-// `enc(value₁) ‖ enc(value₂) ‖ … ‖ enc(valueₙ)`
+// `bytes32Word(typeHash(type(value))) ‖ enc(value₁) ‖ … ‖ enc(valueₙ)`
 //
-// each encoded member is one 64-byte VM word
+// the type hash is left-aligned in the leading 64-byte VM word, and each
+// encoded member occupies one additional 64-byte VM word
 func (typedData *TypedData) EncodeData(primaryType string, data map[string]any, depth int) (hexutil.Bytes, error) {
 	if err := typedData.validate(); err != nil {
 		return nil, err
