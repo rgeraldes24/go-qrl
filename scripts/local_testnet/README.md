@@ -19,17 +19,7 @@ cd ./scripts/local_testnet
 ./start_local_testnet.sh
 ```
 
-The script builds the local go-qrl images and starts the network with Clef enabled. Images and other settings can be configured in `network_params.yaml`. See the full [qrl-package configuration reference](https://github.com/theQRL/qrl-package?tab=readme-ov-file#configuration).
-
-To use local Qrysm and genesis-generator images:
-
-```bash
-./scripts/local_testnet/build_consensus_images.sh \
-    /path/to/cyyber/qrysm \
-    /path/to/qrl-genesis-generator-pr9
-```
-
-Then update the corresponding image fields in `network_params.yaml`.
+You will see a list of services running and "Started!" at the end. You can also select your own go-qrl Docker image by specifying it in `network_params.yaml` under the `el_image` key. Full configuration reference for Kurtosis is specified [here](https://github.com/theQRL/qrl-package?tab=readme-ov-file#configuration).
 
 To view all running services:
 
