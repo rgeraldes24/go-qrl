@@ -1,41 +1,60 @@
-// Copyright 2023 The go-ethereum Authors
-// This file is part of the go-ethereum library.
-//
-// The go-ethereum library is free software: you can redistribute it and/or modify
-// it under the terms of the GNU Lesser General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// The go-ethereum library is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU Lesser General Public License for more details.
-//
-// You should have received a copy of the GNU Lesser General Public License
-// along with the go-ethereum library. If not, see <http://www.gnu.org/licenses/>.
+// Copyright 2026 The go-qrl Authors
+// This file is part of the go-qrl library.
 
 package apitypes
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
+
+const emptyTypedDataJSON = `{"types":{"QRLTypedDataDomain":[{"name":"name","type":"string"},{"name":"version","type":"string"},{"name":"chainId","type":"uint256"},{"name":"verifyingContract","type":"address"},{"name":"salt","type":"bytes32"}],"Empty":[]},"primaryType":"Empty","domain":{"name":"test","version":"1","chainId":"1","verifyingContract":"Q00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000","salt":"0x0000000000000000000000000000000000000000000000000000000000000000"},"message":{}}`
 
 func TestIsPrimitive(t *testing.T) {
 	t.Parallel()
-	// Expected positives
-	for i, tc := range []string{
-		"int24", "int24[]", "uint88", "uint88[]", "uint", "uint[]", "int256", "int256[]",
-		"uint96", "uint96[]", "int96", "int96[]", "bytes17[]", "bytes17",
+	for _, typ := range []string{
+		"address", "bool", "string", "bytes",
+		"int8", "int256", "int512", "uint8", "uint256", "uint512",
+		"bytes1", "bytes32", "bytes64",
+		"uint512[]", "bytes64[2]", "address[][3]",
 	} {
-		if !isPrimitiveTypeValid(tc) {
-			t.Errorf("test %d: expected '%v' to be a valid primitive", i, tc)
+		if !isPrimitiveTypeValid(typ) {
+			t.Errorf("expected %q to be a valid primitive type", typ)
 		}
 	}
-	// Expected negatives
-	for i, tc := range []string{
-		"int257", "int257[]", "uint88 ", "uint88 []", "uint257", "uint-1[]",
-		"uint0", "uint0[]", "int95", "int95[]", "uint1", "uint1[]", "bytes33[]", "bytess",
+	for _, typ := range []string{
+		"int", "uint", "int0", "uint0", "int7", "uint513", "uint008",
+		"bytes0", "bytes65", "bytes064", "function",
+		"uint256[0]", "uint256[01]", "uint256[", "uint256[]x",
 	} {
-		if isPrimitiveTypeValid(tc) {
-			t.Errorf("test %d: expected '%v' to not be a valid primitive", i, tc)
+		if isPrimitiveTypeValid(typ) {
+			t.Errorf("expected %q to be rejected", typ)
+		}
+	}
+}
+
+func TestTypedDataRejectsReservedCustomType(t *testing.T) {
+	t.Parallel()
+	for _, name := range []string{"address", "bytes32", "function", "int", "uint512"} {
+		types := Types{
+			TypedDataDomainType: append([]Type(nil), qrlTypedDataDomain...),
+			name:                {{Name: "nested", Type: "bool"}},
+		}
+		if err := types.validate(); err == nil || !strings.Contains(err.Error(), "reserved") {
+			t.Errorf("type name %q: expected reserved-name error, got %v", name, err)
+		}
+	}
+}
+
+func TestTypedDataAcceptsPrimitivePrefixedCustomType(t *testing.T) {
+	t.Parallel()
+	for _, name := range []string{"bytesEnvelope", "intention", "uintConfig"} {
+		types := Types{
+			TypedDataDomainType: append([]Type(nil), qrlTypedDataDomain...),
+			name:                {{Name: "value", Type: "bool"}},
+		}
+		if err := types.validate(); err != nil {
+			t.Errorf("type name %q: %v", name, err)
 		}
 	}
 }

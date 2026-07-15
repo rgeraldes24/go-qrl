@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math/big"
 	"mime"
 
 	"github.com/theQRL/go-qrl/accounts"
@@ -29,6 +30,10 @@ import (
 	"github.com/theQRL/go-qrl/crypto"
 	"github.com/theQRL/go-qrl/signer/core/apitypes"
 )
+
+// ErrTypedDataRequiresDedicatedAPI prevents account_signData from returning a
+// typed-data signature without the metadata required to verify it.
+var ErrTypedDataRequiresDedicatedAPI = accounts.ErrTypedDataRequiresDedicatedAPI
 
 // sign receives a request and produces a signature
 func (api *SignerAPI) sign(req *SignDataRequest) (hexutil.Bytes, error) {
@@ -124,12 +129,7 @@ func (api *SignerAPI) determineSignatureFormat(ctx context.Context, contentType 
 		}
 		req = &SignDataRequest{ContentType: mediaType, Rawdata: []byte(msg), Messages: messages, Hash: sighash}
 	case apitypes.DataTyped.Mime:
-		// EIP-712 conformant typed data
-		var err error
-		req, err = typedDataRequest(data)
-		if err != nil {
-			return nil, err
-		}
+		return nil, ErrTypedDataRequiresDedicatedAPI
 	default: // also case TextPlain.Mime:
 		// Calculates a QRL ML-DSA-87 signature for:
 		// hash = keccak256("\x19QRL Signed Message:\n${message length}${message}")
@@ -161,35 +161,60 @@ func SignTextValidator(validatorData apitypes.ValidatorData) (hexutil.Bytes, str
 	return crypto.Keccak256([]byte(msg)), msg
 }
 
-// SignTypedData signs EIP-712 conformant typed data
-// hash = keccak256("\x19${byteVersion}${domainSeparator}${hashStruct(message)}")
-// It returns
-// - the signature,
-// - and/or any error
-func (api *SignerAPI) SignTypedData(ctx context.Context, addr common.MixedcaseAddress, typedData apitypes.TypedData) (hexutil.Bytes, error) {
-	signature, _, err := api.signTypedData(ctx, addr, typedData, nil)
-	return signature, err
-}
-
-// signTypedData is identical to the capitalized version, except that it also returns the hash (preimage)
-// - the signature preimage (hash)
-func (api *SignerAPI) signTypedData(ctx context.Context, addr common.MixedcaseAddress,
-	typedData apitypes.TypedData, validationMessages *apitypes.ValidationMessages) (hexutil.Bytes, hexutil.Bytes, error) {
+// SignTypedData signs a QRL Typed Structured Data v1 digest and returns the
+// metadata required for independent ML-DSA verification.
+func (api *SignerAPI) SignTypedData(ctx context.Context, addr common.MixedcaseAddress, typedData apitypes.TypedData) (*apitypes.TypedDataSignature, error) {
+	if typedData.Domain.ChainId == nil || api.chainID.Cmp((*big.Int)(typedData.Domain.ChainId)) != 0 {
+		return nil, fmt.Errorf("typed data domain chainId does not match signer chainId %s", api.chainID)
+	}
 	req, err := typedDataRequest(typedData)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	req.Address = addr
 	req.Meta = MetadataFromContext(ctx)
-	if validationMessages != nil {
-		req.Callinfo = validationMessages.Messages
+
+	// Ask for approval before looking up the account to avoid account enumeration.
+	approval, err := api.UI.ApproveSignData(req)
+	if err != nil {
+		return nil, err
 	}
-	signature, err := api.sign(req)
+	if !approval.Approved {
+		return nil, ErrRequestDenied
+	}
+	account := accounts.Account{Address: addr.Address()}
+	wallet, err := api.am.Find(account)
+	if err != nil {
+		return nil, err
+	}
+	password, err := api.lookupOrQueryPassword(account.Address,
+		"Password for signing",
+		fmt.Sprintf("Please enter password for signing data with account %s", account.Address.Hex()))
+	if err != nil {
+		return nil, err
+	}
+	signer, ok := wallet.(accounts.HashSignerWithMetadata)
+	if !ok {
+		return nil, errors.New("wallet cannot provide typed data verification metadata")
+	}
+	signed, err := signer.SignHashWithPassphraseAndMetadata(account, password, req.Hash)
 	if err != nil {
 		api.UI.ShowError(err.Error())
-		return nil, nil, err
+		return nil, err
 	}
-	return signature, req.Hash, nil
+	result := &apitypes.TypedDataSignature{
+		Version:    apitypes.TypedDataVersion,
+		Algorithm:  apitypes.TypedDataAlgorithm,
+		Address:    account.Address,
+		Digest:     common.BytesToHash(req.Hash),
+		PublicKey:  append(hexutil.Bytes(nil), signed.PublicKey...),
+		Descriptor: append(hexutil.Bytes(nil), signed.Descriptor...),
+		Signature:  append(hexutil.Bytes(nil), signed.Signature...),
+	}
+	if err := result.Verify(typedData); err != nil {
+		return nil, fmt.Errorf("verify generated typed data signature: %w", err)
+	}
+	return result, nil
 }
 
 // fromHex tries to interpret the data as type string, and convert from

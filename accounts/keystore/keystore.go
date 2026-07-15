@@ -324,6 +324,25 @@ func (ks *KeyStore) SignHashWithPassphrase(a accounts.Account, passphrase string
 	return pqcrypto.Sign(hash, key.Wallet)
 }
 
+// SignHashWithPassphraseAndMetadata signs hash and returns the public key and
+// wallet descriptor required for independent ML-DSA verification.
+func (ks *KeyStore) SignHashWithPassphraseAndMetadata(a accounts.Account, passphrase string, hash []byte) (*accounts.HashSignature, error) {
+	_, key, err := ks.getDecryptedKey(a, passphrase)
+	if err != nil {
+		return nil, err
+	}
+	defer zeroWallet(&key.Wallet)
+	signature, err := pqcrypto.Sign(hash, key.Wallet)
+	if err != nil {
+		return nil, err
+	}
+	return &accounts.HashSignature{
+		Signature:  signature,
+		PublicKey:  append([]byte(nil), key.Wallet.GetPK()...),
+		Descriptor: append([]byte(nil), key.Wallet.GetDescriptor().ToBytes()...),
+	}, nil
+}
+
 // SignTxWithPassphrase signs the transaction if the private key matching the
 // given address can be decrypted with the given passphrase.
 func (ks *KeyStore) SignTxWithPassphrase(a accounts.Account, passphrase string, tx *types.Transaction, chainID *big.Int) (*types.Transaction, error) {

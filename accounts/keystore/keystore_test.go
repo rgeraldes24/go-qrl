@@ -17,6 +17,7 @@
 package keystore
 
 import (
+	"errors"
 	"math/rand"
 	"os"
 	"runtime"
@@ -112,6 +113,51 @@ func TestSignWithPassphrase(t *testing.T) {
 
 	if _, err = ks.SignHashWithPassphrase(acc, "invalid passwd", testSigData); err == nil {
 		t.Fatal("expected SignHashWithPassphrase to fail with invalid password")
+	}
+}
+
+func TestWalletRejectsTypedDataSignData(t *testing.T) {
+	wallet := new(keystoreWallet)
+	for _, contentType := range []string{
+		accounts.MimetypeTypedData,
+		accounts.MimetypeTypedData + "; charset=utf-8",
+		"DATA/TYPED; CHARSET=utf-8",
+	} {
+		for _, test := range []struct {
+			name string
+			sign func() ([]byte, error)
+		}{
+			{
+				name: "without passphrase",
+				sign: func() ([]byte, error) {
+					return wallet.SignData(accounts.Account{}, contentType, nil)
+				},
+			},
+			{
+				name: "with passphrase",
+				sign: func() ([]byte, error) {
+					return wallet.SignDataWithPassphrase(accounts.Account{}, "", contentType, nil)
+				},
+			},
+		} {
+			t.Run(contentType+"/"+test.name, func(t *testing.T) {
+				if signature, err := test.sign(); signature != nil || !errors.Is(err, accounts.ErrTypedDataRequiresDedicatedAPI) {
+					t.Fatalf("result %x, error %v", signature, err)
+				}
+			})
+		}
+	}
+	for _, sign := range []func() ([]byte, error){
+		func() ([]byte, error) {
+			return wallet.SignData(accounts.Account{}, "data/typed;", nil)
+		},
+		func() ([]byte, error) {
+			return wallet.SignDataWithPassphrase(accounts.Account{}, "", "data/typed;", nil)
+		},
+	} {
+		if signature, err := sign(); signature != nil || err == nil || errors.Is(err, accounts.ErrUnknownAccount) {
+			t.Fatalf("malformed MIME result %x, error %v", signature, err)
+		}
 	}
 }
 
