@@ -7,7 +7,7 @@ set -Eeuo pipefail
 SCRIPT_DIR="$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
 ENCLAVE_NAME=local-testnet
 NETWORK_PARAMS_FILE=$SCRIPT_DIR/network_params.yaml
-QRL_PKG_VERSION=3892c3d2596403c080424d9e8fc99ff172483fe0
+QRL_PKG_VERSION=1f31cd03dbe2061225701ea79d956cfeceaf91db
 
 BUILD_IMAGE=true
 CI=false
