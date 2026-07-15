@@ -209,7 +209,7 @@ type TypePriority struct {
 
 type TypedDataMessage = map[string]any
 
-// TypedDataDomain represents the mandatory QRL typed-data domain.
+// TypedDataDomain represents the domain part of a QRL typed-data message.
 type TypedDataDomain struct {
 	Name              string                `json:"name"`
 	Version           string                `json:"version"`
