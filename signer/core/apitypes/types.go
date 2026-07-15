@@ -228,7 +228,7 @@ func TypedDataAndHash(typedData TypedData) ([]byte, string, error) {
 	if err != nil {
 		return nil, "", err
 	}
-	rawData := fmt.Sprintf("%s%s%s", TypedDataPrefix, string(domainSeparator), string(typedDataHash))
+	rawData := fmt.Sprintf("\x19\x01%s%s", string(domainSeparator), string(typedDataHash))
 	return crypto.Keccak256([]byte(rawData)), rawData, nil
 }
 
@@ -888,10 +888,7 @@ func pprintValue(output *bytes.Buffer, value any, depth int) {
 	}
 }
 
-const (
-	TypedDataDomainType = "QRLTypedDataDomain"
-	TypedDataPrefix     = "QRL-TYPED-DATA-V1"
-)
+const TypedDataDomainType = "QRLTypedDataDomain"
 
 var qrlTypedDataDomain = []Type{
 	{Name: "name", Type: "string"},

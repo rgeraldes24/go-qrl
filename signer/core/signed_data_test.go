@@ -371,10 +371,10 @@ func TestQRLTypedDataGolden(t *testing.T) {
 	if got := hexutil.Encode(digest); got != vector.Expected.Digest {
 		t.Errorf("digest: have %s, want %s", got, vector.Expected.Digest)
 	}
-	if !strings.HasPrefix(rawData, apitypes.TypedDataPrefix) {
-		t.Fatalf("raw preimage does not start with %q", apitypes.TypedDataPrefix)
+	if !strings.HasPrefix(rawData, "\x19\x01") {
+		t.Fatal("raw preimage does not start with 0x1901")
 	}
-	if len(rawData) != len(apitypes.TypedDataPrefix)+2*common.HashLength {
+	if len(rawData) != 2+2*common.HashLength {
 		t.Fatalf("raw preimage length %d", len(rawData))
 	}
 

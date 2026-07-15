@@ -10,7 +10,7 @@ This document defines the native QRL typed-data format implemented by
 | Name | Value |
 | --- | --- |
 | Version | `1` |
-| Digest prefix | UTF-8 `QRL-TYPED-DATA-V1` |
+| Digest prefix | `0x1901` |
 | Hash | Legacy Keccak-256, not NIST SHA3-256 |
 | Encoded member word | 64 bytes |
 | Signature algorithm | ML-DSA-87 |
@@ -123,7 +123,8 @@ the surrounding 512-bit word.
 
 ```text
 keccak256(
-    UTF8("QRL-TYPED-DATA-V1") ||
+    0x19 ||
+    0x01 ||
     hashStruct(domain) ||
     hashStruct(message)
 )
