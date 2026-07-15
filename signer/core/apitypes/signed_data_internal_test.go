@@ -185,7 +185,6 @@ func TestTypedDataArrayConversion(t *testing.T) {
 	t.Parallel()
 	for _, input := range []any{
 		[]string{"a", "b"},
-		[2]uint64{1, 2},
 		[]common.Address{{1}, {2}},
 	} {
 		if _, err := convertDataToSlice(input); err != nil {

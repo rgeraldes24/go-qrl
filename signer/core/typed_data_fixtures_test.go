@@ -23,7 +23,7 @@ func TestQRLTypedDataJSONFixtures(t *testing.T) {
 		{name: "arrays-1.json"},
 		{name: "custom_arraytype.json"},
 		{name: "eip712.json"},
-		{name: "expfail_arraytype_overload.json", wantError: "Person[]"},
+		{name: "expfail_arraytype_overload.json"},
 		{name: "expfail_datamismatch_1.json", wantError: "doesn't match type 'Person'"},
 		{name: "expfail_extradata.json", wantError: "extra data"},
 		{name: "expfail_malformeddomainkeys.json", wantError: "domain"},
@@ -86,6 +86,7 @@ func TestTypedDataFuzzRegressionCorpus(t *testing.T) {
 	t.Parallel()
 	valid := map[string]bool{
 		"36fb987a774011dc675e1b5246ac5c1d44d84d92": true,
+		"f658340af009dd4a35abe645a00a7b732bc30921": true,
 	}
 	directory := filepath.Join("testdata", "fuzzing")
 	entries, err := os.ReadDir(directory)

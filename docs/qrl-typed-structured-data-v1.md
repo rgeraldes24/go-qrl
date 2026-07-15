@@ -45,9 +45,7 @@ All five domain values are required. `name` and `version` are non-empty,
 `salt` is exactly 32 bytes. `QRLTypedDataDomain` cannot be the primary type.
 
 Every message and nested struct contains exactly its declared fields. Missing
-and extra fields are invalid. Type and field names use
-`[A-Za-z][A-Za-z0-9_]*`. Undefined reference types and primitive-name
-collisions are invalid.
+and extra fields are invalid. Undefined reference types are invalid.
 
 JSON addresses use full `Q`-prefixed strings. Byte values use
 `0x`-prefixed hexadecimal strings. Integers may be decimal JSON integer

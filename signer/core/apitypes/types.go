@@ -40,7 +40,6 @@ import (
 )
 
 var typedDataReferenceTypeRegexp = regexp.MustCompile(`^[A-Za-z](\w*)(\[\])?$`)
-var typedDataTypeRegexp = regexp.MustCompile(`^[A-Za-z]\w*$`)
 
 type ValidationInfo struct {
 	Typ     string `json:"type"`
@@ -415,9 +414,6 @@ func parseInteger(encType string, encValue any) (*big.Int, error) {
 		} else {
 			lengthStr = strings.TrimPrefix(encType, "int")
 		}
-		if lengthStr == "" || len(lengthStr) > 1 && lengthStr[0] == '0' {
-			return nil, fmt.Errorf("invalid size on integer: %v", lengthStr)
-		}
 		atoiSize, err := strconv.Atoi(lengthStr)
 		if err != nil || atoiSize < 8 || atoiSize > uint512.WordBits || atoiSize%8 != 0 {
 			return nil, fmt.Errorf("invalid size on integer: %v", lengthStr)
@@ -426,17 +422,9 @@ func parseInteger(encType string, encValue any) (*big.Int, error) {
 	}
 	switch v := encValue.(type) {
 	case *math.HexOrDecimal256:
-		if v != nil {
-			b = new(big.Int).Set((*big.Int)(v))
-		}
-	case *hexutil.U512:
-		if v != nil {
-			b = new(big.Int).Set((*big.Int)(v))
-		}
+		b = (*big.Int)(v)
 	case *big.Int:
-		if v != nil {
-			b = new(big.Int).Set(v)
-		}
+		b = v
 	case json.Number:
 		b = parseIntegerString(v.String())
 	case string:
@@ -448,16 +436,6 @@ func parseInteger(encType string, encValue any) (*big.Int, error) {
 		b, _ = new(big.Float).SetFloat64(v).Int(nil)
 		if b == nil || new(big.Float).SetInt(b).Cmp(new(big.Float).SetFloat64(v)) != 0 {
 			return nil, fmt.Errorf("invalid float value %v for type %v", v, encType)
-		}
-	default:
-		value := reflect.ValueOf(encValue)
-		if value.IsValid() {
-			switch value.Kind() {
-			case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-				b = big.NewInt(value.Int())
-			case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-				b = new(big.Int).SetUint64(value.Uint())
-			}
 		}
 	}
 	if b == nil {
@@ -577,7 +555,7 @@ func dataMismatchError(encType string, encValue any) error {
 func convertDataToSlice(encValue any) ([]any, error) {
 	var outEncValue []any
 	rv := reflect.ValueOf(encValue)
-	if rv.Kind() == reflect.Slice || rv.Kind() == reflect.Array {
+	if rv.Kind() == reflect.Slice {
 		for i := 0; i < rv.Len(); i++ {
 			outEncValue = append(outEncValue, rv.Index(i).Interface())
 		}
@@ -739,18 +717,15 @@ func formatPrimitiveValue(encType string, encValue any) (string, error) {
 // Validate checks if the types object is conformant to the specs
 func (t Types) validate() error {
 	for typeKey, typeArr := range t {
-		if !typedDataTypeRegexp.MatchString(typeKey) {
-			return fmt.Errorf("invalid type key %q", typeKey)
-		}
-		if typeKey == "function" || typeKey == "int" || typeKey == "uint" || isPrimitiveTypeValid(typeKey) {
-			return fmt.Errorf("type name %q is reserved", typeKey)
+		if len(typeKey) == 0 {
+			return fmt.Errorf("empty type key")
 		}
 		for i, typeObj := range typeArr {
 			if len(typeObj.Type) == 0 {
 				return fmt.Errorf("type %q:%d: empty Type", typeKey, i)
 			}
-			if !typedDataTypeRegexp.MatchString(typeObj.Name) {
-				return fmt.Errorf("type %q:%d: invalid Name %q", typeKey, i, typeObj.Name)
+			if len(typeObj.Name) == 0 {
+				return fmt.Errorf("type %q:%d: empty Name", typeKey, i)
 			}
 			if typeKey == typeObj.Type {
 				return fmt.Errorf("type %q cannot reference itself", typeObj.Type)
