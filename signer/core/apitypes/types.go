@@ -39,7 +39,7 @@ import (
 	"github.com/theQRL/go-qrl/crypto"
 )
 
-var typedDataReferenceTypeRegexp = regexp.MustCompile(`^[A-Za-z](\w*)(\[[0-9]*\])?$`)
+var typedDataReferenceTypeRegexp = regexp.MustCompile(`^[A-Za-z](\w*)(\[\])?$`)
 var typedDataTypeRegexp = regexp.MustCompile(`^[A-Za-z]\w*$`)
 
 type ValidationInfo struct {
@@ -188,32 +188,16 @@ type Type struct {
 }
 
 func (t *Type) isArray() bool {
-	return strings.HasSuffix(t.Type, "]")
+	return strings.HasSuffix(t.Type, "[]")
 }
 
 // typeName returns the canonical name of the type. If the type is 'Person[]', then
 // this method returns 'Person'
 func (t *Type) typeName() string {
-	return strings.SplitN(t.Type, "[", 2)[0]
-}
-
-func (t *Type) arrayLength() (int, error) {
-	if !t.isArray() {
-		return -1, nil
+	if before, ok := strings.CutSuffix(t.Type, "[]"); ok {
+		return before
 	}
-	open := strings.LastIndexByte(t.Type, '[')
-	lengthText := t.Type[open+1 : len(t.Type)-1]
-	if lengthText == "" {
-		return -1, nil
-	}
-	if len(lengthText) > 1 && lengthText[0] == '0' {
-		return 0, fmt.Errorf("invalid array length %q", lengthText)
-	}
-	length, err := strconv.Atoi(lengthText)
-	if err != nil || length < 1 {
-		return 0, fmt.Errorf("invalid array length %q", lengthText)
-	}
-	return length, nil
+	return t.Type
 }
 
 type Types map[string][]Type
@@ -259,9 +243,12 @@ func (typedData *TypedData) HashStruct(primaryType string, data TypedDataMessage
 
 // Dependencies returns an array of custom types ordered by their hierarchical reference tree
 func (typedData *TypedData) Dependencies(primaryType string, found []string) []string {
-	primaryType = strings.SplitN(primaryType, "[", 2)[0]
+	primaryType = strings.TrimSuffix(primaryType, "[]")
+	includes := func(arr []string, str string) bool {
+		return slices.Contains(arr, str)
+	}
 
-	if slices.Contains(found, primaryType) {
+	if includes(found, primaryType) {
 		return found
 	}
 	if typedData.Types[primaryType] == nil {
@@ -270,7 +257,7 @@ func (typedData *TypedData) Dependencies(primaryType string, found []string) []s
 	found = append(found, primaryType)
 	for _, field := range typedData.Types[primaryType] {
 		for _, dep := range typedData.Dependencies(field.Type, found) {
-			if !slices.Contains(found, dep) {
+			if !includes(found, dep) {
 				found = append(found, dep)
 			}
 		}
@@ -302,9 +289,7 @@ func (typedData *TypedData) EncodeType(primaryType string) hexutil.Bytes {
 			buffer.WriteString(obj.Name)
 			buffer.WriteString(",")
 		}
-		if len(typedData.Types[dep]) > 0 {
-			buffer.Truncate(buffer.Len() - 1)
-		}
+		buffer.Truncate(buffer.Len() - 1)
 		buffer.WriteString(")")
 	}
 	return buffer.Bytes()
@@ -343,14 +328,6 @@ func (typedData *TypedData) EncodeData(primaryType string, data map[string]any, 
 			if err != nil {
 				return nil, dataMismatchError(encType, encValue)
 			}
-			arrayLength, err := field.arrayLength()
-			if err != nil {
-				return nil, err
-			}
-			if arrayLength >= 0 && len(arrayValue) != arrayLength {
-				return nil, fmt.Errorf("array length %d does not match %s", len(arrayValue), encType)
-			}
-
 			arrayBuffer := bytes.Buffer{}
 			parsedType := field.typeName()
 			for _, item := range arrayValue {
@@ -799,9 +776,6 @@ func isPrimitiveTypeValid(primitiveType string) bool {
 		return false
 	}
 	typ := Type{Type: primitiveType}
-	if _, err := typ.arrayLength(); err != nil {
-		return false
-	}
 	primitiveType = typ.typeName()
 	if primitiveType == "address" ||
 		primitiveType == "bool" ||

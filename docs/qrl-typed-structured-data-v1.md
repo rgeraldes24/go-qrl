@@ -65,7 +65,7 @@ Version 1 supports:
 - dynamic `bytes`
 - `string`
 - named structs
-- one-dimensional static arrays `T[N]` and dynamic arrays `T[]`
+- dynamic arrays `T[]`
 
 Bare `uint` and `int`, fixed-point types, optional values, and ABI
 `function` values are unsupported.

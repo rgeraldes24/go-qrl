@@ -79,7 +79,7 @@ func qrlTypedDataFixture() apitypes.TypedData {
 				{Name: "data", Type: "bytes"},
 				{Name: "memo", Type: "string"},
 				{Name: "tags", Type: "string[]"},
-				{Name: "approvals", Type: "Approval[2]"},
+				{Name: "approvals", Type: "Approval[]"},
 				{Name: "nonce", Type: "uint64"},
 				{Name: "deadline", Type: "uint64"},
 			},
@@ -452,7 +452,7 @@ func TestQRLTypedDataApprovalFormatting(t *testing.T) {
 		"Transfer [primary type]",
 		"tags [string[]]",
 		"[0]: \"wallet\"",
-		"approvals [Approval[2]]",
+		"approvals [Approval[]]",
 		"signer [address]",
 	} {
 		if !strings.Contains(text, expected) {
