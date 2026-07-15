@@ -11,7 +11,6 @@ import (
 
 	"github.com/theQRL/go-qrl/common"
 	"github.com/theQRL/go-qrl/common/hexutil"
-	"github.com/theQRL/go-qrl/common/math"
 	"github.com/theQRL/go-qrl/common/uint512"
 	"github.com/theQRL/go-qrl/crypto"
 )
@@ -195,45 +194,5 @@ func TestTypedDataArrayConversion(t *testing.T) {
 	}
 	if _, err := convertDataToSlice("not an array"); err == nil {
 		t.Fatal("expected scalar array conversion to fail")
-	}
-}
-
-func TestNestedArrayEncodingVM64(t *testing.T) {
-	t.Parallel()
-	typedData := &TypedData{
-		Types: Types{
-			TypedDataDomainType: append([]Type(nil), qrlTypedDataDomain...),
-			"Matrix":            {{Name: "values", Type: "uint16[2][]"}},
-		},
-		PrimaryType: "Matrix",
-		Domain: TypedDataDomain{
-			Name:              "matrix",
-			Version:           "1",
-			ChainId:           math.NewHexOrDecimal256(1),
-			VerifyingContract: common.Address{}.Hex(),
-			Salt:              hexutil.Encode(make([]byte, common.HashLength)),
-		},
-		Message: TypedDataMessage{
-			"values": []any{
-				[]any{"1", "2"},
-				[]any{"3", "4"},
-			},
-		},
-	}
-	encoded, err := typedData.EncodeData("Matrix", typedData.Message, 1)
-	if err != nil {
-		t.Fatal(err)
-	}
-	word := func(value byte) []byte {
-		result := make([]byte, uint512.WordBytes)
-		result[len(result)-1] = value
-		return result
-	}
-	innerOne := encodeTypedDataHashWord(crypto.Keccak256(append(word(1), word(2)...)))
-	innerTwo := encodeTypedDataHashWord(crypto.Keccak256(append(word(3), word(4)...)))
-	wantArray := encodeTypedDataHashWord(crypto.Keccak256(append(innerOne, innerTwo...)))
-	want := append(encodeTypedDataHashWord(crypto.Keccak256([]byte("Matrix(uint16[2][] values)"))), wantArray...)
-	if !bytes.Equal(encoded, want) {
-		t.Fatalf("nested array encoding:\n have %x\n want %x", encoded, want)
 	}
 }

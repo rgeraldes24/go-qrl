@@ -46,8 +46,8 @@ All five domain values are required. `name` and `version` are non-empty,
 
 Every message and nested struct contains exactly its declared fields. Missing
 and extra fields are invalid. Type and field names use
-`[A-Za-z_][A-Za-z0-9_]*`. Duplicate fields, undefined reference types,
-primitive-name collisions, and recursive type graphs are invalid.
+`[A-Za-z][A-Za-z0-9_]*`. Undefined reference types and primitive-name
+collisions are invalid.
 
 JSON addresses use full `Q`-prefixed strings. Byte values use
 `0x`-prefixed hexadecimal strings. Integers may be decimal JSON integer
@@ -65,7 +65,7 @@ Version 1 supports:
 - dynamic `bytes`
 - `string`
 - named structs
-- static arrays `T[N]` and dynamic arrays `T[]`, including nested arrays
+- one-dimensional static arrays `T[N]` and dynamic arrays `T[]`
 
 Bare `uint` and `int`, fixed-point types, optional values, and ABI
 `function` values are unsupported.

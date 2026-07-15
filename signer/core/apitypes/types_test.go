@@ -16,7 +16,7 @@ func TestIsPrimitive(t *testing.T) {
 		"address", "bool", "string", "bytes",
 		"int8", "int256", "int512", "uint8", "uint256", "uint512",
 		"bytes1", "bytes32", "bytes64",
-		"uint512[]", "bytes64[2]", "address[][3]",
+		"uint512[]", "bytes64[2]",
 	} {
 		if !isPrimitiveTypeValid(typ) {
 			t.Errorf("expected %q to be a valid primitive type", typ)
