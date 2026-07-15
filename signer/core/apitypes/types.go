@@ -303,7 +303,7 @@ func (typedData *TypedData) TypeHash(primaryType string) hexutil.Bytes {
 // EncodeData generates the following encoding:
 // `enc(value₁) ‖ enc(value₂) ‖ … ‖ enc(valueₙ)`
 //
-// the type hash and each encoded member occupy one 64-byte VM word
+// each encoded member is 64-byte long
 func (typedData *TypedData) EncodeData(primaryType string, data map[string]any, depth int) (hexutil.Bytes, error) {
 	if err := typedData.validate(); err != nil {
 		return nil, err
