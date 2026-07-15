@@ -44,7 +44,7 @@ func TestTypedDataRejectsReservedCustomType(t *testing.T) {
 			TypedDataDomainType: append([]Type(nil), qrlTypedDataDomain...),
 			name:                {{Name: "nested", Type: "bool"}},
 		}
-		if err := validateTypedDataTypes(types); err == nil || !strings.Contains(err.Error(), "reserved") {
+		if err := types.validate(); err == nil || !strings.Contains(err.Error(), "reserved") {
 			t.Errorf("type name %q: expected reserved-name error, got %v", name, err)
 		}
 	}
@@ -57,7 +57,7 @@ func TestTypedDataAcceptsPrimitivePrefixedCustomType(t *testing.T) {
 			TypedDataDomainType: append([]Type(nil), qrlTypedDataDomain...),
 			name:                {{Name: "value", Type: "bool"}},
 		}
-		if err := validateTypedDataTypes(types); err != nil {
+		if err := types.validate(); err != nil {
 			t.Errorf("type name %q: %v", name, err)
 		}
 	}

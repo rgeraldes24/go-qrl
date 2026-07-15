@@ -133,7 +133,7 @@ func (api *SignerAPI) determineSignatureFormat(ctx context.Context, contentType 
 			},
 		}
 		req = &SignDataRequest{ContentType: mediaType, Rawdata: []byte(msg), Messages: messages, Hash: sighash}
-	case accounts.MimetypeTypedData:
+	case apitypes.DataTyped.Mime:
 		return nil, ErrTypedDataRequiresDedicatedAPI
 	default: // also case TextPlain.Mime:
 		// Calculates a QRL ML-DSA-87 signature for:
@@ -247,7 +247,7 @@ func typedDataRequest(data any) (*SignDataRequest, error) {
 		return nil, err
 	}
 	return &SignDataRequest{
-		ContentType: accounts.MimetypeTypedData,
+		ContentType: apitypes.DataTyped.Mime,
 		Rawdata:     []byte(rawData),
 		Messages:    messages,
 		Hash:        sighash}, nil
