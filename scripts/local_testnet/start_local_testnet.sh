@@ -7,8 +7,6 @@ set -Eeuo pipefail
 SCRIPT_DIR="$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
 ENCLAVE_NAME=local-testnet
 NETWORK_PARAMS_FILE=$SCRIPT_DIR/network_params.yaml
-# Pinned cyyber/qrl-package PR #13 revision with a matching Kurtosis package
-# name, hosted on the rgeraldes24 fork for remote execution.
 QRL_PKG_VERSION=3892c3d2596403c080424d9e8fc99ff172483fe0
 
 BUILD_IMAGE=true
