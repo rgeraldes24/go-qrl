@@ -3,7 +3,7 @@
 These scripts allow for running a small local testnet with a default of 2 gqrl execution clients, 2 beacon nodes and 2 validator clients using Kurtosis.
 This setup can be useful for testing and development.
 
-The execution client images are built locally from this repository. The beacon node and validator images are built from [cyyber/qrysm](https://github.com/cyyber/qrysm), and the genesis image is built from [qrl-genesis-generator PR #9](https://github.com/cyyber/qrl-genesis-generator/pull/9). This keeps every component on the 64-byte address implementation under test.
+The execution client images are built locally from this repository. The beacon node, validator, and genesis generator use the published Qrysm images configured in `network_params.yaml` by default.
 
 ## Installation
 
@@ -15,16 +15,6 @@ The execution client images are built locally from this repository. The beacon n
 
 ## Starting the testnet
 
-First, check out `cyyber/qrysm` and PR #9 of `cyyber/qrl-genesis-generator`. Build the required local images:
-
-```bash
-./scripts/local_testnet/build_consensus_images.sh \
-    /path/to/cyyber/qrysm \
-    /path/to/qrl-genesis-generator-pr9
-```
-
-The script prints both source commit IDs and builds `local/qrysm-beacon:vm64`, `local/qrysm-validator:vm64`, and `local/qrl-genesis-generator:vm64`. It requires Bazel, Docker Buildx, and enough free disk space for the Qrysm build outputs.
-
 To start a testnet, from the go-qrl root repository:
 ```bash
 cd ./scripts/local_testnet
@@ -35,7 +25,17 @@ This first builds the `theqrl-dev/go-qrl:latest` and `theqrl-dev/go-qrl-alltools
 You can also select your own go-qrl docker image to use by specifying it in `network_params.yaml` under the `el_image` key.
 Full configuration reference for kurtosis is specified [here](https://github.com/theQRL/qrl-package?tab=readme-ov-file#configuration).
 
-The network is orchestrated by [cyyber/qrl-package PR #13](https://github.com/cyyber/qrl-package/pull/13), fetched from a public fork with a matching Kurtosis package name and pinned to an exact commit via `QRL_PKG_VERSION` in `start_local_testnet.sh`. This PR carries the package's 64-byte address migration and applies the configured local genesis-generator image to validator key generation. Bump the pin deliberately when the PR advances.
+The network is orchestrated by [cyyber/qrl-package PR #13](https://github.com/cyyber/qrl-package/pull/13), fetched from a public fork with a matching Kurtosis package name and pinned to an exact commit via `QRL_PKG_VERSION` in `start_local_testnet.sh`. This PR carries the package's 64-byte address migration and applies the configured genesis-generator image to validator key generation. Bump the pin deliberately when the PR advances.
+
+To test local Qrysm or genesis-generator changes, build development images from checkouts of `cyyber/qrysm` and [qrl-genesis-generator PR #9](https://github.com/cyyber/qrl-genesis-generator/pull/9):
+
+```bash
+./scripts/local_testnet/build_consensus_images.sh \
+    /path/to/cyyber/qrysm \
+    /path/to/qrl-genesis-generator-pr9
+```
+
+The script builds `local/qrysm-beacon:vm64`, `local/qrysm-validator:vm64`, and `local/qrl-genesis-generator:vm64`. Point the corresponding image fields in `network_params.yaml` at these local tags before starting the network.
 
 To view all running services:
 

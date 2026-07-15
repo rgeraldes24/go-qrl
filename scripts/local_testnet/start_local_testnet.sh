@@ -57,17 +57,6 @@ if ! command -v yq &> /dev/null; then
     exit 1
 fi
 
-for image in \
-    local/qrysm-beacon:vm64 \
-    local/qrysm-validator:vm64 \
-    local/qrl-genesis-generator:vm64; do
-    if ! docker image inspect "$image" &> /dev/null; then
-        echo "Required local image is missing: $image" >&2
-        echo "Build the consensus images with scripts/local_testnet/build_consensus_images.sh." >&2
-        exit 1
-    fi
-done
-
 if [ "$CI" = true ]; then
   yq eval '.additional_services = []' -i "$NETWORK_PARAMS_FILE"
   echo "Running without additional services (CI mode)."

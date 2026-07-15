@@ -13,13 +13,13 @@ participants:
       - "--ws.addr=0.0.0.0"
       - "--ws.api=qrl,net,web3"
     cl_type: qrysm
-    cl_image: local/qrysm-beacon:vm64
+    cl_image: qrledger/qrysm:beacon-chain-latest
     cl_extra_params:
       - "--min-sync-peers=0"
       - "--minimum-peers-per-subnet=0"
       - "--sync-from=head"
     vc_type: qrysm
-    vc_image: local/qrysm-validator:vm64
+    vc_image: qrledger/qrysm:validator-latest
     count: 2
     # Clef remote signer (later phase, not exercised yet). The image config
     # key in qrl-package is `remote_signer_image` and defaults to
@@ -47,7 +47,7 @@ network_params:
   # genesis_delay: 150 # required if light kdf is disabled!
 
 qrl_genesis_generator_params:
-  image: local/qrl-genesis-generator:vm64
+  image: qrledger/qrysm:qrl-genesis-generator-latest
 
 # global_log_level: debug
 
