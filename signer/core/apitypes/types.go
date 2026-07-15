@@ -33,6 +33,7 @@ import (
 	"github.com/theQRL/go-qrl/common"
 	"github.com/theQRL/go-qrl/common/hexutil"
 	"github.com/theQRL/go-qrl/common/math"
+	"github.com/theQRL/go-qrl/common/uint512"
 	"github.com/theQRL/go-qrl/core/types"
 	"github.com/theQRL/go-qrl/crypto"
 )
@@ -170,7 +171,7 @@ type ValidatorData struct {
 	Message hexutil.Bytes
 }
 
-// TypedData is a type to encapsulate EIP-712 typed messages
+// TypedData is a type to encapsulate QRL Typed Structured Data v1 messages.
 type TypedData struct {
 	Types       Types            `json:"types"`
 	PrimaryType string           `json:"primaryType"`
@@ -178,7 +179,7 @@ type TypedData struct {
 	Message     TypedDataMessage `json:"message"`
 }
 
-// Type is the inner type of an EIP-712 message
+// Type is the inner type of a QRL typed-data message.
 type Type struct {
 	Name string `json:"name"`
 	Type string `json:"type"`
@@ -206,7 +207,7 @@ type TypePriority struct {
 
 type TypedDataMessage = map[string]any
 
-// TypedDataDomain represents the domain part of an EIP-712 message.
+// TypedDataDomain represents the domain part of a QRL typed-data message.
 type TypedDataDomain struct {
 	Name              string                `json:"name"`
 	Version           string                `json:"version"`
@@ -215,14 +216,9 @@ type TypedDataDomain struct {
 	Salt              string                `json:"salt"`
 }
 
-// TypedDataAndHash is a helper function that calculates a hash for typed data conforming to EIP-712.
-// This hash can then be safely used to calculate a signature.
-//
-// See https://eips.ethereum.org/EIPS/eip-712 for the full specification.
-//
-// This gives context to the signed typed data and prevents signing of transactions.
+// TypedDataAndHash is a helper function that calculates a hash for QRL Typed Structured Data v1.
 func TypedDataAndHash(typedData TypedData) ([]byte, string, error) {
-	domainSeparator, err := typedData.HashStruct("EIP712Domain", typedData.Domain.Map())
+	domainSeparator, err := typedData.HashStruct("QRLTypedDataDomain", typedData.Domain.Map())
 	if err != nil {
 		return nil, "", err
 	}
@@ -305,7 +301,7 @@ func (typedData *TypedData) TypeHash(primaryType string) hexutil.Bytes {
 // EncodeData generates the following encoding:
 // `enc(value₁) ‖ enc(value₂) ‖ … ‖ enc(valueₙ)`
 //
-// each encoded member is 32-byte long
+// each encoded member is 64-byte long
 func (typedData *TypedData) EncodeData(primaryType string, data map[string]any, depth int) (hexutil.Bytes, error) {
 	if err := typedData.validate(); err != nil {
 		return nil, err
@@ -319,7 +315,7 @@ func (typedData *TypedData) EncodeData(primaryType string, data map[string]any, 
 	}
 
 	// Add typehash
-	buffer.Write(typedData.TypeHash(primaryType))
+	buffer.Write(encodeTypedDataHashWord(typedData.TypeHash(primaryType)))
 
 	// Add field contents. Structs and arrays have special handlers.
 	for _, field := range typedData.Types[primaryType] {
@@ -343,7 +339,7 @@ func (typedData *TypedData) EncodeData(primaryType string, data map[string]any, 
 					if err != nil {
 						return nil, err
 					}
-					arrayBuffer.Write(crypto.Keccak256(encodedData))
+					arrayBuffer.Write(encodeTypedDataHashWord(crypto.Keccak256(encodedData)))
 				} else {
 					bytesValue, err := typedData.EncodePrimitiveValue(parsedType, item, depth)
 					if err != nil {
@@ -353,7 +349,7 @@ func (typedData *TypedData) EncodeData(primaryType string, data map[string]any, 
 				}
 			}
 
-			buffer.Write(crypto.Keccak256(arrayBuffer.Bytes()))
+			buffer.Write(encodeTypedDataHashWord(crypto.Keccak256(arrayBuffer.Bytes())))
 		} else if typedData.Types[field.Type] != nil {
 			mapValue, ok := encValue.(map[string]any)
 			if !ok {
@@ -363,7 +359,7 @@ func (typedData *TypedData) EncodeData(primaryType string, data map[string]any, 
 			if err != nil {
 				return nil, err
 			}
-			buffer.Write(crypto.Keccak256(encodedData))
+			buffer.Write(encodeTypedDataHashWord(crypto.Keccak256(encodedData)))
 		} else {
 			byteValue, err := typedData.EncodePrimitiveValue(encType, encValue, depth)
 			if err != nil {
@@ -408,7 +404,7 @@ func parseInteger(encType string, encValue any) (*big.Int, error) {
 		b      *big.Int
 	)
 	if encType == "int" || encType == "uint" {
-		length = 256
+		length = uint512.WordBits
 	} else {
 		lengthStr := ""
 		if after, ok := strings.CutPrefix(encType, "uint"); ok {
@@ -428,11 +424,7 @@ func parseInteger(encType string, encValue any) (*big.Int, error) {
 	case *big.Int:
 		b = v
 	case string:
-		var hexIntValue math.HexOrDecimal256
-		if err := hexIntValue.UnmarshalText([]byte(v)); err != nil {
-			return nil, err
-		}
-		b = (*big.Int)(&hexIntValue)
+		b = parseIntegerString(v)
 	case float64:
 		// JSON parses non-strings as float64. Fail if we cannot
 		// convert it losslessly
@@ -445,13 +437,30 @@ func parseInteger(encType string, encValue any) (*big.Int, error) {
 	if b == nil {
 		return nil, fmt.Errorf("invalid integer value %v/%v for type %v", encValue, reflect.TypeOf(encValue), encType)
 	}
-	if b.BitLen() > length {
-		return nil, fmt.Errorf("integer larger than '%v'", encType)
-	}
-	if !signed && b.Sign() == -1 {
-		return nil, fmt.Errorf("invalid negative value for unsigned type %v", encType)
+	if signed {
+		limit := new(big.Int).Lsh(big.NewInt(1), uint(length-1))
+		if b.Cmp(new(big.Int).Neg(limit)) < 0 || b.Cmp(new(big.Int).Sub(limit, big.NewInt(1))) > 0 {
+			return nil, fmt.Errorf("integer outside %s range", encType)
+		}
+	} else if b.Sign() < 0 || b.BitLen() > length {
+		return nil, fmt.Errorf("integer outside %s range", encType)
 	}
 	return b, nil
+}
+
+func parseIntegerString(input string) *big.Int {
+	base := 10
+	sign := ""
+	if strings.HasPrefix(input, "-") {
+		sign = "-"
+		input = strings.TrimPrefix(input, "-")
+	}
+	if strings.HasPrefix(input, "0x") || strings.HasPrefix(input, "0X") {
+		base = 16
+		input = input[2:]
+	}
+	value, _ := new(big.Int).SetString(sign+input, base)
+	return value
 }
 
 // EncodePrimitiveValue deals with the primitive values found
@@ -459,24 +468,20 @@ func parseInteger(encType string, encValue any) (*big.Int, error) {
 func (typedData *TypedData) EncodePrimitiveValue(encType string, encValue any, depth int) ([]byte, error) {
 	switch encType {
 	case "address":
-		// Addresses on QRL are common.AddressLength bytes; right-align into
-		// a 64-byte slot so the encoding matches the 64-byte VM word used
-		// everywhere else in the struct hash. When AddressLength == 64 the
-		// right-align is a no-op (slot is fully filled).
-		retval := make([]byte, 64)
+		retval := make([]byte, uint512.WordBytes)
 		switch val := encValue.(type) {
 		case string:
 			if address, err := common.NewAddressFromString(val); err == nil {
-				copy(retval[64-common.AddressLength:], address.Bytes())
+				copy(retval[uint512.WordBytes-common.AddressLength:], address.Bytes())
 				return retval, nil
 			}
 		case []byte:
 			if len(val) == common.AddressLength {
-				copy(retval[64-common.AddressLength:], val)
+				copy(retval[uint512.WordBytes-common.AddressLength:], val)
 				return retval, nil
 			}
 		case [common.AddressLength]byte:
-			copy(retval[64-common.AddressLength:], val[:])
+			copy(retval[uint512.WordBytes-common.AddressLength:], val[:])
 			return retval, nil
 		}
 		return nil, dataMismatchError(encType, encValue)
@@ -486,21 +491,21 @@ func (typedData *TypedData) EncodePrimitiveValue(encType string, encValue any, d
 			return nil, dataMismatchError(encType, encValue)
 		}
 		if boolValue {
-			return math.PaddedBigBytes(common.Big1, 32), nil
+			return math.PaddedBigBytes(common.Big1, uint512.WordBytes), nil
 		}
-		return math.PaddedBigBytes(common.Big0, 32), nil
+		return math.PaddedBigBytes(common.Big0, uint512.WordBytes), nil
 	case "string":
 		strVal, ok := encValue.(string)
 		if !ok {
 			return nil, dataMismatchError(encType, encValue)
 		}
-		return crypto.Keccak256([]byte(strVal)), nil
+		return encodeTypedDataHashWord(crypto.Keccak256([]byte(strVal))), nil
 	case "bytes":
 		bytesValue, ok := parseBytes(encValue)
 		if !ok {
 			return nil, dataMismatchError(encType, encValue)
 		}
-		return crypto.Keccak256(bytesValue), nil
+		return encodeTypedDataHashWord(crypto.Keccak256(bytesValue)), nil
 	}
 	if after, ok := strings.CutPrefix(encType, "bytes"); ok {
 		lengthStr := after
@@ -508,14 +513,14 @@ func (typedData *TypedData) EncodePrimitiveValue(encType string, encValue any, d
 		if err != nil {
 			return nil, fmt.Errorf("invalid size on bytes: %v", lengthStr)
 		}
-		if length < 0 || length > 32 {
+		if length < 1 || length > uint512.WordBytes {
 			return nil, fmt.Errorf("invalid size on bytes: %d", length)
 		}
 		if byteValue, ok := parseBytes(encValue); !ok || len(byteValue) != length {
 			return nil, dataMismatchError(encType, encValue)
 		} else {
-			// Right-pad the bits
-			dst := make([]byte, 32)
+			// Right-pad to one VM word.
+			dst := make([]byte, uint512.WordBytes)
 			copy(dst, byteValue)
 			return dst, nil
 		}
@@ -525,7 +530,10 @@ func (typedData *TypedData) EncodePrimitiveValue(encType string, encValue any, d
 		if err != nil {
 			return nil, err
 		}
-		return math.U256Bytes(b), nil
+		if b.Sign() < 0 {
+			b = new(big.Int).Add(b, new(big.Int).Lsh(big.NewInt(1), uint512.WordBits))
+		}
+		return b.FillBytes(make([]byte, uint512.WordBytes)), nil
 	}
 	return nil, fmt.Errorf("unrecognized type '%s'", encType)
 }
@@ -572,9 +580,9 @@ func (typedData *TypedData) Map() map[string]any {
 }
 
 // Format returns a representation of typedData, which can be easily displayed by a user-interface
-// without in-depth knowledge about 712 rules
+// without in-depth knowledge about typed data rules
 func (typedData *TypedData) Format() ([]*NameValueType, error) {
-	domain, err := typedData.formatData("EIP712Domain", typedData.Domain.Map())
+	domain, err := typedData.formatData("QRLTypedDataDomain", typedData.Domain.Map())
 	if err != nil {
 		return nil, err
 	}
@@ -584,7 +592,7 @@ func (typedData *TypedData) Format() ([]*NameValueType, error) {
 	}
 	var nvts []*NameValueType
 	nvts = append(nvts, &NameValueType{
-		Name:  "EIP712Domain",
+		Name:  "QRLTypedDataDomain",
 		Value: domain,
 		Typ:   "domain",
 	})
@@ -729,15 +737,14 @@ func isPrimitiveTypeValid(primitiveType string) bool {
 		primitiveType == "uint[]" {
 		return true
 	}
-	// For 'bytesN', 'bytesN[]', we allow N from 1 to 32
-	for n := 1; n <= 32; n++ {
-		// e.g. 'bytes28' or 'bytes28[]'
+	// For 'bytesN', 'bytesN[]', we allow N from 1 to 64.
+	for n := 1; n <= uint512.WordBytes; n++ {
 		if primitiveType == fmt.Sprintf("bytes%d", n) || primitiveType == fmt.Sprintf("bytes%d[]", n) {
 			return true
 		}
 	}
-	// For 'intN','intN[]' and 'uintN','uintN[]' we allow N in increments of 8, from 8 up to 256
-	for n := 8; n <= 256; n += 8 {
+	// For 'intN','intN[]' and 'uintN','uintN[]' we allow N in increments of 8, from 8 up to 512
+	for n := 8; n <= uint512.WordBits; n += 8 {
 		if primitiveType == fmt.Sprintf("int%d", n) || primitiveType == fmt.Sprintf("int%d[]", n) {
 			return true
 		}
@@ -811,4 +818,10 @@ func (nvt *NameValueType) Pprint(depth int) string {
 		}
 	}
 	return output.String()
+}
+
+func encodeTypedDataHashWord(hash []byte) []byte {
+	word := make([]byte, uint512.WordBytes)
+	copy(word, hash)
+	return word
 }

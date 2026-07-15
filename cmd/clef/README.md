@@ -374,7 +374,7 @@ Response
 ### account_signTypedData
 
 #### Sign data
-   Signs a chunk of structured data conformant to [EIP-712](https://github.com/ethereum/EIPs/blob/master/EIPS/eip-712.md) and returns the calculated signature.
+   Signs QRL typed structured data and returns the calculated signature.
 
 #### Arguments
   - account [address]: account to sign with
@@ -393,7 +393,7 @@ Response
     "Q00000000000000000000000000000000000000000000000000000000201bdf510d5aa66d1b5db98dfb0f30d40b6ea47d",
     {
       "types": {
-        "EIP712Domain": [
+        "QRLTypedDataDomain": [
           {
             "name": "name",
             "type": "string"

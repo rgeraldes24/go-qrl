@@ -24,6 +24,7 @@ import (
 	"github.com/theQRL/go-qrl/common"
 	"github.com/theQRL/go-qrl/common/hexutil"
 	"github.com/theQRL/go-qrl/common/math"
+	"github.com/theQRL/go-qrl/common/uint512"
 )
 
 func TestBytesPadding(t *testing.T) {
@@ -42,7 +43,7 @@ func TestBytesPadding(t *testing.T) {
 		{
 			Type:   "bytes1",
 			Input:  []byte{1},
-			Output: []byte{1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+			Output: common.RightPadBytes([]byte{1}, uint512.WordBytes),
 		},
 		{
 			Type:   "bytes1",
@@ -52,12 +53,17 @@ func TestBytesPadding(t *testing.T) {
 		{
 			Type:   "bytes7",
 			Input:  []byte{1, 2, 3, 4, 5, 6, 7},
-			Output: []byte{1, 2, 3, 4, 5, 6, 7, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+			Output: common.RightPadBytes([]byte{1, 2, 3, 4, 5, 6, 7}, uint512.WordBytes),
 		},
 		{
 			Type:   "bytes32",
 			Input:  []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32},
-			Output: []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32},
+			Output: common.RightPadBytes([]byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32}, uint512.WordBytes),
+		},
+		{
+			Type:   "bytes64",
+			Input:  bytes.Repeat([]byte{1}, uint512.WordBytes),
+			Output: bytes.Repeat([]byte{1}, uint512.WordBytes),
 		},
 		{
 			Type:   "bytes32",
@@ -77,8 +83,8 @@ func TestBytesPadding(t *testing.T) {
 			if err != nil {
 				t.Errorf("test %d: expected no error, got %v", i, err)
 			}
-			if len(val) != 32 {
-				t.Errorf("test %d: expected len 32, got %d", i, len(val))
+			if len(val) != uint512.WordBytes {
+				t.Errorf("test %d: expected len %d, got %d", i, uint512.WordBytes, len(val))
 			}
 			if !bytes.Equal(val, test.Output) {
 				t.Errorf("test %d: expected %x, got %x", i, test.Output, val)
@@ -89,7 +95,7 @@ func TestBytesPadding(t *testing.T) {
 
 func TestParseAddress(t *testing.T) {
 	t.Parallel()
-	// EIP-712 primitive encoding uses one 64-byte slot for QRL addresses.
+	// QRL typed-data primitive encoding uses one 64-byte slot for addresses.
 	validAddr64 := [common.AddressLength]byte{
 		0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08,
 		0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F, 0x10,
@@ -188,6 +194,7 @@ func TestParseBytes(t *testing.T) {
 
 func TestParseInteger(t *testing.T) {
 	t.Parallel()
+	wide := new(big.Int).Lsh(big.NewInt(1), 511)
 	for i, tt := range []struct {
 		t   string
 		v   any
@@ -197,6 +204,7 @@ func TestParseInteger(t *testing.T) {
 		{"int32", "-123", big.NewInt(-123)},
 		{"int32", big.NewInt(-124), big.NewInt(-124)},
 		{"uint32", "0xff", big.NewInt(0xff)},
+		{"uint512", wide.String(), wide},
 		{"int8", "0xffff", nil},
 	} {
 		res, err := parseInteger(tt.t, tt.v)
