@@ -11,8 +11,6 @@ NETWORK_PARAMS_FILE=$SCRIPT_DIR/network_params.yaml
 # name, hosted on the rgeraldes24 fork for remote execution.
 QRL_PKG_VERSION=3892c3d2596403c080424d9e8fc99ff172483fe0
 
-# This repo is the execution client: the whole point of the local testnet is
-# to run locally built go-qrl images, so images are built by default.
 BUILD_IMAGE=true
 CI=false
 KEEP_ENCLAVE=false
