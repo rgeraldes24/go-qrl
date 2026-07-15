@@ -173,7 +173,7 @@ type ValidatorData struct {
 	Message hexutil.Bytes
 }
 
-// TypedData is a QRL Typed Structured Data v1 message.
+// TypedData is a type to encapsulate QRL Typed Structured Data v1 messages.
 type TypedData struct {
 	Types       Types            `json:"types"`
 	PrimaryType string           `json:"primaryType"`
