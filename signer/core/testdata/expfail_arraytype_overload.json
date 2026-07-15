@@ -1,67 +1,39 @@
 {
   "types": {
-    "EIP712Domain": [
-      {
-        "name": "name",
-        "type": "string"
-      },
-      {
-        "name": "version",
-        "type": "string"
-      },
-      {
-        "name": "chainId",
-        "type": "uint256"
-      },
-      {
-        "name": "verifyingContract",
-        "type": "address"
-      }
+    "QRLTypedDataDomain": [
+      { "name": "name", "type": "string" },
+      { "name": "version", "type": "string" },
+      { "name": "chainId", "type": "uint256" },
+      { "name": "verifyingContract", "type": "address" },
+      { "name": "salt", "type": "bytes32" }
     ],
     "Person": [
-      {
-        "name": "name",
-        "type": "string"
-      },
-      {
-        "name": "wallet",
-        "type": "address"
-      }
+      { "name": "name", "type": "string" },
+      { "name": "wallet", "type": "address" }
     ],
     "Person[]": [
-      {
-        "name": "baz",
-        "type": "string"
-      }
+      { "name": "baz", "type": "string" }
     ],
     "Mail": [
-      {
-        "name": "from",
-        "type": "Person"
-      },
-      {
-        "name": "to",
-        "type": "Person[]"
-      },
-      {
-        "name": "contents",
-        "type": "string"
-      }
+      { "name": "from", "type": "Person" },
+      { "name": "to", "type": "Person[]" },
+      { "name": "contents", "type": "string" }
     ]
   },
   "primaryType": "Mail",
   "domain": {
-    "name": "Ether Mail",
+    "name": "QRL Mail",
     "version": "1",
     "chainId": "1",
-    "verifyingContract": "QCcCCccccCCCCcCCCCCCcCcCccCcCCCcCcccccccCCcCCccccCCCCcCCCCCCcCcCccCcCCCcCcccccccC11223344556677aa99aabbccddeeff001122334455667788"
+    "verifyingContract": "Q11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111",
+    "salt": "0x0000000000000000000000000000000000000000000000000000000000000000"
   },
   "message": {
     "from": {
       "name": "Cow",
-      "wallet": "QCD2a3d9F938E13CD947Ec05AbC7FE734Df8DD826CD2a3d9F938E13CD947Ec05AbC7FE734Df8DD82611223344556677aa99aabbccddeeff001122334455667788"
+      "wallet": "Q22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222"
     },
-    "to": {"baz": "foo"},
+    "to": [{ "name": "Bob", "wallet": "Q33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333" }],
     "contents": "Hello, Bob!"
   }
 }

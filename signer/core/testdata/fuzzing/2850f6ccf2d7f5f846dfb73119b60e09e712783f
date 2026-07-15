@@ -1,38 +1,25 @@
 {
   "types": {
-    "EIP712Domain": [
-      {
-        "name": "name",
-        "type": "string"
-      },
-      {
-        "name": "version",
-        "type": "string"
-      },
-      {
-        "name": "chainId",
-        "type": "uint256"
-      },
-      {
-        "name": "verifyingContract",
-        "type": "address"
-      }
+    "QRLTypedDataDomain": [
+      {"name": "name", "type": "string"},
+      {"name": "version", "type": "string"},
+      {"name": "chainId", "type": "uint256"},
+      {"name": "verifyingContract", "type": "address"},
+      {"name": "salt", "type": "bytes32"}
     ],
-    "Mail": [
-      {
-        "name": "test",
-        "type": "uint8"
-      }
+    "Message": [
+      {"name": "value", "type": "uint8"}
     ]
   },
-  "primaryType": "Mail",
+  "primaryType": "Message",
   "domain": {
-    "name": "Ether Mail",
+    "name": "fuzz regression",
     "version": "1",
     "chainId": "1",
-    "verifyingContract": "Q00000000000000000000000000000000000000000000000000000000CCCcccccCCCCcCCCCCCcCcCccCcCCCcCcccccccC99aabbccddeeff001122334455667788"
+    "verifyingContract": "Q11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111",
+    "salt": "0x0000000000000000000000000000000000000000000000000000000000000000"
   },
   "message": {
-    "test":"255.3"
+    "value": "255.3"
   }
 }

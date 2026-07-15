@@ -1,60 +1,33 @@
 {
   "types": {
-    "EIP712Domain": [
-      {
-        "name": "name",
-        "type": "string"
-      },
-      {
-        "name": "version",
-        "type": "string"
-      },
-      {
-        "name": "chainId",
-        "type": "uint256"
-      },
-      {
-        "name": "verifyingContract",
-        "type": "address"
-      }
+    "QRLTypedDataDomain": [
+      { "name": "name", "type": "string" },
+      { "name": "version", "type": "string" },
+      { "name": "chainId", "type": "uint256" },
+      { "name": "verifyingContract", "type": "address" },
+      { "name": "salt", "type": "bytes32" }
     ],
     "Foo": [
-      {
-        "name": "addys",
-        "type": "address[]"
-      },
-      {
-        "name": "stringies",
-        "type": "string[]"
-      },
-      {
-        "name": "inties",
-        "type": "uint[]"
-      }
+      { "name": "addys", "type": "address[]" },
+      { "name": "stringies", "type": "string[]" },
+      { "name": "inties", "type": "uint512[]" }
     ]
   },
   "primaryType": "Foo",
   "domain": {
-    "name": "Lorem",
+    "name": "QRL Arrays",
     "version": "1",
     "chainId": "1",
-    "verifyingContract": "QCcCCccccCCCCcCCCCCCcCcCccCcCCCcCcccccccCCcCCccccCCCCcCCCCCCcCcCccCcCCCcCcccccccC11223344556677aa99aabbccddeeff001122334455667788"
+    "verifyingContract": "Q11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111",
+    "salt": "0x0000000000000000000000000000000000000000000000000000000000000000"
   },
   "message": {
     "addys": [
-      "Q0000000000000000000000000000000000000001000000000000000000000000000000000000000111223344556677aa99aabbccddeeff001122334455667788",
-      "Q0000000000000000000000000000000000000002000000000000000000000000000000000000000211223344556677aa99aabbccddeeff001122334455667788",
-      "Q0000000000000000000000000000000000000003000000000000000000000000000000000000000311223344556677aa99aabbccddeeff001122334455667788"
+      "Q11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111",
+      "Q22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222",
+      "Q33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333"
     ],
-    "stringies": [
-      "lorem",
-      "ipsum",
-      "dolores"
-    ],
-    "inties": [
-      "0x0000000000000000000000000000000000000001",
-      "3",
-      4.0
-    ]
+    "stringies": ["lorem", "ipsum", "dolores"],
+    "inties": ["0x1", "3", 4]
   }
 }
