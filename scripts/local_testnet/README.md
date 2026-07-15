@@ -15,7 +15,7 @@ The execution client images are built locally from this repository. The beacon n
 
 ## Starting the testnet
 
-First, check out `cyyber/qrysm`, PR #9 of `cyyber/qrl-genesis-generator`, and PR #13 of `cyyber/qrl-package`. Build the required local images:
+First, check out `cyyber/qrysm` and PR #9 of `cyyber/qrl-genesis-generator`. Build the required local images:
 
 ```bash
 ./scripts/local_testnet/build_consensus_images.sh \
@@ -28,14 +28,14 @@ The script prints both source commit IDs and builds `local/qrysm-beacon:vm64`, `
 To start a testnet, from the go-qrl root repository:
 ```bash
 cd ./scripts/local_testnet
-./start_local_testnet.sh -p /path/to/qrl-package-pr13
+./start_local_testnet.sh
 ```
 
 This first builds the `theqrl-dev/go-qrl:latest` and `theqrl-dev/go-qrl-alltools:latest` Docker images from the repository root, then starts the network. You will see a list of services running and "Started!" at the end.
 You can also select your own go-qrl docker image to use by specifying it in `network_params.yaml` under the `el_image` key.
 Full configuration reference for kurtosis is specified [here](https://github.com/theQRL/qrl-package?tab=readme-ov-file#configuration).
 
-The network is orchestrated by [cyyber/qrl-package PR #13](https://github.com/cyyber/qrl-package/pull/13), checked out locally and pinned to an exact commit via `QRL_PKG_VERSION` in `start_local_testnet.sh`. The launcher rejects a checkout at any other revision. This PR carries the package's 64-byte address migration and applies the configured local genesis-generator image to validator key generation. Pass the checkout with `-p` or `QRL_PKG_PATH`, and bump the pin deliberately when the PR advances.
+The network is orchestrated by [cyyber/qrl-package PR #13](https://github.com/cyyber/qrl-package/pull/13), fetched from a public fork with a matching Kurtosis package name and pinned to an exact commit via `QRL_PKG_VERSION` in `start_local_testnet.sh`. This PR carries the package's 64-byte address migration and applies the configured local genesis-generator image to validator key generation. Bump the pin deliberately when the PR advances.
 
 To view all running services:
 

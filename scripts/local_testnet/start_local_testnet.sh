@@ -7,12 +7,9 @@ set -Eeuo pipefail
 SCRIPT_DIR="$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
 ENCLAVE_NAME=local-testnet
 NETWORK_PARAMS_FILE=$SCRIPT_DIR/network_params.yaml
-# Pinned head of cyyber/qrl-package PR #13, which carries the 64-byte address
-# migration and passes the configured genesis-generator image to every setup
-# phase. Kurtosis must run this revision from a local checkout because the PR
-# commit is not reachable from the canonical package repository.
-QRL_PKG_VERSION=261beca5fada67ec5ccad668025e3e07efb3f1e4
-QRL_PKG_PATH=${QRL_PKG_PATH:-}
+# Pinned cyyber/qrl-package PR #13 revision with a matching Kurtosis package
+# name, hosted on the rgeraldes24 fork for remote execution.
+QRL_PKG_VERSION=3892c3d2596403c080424d9e8fc99ff172483fe0
 
 # This repo is the execution client: the whole point of the local testnet is
 # to run locally built go-qrl images, so images are built by default.
@@ -21,12 +18,11 @@ CI=false
 KEEP_ENCLAVE=false
 
 # Get options
-while getopts "e:b:n:p:hck" flag; do
+while getopts "e:b:n:hck" flag; do
   case "${flag}" in
     e) ENCLAVE_NAME=${OPTARG};;
     b) BUILD_IMAGE=${OPTARG};;
     n) NETWORK_PARAMS_FILE=${OPTARG};;
-    p) QRL_PKG_PATH=${OPTARG};;
     c) CI=true;;
     k) KEEP_ENCLAVE=true;;
     h)
@@ -38,7 +34,6 @@ while getopts "e:b:n:p:hck" flag; do
         echo "   -e: enclave name                                default: $ENCLAVE_NAME"
         echo "   -b: whether to build go-qrl docker images       default: $BUILD_IMAGE"
         echo "   -n: kurtosis network params file path           default: $NETWORK_PARAMS_FILE"
-        echo "   -p: qrl-package PR 13 checkout path             default: QRL_PKG_PATH"
         echo "   -c: CI mode, run without other additional services like Grafana and explorer"
         echo "   -k: keeping enclave to allow starting the testnet without destroying the existing one"
         echo "   -h: this help"
@@ -65,24 +60,6 @@ if ! command -v yq &> /dev/null; then
     echo "yq not found. Please install yq and try again."
     exit 1
 fi
-
-if [ -z "$QRL_PKG_PATH" ]; then
-    echo "A local checkout of cyyber/qrl-package PR #13 is required." >&2
-    echo "Pass it with -p or set QRL_PKG_PATH." >&2
-    exit 1
-fi
-
-if ! QRL_PKG_HEAD=$(git -C "$QRL_PKG_PATH" rev-parse HEAD 2>/dev/null); then
-    echo "Not a qrl-package git checkout: $QRL_PKG_PATH" >&2
-    exit 1
-fi
-
-if [ "$QRL_PKG_HEAD" != "$QRL_PKG_VERSION" ]; then
-    echo "qrl-package checkout is at $QRL_PKG_HEAD; expected PR #13 commit $QRL_PKG_VERSION." >&2
-    exit 1
-fi
-
-QRL_PKG_PATH=$(cd "$QRL_PKG_PATH" && pwd)
 
 for image in \
     local/qrysm-beacon:vm64 \
@@ -116,6 +93,6 @@ if [ "$KEEP_ENCLAVE" = false ]; then
   kurtosis enclave rm -f "$ENCLAVE_NAME" 2>/dev/null || true
 fi
 
-kurtosis run --enclave "$ENCLAVE_NAME" "$QRL_PKG_PATH" --args-file "$NETWORK_PARAMS_FILE"
+kurtosis run --enclave "$ENCLAVE_NAME" "github.com/rgeraldes24/qrl-package@$QRL_PKG_VERSION" --args-file "$NETWORK_PARAMS_FILE"
 
 echo "Started!"
