@@ -260,11 +260,8 @@ func (typedData *TypedData) HashStruct(primaryType string, data TypedDataMessage
 // Dependencies returns an array of custom types ordered by their hierarchical reference tree
 func (typedData *TypedData) Dependencies(primaryType string, found []string) []string {
 	primaryType = strings.SplitN(primaryType, "[", 2)[0]
-	includes := func(arr []string, str string) bool {
-		return slices.Contains(arr, str)
-	}
 
-	if includes(found, primaryType) {
+	if slices.Contains(found, primaryType) {
 		return found
 	}
 	if typedData.Types[primaryType] == nil {
@@ -273,7 +270,7 @@ func (typedData *TypedData) Dependencies(primaryType string, found []string) []s
 	found = append(found, primaryType)
 	for _, field := range typedData.Types[primaryType] {
 		for _, dep := range typedData.Dependencies(field.Type, found) {
-			if !includes(found, dep) {
+			if !slices.Contains(found, dep) {
 				found = append(found, dep)
 			}
 		}
@@ -305,7 +302,9 @@ func (typedData *TypedData) EncodeType(primaryType string) hexutil.Bytes {
 			buffer.WriteString(obj.Name)
 			buffer.WriteString(",")
 		}
-		buffer.Truncate(buffer.Len() - 1)
+		if len(typedData.Types[dep]) > 0 {
+			buffer.Truncate(buffer.Len() - 1)
+		}
 		buffer.WriteString(")")
 	}
 	return buffer.Bytes()

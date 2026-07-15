@@ -10,6 +10,14 @@ import (
 
 const emptyTypedDataJSON = `{"types":{"QRLTypedDataDomain":[{"name":"name","type":"string"},{"name":"version","type":"string"},{"name":"chainId","type":"uint256"},{"name":"verifyingContract","type":"address"},{"name":"salt","type":"bytes32"}],"Empty":[]},"primaryType":"Empty","domain":{"name":"test","version":"1","chainId":"1","verifyingContract":"Q00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000","salt":"0x0000000000000000000000000000000000000000000000000000000000000000"},"message":{}}`
 
+func TestEncodeTypeEmptyStruct(t *testing.T) {
+	t.Parallel()
+	typedData := TypedData{Types: Types{"Empty": {}}}
+	if got, want := string(typedData.EncodeType("Empty")), "Empty()"; got != want {
+		t.Fatalf("unexpected type encoding: got %q, want %q", got, want)
+	}
+}
+
 func TestIsPrimitive(t *testing.T) {
 	t.Parallel()
 	for _, typ := range []string{
