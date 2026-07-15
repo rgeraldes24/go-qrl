@@ -21,7 +21,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	stdmath "math"
 	"math/big"
 	"reflect"
 	"regexp"
@@ -322,13 +321,13 @@ func (typedData *TypedData) EncodeData(primaryType string, data map[string]any, 
 	for _, field := range typedData.Types[primaryType] {
 		encType := field.Type
 		encValue := data[field.Name]
-		if field.isArray() {
+		if encType[len(encType)-1:] == "]" {
 			arrayValue, err := convertDataToSlice(encValue)
 			if err != nil {
 				return nil, dataMismatchError(encType, encValue)
 			}
 			arrayBuffer := bytes.Buffer{}
-			parsedType := field.typeName()
+			parsedType := strings.Split(encType, "[")[0]
 			for _, item := range arrayValue {
 				if typedData.Types[parsedType] != nil {
 					mapValue, ok := item.(map[string]any)
@@ -376,11 +375,9 @@ func parseBytes(encType any) ([]byte, bool) {
 	// Handle array types.
 	val := reflect.ValueOf(encType)
 	if val.Kind() == reflect.Array && val.Type().Elem().Kind() == reflect.Uint8 {
-		bytes := make([]byte, val.Len())
-		for i := range bytes {
-			bytes[i] = byte(val.Index(i).Uint())
-		}
-		return bytes, true
+		v := reflect.MakeSlice(reflect.TypeFor[[]byte](), val.Len(), val.Len())
+		reflect.Copy(v, val)
+		return v.Bytes(), true
 	}
 
 	switch v := encType.(type) {
@@ -406,7 +403,7 @@ func parseInteger(encType string, encValue any) (*big.Int, error) {
 		b      *big.Int
 	)
 	if encType == "int" || encType == "uint" {
-		return nil, fmt.Errorf("integer type %q must declare an explicit width", encType)
+		length = uint512.WordBits
 	} else {
 		lengthStr := ""
 		if after, ok := strings.CutPrefix(encType, "uint"); ok {
@@ -415,7 +412,7 @@ func parseInteger(encType string, encValue any) (*big.Int, error) {
 			lengthStr = strings.TrimPrefix(encType, "int")
 		}
 		atoiSize, err := strconv.Atoi(lengthStr)
-		if err != nil || atoiSize < 8 || atoiSize > uint512.WordBits || atoiSize%8 != 0 {
+		if err != nil {
 			return nil, fmt.Errorf("invalid size on integer: %v", lengthStr)
 		}
 		length = atoiSize
@@ -425,16 +422,14 @@ func parseInteger(encType string, encValue any) (*big.Int, error) {
 		b = (*big.Int)(v)
 	case *big.Int:
 		b = v
-	case json.Number:
-		b = parseIntegerString(v.String())
 	case string:
 		b = parseIntegerString(v)
 	case float64:
-		if stdmath.IsNaN(v) || stdmath.IsInf(v, 0) {
-			return nil, fmt.Errorf("invalid float value %v for type %v", v, encType)
-		}
-		b, _ = new(big.Float).SetFloat64(v).Int(nil)
-		if b == nil || new(big.Float).SetInt(b).Cmp(new(big.Float).SetFloat64(v)) != 0 {
+		// JSON parses non-strings as float64. Fail if we cannot
+		// convert it losslessly
+		if float64(int64(v)) == v {
+			b = big.NewInt(int64(v))
+		} else {
 			return nil, fmt.Errorf("invalid float value %v for type %v", v, encType)
 		}
 	}
@@ -474,21 +469,18 @@ func (typedData *TypedData) EncodePrimitiveValue(encType string, encValue any, d
 	case "address":
 		retval := make([]byte, uint512.WordBytes)
 		switch val := encValue.(type) {
-		case common.Address:
-			copy(retval, val[:])
-			return retval, nil
 		case string:
 			if address, err := common.NewAddressFromString(val); err == nil {
-				copy(retval, address.Bytes())
+				copy(retval[uint512.WordBytes-common.AddressLength:], address.Bytes())
 				return retval, nil
 			}
 		case []byte:
 			if len(val) == common.AddressLength {
-				copy(retval, val)
+				copy(retval[uint512.WordBytes-common.AddressLength:], val)
 				return retval, nil
 			}
 		case [common.AddressLength]byte:
-			copy(retval, val[:])
+			copy(retval[uint512.WordBytes-common.AddressLength:], val[:])
 			return retval, nil
 		}
 		return nil, dataMismatchError(encType, encValue)
@@ -497,11 +489,10 @@ func (typedData *TypedData) EncodePrimitiveValue(encType string, encValue any, d
 		if !ok {
 			return nil, dataMismatchError(encType, encValue)
 		}
-		retval := make([]byte, uint512.WordBytes)
 		if boolValue {
-			retval[len(retval)-1] = 1
+			return math.PaddedBigBytes(common.Big1, uint512.WordBytes), nil
 		}
-		return retval, nil
+		return math.PaddedBigBytes(common.Big0, uint512.WordBytes), nil
 	case "string":
 		strVal, ok := encValue.(string)
 		if !ok {
@@ -560,7 +551,7 @@ func convertDataToSlice(encValue any) ([]any, error) {
 			outEncValue = append(outEncValue, rv.Index(i).Interface())
 		}
 	} else {
-		return outEncValue, fmt.Errorf("provided data '%v' is not array", encValue)
+		return outEncValue, fmt.Errorf("provided data '%v' is not slice", encValue)
 	}
 	return outEncValue, nil
 }
@@ -747,29 +738,32 @@ func (t Types) validate() error {
 
 // Checks if the primitive value is valid
 func isPrimitiveTypeValid(primitiveType string) bool {
-	if !typedDataReferenceTypeRegexp.MatchString(primitiveType) {
-		return false
-	}
-	typ := Type{Type: primitiveType}
-	primitiveType = typ.typeName()
 	if primitiveType == "address" ||
+		primitiveType == "address[]" ||
 		primitiveType == "bool" ||
+		primitiveType == "bool[]" ||
 		primitiveType == "string" ||
-		primitiveType == "bytes" {
+		primitiveType == "string[]" ||
+		primitiveType == "bytes" ||
+		primitiveType == "bytes[]" ||
+		primitiveType == "int" ||
+		primitiveType == "int[]" ||
+		primitiveType == "uint" ||
+		primitiveType == "uint[]" {
 		return true
 	}
-	// For 'bytesN', we allow N from 1 to the 64-byte VM word size.
+	// For 'bytesN', 'bytesN[]', we allow N from 1 to the 64-byte VM word size.
 	for n := 1; n <= uint512.WordBytes; n++ {
-		if primitiveType == fmt.Sprintf("bytes%d", n) {
+		if primitiveType == fmt.Sprintf("bytes%d", n) || primitiveType == fmt.Sprintf("bytes%d[]", n) {
 			return true
 		}
 	}
-	// Integer widths are explicit multiples of 8 up to 512 bits.
+	// Integer widths are explicit multiples of 8 up to 512 bits, including arrays.
 	for n := 8; n <= uint512.WordBits; n += 8 {
-		if primitiveType == fmt.Sprintf("int%d", n) {
+		if primitiveType == fmt.Sprintf("int%d", n) || primitiveType == fmt.Sprintf("int%d[]", n) {
 			return true
 		}
-		if primitiveType == fmt.Sprintf("uint%d", n) {
+		if primitiveType == fmt.Sprintf("uint%d", n) || primitiveType == fmt.Sprintf("uint%d[]", n) {
 			return true
 		}
 	}
@@ -885,14 +879,6 @@ func validateDomainType(fields []Type) error {
 		}
 	}
 	return nil
-}
-
-// UnmarshalJSON preserves integer tokens wider than JavaScript's exact range.
-func (typedData *TypedData) UnmarshalJSON(input []byte) error {
-	type typedDataAlias TypedData
-	decoder := json.NewDecoder(bytes.NewReader(input))
-	decoder.UseNumber()
-	return decoder.Decode((*typedDataAlias)(typedData))
 }
 
 func encodeTypedDataHashWord(hash []byte) []byte {

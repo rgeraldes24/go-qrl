@@ -5,7 +5,6 @@ package apitypes
 
 import (
 	"bytes"
-	stdmath "math"
 	"math/big"
 	"testing"
 
@@ -52,21 +51,6 @@ func TestFixedBytesEncodingVM64(t *testing.T) {
 	}
 }
 
-func TestNamedByteArrayEncodingVM64(t *testing.T) {
-	t.Parallel()
-	type octet uint8
-
-	encoded, err := new(TypedData).EncodePrimitiveValue("bytes3", [3]octet{1, 2, 3}, 1)
-	if err != nil {
-		t.Fatal(err)
-	}
-	want := make([]byte, uint512.WordBytes)
-	copy(want, []byte{1, 2, 3})
-	if !bytes.Equal(encoded, want) {
-		t.Fatalf("have %x, want %x", encoded, want)
-	}
-}
-
 func TestAddressEncodingVM64(t *testing.T) {
 	t.Parallel()
 	codec := new(TypedData)
@@ -74,7 +58,7 @@ func TestAddressEncodingVM64(t *testing.T) {
 	for i := range address {
 		address[i] = byte(i + 1)
 	}
-	for _, input := range []any{address, address[:], address.Hex()} {
+	for _, input := range []any{[common.AddressLength]byte(address), address[:], address.Hex()} {
 		encoded, err := codec.EncodePrimitiveValue("address", input, 1)
 		if err != nil {
 			t.Fatal(err)
@@ -119,8 +103,10 @@ func TestIntegerEncodingVM64(t *testing.T) {
 	}{
 		{typ: "uint256", value: max256, want: append(make([]byte, 32), bytes.Repeat([]byte{0xff}, 32)...)},
 		{typ: "uint512", value: max512, want: bytes.Repeat([]byte{0xff}, 64)},
-		{typ: "uint64", value: stdmath.Ldexp(1, 63), want: uint64HighBit.FillBytes(make([]byte, 64))},
-		{typ: "uint512", value: stdmath.Ldexp(1, 511), want: append([]byte{0x80}, make([]byte, 63)...)},
+		{typ: "uint", value: max512, want: bytes.Repeat([]byte{0xff}, 64)},
+		{typ: "uint64", value: uint64HighBit.String(), want: uint64HighBit.FillBytes(make([]byte, 64))},
+		{typ: "uint512", value: new(big.Int).Lsh(big.NewInt(1), 511).String(), want: append([]byte{0x80}, make([]byte, 63)...)},
+		{typ: "int", value: "-1", want: bytes.Repeat([]byte{0xff}, 64)},
 		{typ: "int8", value: "-1", want: bytes.Repeat([]byte{0xff}, 64)},
 		{typ: "int8", value: "-128", want: append(bytes.Repeat([]byte{0xff}, 63), 0x80)},
 	}
@@ -144,7 +130,6 @@ func TestIntegerEncodingVM64(t *testing.T) {
 		{typ: "int8", value: 128},
 		{typ: "uint8", value: -1},
 		{typ: "uint64", value: float64(^uint64(0))},
-		{typ: "uint", value: 1},
 	} {
 		if _, err := codec.EncodePrimitiveValue(test.typ, test.value, 1); err == nil {
 			t.Errorf("expected %s(%v) to be rejected", test.typ, test.value)

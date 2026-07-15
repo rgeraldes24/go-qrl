@@ -49,8 +49,8 @@ and extra fields are invalid. Undefined reference types are invalid.
 
 JSON addresses use full `Q`-prefixed strings. Byte values use
 `0x`-prefixed hexadecimal strings. Integers may be decimal JSON integer
-tokens or decimal/`0x` strings. Clients should use strings outside their
-language's safe integer range.
+tokens or decimal/`0x` strings. Values outside the JSON implementation's
+safe integer range must be encoded as strings.
 
 ## Types
 
@@ -58,6 +58,7 @@ Version 1 supports:
 
 - `address`
 - `bool`
+- `uint` and `int`, interpreted as 512-bit integers
 - explicit `uintN` and `intN`, where `N` is 8 through 512 in multiples of 8
 - `bytesN`, where `N` is 1 through 64
 - dynamic `bytes`
@@ -65,8 +66,7 @@ Version 1 supports:
 - named structs
 - dynamic arrays `T[]`
 
-Bare `uint` and `int`, fixed-point types, optional values, and ABI
-`function` values are unsupported.
+Fixed-point types, optional values, and ABI `function` values are unsupported.
 
 ## Type Description
 
