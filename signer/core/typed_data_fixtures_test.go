@@ -26,7 +26,7 @@ func TestQRLTypedDataJSONFixtures(t *testing.T) {
 		{name: "expfail_arraytype_overload.json"},
 		{name: "expfail_datamismatch_1.json", wantError: "doesn't match type 'Person'"},
 		{name: "expfail_extradata.json", wantError: "extra data"},
-		{name: "expfail_malformeddomainkeys.json", wantError: "domain"},
+		{name: "expfail_malformeddomainkeys.json", wantError: "address"},
 		{name: "expfail_nonexistant_type.json", wantError: "Blahonga"},
 		{name: "expfail_nonexistant_type2.json", wantError: "uint256 ..."},
 		{name: "expfail_toolargeuint.json", wantError: "uint8"},

@@ -29,3 +29,40 @@ func TestIsPrimitive(t *testing.T) {
 		}
 	}
 }
+
+func TestValidateDomainType(t *testing.T) {
+	t.Parallel()
+	valid := [][]Type{
+		{{Name: "name", Type: "string"}},
+		{
+			{Name: "name", Type: "string"},
+			{Name: "chainId", Type: "uint256"},
+			{Name: "salt", Type: "bytes32"},
+		},
+		qrlTypedDataDomain,
+	}
+	for _, fields := range valid {
+		if err := validateDomainType(fields); err != nil {
+			t.Errorf("valid domain fields %v: %v", fields, err)
+		}
+	}
+
+	invalid := [][]Type{
+		nil,
+		{{Name: "name", Type: "bytes32"}},
+		{
+			{Name: "version", Type: "string"},
+			{Name: "name", Type: "string"},
+		},
+		{
+			{Name: "name", Type: "string"},
+			{Name: "name", Type: "string"},
+		},
+		{{Name: "application", Type: "string"}},
+	}
+	for _, fields := range invalid {
+		if err := validateDomainType(fields); err == nil {
+			t.Errorf("invalid domain fields %v were accepted", fields)
+		}
+	}
+}

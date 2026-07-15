@@ -57,7 +57,7 @@ func (backend *staticWalletBackend) Subscribe(chan<- accounts.WalletEvent) event
 func qrlTypedDataFixture() apitypes.TypedData {
 	return apitypes.TypedData{
 		Types: apitypes.Types{
-			apitypes.TypedDataDomainType: {
+			"QRLTypedDataDomain": {
 				{Name: "name", Type: "string"},
 				{Name: "version", Type: "string"},
 				{Name: "chainId", Type: "uint256"},
@@ -341,7 +341,7 @@ func TestQRLTypedDataGolden(t *testing.T) {
 		t.Fatal(err)
 	}
 	typedData := vector.TypedData
-	if got := string(typedData.EncodeType(apitypes.TypedDataDomainType)); got != vector.Expected.DomainType {
+	if got := string(typedData.EncodeType("QRLTypedDataDomain")); got != vector.Expected.DomainType {
 		t.Errorf("domain type:\n have %s\n want %s", got, vector.Expected.DomainType)
 	}
 	if got := string(typedData.EncodeType(typedData.PrimaryType)); got != vector.Expected.MessageType {
@@ -350,7 +350,7 @@ func TestQRLTypedDataGolden(t *testing.T) {
 	if got := hexutil.Encode(typedData.TypeHash(typedData.PrimaryType)); got != vector.Expected.TypeHash {
 		t.Errorf("type hash: have %s, want %s", got, vector.Expected.TypeHash)
 	}
-	domainHash, err := typedData.HashStruct(apitypes.TypedDataDomainType, typedData.Domain.Map())
+	domainHash, err := typedData.HashStruct("QRLTypedDataDomain", typedData.Domain.Map())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -432,6 +432,22 @@ func TestQRLTypedDataDomainSeparation(t *testing.T) {
 		if bytes.Equal(baseDigest, digest) {
 			t.Errorf("mutation %d did not change digest", index)
 		}
+	}
+}
+
+func TestQRLTypedDataDomainSubset(t *testing.T) {
+	t.Parallel()
+	typedData := qrlTypedDataFixture()
+	typedData.Types["QRLTypedDataDomain"] = []apitypes.Type{
+		{Name: "name", Type: "string"},
+		{Name: "version", Type: "string"},
+	}
+	typedData.Domain = apitypes.TypedDataDomain{
+		Name:    "QRL Wallet",
+		Version: "1",
+	}
+	if _, _, err := apitypes.TypedDataAndHash(typedData); err != nil {
+		t.Fatal(err)
 	}
 }
 

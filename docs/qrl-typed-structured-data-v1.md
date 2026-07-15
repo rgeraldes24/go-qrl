@@ -22,7 +22,7 @@ never hashed.
 ## Request
 
 A request contains `types`, `primaryType`, `domain`, and `message`.
-The mandatory domain declaration is exactly:
+The domain declaration contains one or more of these fields:
 
 ```text
 QRLTypedDataDomain(
@@ -34,15 +34,20 @@ QRLTypedDataDomain(
 )
 ```
 
-The declaration uses the compact canonical form:
+Fields that are present use the order shown above, skipping omitted fields.
+No other domain fields are permitted. For example, the complete declaration
+uses the compact canonical form:
 
 ```text
 QRLTypedDataDomain(string name,string version,uint256 chainId,address verifyingContract,bytes32 salt)
 ```
 
-All five domain values are required. `name` and `version` are non-empty,
-`chainId` fits `uint256`, `verifyingContract` is a full Q-address, and
-`salt` is exactly 32 bytes. `QRLTypedDataDomain` cannot be the primary type.
+Every declared domain value is required. When present, `name` and `version`
+are non-empty, `chainId` fits `uint256`, `verifyingContract` is a full
+Q-address, and `salt` is exactly 32 bytes. `QRLTypedDataDomain` cannot be the
+primary type. The `account_signTypedData` API requires `chainId` and rejects a
+request when it does not match the signer's configured chain ID. Signatures
+intended for on-chain verification should include `verifyingContract`.
 
 Every message and nested struct contains exactly its declared fields. Missing
 and extra fields are invalid. Undefined reference types are invalid.

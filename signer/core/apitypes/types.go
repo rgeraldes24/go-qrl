@@ -218,7 +218,7 @@ type TypedDataDomain struct {
 
 // TypedDataAndHash is a helper function that calculates a hash for QRL Typed Structured Data v1.
 func TypedDataAndHash(typedData TypedData) ([]byte, string, error) {
-	domainSeparator, err := typedData.HashStruct(TypedDataDomainType, typedData.Domain.Map())
+	domainSeparator, err := typedData.HashStruct("QRLTypedDataDomain", typedData.Domain.Map())
 	if err != nil {
 		return nil, "", err
 	}
@@ -561,13 +561,13 @@ func (typedData *TypedData) validate() error {
 	if err := typedData.Types.validate(); err != nil {
 		return err
 	}
-	if typedData.PrimaryType == TypedDataDomainType {
+	if typedData.PrimaryType == "QRLTypedDataDomain" {
 		return errors.New("domain type cannot be the primary type")
 	}
 	if _, exists := typedData.Types[typedData.PrimaryType]; !exists {
 		return fmt.Errorf("primary type %q is undefined", typedData.PrimaryType)
 	}
-	if err := validateDomainType(typedData.Types[TypedDataDomainType]); err != nil {
+	if err := validateDomainType(typedData.Types["QRLTypedDataDomain"]); err != nil {
 		return err
 	}
 	return typedData.Domain.validate()
@@ -589,7 +589,7 @@ func (typedData *TypedData) Format() ([]*NameValueType, error) {
 	if err := typedData.validate(); err != nil {
 		return nil, err
 	}
-	domain, err := typedData.formatData(TypedDataDomainType, typedData.Domain.Map())
+	domain, err := typedData.formatData("QRLTypedDataDomain", typedData.Domain.Map())
 	if err != nil {
 		return nil, err
 	}
@@ -599,7 +599,7 @@ func (typedData *TypedData) Format() ([]*NameValueType, error) {
 	}
 	var nvts []*NameValueType
 	nvts = append(nvts, &NameValueType{
-		Name:  TypedDataDomainType,
+		Name:  "QRLTypedDataDomain",
 		Value: domain,
 		Typ:   "domain",
 	})
@@ -623,18 +623,12 @@ func (typedData *TypedData) formatData(primaryType string, data map[string]any) 
 			Typ:  field.Type,
 		}
 		if field.isArray() {
-			arrayValue, err := convertDataToSlice(encValue)
-			if err != nil {
-				return nil, err
-			}
+			arrayValue, _ := convertDataToSlice(encValue)
 			parsedType := field.typeName()
 			formatted := make([]any, 0, len(arrayValue))
 			for _, v := range arrayValue {
 				if typedData.Types[parsedType] != nil {
-					mapValue, ok := v.(map[string]any)
-					if !ok {
-						return nil, dataMismatchError(parsedType, v)
-					}
+					mapValue, _ := v.(map[string]any)
 					mapOutput, err := typedData.formatData(parsedType, mapValue)
 					if err != nil {
 						return nil, err
@@ -752,13 +746,13 @@ func isPrimitiveTypeValid(primitiveType string) bool {
 		primitiveType == "uint[]" {
 		return true
 	}
-	// For 'bytesN', 'bytesN[]', we allow N from 1 to the 64-byte VM word size.
+	// For 'bytesN', 'bytesN[]', we allow N from 1 to 64.
 	for n := 1; n <= uint512.WordBytes; n++ {
 		if primitiveType == fmt.Sprintf("bytes%d", n) || primitiveType == fmt.Sprintf("bytes%d[]", n) {
 			return true
 		}
 	}
-	// Integer widths are explicit multiples of 8 up to 512 bits, including arrays.
+	// For 'intN','intN[]' and 'uintN','uintN[]' we allow N in increments of 8, from 8 up to 512
 	for n := 8; n <= uint512.WordBits; n += 8 {
 		if primitiveType == fmt.Sprintf("int%d", n) || primitiveType == fmt.Sprintf("int%d[]", n) {
 			return true
@@ -773,20 +767,8 @@ func isPrimitiveTypeValid(primitiveType string) bool {
 // validate checks if the given domain is valid, i.e. contains at least
 // the minimum viable keys and values
 func (domain *TypedDataDomain) validate() error {
-	if domain.Name == "" {
-		return errors.New("domain name is required")
-	}
-	if domain.Version == "" {
-		return errors.New("domain version is required")
-	}
-	if domain.ChainId == nil || (*big.Int)(domain.ChainId).Sign() < 0 {
-		return errors.New("domain chainId must be a non-negative uint256")
-	}
-	if _, err := common.NewAddressFromString(domain.VerifyingContract); err != nil {
-		return fmt.Errorf("invalid domain verifyingContract: %w", err)
-	}
-	if salt, ok := parseBytes(domain.Salt); !ok || len(salt) != common.HashLength {
-		return fmt.Errorf("domain salt must be exactly %d bytes", common.HashLength)
+	if domain.ChainId == nil && len(domain.Name) == 0 && len(domain.Version) == 0 && len(domain.VerifyingContract) == 0 && len(domain.Salt) == 0 {
+		return errors.New("domain is undefined")
 	}
 	return nil
 }
@@ -857,8 +839,6 @@ func pprintValue(output *bytes.Buffer, value any, depth int) {
 	}
 }
 
-const TypedDataDomainType = "QRLTypedDataDomain"
-
 var qrlTypedDataDomain = []Type{
 	{Name: "name", Type: "string"},
 	{Name: "version", Type: "string"},
@@ -868,15 +848,18 @@ var qrlTypedDataDomain = []Type{
 }
 
 func validateDomainType(fields []Type) error {
-	if len(fields) != len(qrlTypedDataDomain) {
-		return fmt.Errorf("%s must contain exactly %d fields", TypedDataDomainType, len(qrlTypedDataDomain))
+	if len(fields) == 0 {
+		return errors.New("QRLTypedDataDomain must contain at least one field")
 	}
-	for index := range fields {
-		if fields[index] != qrlTypedDataDomain[index] {
-			return fmt.Errorf("invalid %s field %d: have %s %s, want %s %s",
-				TypedDataDomainType, index, fields[index].Type, fields[index].Name,
-				qrlTypedDataDomain[index].Type, qrlTypedDataDomain[index].Name)
+	next := 0
+	for index, field := range fields {
+		for next < len(qrlTypedDataDomain) && qrlTypedDataDomain[next] != field {
+			next++
 		}
+		if next == len(qrlTypedDataDomain) {
+			return fmt.Errorf("invalid QRLTypedDataDomain field %d: %s %s", index, field.Type, field.Name)
+		}
+		next++
 	}
 	return nil
 }
