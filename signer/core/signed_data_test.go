@@ -10,6 +10,7 @@ import (
 	"math/big"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -19,6 +20,7 @@ import (
 	"github.com/theQRL/go-qrl/common/hexutil"
 	"github.com/theQRL/go-qrl/common/math"
 	"github.com/theQRL/go-qrl/crypto/pqcrypto"
+	qrlwallet "github.com/theQRL/go-qrl/crypto/pqcrypto/wallet"
 	"github.com/theQRL/go-qrl/event"
 	"github.com/theQRL/go-qrl/rpc"
 	"github.com/theQRL/go-qrl/signer/core"
@@ -360,6 +362,10 @@ func TestQRLTypedDataGolden(t *testing.T) {
 			MessageHash string `json:"messageHash"`
 			Digest      string `json:"digest"`
 		} `json:"expected"`
+		DeterministicSigning struct {
+			TestSeed string                      `json:"testSeed"`
+			Envelope apitypes.TypedDataSignature `json:"envelope"`
+		} `json:"deterministicSigning"`
 	}
 	if err := json.Unmarshal(encoded, &vector); err != nil {
 		t.Fatal(err)
@@ -400,6 +406,36 @@ func TestQRLTypedDataGolden(t *testing.T) {
 	}
 	if len(rawData) != len(apitypes.TypedDataPrefix)+2*common.HashLength {
 		t.Fatalf("raw preimage length %d", len(rawData))
+	}
+
+	signingWallet, err := qrlwallet.RestoreFromSeedHex(vector.DeterministicSigning.TestSeed)
+	if err != nil {
+		t.Fatal(err)
+	}
+	mldsaWallet, ok := signingWallet.(*qrlwallet.MLDSA87Wallet)
+	if !ok {
+		t.Fatalf("fixture seed restored unsupported wallet %T", signingWallet)
+	}
+	signature, err := mldsaWallet.Wallet.SignDeterministic(digest)
+	if err != nil {
+		t.Fatal(err)
+	}
+	address := common.Address(signingWallet.GetAddress())
+	descriptor := signingWallet.GetDescriptor()
+	generated := apitypes.TypedDataSignature{
+		Version:    apitypes.TypedDataVersion,
+		Algorithm:  apitypes.TypedDataAlgorithm,
+		Address:    address,
+		Digest:     common.BytesToHash(digest),
+		PublicKey:  append(hexutil.Bytes(nil), signingWallet.GetPK()...),
+		Descriptor: append(hexutil.Bytes(nil), descriptor[:]...),
+		Signature:  append(hexutil.Bytes(nil), signature[:]...),
+	}
+	if !reflect.DeepEqual(generated, vector.DeterministicSigning.Envelope) {
+		t.Error("deterministic signing envelope does not match the golden vector")
+	}
+	if err := vector.DeterministicSigning.Envelope.Verify(typedData); err != nil {
+		t.Fatalf("verify deterministic signing envelope: %v", err)
 	}
 }
 

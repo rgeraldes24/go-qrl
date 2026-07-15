@@ -8,6 +8,8 @@ import (
 	"encoding/json"
 	"strings"
 	"testing"
+
+	"github.com/theQRL/go-qrl/common"
 )
 
 const emptyTypedDataJSON = `{"types":{"QRLTypedDataDomain":[{"name":"name","type":"string"},{"name":"version","type":"string"},{"name":"chainId","type":"uint256"},{"name":"verifyingContract","type":"address"},{"name":"salt","type":"bytes32"}],"Empty":[]},"primaryType":"Empty","domain":{"name":"test","version":"1","chainId":"1","verifyingContract":"Q00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000","salt":"0x0000000000000000000000000000000000000000000000000000000000000000"},"message":{}}`
@@ -131,6 +133,47 @@ func TestTypedDataJSONNormalizesNilTypeDeclaration(t *testing.T) {
 	var decoded TypedData
 	if err := json.Unmarshal(encoded, &decoded); err != nil {
 		t.Fatalf("normalized typed data did not round-trip: %v", err)
+	}
+}
+
+func TestTypedDataJSONCanonicalForm(t *testing.T) {
+	t.Parallel()
+	input := strings.Replace(emptyTypedDataJSON, `"chainId":"1"`, `"chainId":"0x1"`, 1)
+	var typedData TypedData
+	if err := json.Unmarshal([]byte(input), &typedData); err != nil {
+		t.Fatal(err)
+	}
+	const lowerAddress = "Q0000000000000000000000000000000000000000000000000000000000000000dead000000000000000000000000000000000000000000000000000000000000"
+	typedData.Domain.VerifyingContract = lowerAddress
+	typedData.Domain.Salt = "0xABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABAB"
+
+	encoded, err := json.Marshal(typedData)
+	if err != nil {
+		t.Fatal(err)
+	}
+	address, err := common.NewAddressFromString(lowerAddress)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, expected := range []string{
+		`"chainId":"1"`,
+		`"verifyingContract":"` + address.Hex() + `"`,
+		`"salt":"0xabababababababababababababababababababababababababababababababab"`,
+	} {
+		if !bytes.Contains(encoded, []byte(expected)) {
+			t.Errorf("canonical JSON does not contain %s: %s", expected, encoded)
+		}
+	}
+}
+
+func TestTypedDataJSONRejectsNonIntegerNumbers(t *testing.T) {
+	t.Parallel()
+	for _, value := range []string{"1.0", "1e3"} {
+		input := strings.Replace(emptyTypedDataJSON, `"chainId":"1"`, `"chainId":`+value, 1)
+		var typedData TypedData
+		if err := json.Unmarshal([]byte(input), &typedData); err == nil {
+			t.Errorf("non-integer numeric syntax %s accepted", value)
+		}
 	}
 }
 

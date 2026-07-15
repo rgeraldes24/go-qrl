@@ -12,7 +12,7 @@ It is a native QRL format. It is not an EIP-712 compatibility mode.
 | Version | `1` |
 | Digest prefix | ASCII `QRL-TYPED-DATA-V1` |
 | Digest prefix hex | `0x51524c2d54595045442d444154412d5631` |
-| Hash | Keccak-256, 32 bytes |
+| Hash | Legacy Keccak-256 (not NIST SHA3-256), 32 bytes |
 | Encoded member word | 64 bytes |
 | Signature algorithm | ML-DSA-87 |
 
@@ -20,6 +20,10 @@ All text used for hashing is UTF-8. Concatenations below contain no implicit
 length, separator, or terminator bytes beyond those shown explicitly.
 
 ## JSON Object
+
+JSON is only the transport representation. Implementations must parse it into
+typed values and apply the encoding rules below. The serialized JSON bytes and
+JSON object-property order are never hashed.
 
 A request has four required properties and no unknown top-level properties:
 
@@ -62,7 +66,12 @@ A request has four required properties and no unknown top-level properties:
 The `QRLTypedDataDomain` declaration is mandatory and its five fields, types,
 and order are exact. Domain values are all required. `name` and `version` must
 be non-empty, `chainId` must fit `uint256`, `verifyingContract` must be a full
-Q-address, and `salt` must contain exactly 32 bytes.
+Q-address, and `salt` must contain exactly 32 bytes. The domain `version` is the
+application or domain version, not the QRL Typed Structured Data protocol
+version. `QRLTypedDataDomain` cannot be used as `primaryType`.
+
+Applications without a verifying contract should use the zero Q-address.
+Applications that do not need an additional salt should use zero `bytes32`.
 
 The primary message and every nested struct must contain exactly its declared
 fields. Missing and extra fields are invalid. Names are case-sensitive ASCII
@@ -72,10 +81,17 @@ object keys at any depth are invalid in v1.
 
 JSON addresses are full `Q`-prefixed strings. Byte values are even-length,
 `0x`-prefixed hexadecimal strings. Booleans use JSON `true` or `false`.
-Integers may be lossless JSON integer tokens or decimal/`0x` hexadecimal
-strings; clients should use strings for values outside their language's safe
-integer range. Strings are hashed as their exact UTF-8 bytes without Unicode
-normalization. Arrays use JSON arrays and structs use JSON objects.
+Integers may be lossless decimal JSON integer tokens or decimal/`0x`
+hexadecimal strings; JSON numeric tokens containing fractions or exponent
+notation are invalid. Clients should use strings for values outside their
+language's safe integer range. Strings are hashed as their exact UTF-8 bytes
+without Unicode normalization. Arrays use JSON arrays and structs use JSON
+objects.
+
+Canonical JSON serialization emits integers as decimal strings, addresses as
+QIP-55 Q-addresses, and byte values as lowercase, even-length `0x` hexadecimal
+strings. Property names are case-sensitive. Object-property order remains
+insignificant.
 
 ## Type Grammar
 
@@ -178,16 +194,20 @@ maintain replay state.
 ## ML-DSA Signature Envelope
 
 The 32-byte digest is signed by the normal QRL ML-DSA-87 wallet operation.
-Typed-data v1 does not replace the wallet's FIPS 204 context. For the current
-wallet format that context is:
+Typed-data v1 does not replace the wallet's FIPS 204 context. The exact v1
+wallet context is:
 
 ```text
 UTF8("ZOND") || 0x01 || descriptor
 ```
 
+`ZOND` is the existing normative wallet-context identifier. Implementations
+must use these exact bytes and must not rename the literal.
+
 The typed-data digest prefix supplies application-level separation from QRL
 transactions and plain signed messages. ML-DSA cannot recover a public key, so
-`account_signTypedData` returns a verification envelope:
+`account_signTypedData` returns a verification envelope containing the signer
+metadata needed to verify the supplied typed-data request:
 
 ```json
 {
@@ -218,6 +238,10 @@ The generic `account_signData` path must not accept this typed-data MIME type,
 because its byte-string response omits the public key and descriptor required
 for independent verification.
 
+When `account_signTypedData` is used, the domain `chainId` must equal the
+signer's configured chain ID. This is signer API policy rather than part of the
+hashing algorithm.
+
 ## Golden Vector
 
 The normative machine-readable vector is
@@ -230,8 +254,12 @@ messageHash = 0xe4bf84b96e16b2bbfe2844bd9b847d7bfa4f4b88093d67f24294f621a426d574
 digest      = 0x37ca63f91ec5cb22459c21a002724067bb6b7c806fe82b52f4237b478a209a69
 ```
 
-Signatures are hedged and therefore are not deterministic golden values.
-Every produced signature must nevertheless verify against the vector digest.
+Production wallet signatures are hedged. The fixture also contains a complete
+envelope produced with FIPS 204 deterministic signing and a fixed test-only
+seed. Deterministic signing is used only to make this interoperability vector
+exactly reproducible; production `account_signTypedData` signing remains
+hedged. Verifiers must recompute the digest from the supplied typed-data
+request before verifying the envelope.
 
 ## Scope Boundaries
 

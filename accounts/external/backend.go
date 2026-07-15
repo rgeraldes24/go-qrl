@@ -167,8 +167,8 @@ func (api *ExternalSigner) SignData(account accounts.Account, mimeType string, d
 	return res, nil
 }
 
-// SignTypedData requests a self-contained QRL typed-data signature from the
-// external signer.
+// SignTypedData requests a QRL typed-data signature and its verification
+// metadata from the external signer.
 func (api *ExternalSigner) SignTypedData(account accounts.Account, typedData apitypes.TypedData) (*apitypes.TypedDataSignature, error) {
 	var result apitypes.TypedDataSignature
 	signAddress := common.NewMixedcaseAddress(account.Address)
