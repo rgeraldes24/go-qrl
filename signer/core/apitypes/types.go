@@ -218,7 +218,7 @@ type TypedDataDomain struct {
 	Salt              string                `json:"salt"`
 }
 
-// TypedDataAndHash calculates the QRL typed-data digest and raw preimage.
+// TypedDataAndHash is a helper function that calculates a hash for QRL Typed Structured Data v1.
 func TypedDataAndHash(typedData TypedData) ([]byte, string, error) {
 	domainSeparator, err := typedData.HashStruct(TypedDataDomainType, typedData.Domain.Map())
 	if err != nil {
