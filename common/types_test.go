@@ -40,7 +40,23 @@ func TestBytesConversion(t *testing.T) {
 	}
 }
 
-func TestHashToLogTopic(t *testing.T) {
+func TestLogTopicAlignmentHelpers(t *testing.T) {
+	input := []byte{1, 2, 3}
+
+	rightAligned := BytesToRightAlignedLogTopic(input)
+	var wantRight LogTopic
+	copy(wantRight[LogTopicLength-len(input):], input)
+	if rightAligned != wantRight {
+		t.Fatalf("right-aligned topic mismatch: have %x want %x", rightAligned, wantRight)
+	}
+
+	leftAligned := BytesToLeftAlignedLogTopic(input)
+	var wantLeft LogTopic
+	copy(wantLeft[:], input)
+	if leftAligned != wantLeft {
+		t.Fatalf("left-aligned topic mismatch: have %x want %x", leftAligned, wantLeft)
+	}
+
 	var hash Hash
 	for i := range hash {
 		hash[i] = byte(i + 1)
@@ -56,6 +72,47 @@ func TestHashToLogTopic(t *testing.T) {
 	for i := HashLength; i < LogTopicLength; i++ {
 		if topic[i] != 0 {
 			t.Fatalf("byte %d: expected zero padding, got %x", i, topic[i])
+		}
+	}
+
+	var addr Address
+	for i := range addr {
+		addr[i] = byte(i + 1)
+	}
+	if got := AddressToLogTopic(addr); !bytes.Equal(got.Bytes(), addr.Bytes()) {
+		t.Fatalf("address topic mismatch: have %x want %x", got, addr)
+	}
+}
+
+func TestParseLogTopic(t *testing.T) {
+	// Complete topics are preserved verbatim, whatever their alignment.
+	for _, want := range []LogTopic{
+		BytesToRightAlignedLogTopic([]byte{1, 2, 3}),
+		BytesToLeftAlignedLogTopic([]byte{1, 2, 3}),
+	} {
+		got, err := ParseLogTopic(want.Hex())
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got != want {
+			t.Fatalf("topic changed during parsing: got %x, want %x", got, want)
+		}
+		if must := MustParseLogTopic(want.Hex()); must != want {
+			t.Fatalf("MustParseLogTopic mismatch: got %x, want %x", must, want)
+		}
+	}
+
+	// Anything but a 0x-prefixed string of exactly LogTopicLength bytes is rejected.
+	for _, invalid := range []string{
+		"",
+		"0x",
+		"0x010203",
+		"0x" + strings.Repeat("11", LogTopicLength-1),
+		"0x" + strings.Repeat("11", LogTopicLength+1),
+		strings.Repeat("11", LogTopicLength),
+	} {
+		if _, err := ParseLogTopic(invalid); err == nil {
+			t.Fatalf("expected error parsing %q", invalid)
 		}
 	}
 }

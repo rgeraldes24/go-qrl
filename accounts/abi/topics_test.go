@@ -187,6 +187,18 @@ func TestMakeTopics(t *testing.T) {
 			[][]common.LogTopic{{hashTopic(crypto.Keccak256([]byte{1, 2, 3}))}},
 			false,
 		},
+		{
+			"support static byte arrays up to the full topic width",
+			args{[][]any{{[64]byte{1, 2, 3}}}},
+			[][]common.LogTopic{{common.LogTopic{1, 2, 3}}},
+			false,
+		},
+		{
+			"error on static byte arrays wider than the topic",
+			args{[][]any{{[65]byte{1, 2, 3}}}},
+			nil,
+			true,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

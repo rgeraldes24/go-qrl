@@ -17,6 +17,7 @@
 package abi
 
 import (
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"math/big"
@@ -39,37 +40,33 @@ func MakeTopics(query ...[]any) ([][]common.LogTopic, error) {
 			// Try to generate the topic based on simple types
 			switch rule := rule.(type) {
 			case common.LogTopic:
-				copy(topic[:], rule[:])
+				topic = rule
 			case common.Hash:
 				topic = common.HashToLogTopic(rule)
 			case common.Address:
-				copy(topic[:], rule[:])
+				topic = common.AddressToLogTopic(rule)
 			case *big.Int:
-				copy(topic[:], math.U512Bytes(new(big.Int).Set(rule)))
+				topic = common.BytesToRightAlignedLogTopic(math.U512Bytes(new(big.Int).Set(rule)))
 			case bool:
 				if rule {
 					topic[common.LogTopicLength-1] = 1
 				}
 			case int8:
-				copy(topic[:], genIntType(int64(rule), 1))
+				topic = genIntType(int64(rule), 1)
 			case int16:
-				copy(topic[:], genIntType(int64(rule), 2))
+				topic = genIntType(int64(rule), 2)
 			case int32:
-				copy(topic[:], genIntType(int64(rule), 4))
+				topic = genIntType(int64(rule), 4)
 			case int64:
-				copy(topic[:], genIntType(rule, 8))
+				topic = genIntType(rule, 8)
 			case uint8:
-				blob := new(big.Int).SetUint64(uint64(rule)).Bytes()
-				copy(topic[common.LogTopicLength-len(blob):], blob)
+				topic = genUintType(uint64(rule))
 			case uint16:
-				blob := new(big.Int).SetUint64(uint64(rule)).Bytes()
-				copy(topic[common.LogTopicLength-len(blob):], blob)
+				topic = genUintType(uint64(rule))
 			case uint32:
-				blob := new(big.Int).SetUint64(uint64(rule)).Bytes()
-				copy(topic[common.LogTopicLength-len(blob):], blob)
+				topic = genUintType(uint64(rule))
 			case uint64:
-				blob := new(big.Int).SetUint64(rule).Bytes()
-				copy(topic[common.LogTopicLength-len(blob):], blob)
+				topic = genUintType(rule)
 			case string:
 				topic = common.HashToLogTopic(crypto.Keccak256Hash([]byte(rule)))
 			case []byte:
@@ -88,7 +85,12 @@ func MakeTopics(query ...[]any) ([][]common.LogTopic, error) {
 				switch {
 				// static byte array
 				case val.Kind() == reflect.Array && reflect.TypeOf(rule).Elem().Kind() == reflect.Uint8:
-					reflect.Copy(reflect.ValueOf(topic[:val.Len()]), val)
+					if val.Len() > common.LogTopicLength {
+						return nil, fmt.Errorf("unsupported indexed type: %T exceeds the %d-byte topic width", rule, common.LogTopicLength)
+					}
+					b := make([]byte, val.Len())
+					reflect.Copy(reflect.ValueOf(b), val)
+					topic = common.BytesToLeftAlignedLogTopic(b)
 				default:
 					return nil, fmt.Errorf("unsupported indexed type: %T", rule)
 				}
@@ -99,8 +101,14 @@ func MakeTopics(query ...[]any) ([][]common.LogTopic, error) {
 	return topics, nil
 }
 
-func genIntType(rule int64, size uint) []byte {
-	var topic [common.LogTopicLength]byte
+func genUintType(rule uint64) common.LogTopic {
+	var topic common.LogTopic
+	binary.BigEndian.PutUint64(topic[common.LogTopicLength-8:], rule)
+	return topic
+}
+
+func genIntType(rule int64, size uint) common.LogTopic {
+	var topic common.LogTopic
 	if rule < 0 {
 		// if a rule is negative, we need to put it into two's complement,
 		// extended to common.LogTopicLength bytes.
@@ -111,7 +119,7 @@ func genIntType(rule int64, size uint) []byte {
 	for i := range size {
 		topic[common.LogTopicLength-i-1] = byte(rule >> (i * 8))
 	}
-	return topic[:]
+	return topic
 }
 
 // ParseTopics converts the indexed topic fields into actual log field values.
