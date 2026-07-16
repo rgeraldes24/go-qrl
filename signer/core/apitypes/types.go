@@ -528,10 +528,7 @@ func (typedData *TypedData) EncodePrimitiveValue(encType string, encValue any, d
 		if err != nil {
 			return nil, err
 		}
-		if b.Sign() < 0 {
-			b = new(big.Int).Add(b, new(big.Int).Lsh(big.NewInt(1), uint512.WordBits))
-		}
-		return b.FillBytes(make([]byte, uint512.WordBytes)), nil
+		return math.U512Bytes(b), nil
 	}
 	return nil, fmt.Errorf("unrecognized type '%s'", encType)
 }
