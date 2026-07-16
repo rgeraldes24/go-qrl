@@ -59,6 +59,38 @@ func TestHexOrDecimal256(t *testing.T) {
 	}
 }
 
+func TestHexOrDecimal512(t *testing.T) {
+	max := new(big.Int).Sub(new(big.Int).Lsh(big.NewInt(1), 512), big.NewInt(1))
+	tooLarge := new(big.Int).Lsh(big.NewInt(1), 512)
+	tests := []struct {
+		input string
+		num   *big.Int
+		ok    bool
+	}{
+		{"", big.NewInt(0), true},
+		{"0", big.NewInt(0), true},
+		{"0x0", big.NewInt(0), true},
+		{"12345678", big.NewInt(12345678), true},
+		{"0x12345678", big.NewInt(0x12345678), true},
+		{"0123456789", big.NewInt(123456789), true},
+		{max.String(), max, true},
+		{"abcdef", nil, false},
+		{"0xgg", nil, false},
+		{tooLarge.String(), nil, false},
+	}
+	for _, test := range tests {
+		var num HexOrDecimal512
+		err := num.UnmarshalText([]byte(test.input))
+		if (err == nil) != test.ok {
+			t.Errorf("ParseBig(%q) -> (err == nil) == %t, want %t", test.input, err == nil, test.ok)
+			continue
+		}
+		if test.num != nil && (*big.Int)(&num).Cmp(test.num) != 0 {
+			t.Errorf("ParseBig(%q) -> %d, want %d", test.input, (*big.Int)(&num), test.num)
+		}
+	}
+}
+
 func TestMustParseBig256(t *testing.T) {
 	defer func() {
 		if recover() == nil {
@@ -66,6 +98,15 @@ func TestMustParseBig256(t *testing.T) {
 		}
 	}()
 	MustParseBig256("ggg")
+}
+
+func TestMustParseBig512(t *testing.T) {
+	defer func() {
+		if recover() == nil {
+			t.Error("MustParseBig should've panicked")
+		}
+	}()
+	MustParseBig512("ggg")
 }
 
 func TestPaddedBigBytes(t *testing.T) {
