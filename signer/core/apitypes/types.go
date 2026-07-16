@@ -424,7 +424,11 @@ func parseInteger(encType string, encValue any) (*big.Int, error) {
 	case *big.Int:
 		b = v
 	case string:
-		b = parseIntegerString(v)
+		var hexIntValue math.HexOrDecimal512
+		if err := hexIntValue.UnmarshalText([]byte(v)); err != nil {
+			return nil, err
+		}
+		b = (*big.Int)(&hexIntValue)
 	case float64:
 		// JSON parses non-strings as float64. Fail if we cannot
 		// convert it losslessly
@@ -444,21 +448,6 @@ func parseInteger(encType string, encValue any) (*big.Int, error) {
 		return nil, fmt.Errorf("invalid negative value for unsigned type %v", encType)
 	}
 	return b, nil
-}
-
-func parseIntegerString(input string) *big.Int {
-	base := 10
-	sign := ""
-	if strings.HasPrefix(input, "-") {
-		sign = "-"
-		input = strings.TrimPrefix(input, "-")
-	}
-	if strings.HasPrefix(input, "0x") || strings.HasPrefix(input, "0X") {
-		base = 16
-		input = input[2:]
-	}
-	value, _ := new(big.Int).SetString(sign+input, base)
-	return value
 }
 
 // EncodePrimitiveValue deals with the primitive values found
