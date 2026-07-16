@@ -340,6 +340,38 @@ func TestTypedDataAndHashGolden(t *testing.T) {
 	}
 }
 
+func TestTypedDataAndHashNestedArrayGolden(t *testing.T) {
+	t.Parallel()
+	typedData := apitypes.TypedData{
+		Types: apitypes.Types{
+			"QRLTypedDataDomain": {
+				{Name: "name", Type: "string"},
+			},
+			"Matrix": {
+				{Name: "values", Type: "uint512[2][2]"},
+			},
+		},
+		PrimaryType: "Matrix",
+		Domain: apitypes.TypedDataDomain{
+			Name: "QRL Nested Array Golden",
+		},
+		Message: apitypes.TypedDataMessage{
+			"values": [][]any{
+				{"0x1", "0x2"},
+				{"0x3", "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"},
+			},
+		},
+	}
+
+	digest, _, err := apitypes.TypedDataAndHash(typedData)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, want := hexutil.Encode(digest), "0x24f3d95a37703aebb5223aca7fc6ebc3b0504a942b9bff3b00b36ad21a7c3e9f"; got != want {
+		t.Fatalf("unexpected nested-array typed-data digest: got %s, want %s", got, want)
+	}
+}
+
 func TestEncodeType(t *testing.T) {
 	t.Parallel()
 	domainTypeEncoding := string(typedData.EncodeType("QRLTypedDataDomain"))
