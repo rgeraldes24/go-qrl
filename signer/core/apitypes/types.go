@@ -459,16 +459,16 @@ func (typedData *TypedData) EncodePrimitiveValue(encType string, encValue any, d
 		switch val := encValue.(type) {
 		case string:
 			if address, err := common.NewAddressFromString(val); err == nil {
-				copy(retval[uint512.WordBytes-common.AddressLength:], address.Bytes())
+				copy(retval, address.Bytes())
 				return retval, nil
 			}
 		case []byte:
 			if len(val) == common.AddressLength {
-				copy(retval[uint512.WordBytes-common.AddressLength:], val)
+				copy(retval, val)
 				return retval, nil
 			}
 		case [common.AddressLength]byte:
-			copy(retval[uint512.WordBytes-common.AddressLength:], val[:])
+			copy(retval, val[:])
 			return retval, nil
 		}
 		return nil, dataMismatchError(encType, encValue)
