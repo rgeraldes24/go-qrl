@@ -93,6 +93,19 @@ func TestBytesPadding(t *testing.T) {
 	}
 }
 
+func TestIntegerEncodingDoesNotMutateInput(t *testing.T) {
+	t.Parallel()
+	typedData := TypedData{}
+	input := big.NewInt(-1)
+
+	if _, err := typedData.EncodePrimitiveValue("int512", input, 1); err != nil {
+		t.Fatal(err)
+	}
+	if input.Cmp(big.NewInt(-1)) != 0 {
+		t.Fatalf("integer input mutated during encoding: got %v, want -1", input)
+	}
+}
+
 func TestParseAddress(t *testing.T) {
 	t.Parallel()
 	// QRL typed-data primitive encoding uses one 64-byte slot for addresses.
@@ -195,6 +208,7 @@ func TestParseBytes(t *testing.T) {
 func TestParseInteger(t *testing.T) {
 	t.Parallel()
 	wide := new(big.Int).Lsh(big.NewInt(1), 511)
+	wideHex := math.HexOrDecimal512(*wide)
 	for i, tt := range []struct {
 		t   string
 		v   any
@@ -205,6 +219,7 @@ func TestParseInteger(t *testing.T) {
 		{"int32", big.NewInt(-124), big.NewInt(-124)},
 		{"uint32", "0xff", big.NewInt(0xff)},
 		{"uint512", wide.String(), wide},
+		{"uint512", &wideHex, wide},
 		{"int8", "0xffff", nil},
 	} {
 		res, err := parseInteger(tt.t, tt.v)

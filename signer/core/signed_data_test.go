@@ -309,6 +309,37 @@ func TestHashStruct(t *testing.T) {
 	}
 }
 
+func TestTypedDataAndHashVM64Golden(t *testing.T) {
+	t.Parallel()
+	typedData := apitypes.TypedData{
+		Types: apitypes.Types{
+			"QRLTypedDataDomain": {
+				{Name: "name", Type: "string"},
+			},
+			"WideValues": {
+				{Name: "amount", Type: "uint512"},
+				{Name: "payload", Type: "bytes64"},
+			},
+		},
+		PrimaryType: "WideValues",
+		Domain: apitypes.TypedDataDomain{
+			Name: "QRL VM64 Golden",
+		},
+		Message: apitypes.TypedDataMessage{
+			"amount":  "0x" + strings.Repeat("fedcba9876543210", 8),
+			"payload": "0x" + strings.Repeat("0123456789abcdef", 8),
+		},
+	}
+
+	digest, _, err := apitypes.TypedDataAndHash(typedData)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, want := hexutil.Encode(digest), "0x054b04b5b0976d8b58cb06fb10c1100af45cf46488d16842897e6b2a81ed6ed3"; got != want {
+		t.Fatalf("unexpected VM64 typed-data digest: got %s, want %s", got, want)
+	}
+}
+
 func TestEncodeType(t *testing.T) {
 	t.Parallel()
 	domainTypeEncoding := string(typedData.EncodeType("QRLTypedDataDomain"))
@@ -319,6 +350,11 @@ func TestEncodeType(t *testing.T) {
 	mailTypeEncoding := string(typedData.EncodeType(typedData.PrimaryType))
 	if mailTypeEncoding != "Mail(Person from,Person to,string contents)Person(string name,address wallet)" {
 		t.Errorf("Expected different encodeType result (got %s)", mailTypeEncoding)
+	}
+
+	emptyTypedData := apitypes.TypedData{Types: apitypes.Types{"Empty": {}}}
+	if emptyTypeEncoding := string(emptyTypedData.EncodeType("Empty")); emptyTypeEncoding != "Empty()" {
+		t.Errorf("Expected empty type encoding Empty() (got %s)", emptyTypeEncoding)
 	}
 }
 
