@@ -62,7 +62,7 @@ var contractAbi = [{
   ],
   name: "store",
   outputs: [],
-  constant: false,
+  stateMutability: "nonpayable",
   type: "function"
 }, {
   inputs: [],
@@ -74,12 +74,20 @@ var contractAbi = [{
     {name: "active", type: "bool"},
     {name: "tag", type: "bytes64"}
   ],
-  constant: true,
+  stateMutability: "view",
+  type: "function"
+}, {
+  inputs: [],
+  name: "pay",
+  outputs: [],
+  stateMutability: "payable",
   type: "function"
 }];
 var contract = web3.qrl.contract(contractAbi).at(%q);
 var data = contract.store.getData(%q, %q, "hello", true, "0x%s");
-var decoded = contract.load.call();
+var decoded = contract.load();
+var loadMethod = lastPayload.method;
+contract.pay({from: %q, value: 1});
 
 JSON.stringify({
   data: data,
@@ -87,20 +95,24 @@ JSON.stringify({
   amount: decoded[1].toString(16),
   label: decoded[2],
   active: decoded[3],
-  tag: decoded[4]
+  tag: decoded[4],
+  loadMethod: loadMethod,
+  payMethod: lastPayload.method
 });
-`, output, contractAddress, address, maxUint512Decimal, bytes64)
+`, output, contractAddress, address, maxUint512Decimal, bytes64, address)
 	value, err := re.Run(script)
 	if err != nil {
 		t.Fatalf("run ABI coder script: %v", err)
 	}
 	var got struct {
-		Data    string `json:"data"`
-		Address string `json:"address"`
-		Amount  string `json:"amount"`
-		Label   string `json:"label"`
-		Active  bool   `json:"active"`
-		Tag     string `json:"tag"`
+		Data       string `json:"data"`
+		Address    string `json:"address"`
+		Amount     string `json:"amount"`
+		Label      string `json:"label"`
+		Active     bool   `json:"active"`
+		Tag        string `json:"tag"`
+		LoadMethod string `json:"loadMethod"`
+		PayMethod  string `json:"payMethod"`
 	}
 	if err := json.Unmarshal([]byte(value.String()), &got); err != nil {
 		t.Fatalf("decode ABI coder result %q: %v", value.String(), err)
@@ -111,6 +123,86 @@ JSON.stringify({
 	if got.Address != address || got.Amount != maxUint512 || got.Label != "hello" || !got.Active || got.Tag != "0x"+bytes64 {
 		t.Fatalf("decoded values mismatch: %+v", got)
 	}
+	if got.LoadMethod != "qrl_call" || got.PayMethod != "qrl_sendTransaction" {
+		t.Fatalf("stateMutability routing mismatch: load=%q pay=%q", got.LoadMethod, got.PayMethod)
+	}
+}
+
+func TestEmbeddedWeb3SignedInt512AndAddressInput(t *testing.T) {
+	t.Parallel()
+
+	re := newEmbeddedWeb3(t)
+	contractAddress := "Q" + strings.Repeat("0", common.AddressLength*2)
+	negativeOneWord := strings.Repeat("f", common.StorageValue64Length*2)
+	minimumWord := "8" + strings.Repeat("0", common.StorageValue64Length*2-1)
+	minimumValue := "-0x" + minimumWord
+	negativeOneData := "0x" + common.Bytes2Hex(crypto.Keccak256([]byte("storeInt(int512)"))[:4]) + negativeOneWord
+	minimumData := "0x" + common.Bytes2Hex(crypto.Keccak256([]byte("storeInt(int512)"))[:4]) + minimumWord
+
+	script := fmt.Sprintf(web3EchoProvider+`
+var Web3 = require("web3");
+var web3 = new Web3(provider);
+var contract = web3.qrl.contract([{
+  inputs: [{name: "value", type: "int512"}],
+  name: "storeInt",
+  outputs: [],
+  stateMutability: "nonpayable",
+  type: "function"
+}, {
+  inputs: [],
+  name: "loadInt",
+  outputs: [{name: "value", type: "int512"}],
+  stateMutability: "view",
+  type: "function"
+}, {
+  inputs: [{name: "value", type: "address"}],
+  name: "storeAddress",
+  outputs: [],
+  stateMutability: "nonpayable",
+  type: "function"
+}]).at(%q);
+
+var negativeOneData = contract.storeInt.getData(-1);
+var minimumData = contract.storeInt.getData(%q);
+currentOutput = "0x%s";
+var negativeOne = contract.loadInt().toString(16);
+currentOutput = "0x%s";
+var minimum = contract.loadInt().toString(16);
+var rejectsInvalidAddress = false;
+try {
+  contract.storeAddress.getData("Q1234");
+} catch (err) {
+  rejectsInvalidAddress = true;
+}
+
+JSON.stringify({
+  negativeOneData: negativeOneData,
+  minimumData: minimumData,
+  negativeOne: negativeOne,
+  minimum: minimum,
+  rejectsInvalidAddress: rejectsInvalidAddress
+});
+`, contractAddress, minimumValue, negativeOneWord, minimumWord)
+	value, err := re.Run(script)
+	if err != nil {
+		t.Fatalf("run signed integer script: %v", err)
+	}
+	var got struct {
+		NegativeOneData       string `json:"negativeOneData"`
+		MinimumData           string `json:"minimumData"`
+		NegativeOne           string `json:"negativeOne"`
+		Minimum               string `json:"minimum"`
+		RejectsInvalidAddress bool   `json:"rejectsInvalidAddress"`
+	}
+	if err := json.Unmarshal([]byte(value.String()), &got); err != nil {
+		t.Fatalf("decode signed integer result %q: %v", value.String(), err)
+	}
+	if got.NegativeOneData != negativeOneData || got.MinimumData != minimumData {
+		t.Fatalf("signed calldata mismatch: %+v", got)
+	}
+	if got.NegativeOne != "-1" || got.Minimum != "-"+minimumWord || !got.RejectsInvalidAddress {
+		t.Fatalf("signed decode or address validation mismatch: %+v", got)
+	}
 }
 
 func abiWordHex(value uint64) string {
@@ -119,11 +211,14 @@ func abiWordHex(value uint64) string {
 
 const web3EchoProvider = `
 var currentOutput = null;
+var lastPayload = null;
 var provider = {
   send: function(payload) {
+    lastPayload = payload;
     return {jsonrpc: "2.0", id: payload.id, result: currentOutput};
   },
   sendAsync: function(payload, cb) {
+    lastPayload = payload;
     cb(null, {jsonrpc: "2.0", id: payload.id, result: currentOutput});
   }
 };
