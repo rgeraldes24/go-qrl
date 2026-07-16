@@ -1,0 +1,144 @@
+// Copyright 2026 The go-qrl Authors
+// This file is part of the go-qrl library.
+//
+// The go-qrl library is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Lesser General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// The go-qrl library is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU Lesser General Public License for more details.
+//
+// You should have received a copy of the go-qrl library. If not, see <http://www.gnu.org/licenses/>.
+
+package jsre
+
+import (
+	"encoding/json"
+	"fmt"
+	"os"
+	"strings"
+	"testing"
+
+	"github.com/theQRL/go-qrl/common"
+	"github.com/theQRL/go-qrl/crypto"
+	"github.com/theQRL/go-qrl/internal/jsre/deps"
+)
+
+func TestEmbeddedWeb3ABICoderUsesVM64Words(t *testing.T) {
+	t.Parallel()
+
+	re := newEmbeddedWeb3(t)
+	address := "Q" + strings.Repeat("a", common.AddressLength*2)
+	contractAddress := "Q" + strings.Repeat("0", common.AddressLength*2)
+	maxUint512 := strings.Repeat("f", common.StorageValue64Length*2)
+	maxUint512Decimal := "134078079299425970995740249982058461274793658205923933" +
+		"77723561443721764030073546976801874298166903427690031" +
+		"858186486050853753882811946569946433649006084095"
+	bytes64 := strings.Repeat("ab", common.StorageValue64Length)
+	offsetWord := abiWordHex(5 * common.StorageValue64Length)
+	boolWord := abiWordHex(1)
+	lengthWord := abiWordHex(5)
+	labelWord := common.Bytes2Hex([]byte("hello")) + strings.Repeat("0", common.StorageValue64Length*2-len("hello")*2)
+	output := "0x" + strings.Repeat("a", common.AddressLength*2) + maxUint512 + offsetWord + boolWord + bytes64 + lengthWord + labelWord
+	expectedData := "0x" +
+		common.Bytes2Hex(crypto.Keccak256([]byte("store(address,uint512,string,bool,bytes64)"))[:4]) +
+		strings.Repeat("a", common.AddressLength*2) + maxUint512 + offsetWord + boolWord + bytes64 + lengthWord + labelWord
+
+	script := fmt.Sprintf(web3EchoProvider+`
+currentOutput = %q;
+
+var Web3 = require("web3");
+var web3 = new Web3(provider);
+var contractAbi = [{
+  inputs: [
+    {name: "to", type: "address"},
+    {name: "amount", type: "uint512"},
+    {name: "label", type: "string"},
+    {name: "active", type: "bool"},
+    {name: "tag", type: "bytes64"}
+  ],
+  name: "store",
+  outputs: [],
+  constant: false,
+  type: "function"
+}, {
+  inputs: [],
+  name: "load",
+  outputs: [
+    {name: "to", type: "address"},
+    {name: "amount", type: "uint512"},
+    {name: "label", type: "string"},
+    {name: "active", type: "bool"},
+    {name: "tag", type: "bytes64"}
+  ],
+  constant: true,
+  type: "function"
+}];
+var contract = web3.qrl.contract(contractAbi).at(%q);
+var data = contract.store.getData(%q, %q, "hello", true, "0x%s");
+var decoded = contract.load.call();
+
+JSON.stringify({
+  data: data,
+  address: decoded[0],
+  amount: decoded[1].toString(16),
+  label: decoded[2],
+  active: decoded[3],
+  tag: decoded[4]
+});
+`, output, contractAddress, address, maxUint512Decimal, bytes64)
+	value, err := re.Run(script)
+	if err != nil {
+		t.Fatalf("run ABI coder script: %v", err)
+	}
+	var got struct {
+		Data    string `json:"data"`
+		Address string `json:"address"`
+		Amount  string `json:"amount"`
+		Label   string `json:"label"`
+		Active  bool   `json:"active"`
+		Tag     string `json:"tag"`
+	}
+	if err := json.Unmarshal([]byte(value.String()), &got); err != nil {
+		t.Fatalf("decode ABI coder result %q: %v", value.String(), err)
+	}
+	if got.Data != expectedData {
+		t.Fatalf("calldata mismatch:\nhave %s\nwant %s", got.Data, expectedData)
+	}
+	if got.Address != address || got.Amount != maxUint512 || got.Label != "hello" || !got.Active || got.Tag != "0x"+bytes64 {
+		t.Fatalf("decoded values mismatch: %+v", got)
+	}
+}
+
+func abiWordHex(value uint64) string {
+	return fmt.Sprintf("%0*x", common.StorageValue64Length*2, value)
+}
+
+const web3EchoProvider = `
+var currentOutput = null;
+var provider = {
+  send: function(payload) {
+    return {jsonrpc: "2.0", id: payload.id, result: currentOutput};
+  },
+  sendAsync: function(payload, cb) {
+    cb(null, {jsonrpc: "2.0", id: payload.id, result: currentOutput});
+  }
+};
+`
+
+func newEmbeddedWeb3(t *testing.T) *JSRE {
+	t.Helper()
+
+	re := New("", os.Stdout)
+	t.Cleanup(func() { re.Stop(false) })
+	if err := re.Compile("bignumber.js", deps.BigNumberJS); err != nil {
+		t.Fatalf("compile bignumber.js: %v", err)
+	}
+	if err := re.Compile("web3.js", deps.Web3JS); err != nil {
+		t.Fatalf("compile web3.js: %v", err)
+	}
+	return re
+}
