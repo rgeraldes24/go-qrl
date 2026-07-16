@@ -437,13 +437,11 @@ func parseInteger(encType string, encValue any) (*big.Int, error) {
 	if b == nil {
 		return nil, fmt.Errorf("invalid integer value %v/%v for type %v", encValue, reflect.TypeOf(encValue), encType)
 	}
-	if signed {
-		limit := new(big.Int).Lsh(big.NewInt(1), uint(length-1))
-		if b.Cmp(new(big.Int).Neg(limit)) < 0 || b.Cmp(new(big.Int).Sub(limit, big.NewInt(1))) > 0 {
-			return nil, fmt.Errorf("integer outside %s range", encType)
-		}
-	} else if b.Sign() < 0 || b.BitLen() > length {
-		return nil, fmt.Errorf("integer outside %s range", encType)
+	if b.BitLen() > length {
+		return nil, fmt.Errorf("integer larger than '%v'", encType)
+	}
+	if !signed && b.Sign() == -1 {
+		return nil, fmt.Errorf("invalid negative value for unsigned type %v", encType)
 	}
 	return b, nil
 }
