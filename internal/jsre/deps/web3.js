@@ -2559,7 +2559,7 @@ var encodeConstructorParams = function (abi, params) {
 };
 
 var isPayableABI = function (json) {
-    return json.payable !== undefined ? json.payable : json.stateMutability === 'payable';
+    return json.stateMutability === 'payable';
 };
 
 /**
@@ -3734,9 +3734,8 @@ var HyperionFunction = function (qrl, json, address) {
     this._qrl = qrl;
     this._inputTypes = json.inputs;
     this._outputTypes = json.outputs;
-    this._constant = json.constant !== undefined ? json.constant :
-        json.stateMutability === 'view' || json.stateMutability === 'pure';
-    this._payable = json.payable !== undefined ? json.payable : json.stateMutability === 'payable';
+    this._constant = json.stateMutability === 'view' || json.stateMutability === 'pure';
+    this._payable = json.stateMutability === 'payable';
     this._name = utils.transformToFullName(json);
     this._address = address;
 };
