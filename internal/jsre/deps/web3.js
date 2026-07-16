@@ -2146,12 +2146,7 @@ var isBloom = function (bloom) {
  * @return {Boolean}
  */
 var isTopic = function (topic) {
-    if (!/^(0x)?[0-9a-f]{64}$/i.test(topic)) {
-        return false;
-    } else if (/^(0x)?[0-9a-f]{64}$/.test(topic) || /^(0x)?[0-9A-F]{64}$/.test(topic)) {
-        return true;
-    }
-    return false;
+    return /^(0x)?[0-9a-f]{128}$/i.test(topic);
 };
 
 module.exports = {
@@ -2375,7 +2370,7 @@ AllHyperionEvents.prototype.decode = function (data) {
 
     var eventTopic = data.topics[0].slice(2);
     var match = this._json.filter(function (j) {
-        return eventTopic === sha3(utils.transformToFullName(j));
+        return eventTopic === utils.padRight(sha3(utils.transformToFullName(j)), 128);
     })[0];
 
     if (!match) { // cannot find matching event?
@@ -2919,6 +2914,20 @@ HyperionEvent.prototype.signature = function () {
     return sha3(this._name);
 };
 
+var eventTopic = function (value) {
+    return utils.padRight(value, 128);
+};
+
+var indexedTopic = function (type, value) {
+    if (type === 'string') {
+        return eventTopic(sha3(value));
+    }
+    if (type === 'bytes') {
+        return eventTopic(sha3(value, {encoding: 'hex'}));
+    }
+    return coder.encodeParam(type, value);
+};
+
 /**
  * Should be used to encode indexed params and options to one final object
  *
@@ -2942,7 +2951,7 @@ HyperionEvent.prototype.encode = function (indexed, options) {
 
     result.address = this._address;
     if (!this._anonymous) {
-        result.topics.push('0x' + this.signature());
+        result.topics.push('0x' + eventTopic(this.signature()));
     }
 
     var indexedTopics = this._params.filter(function (i) {
@@ -2955,10 +2964,10 @@ HyperionEvent.prototype.encode = function (indexed, options) {
 
         if (utils.isArray(value)) {
             return value.map(function (v) {
-                return '0x' + coder.encodeParam(i.type, v);
+                return '0x' + indexedTopic(i.type, v);
             });
         }
-        return '0x' + coder.encodeParam(i.type, value);
+        return '0x' + indexedTopic(i.type, value);
     });
 
     result.topics = result.topics.concat(indexedTopics);
@@ -2978,9 +2987,15 @@ HyperionEvent.prototype.decode = function (data) {
     data.data = data.data || '';
     data.topics = data.topics || [];
 
+    var indexedTypes = this.types(true);
     var argTopics = this._anonymous ? data.topics : data.topics.slice(1);
-    var indexedData = argTopics.map(function (topics) { return topics.slice(2); }).join("");
-    var indexedParams = coder.decodeParams(this.types(true), indexedData);
+    var indexedParams = argTopics.map(function (topic, index) {
+        var type = indexedTypes[index];
+        if (type === 'string' || type === 'bytes') {
+            return topic;
+        }
+        return coder.decodeParam(type, topic.slice(2));
+    });
 
     var notIndexedData = data.data.slice(2);
     var notIndexedParams = coder.decodeParams(this.types(false), notIndexedData);
