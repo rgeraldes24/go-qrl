@@ -517,7 +517,7 @@ func (typedData *TypedData) EncodePrimitiveValue(encType string, encValue any, d
 		if byteValue, ok := parseBytes(encValue); !ok || len(byteValue) != length {
 			return nil, dataMismatchError(encType, encValue)
 		} else {
-			// Right-pad to one VM word.
+			// Right-pad the bits
 			dst := make([]byte, uint512.WordBytes)
 			copy(dst, byteValue)
 			return dst, nil
