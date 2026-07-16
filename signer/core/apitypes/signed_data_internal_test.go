@@ -225,20 +225,21 @@ func TestParseInteger(t *testing.T) {
 			t.Errorf("test %d, got %v expected %v", i, res, tt.exp)
 		}
 	}
+}
 
-	t.Run("bare uint uses 512 bits", func(t *testing.T) {
-		value := new(big.Int).Lsh(big.NewInt(1), 256)
-		want := make([]byte, uint512.WordBytes)
-		want[uint512.WordBytes/2-1] = 1
+func TestBareUintUses512Bits(t *testing.T) {
+	t.Parallel()
+	value := new(big.Int).Lsh(big.NewInt(1), 256)
+	want := make([]byte, uint512.WordBytes)
+	want[uint512.WordBytes/2-1] = 1
 
-		got, err := new(TypedData).EncodePrimitiveValue("uint", value, 1)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if !bytes.Equal(got, want) {
-			t.Fatalf("unexpected bare uint encoding: got %x, want %x", got, want)
-		}
-	})
+	got, err := new(TypedData).EncodePrimitiveValue("uint", value, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(got, want) {
+		t.Fatalf("unexpected bare uint encoding: got %x, want %x", got, want)
+	}
 }
 
 func TestConvertStringDataToSlice(t *testing.T) {
