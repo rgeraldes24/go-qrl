@@ -686,7 +686,7 @@ HyperionCoder.prototype._decodeValue = function (type, hyperionType, bytes, star
 HyperionCoder.prototype.getHyperionTypes = function (types) {
     var self = this;
     return types.map(function (type) {
-        return self._requireType(self._typeName(type));
+        return self._requireType(type);
     });
 };
 
@@ -755,28 +755,20 @@ var HyperionParam = require('./param');
 
 var wordHexLength = c.QRL_PADDING * 2;
 
-// Integer bounds are constructed from exact hex strings: BigNumber.pow is
-// subject to POW_PRECISION and truncates 2^512. Cached, as output formatters
-// rebuild them for every decoded value.
-var powerOfTwoCache = {};
+// BigNumber.pow is subject to POW_PRECISION and truncates 2^512, so construct
+// integer bounds from exact hex strings.
 var powerOfTwo = function (bits) {
-    return powerOfTwoCache[bits] ||
-        (powerOfTwoCache[bits] = new BigNumber('1' + Array(bits / 4 + 1).join('0'), 16));
+    return new BigNumber('1' + Array(bits / 4 + 1).join('0'), 16);
 };
 
-var signedLimitCache = {};
 var signedLimit = function (bits) {
-    return signedLimitCache[bits] ||
-        (signedLimitCache[bits] = new BigNumber('8' + Array(bits / 4).join('0'), 16));
+    return new BigNumber('8' + Array(bits / 4).join('0'), 16);
 };
 
 var twoToWordBits = powerOfTwo(wordHexLength * 4);
 
-var integerBitsRegexes = {};
 var integerBits = function (name, prefix) {
-    var regex = integerBitsRegexes[prefix] ||
-        (integerBitsRegexes[prefix] = new RegExp('^' + prefix + '([0-9]+)$'));
-    var match = name && name.match(regex);
+    var match = name && name.match(new RegExp('^' + prefix + '([0-9]+)$'));
     if (!match) {
         throw Error('invalid ABI integer type: ' + name);
     }
@@ -804,14 +796,6 @@ var integerValue = function (value) {
     return result;
 };
 
-var wordParam = function (value) {
-    var encoded = value.toString(16);
-    if (encoded.length > wordHexLength) {
-        throw Error('ABI integer exceeds one VM64 word');
-    }
-    return new HyperionParam(utils.padLeft(encoded, wordHexLength));
-};
-
 var formatInputUInt = function (value, name) {
     var bits = integerBits(name, 'uint');
     var result = integerValue(value);
@@ -819,7 +803,7 @@ var formatInputUInt = function (value, name) {
     if (result.isNegative() || result.greaterThanOrEqualTo(limit)) {
         throw Error('value out of range for ' + name);
     }
-    return wordParam(result);
+    return new HyperionParam(utils.padLeft(result.toString(16), wordHexLength));
 };
 
 var formatInputSignedInt = function (value, name) {
@@ -832,7 +816,7 @@ var formatInputSignedInt = function (value, name) {
     if (result.isNegative()) {
         result = twoToWordBits.plus(result);
     }
-    return wordParam(result);
+    return new HyperionParam(utils.padLeft(result.toString(16), wordHexLength));
 };
 
 /**
@@ -846,10 +830,6 @@ var formatInputInt = function (value) {
     return formatInputUInt(value, 'uint512');
 };
 
-var inputBytes = function (value) {
-    return utils.toHex(value).substr(2);
-};
-
 /**
  * Formats input bytes
  *
@@ -860,7 +840,7 @@ var inputBytes = function (value) {
 var formatInputBytes = function (value, name) {
     var match = name.match(/^bytes([0-9]+)$/);
     var size = match ? parseInt(match[1], 10) : 0;
-    var result = inputBytes(value);
+    var result = utils.toHex(value).substr(2);
     if (size < 1 || size > c.QRL_PADDING || result.length > size * 2) {
         throw Error('value out of range for ' + name);
     }
@@ -875,7 +855,7 @@ var formatInputBytes = function (value, name) {
  * @returns {HyperionParam}
  */
 var formatInputDynamicBytes = function (value) {
-    var result = inputBytes(value);
+    var result = utils.toHex(value).substr(2);
     var length = result.length / 2;
     var l = Math.floor((result.length + wordHexLength - 1) / wordHexLength);
     result = utils.padRight(result, l * wordHexLength);
@@ -934,7 +914,7 @@ var signedIsNegative = function (value) {
  * @param {HyperionParam} param
  * @returns {BigNumber} right-aligned output bytes formatted to big number
  */
-var formatOutputInt = function (param, name) {
+var formatOutputInt = function (param) {
     var value = param.staticPart();
     var result = new BigNumber(value, 16);
 
@@ -951,7 +931,7 @@ var formatOutputInt = function (param, name) {
  * @param {HyperionParam}
  * @returns {BigNumeber} right-aligned output bytes formatted to uint
  */
-var formatOutputUInt = function (param, name) {
+var formatOutputUInt = function (param) {
     return new BigNumber(param.staticPart(), 16);
 };
 
@@ -1808,10 +1788,10 @@ var canonicalTypeName = function (input) {
 };
 
 var transformToFullName = function (json) {
-    var typeName = json.inputs.map(canonicalTypeName).join();
     if (json.name.indexOf('(') !== -1) {
         return json.name;
     }
+    var typeName = json.inputs.map(canonicalTypeName).join();
     return json.name + '(' + typeName + ')';
 };
 
@@ -2175,9 +2155,6 @@ var isBloom = function (bloom) {
 
 /**
  * Returns true if given string is a valid log topic.
- *
- * VM64 word = 64 bytes = 128 hex chars; keep the {128} quantifiers (and the
- * address regexes above) in sync with QRL_PADDING in utils/config.
  *
  * @method isTopic
  * @param {String} hex encoded topic
@@ -2558,10 +2535,6 @@ var encodeConstructorParams = function (abi, params) {
     })[0] || '';
 };
 
-var isPayableABI = function (json) {
-    return json.stateMutability === 'payable';
-};
-
 /**
  * Should be called to add functions to contract object
  *
@@ -2717,7 +2690,7 @@ var ContractFactory = function (qrl, abi) {
                 return json.type === 'constructor' && json.inputs.length === args.length;
             })[0] || {};
 
-            if (!isPayableABI(constructorAbi)) {
+            if (constructorAbi.stateMutability !== 'payable') {
                 throw new Error('Cannot send value to non-payable constructor');
             }
         }
@@ -3923,11 +3896,13 @@ HyperionFunction.prototype.request = function () {
     var args = Array.prototype.slice.call(arguments);
     var callback = this.extractCallback(args);
     var payload = this.toPayload(args);
+    var format = this.unpackOutput.bind(this);
+
     return {
         method: this._constant ? 'qrl_call' : 'qrl_sendTransaction',
         callback: callback,
         params: [payload],
-        format: this.unpackOutput.bind(this)
+        format: format
     };
 };
 
