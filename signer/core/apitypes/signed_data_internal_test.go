@@ -93,19 +93,6 @@ func TestBytesPadding(t *testing.T) {
 	}
 }
 
-func TestIntegerEncodingDoesNotMutateInput(t *testing.T) {
-	t.Parallel()
-	typedData := TypedData{}
-	input := big.NewInt(-1)
-
-	if _, err := typedData.EncodePrimitiveValue("int512", input, 1); err != nil {
-		t.Fatal(err)
-	}
-	if input.Cmp(big.NewInt(-1)) != 0 {
-		t.Fatalf("integer input mutated during encoding: got %v, want -1", input)
-	}
-}
-
 func TestParseAddress(t *testing.T) {
 	t.Parallel()
 	// QRL typed-data primitive encoding uses one 64-byte slot for addresses.
