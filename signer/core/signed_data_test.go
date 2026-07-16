@@ -309,7 +309,7 @@ func TestHashStruct(t *testing.T) {
 	}
 }
 
-func TestTypedDataAndHashVM64Golden(t *testing.T) {
+func TestTypedDataAndHashGolden(t *testing.T) {
 	t.Parallel()
 	typedData := apitypes.TypedData{
 		Types: apitypes.Types{
