@@ -656,6 +656,7 @@ var utils = require('../utils/utils');
 var c = require('../utils/config');
 var HyperionParam = require('./param');
 
+var twoTo512 = new BigNumber('1' + Array(129).join('0'), 16);
 
 /**
  * Formats input value to byte representation of int
@@ -673,7 +674,10 @@ var formatInputInt = function (value) {
 };
 
 var formatInputAddress = function (value) {
-    return new HyperionParam(utils.toAddress(value).substr(1));
+    if (!utils.isAddress(value)) {
+        throw Error('invalid address');
+    }
+    return new HyperionParam(value.substr(1));
 };
 
 /**
@@ -768,7 +772,7 @@ var formatOutputInt = function (param) {
     // check if it's negative number
     // it is, return two's complement
     if (signedIsNegative(value)) {
-        return new BigNumber(value, 16).minus(new BigNumber(2).pow(512));
+        return new BigNumber(value, 16).minus(twoTo512);
     }
     return new BigNumber(value, 16);
 };
@@ -1624,6 +1628,8 @@ var BigNumber = require('bignumber.js');
 var sha3 = require('./sha3.js');
 var utf8 = require('utf8');
 
+var twoTo512 = new BigNumber('1' + Array(129).join('0'), 16);
+
 var unitMap = {
     'noquanta': '0',
     'planck':   '1',
@@ -1955,7 +1961,7 @@ var toBigNumber = function(number) {
 var toTwosComplement = function (number) {
     var bigNumber = toBigNumber(number).round();
     if (bigNumber.lessThan(0)) {
-        return new BigNumber(2).pow(512).plus(bigNumber);
+        return twoTo512.plus(bigNumber);
     }
     return bigNumber;
 };
@@ -3694,8 +3700,8 @@ var HyperionFunction = function (qrl, json, address) {
     this._outputTypes = json.outputs.map(function (i) {
         return i.type;
     });
-    this._constant = json.constant;
-    this._payable = json.payable;
+    this._constant = json.constant || json.stateMutability === 'view' || json.stateMutability === 'pure';
+    this._payable = json.payable || json.stateMutability === 'payable';
     this._name = utils.transformToFullName(json);
     this._address = address;
 };
