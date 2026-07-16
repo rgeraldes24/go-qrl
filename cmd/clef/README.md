@@ -459,6 +459,18 @@ Response
 }
 ```
 
+Response
+
+The signature is abbreviated below. Clef uses hedged ML-DSA-87 signing, so the signature bytes differ between valid calls.
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 68,
+  "result": "0x..."
+}
+```
+
 ### account_version
 
 #### Get external API version
