@@ -62,7 +62,6 @@ var Web3 = require("web3");
 var web3 = new Web3(provider);
 
 var contractAbi = [{
-  constant: false,
   inputs: [
     {name: "to", type: "address"},
     {name: "amount", type: "uint512"},
@@ -72,9 +71,9 @@ var contractAbi = [{
   ],
   name: "store",
   outputs: [],
+  stateMutability: "nonpayable",
   type: "function"
 }, {
-  constant: true,
   inputs: [],
   name: "load",
   outputs: [
@@ -84,6 +83,7 @@ var contractAbi = [{
     {name: "active", type: "bool"},
     {name: "tag", type: "bytes4"}
   ],
+  stateMutability: "view",
   type: "function"
 }];
 var contract = web3.qrl.contract(contractAbi).at(%q);
@@ -340,9 +340,9 @@ func TestEmbeddedWeb3SupportsFullWidthScalars(t *testing.T) {
 var Web3 = require("web3");
 var web3 = new Web3(provider);
 var contract = web3.qrl.contract([
-  {name: "encU512", inputs: [{name: "v", type: "uint512"}], outputs: [], type: "function", constant: false},
-  {name: "encI512", inputs: [{name: "v", type: "int512"}], outputs: [], type: "function", constant: false},
-  {name: "encB64", inputs: [{name: "v", type: "bytes64"}], outputs: [], type: "function", constant: false}
+  {name: "encU512", inputs: [{name: "v", type: "uint512"}], outputs: [], stateMutability: "nonpayable", type: "function"},
+  {name: "encI512", inputs: [{name: "v", type: "int512"}], outputs: [], stateMutability: "nonpayable", type: "function"},
+  {name: "encB64", inputs: [{name: "v", type: "bytes64"}], outputs: [], stateMutability: "nonpayable", type: "function"}
 ]).at(%q);
 
 JSON.stringify({
