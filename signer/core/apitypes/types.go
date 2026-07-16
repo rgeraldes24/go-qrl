@@ -314,7 +314,7 @@ func (typedData *TypedData) EncodeData(primaryType string, data map[string]any, 
 	}
 
 	// Add typehash
-	buffer.Write(encodeTypedDataHashWord(typedData.TypeHash(primaryType)))
+	buffer.Write(encodeHashWord(typedData.TypeHash(primaryType)))
 
 	// Add field contents. Structs and arrays have special handlers.
 	for _, field := range typedData.Types[primaryType] {
@@ -338,7 +338,7 @@ func (typedData *TypedData) EncodeData(primaryType string, data map[string]any, 
 					if err != nil {
 						return nil, err
 					}
-					arrayBuffer.Write(encodeTypedDataHashWord(crypto.Keccak256(encodedData)))
+					arrayBuffer.Write(keccak256Word(encodedData))
 				} else {
 					bytesValue, err := typedData.EncodePrimitiveValue(parsedType, item, depth)
 					if err != nil {
@@ -348,7 +348,7 @@ func (typedData *TypedData) EncodeData(primaryType string, data map[string]any, 
 				}
 			}
 
-			buffer.Write(encodeTypedDataHashWord(crypto.Keccak256(arrayBuffer.Bytes())))
+			buffer.Write(keccak256Word(arrayBuffer.Bytes()))
 		} else if typedData.Types[field.Type] != nil {
 			mapValue, ok := encValue.(map[string]any)
 			if !ok {
@@ -358,7 +358,7 @@ func (typedData *TypedData) EncodeData(primaryType string, data map[string]any, 
 			if err != nil {
 				return nil, err
 			}
-			buffer.Write(encodeTypedDataHashWord(crypto.Keccak256(encodedData)))
+			buffer.Write(keccak256Word(encodedData))
 		} else {
 			byteValue, err := typedData.EncodePrimitiveValue(encType, encValue, depth)
 			if err != nil {
@@ -487,13 +487,13 @@ func (typedData *TypedData) EncodePrimitiveValue(encType string, encValue any, d
 		if !ok {
 			return nil, dataMismatchError(encType, encValue)
 		}
-		return encodeTypedDataHashWord(crypto.Keccak256([]byte(strVal))), nil
+		return keccak256Word([]byte(strVal)), nil
 	case "bytes":
 		bytesValue, ok := parseBytes(encValue)
 		if !ok {
 			return nil, dataMismatchError(encType, encValue)
 		}
-		return encodeTypedDataHashWord(crypto.Keccak256(bytesValue)), nil
+		return keccak256Word(bytesValue), nil
 	}
 	if after, ok := strings.CutPrefix(encType, "bytes"); ok {
 		lengthStr := after
@@ -805,8 +805,12 @@ func (nvt *NameValueType) Pprint(depth int) string {
 	return output.String()
 }
 
-func encodeTypedDataHashWord(hash []byte) []byte {
-	word := make([]byte, uint512.WordBytes)
-	copy(word, hash)
-	return word
+// encodeHashWord left-aligns a 32-byte hash in one 64-byte typed-data word.
+func encodeHashWord(hash []byte) []byte {
+	return common.RightPadBytes(hash, uint512.WordBytes)
+}
+
+// keccak256Word hashes data and encodes the result as one typed-data word.
+func keccak256Word(data []byte) []byte {
+	return encodeHashWord(crypto.Keccak256(data))
 }
