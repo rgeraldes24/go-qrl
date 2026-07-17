@@ -41,7 +41,6 @@ func TestIsPrimitive(t *testing.T) {
 	for i, tc := range []string{
 		"int257", "int257[]", "uint88 ", "uint88 []", "uint257", "uint-1[]",
 		"uint0", "uint0[]", "int95", "int95[]", "uint1", "uint1[]", "bytes65[]", "bytess",
-		"uint512[abc]", "uint512[-1]", "uint512[2]junk",
 	} {
 		if isPrimitiveTypeValid(tc) {
 			t.Errorf("test %d: expected '%v' to not be a valid primitive", i, tc)

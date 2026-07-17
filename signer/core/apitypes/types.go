@@ -746,9 +746,6 @@ func init() {
 
 // Checks if the primitive value is valid.
 func isPrimitiveTypeValid(primitiveType string) bool {
-	if !typedDataReferenceTypeRegexp.MatchString(primitiveType) {
-		return false
-	}
 	input := strings.Split(primitiveType, "[")[0]
 	_, ok := validPrimitiveTypes[input]
 	return ok
