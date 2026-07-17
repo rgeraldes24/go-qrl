@@ -3797,13 +3797,14 @@ HyperionFunction.prototype.typeName = function () {
 HyperionFunction.prototype.request = function () {
     var args = Array.prototype.slice.call(arguments);
     var callback = this.extractCallback(args);
+    var defaultBlock = this._constant ? this.extractDefaultBlock(args) : undefined;
     var payload = this.toPayload(args);
     var format = this.unpackOutput.bind(this);
 
     return {
         method: this._constant ? 'qrl_call' : 'qrl_sendTransaction',
         callback: callback,
-        params: [payload],
+        params: this._constant ? [payload, defaultBlock || formatters.inputDefaultBlockNumberFormatter()] : [payload],
         format: format
     };
 };
