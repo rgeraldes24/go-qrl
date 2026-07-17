@@ -544,11 +544,9 @@ func DeveloperGenesisBlock(gasLimit uint64, faucet common.Address) *Genesis {
 		Alloc: map[common.Address]GenesisAccount{
 			common.BytesToAddress([]byte{1}): {Balance: big.NewInt(1)}, // DepositRoot
 			common.BytesToAddress([]byte{2}): {Balance: big.NewInt(1)}, // SHA256
+			common.BytesToAddress([]byte{3}): {Balance: big.NewInt(1)}, // MLDSA87Verify
 			common.BytesToAddress([]byte{4}): {Balance: big.NewInt(1)}, // Identity
 			common.BytesToAddress([]byte{5}): {Balance: big.NewInt(1)}, // ModExp
-			common.BytesToAddress([]byte{6}): {Balance: big.NewInt(1)}, // ECAdd
-			common.BytesToAddress([]byte{7}): {Balance: big.NewInt(1)}, // ECScalarMul
-			common.BytesToAddress([]byte{8}): {Balance: big.NewInt(1)}, // ECPairing
 			faucet:                           {Balance: new(big.Int).Sub(new(big.Int).Lsh(big.NewInt(1), 256), big.NewInt(9))},
 		},
 	}

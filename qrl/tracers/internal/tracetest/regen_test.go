@@ -397,6 +397,8 @@ func tracerForFixture(rel string) (string, json.RawMessage, error) {
 		return "callTracer", json.RawMessage(`{"withLog":true}`), nil
 	case strings.HasPrefix(rel, "call_tracer/"):
 		return "callTracer", nil, nil
+	case rel == "call_tracer_flat/include_precompiled.json":
+		return "flatCallTracer", json.RawMessage(`{"includePrecompiles":true}`), nil
 	case strings.HasPrefix(rel, "call_tracer_flat/"):
 		return "flatCallTracer", nil, nil
 	case strings.HasPrefix(rel, "prestate_tracer_with_diff_mode/"):

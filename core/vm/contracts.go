@@ -29,6 +29,7 @@ import (
 	"github.com/theQRL/go-qrl/common/math"
 	"github.com/theQRL/go-qrl/crypto/pqcrypto"
 	"github.com/theQRL/go-qrl/params"
+	cryptomldsa87 "github.com/theQRL/go-qrllib/crypto/ml_dsa_87"
 )
 
 // PrecompiledContract is the basic interface for native Go contracts. The implementation
@@ -39,11 +40,15 @@ type PrecompiledContract interface {
 	Run(input []byte) ([]byte, error) // Run runs the precompiled contract
 }
 
+// trueWord is returned when a precompile verification succeeds.
+var trueWord = common.LeftPadBytes([]byte{1}, WordBytes)
+
 // PrecompiledContractsZond contains the default set of pre-compiled QRL
 // contracts used in the Zond release.
 var PrecompiledContractsZond = map[common.Address]PrecompiledContract{
 	common.BytesToAddress([]byte{1}): &depositroot{},
 	common.BytesToAddress([]byte{2}): &sha256hash{},
+	common.BytesToAddress([]byte{3}): &mldsa87Verify{},
 	common.BytesToAddress([]byte{4}): &dataCopy{},
 	common.BytesToAddress([]byte{5}): &bigModExp{},
 }
@@ -58,8 +63,9 @@ func init() {
 	}
 }
 
-// ActivePrecompiles returns the precompiles enabled with the current configuration.
-func ActivePrecompiles(rules params.Rules) []common.Address {
+// ActivePrecompiles returns the precompiles enabled from Zond genesis. The
+// current protocol has no fork-dependent precompile sets.
+func ActivePrecompiles(_ params.Rules) []common.Address {
 	return PrecompiledAddressesZond
 }
 
@@ -122,6 +128,47 @@ func (c *depositroot) Run(input []byte) ([]byte, error) {
 	}
 
 	return h[:], nil
+}
+
+const (
+	mldsa87VerifyDigestOffset        = 0
+	mldsa87VerifyPublicKeyOffset     = mldsa87VerifyDigestOffset + common.HashLength
+	mldsa87VerifySignatureOffset     = mldsa87VerifyPublicKeyOffset + cryptomldsa87.CRYPTO_PUBLIC_KEY_BYTES
+	mldsa87VerifyContextLengthOffset = mldsa87VerifySignatureOffset + cryptomldsa87.CRYPTO_BYTES
+	mldsa87VerifyContextOffset       = mldsa87VerifyContextLengthOffset + 1
+	mldsa87VerifyMinInputLength      = mldsa87VerifyContextOffset
+	mldsa87VerifyMaxContextLength    = 255
+)
+
+// mldsa87Verify verifies an ML-DSA-87 signature over a fixed-size digest using
+// the supplied public key and context.
+type mldsa87Verify struct{}
+
+func (*mldsa87Verify) RequiredGas([]byte) uint64 {
+	return params.MLDSA87VerifyGas
+}
+
+func (*mldsa87Verify) Run(input []byte) ([]byte, error) {
+	if len(input) < mldsa87VerifyMinInputLength {
+		return nil, nil
+	}
+
+	context := input[mldsa87VerifyContextOffset:]
+	if len(context) != int(input[mldsa87VerifyContextLengthOffset]) {
+		return nil, nil
+	}
+
+	digest := input[mldsa87VerifyDigestOffset:mldsa87VerifyPublicKeyOffset]
+	publicKeyBytes := input[mldsa87VerifyPublicKeyOffset:mldsa87VerifySignatureOffset]
+	publicKey := (*[cryptomldsa87.CRYPTO_PUBLIC_KEY_BYTES]byte)(publicKeyBytes)
+	signatureBytes := input[mldsa87VerifySignatureOffset:mldsa87VerifyContextLengthOffset]
+	signature := [cryptomldsa87.CRYPTO_BYTES]byte(signatureBytes)
+
+	if !cryptomldsa87.Verify(context, digest, signature, publicKey) {
+		return nil, nil
+	}
+
+	return trueWord, nil
 }
 
 type depositdata struct {
