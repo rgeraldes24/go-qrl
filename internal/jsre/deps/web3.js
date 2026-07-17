@@ -652,6 +652,7 @@ var utils = require('../utils/utils');
 var c = require('../utils/config');
 var HyperionParam = require('./param');
 
+
 /**
  * Formats input value to byte representation of int
  * If value is negative, return it's two's complement
