@@ -372,6 +372,26 @@ func TestTypedDataAndHashNestedArrayGolden(t *testing.T) {
 	}
 }
 
+func TestEncodeDataRecursiveBytes(t *testing.T) {
+	t.Parallel()
+	typedData := apitypes.TypedData{
+		Types: apitypes.Types{
+			"RecursiveBytes": {
+				{Name: "field", Type: "bytes[][]"},
+			},
+		},
+		PrimaryType: "RecursiveBytes",
+		Domain:      apitypes.TypedDataDomain{Name: "QRL Recursive Bytes"},
+		Message: apitypes.TypedDataMessage{
+			"field": [][][]byte{{{1}, {2}}, {{3}, {4}}},
+		},
+	}
+
+	if _, err := typedData.EncodeData(typedData.PrimaryType, typedData.Message, 0); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestEncodeType(t *testing.T) {
 	t.Parallel()
 	domainTypeEncoding := string(typedData.EncodeType("QRLTypedDataDomain"))
