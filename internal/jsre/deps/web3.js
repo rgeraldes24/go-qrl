@@ -2679,7 +2679,7 @@ var ContractFactory = function (qrl, abi) {
                 return json.type === 'constructor' && json.inputs.length === args.length;
             })[0] || {};
 
-            if (!constructorAbi.payable && constructorAbi.stateMutability !== 'payable') {
+            if (constructorAbi.stateMutability !== 'payable') {
                 throw new Error('Cannot send value to non-payable constructor');
             }
         }
@@ -3714,8 +3714,8 @@ var HyperionFunction = function (qrl, json, address) {
     this._outputTypes = json.outputs.map(function (i) {
         return i.type;
     });
-    this._constant = json.constant || json.stateMutability === 'view' || json.stateMutability === 'pure';
-    this._payable = json.payable || json.stateMutability === 'payable';
+    this._constant = json.stateMutability === 'view' || json.stateMutability === 'pure';
+    this._payable = json.stateMutability === 'payable';
     this._name = utils.transformToFullName(json);
     this._address = address;
 };

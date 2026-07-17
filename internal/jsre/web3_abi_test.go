@@ -242,7 +242,7 @@ JSON.stringify({
 	if err := json.Unmarshal([]byte(value.String()), &got); err != nil {
 		t.Fatalf("decode constructor stateMutability result %q: %v", value.String(), err)
 	}
-	if !got.CurrentPayable || got.CurrentNonpayable || !got.LegacyPayable {
+	if !got.CurrentPayable || got.CurrentNonpayable || got.LegacyPayable {
 		t.Fatalf("constructor stateMutability mismatch: %+v", got)
 	}
 }
