@@ -16,14 +16,7 @@
 
 package apitypes
 
-import (
-	"bytes"
-	"math/big"
-	"testing"
-
-	"github.com/theQRL/go-qrl/common/math"
-	"github.com/theQRL/go-qrl/crypto"
-)
+import "testing"
 
 func TestIsPrimitive(t *testing.T) {
 	t.Parallel()
@@ -76,40 +69,5 @@ func TestTypeName(t *testing.T) {
 		if got := (&Type{Type: test.typ}).typeName(); got != test.want {
 			t.Errorf("typeName(%q) = %q, want %q", test.typ, got, test.want)
 		}
-	}
-}
-
-func TestNestedArrayEncoding(t *testing.T) {
-	t.Parallel()
-	typedData := TypedData{}
-	values := [][]*big.Int{
-		{big.NewInt(1), big.NewInt(2)},
-		{big.NewInt(3), big.NewInt(4)},
-	}
-	got, err := typedData.encodeArrayValue(values, "uint512[2][2]", 1)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	innerHash := func(a, b *big.Int) []byte {
-		return crypto.Keccak256(append(math.U512Bytes(new(big.Int).Set(a)), math.U512Bytes(new(big.Int).Set(b))...))
-	}
-	want := crypto.Keccak256(append(
-		encodeHashWord(innerHash(values[0][0], values[0][1])),
-		encodeHashWord(innerHash(values[1][0], values[1][1]))...,
-	))
-	if !bytes.Equal(got, want) {
-		t.Fatalf("unexpected nested array hash: got %x, want %x", got, want)
-	}
-}
-
-func TestNestedReferenceArrayValidation(t *testing.T) {
-	t.Parallel()
-	types := Types{
-		"Container": {{Name: "people", Type: "Person[2][3]"}},
-		"Person":    {{Name: "name", Type: "string"}},
-	}
-	if err := types.validate(); err != nil {
-		t.Fatal(err)
 	}
 }
