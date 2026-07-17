@@ -685,7 +685,7 @@ var formatInputAddress = function (value) {
  */
 var formatInputBytes = function (value) {
     var result = utils.toHex(value).substr(2);
-    var l = Math.floor((result.length + 127) / 128);
+    var l = Math.max(1, Math.floor((result.length + 127) / 128));
     result = utils.padRight(result, l * 128);
     return new HyperionParam(result);
 };
