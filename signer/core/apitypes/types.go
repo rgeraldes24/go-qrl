@@ -356,7 +356,10 @@ func (typedData *TypedData) encodeArrayValue(encValue any, encType string, depth
 	for _, item := range arrayValue {
 		if reflect.TypeOf(item).Kind() == reflect.Slice ||
 			reflect.TypeOf(item).Kind() == reflect.Array {
-			var encodedData hexutil.Bytes
+			var (
+				encodedData hexutil.Bytes
+				err         error
+			)
 			if reflect.TypeOf(item).Elem().Kind() == reflect.Uint8 {
 				// the item type is bytes.  encode the bytes array directly instead of recursing.
 				encodedData, err = typedData.EncodePrimitiveValue(parsedType, item, depth+1)
