@@ -652,8 +652,6 @@ var utils = require('../utils/utils');
 var c = require('../utils/config');
 var HyperionParam = require('./param');
 
-var twoTo512 = new BigNumber('1' + Array(129).join('0'), 16);
-
 /**
  * Formats input value to byte representation of int
  * If value is negative, return it's two's complement
@@ -756,7 +754,7 @@ var formatOutputInt = function (param) {
     // check if it's negative number
     // it is, return two's complement
     if (signedIsNegative(value)) {
-        return new BigNumber(value, 16).minus(twoTo512);
+        return new BigNumber(value, 16).minus(new BigNumber('ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff', 16)).minus(1);
     }
     return new BigNumber(value, 16);
 };
@@ -1519,8 +1517,6 @@ var BigNumber = require('bignumber.js');
 var sha3 = require('./sha3.js');
 var utf8 = require('utf8');
 
-var twoTo512 = new BigNumber('1' + Array(129).join('0'), 16);
-
 var unitMap = {
     'noquanta': '0',
     'planck':   '1',
@@ -1852,7 +1848,7 @@ var toBigNumber = function(number) {
 var toTwosComplement = function (number) {
     var bigNumber = toBigNumber(number).round();
     if (bigNumber.lessThan(0)) {
-        return twoTo512.plus(bigNumber);
+        return new BigNumber("ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff", 16).plus(bigNumber).plus(1);
     }
     return bigNumber;
 };
