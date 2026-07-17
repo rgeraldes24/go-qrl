@@ -64,7 +64,7 @@ func (vs *ValidationMessages) Info(msg string) {
 	vs.Messages = append(vs.Messages, ValidationInfo{INFO, msg})
 }
 
-// getWarnings returns an error with all messages of type WARN of above, or nil if no warnings were present
+// GetWarnings returns an error with all messages of type WARN of above, or nil if no warnings were present
 func (vs *ValidationMessages) GetWarnings() error {
 	var messages []string
 	for _, msg := range vs.Messages {
@@ -92,7 +92,6 @@ type SendTxArgs struct {
 
 	// We accept "data" and "input" for backwards-compatibility reasons.
 	// "input" is the newer name and should be preferred by clients.
-	// Issue detail: https://github.com/theQRL/go-qrl/issues/15628
 	Data  *hexutil.Bytes `json:"data"`
 	Input *hexutil.Bytes `json:"input,omitempty"`
 
@@ -108,6 +107,18 @@ func (args SendTxArgs) String() string {
 	return err.Error()
 }
 
+// data retrieves the transaction calldata.
+// Input field is preferred.
+func (args *SendTxArgs) data() []byte {
+	if args.Input != nil {
+		return *args.Input
+	}
+	if args.Data != nil {
+		return *args.Data
+	}
+	return nil
+}
+
 // ToTransaction converts the arguments to a transaction.
 func (args *SendTxArgs) ToTransaction() *types.Transaction {
 	// Add the To-field, if specified
@@ -117,31 +128,20 @@ func (args *SendTxArgs) ToTransaction() *types.Transaction {
 		to = &dstAddr
 	}
 
-	var input []byte
-	if args.Input != nil {
-		input = *args.Input
-	} else if args.Data != nil {
-		input = *args.Data
+	al := types.AccessList{}
+	if args.AccessList != nil {
+		al = *args.AccessList
 	}
-
-	var data types.TxData
-	switch {
-	default:
-		al := types.AccessList{}
-		if args.AccessList != nil {
-			al = *args.AccessList
-		}
-		data = &types.DynamicFeeTx{
-			To:         to,
-			ChainID:    (*big.Int)(args.ChainID),
-			Nonce:      uint64(args.Nonce),
-			Gas:        uint64(args.Gas),
-			GasFeeCap:  (*big.Int)(args.MaxFeePerGas),
-			GasTipCap:  (*big.Int)(args.MaxPriorityFeePerGas),
-			Value:      (*big.Int)(&args.Value),
-			Data:       input,
-			AccessList: al,
-		}
+	data := &types.DynamicFeeTx{
+		To:         to,
+		ChainID:    (*big.Int)(args.ChainID),
+		Nonce:      uint64(args.Nonce),
+		Gas:        uint64(args.Gas),
+		GasFeeCap:  (*big.Int)(args.MaxFeePerGas),
+		GasTipCap:  (*big.Int)(args.MaxPriorityFeePerGas),
+		Value:      (*big.Int)(&args.Value),
+		Data:       args.data(),
+		AccessList: al,
 	}
 	return types.NewTx(data)
 }
@@ -729,18 +729,30 @@ func (t Types) validate() error {
 
 var validPrimitiveTypes = map[string]struct{}{}
 
+// build the set of valid primitive types
 func init() {
-	for _, typ := range []string{"address", "bool", "string", "bytes", "int", "uint"} {
-		validPrimitiveTypes[typ] = struct{}{}
+	// Types those are trivially valid
+	for _, t := range []string{
+		"address", "address[]",
+		"bool", "bool[]",
+		"string", "string[]",
+		"bytes", "bytes[]",
+		"int", "int[]",
+		"uint", "uint[]",
+	} {
+		validPrimitiveTypes[t] = struct{}{}
 	}
-	// For 'bytesN', we allow N from 1 to 64.
+	// For 'bytesN', 'bytesN[]', we allow N from 1 to 64.
 	for n := 1; n <= uint512.WordBytes; n++ {
 		validPrimitiveTypes[fmt.Sprintf("bytes%d", n)] = struct{}{}
+		validPrimitiveTypes[fmt.Sprintf("bytes%d[]", n)] = struct{}{}
 	}
-	// For 'intN' and 'uintN', we allow N in increments of 8, from 8 up to 512.
+	// For 'intN','intN[]' and 'uintN','uintN[]' we allow N in increments of 8, from 8 up to 512
 	for n := 8; n <= uint512.WordBits; n += 8 {
 		validPrimitiveTypes[fmt.Sprintf("int%d", n)] = struct{}{}
+		validPrimitiveTypes[fmt.Sprintf("int%d[]", n)] = struct{}{}
 		validPrimitiveTypes[fmt.Sprintf("uint%d", n)] = struct{}{}
+		validPrimitiveTypes[fmt.Sprintf("uint%d[]", n)] = struct{}{}
 	}
 }
 
