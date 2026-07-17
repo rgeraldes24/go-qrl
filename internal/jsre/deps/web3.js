@@ -1873,7 +1873,16 @@ var isStrictAddress = function (address) {
  * @return {Boolean}
 */
 var isAddress = function (address) {
-    return /^Q[0-9a-f]{128}$/i.test(address);
+    if (!/^Q[0-9a-f]{128}$/i.test(address)) {
+        // check if it has the basic requirements of an address
+        return false;
+    } else if (/^Q[0-9a-f]{128}$/.test(address) || /^Q[0-9A-F]{128}$/.test(address)) {
+        // If it's all small caps or all caps, return true
+        return true;
+    } else {
+        // Otherwise check each case
+        return isChecksumAddress(address);
+    }
 };
 
 /**

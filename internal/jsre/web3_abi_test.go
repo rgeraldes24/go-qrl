@@ -259,6 +259,19 @@ func TestEmbeddedWeb3SignedInt512AndAddressInput(t *testing.T) {
 	minimumValue := "-0x" + minimumWord
 	negativeOneData := "0x" + common.Bytes2Hex(crypto.Keccak256([]byte("storeInt(int512)"))[:4]) + negativeOneWord
 	minimumData := "0x" + common.Bytes2Hex(crypto.Keccak256([]byte("storeInt(int512)"))[:4]) + minimumWord
+	lowerAddress := "Q" + strings.Repeat("a", common.AddressLength*2)
+	address, err := common.NewAddressFromString(lowerAddress)
+	if err != nil {
+		t.Fatal(err)
+	}
+	checksumAddress := address.Hex()
+	invalidChecksum := []byte(checksumAddress)
+	if invalidChecksum[1] == 'a' {
+		invalidChecksum[1] = 'A'
+	} else {
+		invalidChecksum[1] = 'a'
+	}
+	addressData := "0x" + common.Bytes2Hex(crypto.Keccak256([]byte("storeAddress(address)"))[:4]) + strings.Repeat("a", common.AddressLength*2)
 
 	script := fmt.Sprintf(web3EchoProvider+`
 var Web3 = require("web3");
@@ -289,11 +302,18 @@ currentOutput = "0x%s";
 var negativeOne = contract.loadInt().toString(16);
 currentOutput = "0x%s";
 var minimum = contract.loadInt().toString(16);
+var addressData = contract.storeAddress.getData(%q);
 var rejectsInvalidAddress = false;
 try {
   contract.storeAddress.getData("Q1234");
 } catch (err) {
   rejectsInvalidAddress = true;
+}
+var rejectsInvalidChecksum = false;
+try {
+  contract.storeAddress.getData(%q);
+} catch (err) {
+  rejectsInvalidChecksum = true;
 }
 
 JSON.stringify({
@@ -301,19 +321,23 @@ JSON.stringify({
   minimumData: minimumData,
   negativeOne: negativeOne,
   minimum: minimum,
-  rejectsInvalidAddress: rejectsInvalidAddress
+  addressData: addressData,
+  rejectsInvalidAddress: rejectsInvalidAddress,
+  rejectsInvalidChecksum: rejectsInvalidChecksum
 });
-`, contractAddress, minimumValue, negativeOneWord, minimumWord)
+`, contractAddress, minimumValue, negativeOneWord, minimumWord, checksumAddress, string(invalidChecksum))
 	value, err := re.Run(script)
 	if err != nil {
 		t.Fatalf("run signed integer script: %v", err)
 	}
 	var got struct {
-		NegativeOneData       string `json:"negativeOneData"`
-		MinimumData           string `json:"minimumData"`
-		NegativeOne           string `json:"negativeOne"`
-		Minimum               string `json:"minimum"`
-		RejectsInvalidAddress bool   `json:"rejectsInvalidAddress"`
+		NegativeOneData        string `json:"negativeOneData"`
+		MinimumData            string `json:"minimumData"`
+		NegativeOne            string `json:"negativeOne"`
+		Minimum                string `json:"minimum"`
+		AddressData            string `json:"addressData"`
+		RejectsInvalidAddress  bool   `json:"rejectsInvalidAddress"`
+		RejectsInvalidChecksum bool   `json:"rejectsInvalidChecksum"`
 	}
 	if err := json.Unmarshal([]byte(value.String()), &got); err != nil {
 		t.Fatalf("decode signed integer result %q: %v", value.String(), err)
@@ -321,7 +345,7 @@ JSON.stringify({
 	if got.NegativeOneData != negativeOneData || got.MinimumData != minimumData {
 		t.Fatalf("signed calldata mismatch: %+v", got)
 	}
-	if got.NegativeOne != "-1" || got.Minimum != "-"+minimumWord || !got.RejectsInvalidAddress {
+	if got.NegativeOne != "-1" || got.Minimum != "-"+minimumWord || !strings.EqualFold(got.AddressData, addressData) || !got.RejectsInvalidAddress || !got.RejectsInvalidChecksum {
 		t.Fatalf("signed decode or address validation mismatch: %+v", got)
 	}
 }
