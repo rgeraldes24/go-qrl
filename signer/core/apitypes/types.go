@@ -358,7 +358,7 @@ func (typedData *TypedData) encodeArrayValue(encValue any, encType string, depth
 		itemType := reflect.TypeOf(item)
 		if itemType != nil && (itemType.Kind() == reflect.Slice || itemType.Kind() == reflect.Array) {
 			var encodedData hexutil.Bytes
-			if itemType.Elem().Kind() == reflect.Uint8 {
+			if reflect.TypeOf(item).Elem().Kind() == reflect.Uint8 {
 				encodedData, err = typedData.EncodePrimitiveValue(parsedType, item, depth+1)
 			} else {
 				encodedData, err = typedData.encodeArrayValue(item, parsedType, depth+1)
