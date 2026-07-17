@@ -35,6 +35,7 @@ func TestEmbeddedWeb3EventsUseVM64Topics(t *testing.T) {
 	addressTopic := "0x" + strings.Repeat("a", common.LogTopicLength*2)
 	labelTopic := common.HashToLogTopic(crypto.Keccak256Hash([]byte("hello"))).Hex()
 	payloadTopic := common.HashToLogTopic(crypto.Keccak256Hash([]byte{0xab, 0xcd})).Hex()
+	emptyPayloadTopic := common.HashToLogTopic(crypto.Keccak256Hash(nil)).Hex()
 	amountWord := abiWordHex(2)
 
 	script := fmt.Sprintf(eventCaptureProvider+`
@@ -53,6 +54,7 @@ var contract = web3.qrl.contract([{
 }]).at(%q);
 
 var filter = contract.Transfer({from: %q, label: "hello", payload: "0xabcd"});
+contract.Transfer({payload: "0x"});
 var log = {
   address: %q,
   topics: [%q, %q, %q, %q],
@@ -66,6 +68,7 @@ var allEventsDecoded = contract.allEvents().formatter(JSON.parse(JSON.stringify(
 
 JSON.stringify({
   topics: captured[0].topics,
+  emptyPayloadTopic: captured[1].topics[3],
   event: decoded.event,
   from: decoded.args.from,
   label: decoded.args.label,
@@ -81,15 +84,16 @@ JSON.stringify({
 		t.Fatalf("run event script: %v", err)
 	}
 	var got struct {
-		Topics           []string `json:"topics"`
-		Event            string   `json:"event"`
-		From             string   `json:"from"`
-		Label            string   `json:"label"`
-		Payload          string   `json:"payload"`
-		Amount           string   `json:"amount"`
-		AllEventsEvent   string   `json:"allEventsEvent"`
-		SignatureIsTopic bool     `json:"signatureIsTopic"`
-		EventIDIsTopic   bool     `json:"eventIDIsTopic"`
+		Topics            []string `json:"topics"`
+		EmptyPayloadTopic string   `json:"emptyPayloadTopic"`
+		Event             string   `json:"event"`
+		From              string   `json:"from"`
+		Label             string   `json:"label"`
+		Payload           string   `json:"payload"`
+		Amount            string   `json:"amount"`
+		AllEventsEvent    string   `json:"allEventsEvent"`
+		SignatureIsTopic  bool     `json:"signatureIsTopic"`
+		EventIDIsTopic    bool     `json:"eventIDIsTopic"`
 	}
 	if err := json.Unmarshal([]byte(value.String()), &got); err != nil {
 		t.Fatalf("decode event result %q: %v", value.String(), err)
@@ -97,6 +101,9 @@ JSON.stringify({
 	wantTopics := []string{signatureTopic, addressTopic, labelTopic, payloadTopic}
 	if strings.Join(got.Topics, ",") != strings.Join(wantTopics, ",") {
 		t.Fatalf("event topics mismatch:\nhave %v\nwant %v", got.Topics, wantTopics)
+	}
+	if got.EmptyPayloadTopic != emptyPayloadTopic {
+		t.Fatalf("empty bytes topic mismatch: have %s, want %s", got.EmptyPayloadTopic, emptyPayloadTopic)
 	}
 	if got.Event != "Transfer" || got.AllEventsEvent != "Transfer" || got.From != indexedAddress || got.Label != labelTopic || got.Payload != payloadTopic || got.Amount != "2" {
 		t.Fatalf("decoded event mismatch: %+v", got)
