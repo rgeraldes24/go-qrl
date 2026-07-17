@@ -2146,7 +2146,12 @@ var isBloom = function (bloom) {
  * @return {Boolean}
  */
 var isTopic = function (topic) {
-    return /^(0x)?[0-9a-f]{128}$/i.test(topic);
+    if (!/^(0x)?[0-9a-f]{128}$/i.test(topic)) {
+        return false;
+    } else if (/^(0x)?[0-9a-f]{128}$/.test(topic) || /^(0x)?[0-9A-F]{128}$/.test(topic)) {
+        return true;
+    }
+    return false;
 };
 
 module.exports = {
@@ -2914,20 +2919,6 @@ HyperionEvent.prototype.signature = function () {
     return sha3(this._name);
 };
 
-var eventTopic = function (value) {
-    return utils.padRight(value, 128);
-};
-
-var indexedTopic = function (type, value) {
-    if (type === 'string') {
-        return eventTopic(sha3(value));
-    }
-    if (type === 'bytes') {
-        return eventTopic(sha3(value, {encoding: 'hex'}));
-    }
-    return coder.encodeParam(type, value);
-};
-
 /**
  * Should be used to encode indexed params and options to one final object
  *
@@ -2951,7 +2942,7 @@ HyperionEvent.prototype.encode = function (indexed, options) {
 
     result.address = this._address;
     if (!this._anonymous) {
-        result.topics.push('0x' + eventTopic(this.signature()));
+        result.topics.push('0x' + utils.padRight(this.signature(), 128));
     }
 
     var indexedTopics = this._params.filter(function (i) {
@@ -2962,12 +2953,20 @@ HyperionEvent.prototype.encode = function (indexed, options) {
             return null;
         }
 
+        var encodeTopic = function (v) {
+            if (i.type === 'string') {
+                return '0x' + utils.padRight(sha3(v), 128);
+            }
+            if (i.type === 'bytes') {
+                return '0x' + utils.padRight(sha3(v, {encoding: 'hex'}), 128);
+            }
+            return '0x' + coder.encodeParam(i.type, v);
+        };
+
         if (utils.isArray(value)) {
-            return value.map(function (v) {
-                return '0x' + indexedTopic(i.type, v);
-            });
+            return value.map(encodeTopic);
         }
-        return '0x' + indexedTopic(i.type, value);
+        return encodeTopic(value);
     });
 
     result.topics = result.topics.concat(indexedTopics);
