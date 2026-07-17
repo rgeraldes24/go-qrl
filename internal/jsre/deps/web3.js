@@ -497,7 +497,7 @@ HyperionCoder.prototype.encodeWithOffset = function (type, hyperionType, encoded
             // first element is length, skip it
             (function () {
                 for (var i = 0; i < encoded.length - 1; i++) {
-                    var additionalOffset = result.length / 2;
+                    var additionalOffset = result / 2;
                     result += self.encodeWithOffset(nestedName, hyperionType, encoded[i + 1], offset +  additionalOffset);
                 }
             })();
@@ -525,7 +525,7 @@ HyperionCoder.prototype.encodeWithOffset = function (type, hyperionType, encoded
 
             (function () {
                 for (var i = 0; i < encoded.length; i++) {
-                    var additionalOffset = result.length / 2;
+                    var additionalOffset = result / 2;
                     result += self.encodeWithOffset(nestedName, hyperionType, encoded[i], offset + additionalOffset);
                 }
             })();
