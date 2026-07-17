@@ -56,8 +56,8 @@ var unmarshalLogTests = map[string]struct {
 			TxIndex:     3,
 			TxHash:      common.HexToHash("0x3b198bfd5d2907285af009e9ae84a0ecd63677110d89d7e030251acb87f6487e"),
 			Topics: []common.LogTopic{
-				common.HexToLogTopic(topicTransferSig),
-				common.HexToLogTopic(topicSender),
+				common.MustParseLogTopic(topicTransferSig),
+				common.MustParseLogTopic(topicSender),
 			},
 		},
 	},
@@ -72,8 +72,8 @@ var unmarshalLogTests = map[string]struct {
 			TxIndex:     3,
 			TxHash:      common.HexToHash("0x3b198bfd5d2907285af009e9ae84a0ecd63677110d89d7e030251acb87f6487e"),
 			Topics: []common.LogTopic{
-				common.HexToLogTopic(topicTransferSig),
-				common.HexToLogTopic(topicSender),
+				common.MustParseLogTopic(topicTransferSig),
+				common.MustParseLogTopic(topicSender),
 			},
 		},
 	},
@@ -88,7 +88,7 @@ var unmarshalLogTests = map[string]struct {
 			TxIndex:     3,
 			TxHash:      common.HexToHash("0x3b198bfd5d2907285af009e9ae84a0ecd63677110d89d7e030251acb87f6487e"),
 			Topics: []common.LogTopic{
-				common.HexToLogTopic(topicTransferSig),
+				common.MustParseLogTopic(topicTransferSig),
 			},
 		},
 	},
@@ -103,7 +103,7 @@ var unmarshalLogTests = map[string]struct {
 			TxIndex:     3,
 			TxHash:      common.HexToHash("0x3b198bfd5d2907285af009e9ae84a0ecd63677110d89d7e030251acb87f6487e"),
 			Topics: []common.LogTopic{
-				common.HexToLogTopic(topicTransferSig),
+				common.MustParseLogTopic(topicTransferSig),
 			},
 			Removed: true,
 		},

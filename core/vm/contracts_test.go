@@ -168,7 +168,7 @@ func BenchmarkPrecompiledDepositroot(bench *testing.B) {
 		Expected: "862581de9cddb8c039878d5a6d83409556361fbdd6ecd17e62df68c377db2362",
 		Name:     "",
 	}
-	benchmarkPrecompiled("01", t, bench)
+	benchmarkPrecompiled(precompileAddress("01"), t, bench)
 }
 
 // Benchmarks the sample inputs from the SHA256 precompile.

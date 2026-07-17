@@ -37,12 +37,12 @@ var (
 		Logs: []*Log{
 			{
 				Address: common.BytesToAddress([]byte{0x11}),
-				Topics:  []common.LogTopic{common.HexToLogTopic("dead"), common.HexToLogTopic("beef")},
+				Topics:  []common.LogTopic{common.BytesToRightAlignedLogTopic(common.FromHex("dead")), common.BytesToRightAlignedLogTopic(common.FromHex("beef"))},
 				Data:    []byte{0x01, 0x00, 0xff},
 			},
 			{
 				Address: common.BytesToAddress([]byte{0x01, 0x11}),
-				Topics:  []common.LogTopic{common.HexToLogTopic("dead"), common.HexToLogTopic("beef")},
+				Topics:  []common.LogTopic{common.BytesToRightAlignedLogTopic(common.FromHex("dead")), common.BytesToRightAlignedLogTopic(common.FromHex("beef"))},
 				Data:    []byte{0x01, 0x00, 0xff},
 			},
 		},
@@ -111,7 +111,7 @@ var (
 			Logs: []*Log{
 				{
 					Address: common.BytesToAddress([]byte{0x11}),
-					Topics:  []common.LogTopic{common.HexToLogTopic("dead"), common.HexToLogTopic("beef")},
+					Topics:  []common.LogTopic{common.BytesToRightAlignedLogTopic(common.FromHex("dead")), common.BytesToRightAlignedLogTopic(common.FromHex("beef"))},
 					// derived fields:
 					BlockNumber: blockNumber.Uint64(),
 					TxHash:      txs[0].Hash(),
@@ -121,7 +121,7 @@ var (
 				},
 				{
 					Address: common.BytesToAddress([]byte{0x01, 0x11}),
-					Topics:  []common.LogTopic{common.HexToLogTopic("dead"), common.HexToLogTopic("beef")},
+					Topics:  []common.LogTopic{common.BytesToRightAlignedLogTopic(common.FromHex("dead")), common.BytesToRightAlignedLogTopic(common.FromHex("beef"))},
 					// derived fields:
 					BlockNumber: blockNumber.Uint64(),
 					TxHash:      txs[0].Hash(),
@@ -146,7 +146,7 @@ var (
 			Logs: []*Log{
 				{
 					Address: common.BytesToAddress([]byte{0x22}),
-					Topics:  []common.LogTopic{common.HexToLogTopic("dead"), common.HexToLogTopic("beef")},
+					Topics:  []common.LogTopic{common.BytesToRightAlignedLogTopic(common.FromHex("dead")), common.BytesToRightAlignedLogTopic(common.FromHex("beef"))},
 					// derived fields:
 					BlockNumber: blockNumber.Uint64(),
 					TxHash:      txs[1].Hash(),
@@ -156,7 +156,7 @@ var (
 				},
 				{
 					Address: common.BytesToAddress([]byte{0x02, 0x22}),
-					Topics:  []common.LogTopic{common.HexToLogTopic("dead"), common.HexToLogTopic("beef")},
+					Topics:  []common.LogTopic{common.BytesToRightAlignedLogTopic(common.FromHex("dead")), common.BytesToRightAlignedLogTopic(common.FromHex("beef"))},
 					// derived fields:
 					BlockNumber: blockNumber.Uint64(),
 					TxHash:      txs[1].Hash(),

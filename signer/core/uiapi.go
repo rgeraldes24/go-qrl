@@ -134,7 +134,7 @@ func (api *UIServerAPI) ImportRawWallet(seed string, password string) (accounts.
 	return fetchKeystore(api.am).ImportWallet(wallet, password)
 }
 
-// ChainId returns the chainid in use for Eip-155 replay protection
+// ChainId returns the chain ID used to bind QRL transaction signatures to the network.
 // Example call
 // {"jsonrpc":"2.0","method":"clef_chainId","params":[], "id":8}
 func (api *UIServerAPI) ChainId() math.HexOrDecimal64 {
@@ -142,7 +142,7 @@ func (api *UIServerAPI) ChainId() math.HexOrDecimal64 {
 }
 
 // SetChainId sets the chain id to use when signing transactions.
-// Example call to set Ropsten:
+// Example call to set chain ID 3:
 // {"jsonrpc":"2.0","method":"clef_setChainId","params":["3"], "id":8}
 func (api *UIServerAPI) SetChainId(id math.HexOrDecimal64) math.HexOrDecimal64 {
 	api.extApi.chainID = new(big.Int).SetUint64(uint64(id))

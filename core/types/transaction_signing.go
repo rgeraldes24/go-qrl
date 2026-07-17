@@ -53,9 +53,9 @@ func LatestSigner(config *params.ChainConfig) Signer {
 	return NewZondSigner(config.ChainID)
 }
 
-// LatestSignerForChainID returns the 'most permissive' Signer available. Specifically,
-// this enables support for EIP-155 replay protection and all implemented EIP-2718
-// transaction types if chainID is non-nil.
+// LatestSignerForChainID returns a signer for the current QRL transaction format.
+// The chain ID binds transaction signatures to a network and prevents cross-chain
+// replay.
 //
 // Use this in transaction-handling code where the current block number and fork
 // configuration are unknown. If you have a ChainConfig, use LatestSigner instead.
@@ -161,10 +161,7 @@ type ZondSigner struct {
 	ChainId *big.Int
 }
 
-// NewShangaiSigner returns a signer that accepts
-// - EIP-1559 dynamic fee transactions
-// - EIP-2930 access list transactions,
-// - EIP-155 replay protected transactions
+// NewZondSigner returns a signer for QRL dynamic-fee transactions.
 func NewZondSigner(chainId *big.Int) Signer {
 	return ZondSigner{chainId}
 }
