@@ -47,6 +47,9 @@ func TestEmbeddedWeb3ABICoderUsesVM64Words(t *testing.T) {
 	expectedData := "0x" +
 		common.Bytes2Hex(crypto.Keccak256([]byte("store(address,uint512,string,bool,bytes33)"))[:4]) +
 		strings.Repeat("a", common.AddressLength*2) + maxUint512 + offsetWord + boolWord + bytes33Word + lengthWord + labelWord
+	expectedEmptyTagData := "0x" +
+		common.Bytes2Hex(crypto.Keccak256([]byte("storeTag(bytes33)"))[:4]) +
+		strings.Repeat("0", common.StorageValue64Length*2)
 
 	script := fmt.Sprintf(web3EchoProvider+`
 currentOutput = %q;
@@ -78,6 +81,12 @@ var contractAbi = [{
   stateMutability: "view",
   type: "function"
 }, {
+  inputs: [{name: "tag", type: "bytes33"}],
+  name: "storeTag",
+  outputs: [],
+  stateMutability: "nonpayable",
+  type: "function"
+}, {
   inputs: [],
   name: "pay",
   outputs: [],
@@ -86,12 +95,14 @@ var contractAbi = [{
 }];
 var contract = web3.qrl.contract(contractAbi).at(%q);
 var data = contract.store.getData(%q, %q, "hello", true, "0x%s");
+var emptyTagData = contract.storeTag.getData("0x");
 var decoded = contract.load();
 var loadMethod = lastPayload.method;
 contract.pay({from: %q, value: 1});
 
 JSON.stringify({
   data: data,
+  emptyTagData: emptyTagData,
   address: decoded[0],
   amount: decoded[1].toString(16),
   label: decoded[2],
@@ -106,20 +117,24 @@ JSON.stringify({
 		t.Fatalf("run ABI coder script: %v", err)
 	}
 	var got struct {
-		Data       string `json:"data"`
-		Address    string `json:"address"`
-		Amount     string `json:"amount"`
-		Label      string `json:"label"`
-		Active     bool   `json:"active"`
-		Tag        string `json:"tag"`
-		LoadMethod string `json:"loadMethod"`
-		PayMethod  string `json:"payMethod"`
+		Data         string `json:"data"`
+		EmptyTagData string `json:"emptyTagData"`
+		Address      string `json:"address"`
+		Amount       string `json:"amount"`
+		Label        string `json:"label"`
+		Active       bool   `json:"active"`
+		Tag          string `json:"tag"`
+		LoadMethod   string `json:"loadMethod"`
+		PayMethod    string `json:"payMethod"`
 	}
 	if err := json.Unmarshal([]byte(value.String()), &got); err != nil {
 		t.Fatalf("decode ABI coder result %q: %v", value.String(), err)
 	}
 	if got.Data != expectedData {
 		t.Fatalf("calldata mismatch:\nhave %s\nwant %s", got.Data, expectedData)
+	}
+	if got.EmptyTagData != expectedEmptyTagData {
+		t.Fatalf("empty fixed bytes calldata mismatch:\nhave %s\nwant %s", got.EmptyTagData, expectedEmptyTagData)
 	}
 	if got.Address != address || got.Amount != maxUint512 || got.Label != "hello" || !got.Active || got.Tag != "0x"+bytes33 {
 		t.Fatalf("decoded values mismatch: %+v", got)
