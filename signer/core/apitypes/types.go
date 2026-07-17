@@ -381,11 +381,11 @@ func (typedData *TypedData) encodeArrayValue(encValue any, encType string, depth
 			}
 			arrayBuffer.Write(keccak256Word(encodedData))
 		} else {
-			encodedData, err := typedData.EncodePrimitiveValue(parsedType, item, depth)
+			bytesValue, err := typedData.EncodePrimitiveValue(parsedType, item, depth)
 			if err != nil {
 				return nil, err
 			}
-			arrayBuffer.Write(encodedData)
+			arrayBuffer.Write(bytesValue)
 		}
 	}
 	return crypto.Keccak256(arrayBuffer.Bytes()), nil
