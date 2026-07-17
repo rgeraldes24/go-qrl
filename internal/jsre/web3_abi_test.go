@@ -37,15 +37,16 @@ func TestEmbeddedWeb3ABICoderUsesVM64Words(t *testing.T) {
 	maxUint512Decimal := "134078079299425970995740249982058461274793658205923933" +
 		"77723561443721764030073546976801874298166903427690031" +
 		"858186486050853753882811946569946433649006084095"
-	bytes64 := strings.Repeat("ab", common.StorageValue64Length)
+	bytes33 := strings.Repeat("ab", 33)
+	bytes33Word := bytes33 + strings.Repeat("0", (common.StorageValue64Length-33)*2)
 	offsetWord := abiWordHex(5 * common.StorageValue64Length)
 	boolWord := abiWordHex(1)
 	lengthWord := abiWordHex(5)
 	labelWord := common.Bytes2Hex([]byte("hello")) + strings.Repeat("0", common.StorageValue64Length*2-len("hello")*2)
-	output := "0x" + strings.Repeat("a", common.AddressLength*2) + maxUint512 + offsetWord + boolWord + bytes64 + lengthWord + labelWord
+	output := "0x" + strings.Repeat("a", common.AddressLength*2) + maxUint512 + offsetWord + boolWord + bytes33Word + lengthWord + labelWord
 	expectedData := "0x" +
-		common.Bytes2Hex(crypto.Keccak256([]byte("store(address,uint512,string,bool,bytes64)"))[:4]) +
-		strings.Repeat("a", common.AddressLength*2) + maxUint512 + offsetWord + boolWord + bytes64 + lengthWord + labelWord
+		common.Bytes2Hex(crypto.Keccak256([]byte("store(address,uint512,string,bool,bytes33)"))[:4]) +
+		strings.Repeat("a", common.AddressLength*2) + maxUint512 + offsetWord + boolWord + bytes33Word + lengthWord + labelWord
 
 	script := fmt.Sprintf(web3EchoProvider+`
 currentOutput = %q;
@@ -58,7 +59,7 @@ var contractAbi = [{
     {name: "amount", type: "uint512"},
     {name: "label", type: "string"},
     {name: "active", type: "bool"},
-    {name: "tag", type: "bytes64"}
+    {name: "tag", type: "bytes33"}
   ],
   name: "store",
   outputs: [],
@@ -72,7 +73,7 @@ var contractAbi = [{
     {name: "amount", type: "uint512"},
     {name: "label", type: "string"},
     {name: "active", type: "bool"},
-    {name: "tag", type: "bytes64"}
+    {name: "tag", type: "bytes33"}
   ],
   stateMutability: "view",
   type: "function"
@@ -99,7 +100,7 @@ JSON.stringify({
   loadMethod: loadMethod,
   payMethod: lastPayload.method
 });
-`, output, contractAddress, address, maxUint512Decimal, bytes64, address)
+`, output, contractAddress, address, maxUint512Decimal, bytes33, address)
 	value, err := re.Run(script)
 	if err != nil {
 		t.Fatalf("run ABI coder script: %v", err)
@@ -120,11 +121,103 @@ JSON.stringify({
 	if got.Data != expectedData {
 		t.Fatalf("calldata mismatch:\nhave %s\nwant %s", got.Data, expectedData)
 	}
-	if got.Address != address || got.Amount != maxUint512 || got.Label != "hello" || !got.Active || got.Tag != "0x"+bytes64 {
+	if got.Address != address || got.Amount != maxUint512 || got.Label != "hello" || !got.Active || got.Tag != "0x"+bytes33 {
 		t.Fatalf("decoded values mismatch: %+v", got)
 	}
 	if got.LoadMethod != "qrl_call" || got.PayMethod != "qrl_sendTransaction" {
 		t.Fatalf("stateMutability routing mismatch: load=%q pay=%q", got.LoadMethod, got.PayMethod)
+	}
+}
+
+func TestEmbeddedWeb3DynamicBytesAndArrays(t *testing.T) {
+	t.Parallel()
+
+	re := newEmbeddedWeb3(t)
+	contractAddress := "Q" + strings.Repeat("0", common.AddressLength*2)
+	payload := "a1b2c3"
+	payloadWord := payload + strings.Repeat("0", common.StorageValue64Length*2-len(payload))
+	bytesOutput := "0x" + abiWordHex(common.StorageValue64Length) + abiWordHex(3) + payloadWord
+	bytesData := "0x" +
+		common.Bytes2Hex(crypto.Keccak256([]byte("storeBytes(bytes)"))[:4]) +
+		abiWordHex(common.StorageValue64Length) + abiWordHex(3) + payloadWord
+
+	arraysOutput := "0x" +
+		abiWordHex(1) + abiWordHex(2) + abiWordHex(3*common.StorageValue64Length) +
+		abiWordHex(3) + abiWordHex(3) + abiWordHex(4) + abiWordHex(5)
+	arraysData := "0x" +
+		common.Bytes2Hex(crypto.Keccak256([]byte("storeArrays(uint512[2],uint512[])"))[:4]) +
+		strings.TrimPrefix(arraysOutput, "0x")
+
+	script := fmt.Sprintf(web3EchoProvider+`
+var Web3 = require("web3");
+var web3 = new Web3(provider);
+var contract = web3.qrl.contract([{
+  inputs: [{name: "value", type: "bytes"}],
+  name: "storeBytes",
+  outputs: [],
+  stateMutability: "nonpayable",
+  type: "function"
+}, {
+  inputs: [],
+  name: "loadBytes",
+  outputs: [{name: "value", type: "bytes"}],
+  stateMutability: "pure",
+  type: "function"
+}, {
+  inputs: [{name: "fixedValues", type: "uint512[2]"}, {name: "dynamicValues", type: "uint512[]"}],
+  name: "storeArrays",
+  outputs: [],
+  stateMutability: "nonpayable",
+  type: "function"
+}, {
+  inputs: [],
+  name: "loadArrays",
+  outputs: [{name: "fixedValues", type: "uint512[2]"}, {name: "dynamicValues", type: "uint512[]"}],
+  stateMutability: "view",
+  type: "function"
+}]).at(%q);
+
+var bytesData = contract.storeBytes.getData("0x%s");
+currentOutput = %q;
+var decodedBytes = contract.loadBytes();
+var pureMethod = lastPayload.method;
+
+var arraysData = contract.storeArrays.getData([1, 2], [3, 4, 5]);
+currentOutput = %q;
+var decodedArrays = contract.loadArrays();
+
+JSON.stringify({
+  bytesData: bytesData,
+  decodedBytes: decodedBytes,
+  pureMethod: pureMethod,
+  arraysData: arraysData,
+  fixedValues: decodedArrays[0].map(function (value) { return value.toString(10); }),
+  dynamicValues: decodedArrays[1].map(function (value) { return value.toString(10); })
+});
+`, contractAddress, payload, bytesOutput, arraysOutput)
+	value, err := re.Run(script)
+	if err != nil {
+		t.Fatalf("run dynamic bytes and arrays script: %v", err)
+	}
+	var got struct {
+		BytesData     string   `json:"bytesData"`
+		DecodedBytes  string   `json:"decodedBytes"`
+		PureMethod    string   `json:"pureMethod"`
+		ArraysData    string   `json:"arraysData"`
+		FixedValues   []string `json:"fixedValues"`
+		DynamicValues []string `json:"dynamicValues"`
+	}
+	if err := json.Unmarshal([]byte(value.String()), &got); err != nil {
+		t.Fatalf("decode dynamic bytes and arrays result %q: %v", value.String(), err)
+	}
+	if got.BytesData != bytesData || got.DecodedBytes != "0x"+payload {
+		t.Fatalf("dynamic bytes mismatch: %+v", got)
+	}
+	if got.PureMethod != "qrl_call" {
+		t.Fatalf("pure function used %q, want qrl_call", got.PureMethod)
+	}
+	if got.ArraysData != arraysData || strings.Join(got.FixedValues, ",") != "1,2" || strings.Join(got.DynamicValues, ",") != "3,4,5" {
+		t.Fatalf("array encoding mismatch: %+v", got)
 	}
 }
 
