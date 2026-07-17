@@ -107,8 +107,7 @@ func (args SendTxArgs) String() string {
 	return err.Error()
 }
 
-// data retrieves the transaction calldata.
-// Input field is preferred.
+// data retrieves the transaction calldata. Input field is preferred.
 func (args *SendTxArgs) data() []byte {
 	if args.Input != nil {
 		return *args.Input
@@ -355,10 +354,11 @@ func (typedData *TypedData) encodeArrayValue(encValue any, encType string, depth
 	arrayBuffer := new(bytes.Buffer)
 	parsedType := strings.Split(encType, "[")[0]
 	for _, item := range arrayValue {
-		itemType := reflect.TypeOf(item)
-		if itemType != nil && (itemType.Kind() == reflect.Slice || itemType.Kind() == reflect.Array) {
+		if reflect.TypeOf(item).Kind() == reflect.Slice ||
+			reflect.TypeOf(item).Kind() == reflect.Array {
 			var encodedData hexutil.Bytes
 			if reflect.TypeOf(item).Elem().Kind() == reflect.Uint8 {
+				// the item type is bytes.  encode the bytes array directly instead of recursing.
 				encodedData, err = typedData.EncodePrimitiveValue(parsedType, item, depth+1)
 			} else {
 				encodedData, err = typedData.encodeArrayValue(item, parsedType, depth+1)
