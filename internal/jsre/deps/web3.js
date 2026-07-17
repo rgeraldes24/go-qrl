@@ -372,8 +372,6 @@ var HyperionTypeInt = require('./int');
 var HyperionTypeUInt = require('./uint');
 var HyperionTypeDynamicBytes = require('./dynamicbytes');
 var HyperionTypeString = require('./string');
-var HyperionTypeReal = require('./real');
-var HyperionTypeUReal = require('./ureal');
 var HyperionTypeBytes = require('./bytes');
 
 var isDynamic = function (hyperionType, type) {
@@ -599,14 +597,12 @@ var coder = new HyperionCoder([
     new HyperionTypeUInt(),
     new HyperionTypeDynamicBytes(),
     new HyperionTypeBytes(),
-    new HyperionTypeString(),
-    new HyperionTypeReal(),
-    new HyperionTypeUReal()
+    new HyperionTypeString()
 ]);
 
 module.exports = coder;
 
-},{"./address":4,"./bool":5,"./bytes":6,"./dynamicbytes":8,"./formatters":9,"./int":10,"./real":12,"./string":13,"./uint":15,"./ureal":16}],8:[function(require,module,exports){
+},{"./address":4,"./bool":5,"./bytes":6,"./dynamicbytes":8,"./formatters":9,"./int":10,"./string":13,"./uint":15}],8:[function(require,module,exports){
 var f = require('./formatters');
 var HyperionType = require('./type');
 
@@ -737,18 +733,6 @@ var formatInputBool = function (value) {
 };
 
 /**
- * Formats input value to byte representation of real
- * Values are multiplied by 2^m and encoded as integers
- *
- * @method formatInputReal
- * @param {String|Number|BigNumber}
- * @returns {HyperionParam}
- */
-var formatInputReal = function (value) {
-    return formatInputInt(new BigNumber(value).times(new BigNumber(2).pow(128)));
-};
-
-/**
  * Check if input value is negative
  *
  * @method signedIsNegative
@@ -787,28 +771,6 @@ var formatOutputInt = function (param) {
 var formatOutputUInt = function (param) {
     var value = param.staticPart() || "0";
     return new BigNumber(value, 16);
-};
-
-/**
- * Formats right-aligned output bytes to real
- *
- * @method formatOutputReal
- * @param {HyperionParam}
- * @returns {BigNumber} input bytes formatted to real
- */
-var formatOutputReal = function (param) {
-    return formatOutputInt(param).dividedBy(new BigNumber(2).pow(128));
-};
-
-/**
- * Formats right-aligned output bytes to ureal
- *
- * @method formatOutputUReal
- * @param {HyperionParam}
- * @returns {BigNumber} input bytes formatted to ureal
- */
-var formatOutputUReal = function (param) {
-    return formatOutputUInt(param).dividedBy(new BigNumber(2).pow(128));
 };
 
 /**
@@ -879,11 +841,8 @@ module.exports = {
     formatInputDynamicBytes: formatInputDynamicBytes,
     formatInputString: formatInputString,
     formatInputBool: formatInputBool,
-    formatInputReal: formatInputReal,
     formatOutputInt: formatOutputInt,
     formatOutputUInt: formatOutputUInt,
-    formatOutputReal: formatOutputReal,
-    formatOutputUReal: formatOutputUReal,
     formatOutputBool: formatOutputBool,
     formatOutputBytes: formatOutputBytes,
     formatOutputDynamicBytes: formatOutputDynamicBytes,
@@ -1079,41 +1038,7 @@ HyperionParam.encodeList = function (params) {
 module.exports = HyperionParam;
 
 
-},{"../utils/utils":20}],12:[function(require,module,exports){
-var f = require('./formatters');
-var HyperionType = require('./type');
-
-/**
- * HyperionTypeReal is a prototype that represents real type
- * It matches:
- * real
- * real[]
- * real[4]
- * real[][]
- * real[3][]
- * real[][6][], ...
- * real32
- * real64[]
- * real8[4]
- * real256[][]
- * real[3][]
- * real64[][6][], ...
- */
-var HyperionTypeReal = function () {
-    this._inputFormatter = f.formatInputReal;
-    this._outputFormatter = f.formatOutputReal;
-};
-
-HyperionTypeReal.prototype = new HyperionType({});
-HyperionTypeReal.prototype.constructor = HyperionTypeReal;
-
-HyperionTypeReal.prototype.isType = function (name) {
-    return !!name.match(/real([0-9]*)?(\[([0-9]*)\])?/);
-};
-
-module.exports = HyperionTypeReal;
-
-},{"./formatters":9,"./type":14}],13:[function(require,module,exports){
+},{"../utils/utils":20}],13:[function(require,module,exports){
 var f = require('./formatters');
 var HyperionType = require('./type');
 
@@ -1425,40 +1350,6 @@ HyperionTypeUInt.prototype.isType = function (name) {
 };
 
 module.exports = HyperionTypeUInt;
-
-},{"./formatters":9,"./type":14}],16:[function(require,module,exports){
-var f = require('./formatters');
-var HyperionType = require('./type');
-
-/**
- * HyperionTypeUReal is a prototype that represents ureal type
- * It matches:
- * ureal
- * ureal[]
- * ureal[4]
- * ureal[][]
- * ureal[3][]
- * ureal[][6][], ...
- * ureal32
- * ureal64[]
- * ureal8[4]
- * ureal256[][]
- * ureal[3][]
- * ureal64[][6][], ...
- */
-var HyperionTypeUReal = function () {
-    this._inputFormatter = f.formatInputReal;
-    this._outputFormatter = f.formatOutputUReal;
-};
-
-HyperionTypeUReal.prototype = new HyperionType({});
-HyperionTypeUReal.prototype.constructor = HyperionTypeUReal;
-
-HyperionTypeUReal.prototype.isType = function (name) {
-    return !!name.match(/^ureal([0-9]*)?(\[([0-9]*)\])*$/);
-};
-
-module.exports = HyperionTypeUReal;
 
 },{"./formatters":9,"./type":14}],17:[function(require,module,exports){
 'use strict';
