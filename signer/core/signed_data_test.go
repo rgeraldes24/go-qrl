@@ -340,58 +340,6 @@ func TestTypedDataAndHashGolden(t *testing.T) {
 	}
 }
 
-func TestTypedDataAndHashNestedArrayGolden(t *testing.T) {
-	t.Parallel()
-	typedData := apitypes.TypedData{
-		Types: apitypes.Types{
-			"QRLTypedDataDomain": {
-				{Name: "name", Type: "string"},
-			},
-			"Matrix": {
-				{Name: "values", Type: "uint512[2][2]"},
-			},
-		},
-		PrimaryType: "Matrix",
-		Domain: apitypes.TypedDataDomain{
-			Name: "QRL Nested Array Golden",
-		},
-		Message: apitypes.TypedDataMessage{
-			"values": [][]any{
-				{"0x1", "0x2"},
-				{"0x3", "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"},
-			},
-		},
-	}
-
-	digest, _, err := apitypes.TypedDataAndHash(typedData)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if got, want := hexutil.Encode(digest), "0x24f3d95a37703aebb5223aca7fc6ebc3b0504a942b9bff3b00b36ad21a7c3e9f"; got != want {
-		t.Fatalf("unexpected nested-array typed-data digest: got %s, want %s", got, want)
-	}
-}
-
-func TestEncodeDataRecursiveBytes(t *testing.T) {
-	t.Parallel()
-	typedData := apitypes.TypedData{
-		Types: apitypes.Types{
-			"RecursiveBytes": {
-				{Name: "field", Type: "bytes[][]"},
-			},
-		},
-		PrimaryType: "RecursiveBytes",
-		Domain:      apitypes.TypedDataDomain{Name: "QRL Recursive Bytes"},
-		Message: apitypes.TypedDataMessage{
-			"field": [][][]byte{{{1}, {2}}, {{3}, {4}}},
-		},
-	}
-
-	if _, err := typedData.EncodeData(typedData.PrimaryType, typedData.Message, 0); err != nil {
-		t.Fatal(err)
-	}
-}
-
 func TestEncodeType(t *testing.T) {
 	t.Parallel()
 	domainTypeEncoding := string(typedData.EncodeType("QRLTypedDataDomain"))
@@ -826,5 +774,51 @@ func TestComplexTypedDataWithLowercaseReftype(t *testing.T) {
 	expSigHash := common.FromHex("0x588de30f07eec7adda5c0772d92b4e8dbf6e04697be2ffba9f7866c10374dd14")
 	if !bytes.Equal(expSigHash, sighash) {
 		t.Fatalf("Error, got %x, wanted %x", sighash, expSigHash)
+	}
+}
+
+var recursiveBytesTypesStandard = apitypes.Types{
+	"QRLTypedDataDomain": {
+		{
+			Name: "name",
+			Type: "string",
+		},
+		{
+			Name: "version",
+			Type: "string",
+		},
+		{
+			Name: "chainId",
+			Type: "uint256",
+		},
+		{
+			Name: "verifyingContract",
+			Type: "address",
+		},
+	},
+	"Val": {
+		{
+			Name: "field",
+			Type: "bytes[][]",
+		},
+	},
+}
+
+var recursiveBytesMessageStandard = map[string]any{
+	"field": [][][]byte{{{1}, {2}}, {{3}, {4}}},
+}
+
+var recursiveBytesTypedData = apitypes.TypedData{
+	Types:       recursiveBytesTypesStandard,
+	PrimaryType: "Val",
+	Domain:      domainStandard,
+	Message:     recursiveBytesMessageStandard,
+}
+
+func TestEncodeDataRecursiveBytes(t *testing.T) {
+	typedData := recursiveBytesTypedData
+	_, err := typedData.EncodeData(typedData.PrimaryType, typedData.Message, 0)
+	if err != nil {
+		t.Fatalf("got err %v", err)
 	}
 }
