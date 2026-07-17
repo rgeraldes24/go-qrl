@@ -1464,7 +1464,7 @@ var sha3 = require('crypto-js/sha3');
 
 module.exports = function (value, options) {
     if (options && options.encoding === 'hex') {
-        if (value.substr(0, 2) === '0x') {
+        if (value.length > 2 && value.substr(0, 2) === '0x') {
             value = value.substr(2);
         }
         value = CryptoJS.enc.Hex.parse(value);
@@ -2845,7 +2845,7 @@ HyperionEvent.prototype.encode = function (indexed, options) {
                 return '0x' + utils.padRight(sha3(v), 128);
             }
             if (i.type === 'bytes') {
-                return '0x' + utils.padRight(sha3(v, {encoding: 'hex'}), 128);
+                return '0x' + utils.padRight(sha3(v === '0x' ? '' : v, {encoding: 'hex'}), 128);
             }
             return '0x' + coder.encodeParam(i.type, v);
         };
