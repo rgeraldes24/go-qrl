@@ -205,6 +205,48 @@ JSON.stringify({
 	}
 }
 
+func TestEmbeddedWeb3ConstructorStateMutability(t *testing.T) {
+	t.Parallel()
+
+	re := newEmbeddedWeb3(t)
+	script := web3EchoProvider + `
+var Web3 = require("web3");
+var web3 = new Web3(provider);
+web3.qrl.sendTransaction = function() { return "0x01"; };
+web3.qrl.filter = function() { return {stopWatching: function() {}}; };
+
+function acceptsValue(constructorAbi) {
+  try {
+    web3.qrl.contract([constructorAbi]).new({data: "0x", value: 1});
+    return true;
+  } catch (err) {
+    return false;
+  }
+}
+
+JSON.stringify({
+  currentPayable: acceptsValue({inputs: [], stateMutability: "payable", type: "constructor"}),
+  currentNonpayable: acceptsValue({inputs: [], stateMutability: "nonpayable", type: "constructor"}),
+  legacyPayable: acceptsValue({inputs: [], payable: true, type: "constructor"})
+});
+`
+	value, err := re.Run(script)
+	if err != nil {
+		t.Fatalf("run constructor stateMutability script: %v", err)
+	}
+	var got struct {
+		CurrentPayable    bool `json:"currentPayable"`
+		CurrentNonpayable bool `json:"currentNonpayable"`
+		LegacyPayable     bool `json:"legacyPayable"`
+	}
+	if err := json.Unmarshal([]byte(value.String()), &got); err != nil {
+		t.Fatalf("decode constructor stateMutability result %q: %v", value.String(), err)
+	}
+	if !got.CurrentPayable || got.CurrentNonpayable || !got.LegacyPayable {
+		t.Fatalf("constructor stateMutability mismatch: %+v", got)
+	}
+}
+
 func abiWordHex(value uint64) string {
 	return fmt.Sprintf("%0*x", common.StorageValue64Length*2, value)
 }
