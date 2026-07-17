@@ -2679,7 +2679,7 @@ var ContractFactory = function (qrl, abi) {
                 return json.type === 'constructor' && json.inputs.length === args.length;
             })[0] || {};
 
-            if (!constructorAbi.payable) {
+            if (!constructorAbi.payable && constructorAbi.stateMutability !== 'payable') {
                 throw new Error('Cannot send value to non-payable constructor');
             }
         }
