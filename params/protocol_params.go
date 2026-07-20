@@ -83,11 +83,12 @@ const (
 	MaxInitCodeSize = 2 * MaxCodeSize // Maximum initcode to permit in a creation transaction and create instructions
 
 	// Precompiled contract gas prices
-	DepositrootGas     uint64 = 18000 // Price for one deposit-root computation
-	Sha256BaseGas      uint64 = 60    // Base price for a SHA256 operation
-	Sha256PerWordGas   uint64 = 12    // Per-word price for a SHA256 operation
-	IdentityBaseGas    uint64 = 15    // Base price for a data copy operation
-	IdentityPerWordGas uint64 = 3     // Per-work price for a data copy operation
+	DepositrootGas     uint64 = 18000  // Price for one deposit-root computation
+	Sha256BaseGas      uint64 = 60     // Base price for a SHA256 operation
+	Sha256PerWordGas   uint64 = 12     // Per-word price for a SHA256 operation
+	IdentityBaseGas    uint64 = 15     // Base price for a data copy operation
+	IdentityPerWordGas uint64 = 3      // Per-work price for a data copy operation
+	MLDSA87VerifyGas   uint64 = 125000 // Gas cost for one ML-DSA-87 verification
 
 	// The Refund Quotient is the cap on how much of the used gas can be refunded. Before EIP-3529,
 	// up to half the consumed gas could be refunded. Redefined as 1/5th in EIP-3529
