@@ -24,7 +24,6 @@ import (
 
 	"github.com/theQRL/go-qrl/common"
 	"github.com/theQRL/go-qrl/common/hexutil"
-	"github.com/theQRL/go-qrl/common/uint512"
 	"github.com/theQRL/go-qrl/core/rawdb"
 	"github.com/theQRL/go-qrl/core/state"
 	"github.com/theQRL/go-qrl/core/types"
@@ -94,10 +93,10 @@ func TestCreateGas(t *testing.T) {
 				return false
 			}
 			gasUsed = startGas - gas
-			if len(ret) != uint512.WordBytes {
-				t.Fatalf("test %d: expected %d bytes returned, have %d", i, uint512.WordBytes, len(ret))
+			if len(ret) != WordBytes {
+				t.Fatalf("test %d: expected %d bytes returned, have %d", i, WordBytes, len(ret))
 			}
-			if bytes.Equal(ret, make([]byte, uint512.WordBytes)) {
+			if bytes.Equal(ret, make([]byte, WordBytes)) {
 				// Failure
 				return false
 			}
