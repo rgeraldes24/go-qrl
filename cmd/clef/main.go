@@ -18,7 +18,6 @@ package main
 
 import (
 	"bufio"
-	"bytes"
 	"context"
 	"crypto/rand"
 	"crypto/sha256"
@@ -45,10 +44,10 @@ import (
 	"github.com/theQRL/go-qrl/common/hexutil"
 	"github.com/theQRL/go-qrl/core/types"
 	"github.com/theQRL/go-qrl/crypto"
-	"github.com/theQRL/go-qrl/crypto/pqcrypto"
 	"github.com/theQRL/go-qrl/crypto/pqcrypto/wallet"
 	"github.com/theQRL/go-qrl/internal/flags"
 	"github.com/theQRL/go-qrl/internal/qrlapi"
+	"github.com/theQRL/go-qrl/internal/testutil"
 	"github.com/theQRL/go-qrl/log"
 	"github.com/theQRL/go-qrl/node"
 	"github.com/theQRL/go-qrl/params"
@@ -1056,6 +1055,37 @@ func decryptSeed(keyjson []byte, auth string) ([]byte, error) {
 	return seed, err
 }
 
+const (
+	genDocChainID    int64 = 1337
+	genDocWalletSeed       = "010000e20edaf36fda78bfcdef8d1c1b70567818f7f0a443a74e80cdd21bdb695ceeaef4726b96be4a329f6f7ac8a145a50000"
+)
+
+func newGenDocOnApprovedTx() (*types.Transaction, error) {
+	fixtureWallet, err := wallet.RestoreFromSeedHex(genDocWalletSeed)
+	if err != nil {
+		return nil, fmt.Errorf("restore OnApproved transaction fixture wallet: %w", err)
+	}
+	fixtureWallet, err = testutil.NewDeterministicWallet(fixtureWallet)
+	if err != nil {
+		return nil, fmt.Errorf("create deterministic OnApproved transaction fixture wallet: %w", err)
+	}
+	chainID := big.NewInt(genDocChainID)
+	to := common.BytesToAddress([]byte{0x12, 0x34})
+	tx, err := types.SignNewTx(fixtureWallet, types.NewZondSigner(chainID), &types.DynamicFeeTx{
+		ChainID:   chainID,
+		Nonce:     100,
+		GasTipCap: big.NewInt(0),
+		GasFeeCap: big.NewInt(1),
+		Gas:       params.TxGas,
+		To:        &to,
+		Value:     big.NewInt(1),
+	})
+	if err != nil {
+		return nil, fmt.Errorf("sign OnApproved transaction fixture: %w", err)
+	}
+	return tx, nil
+}
+
 // GenDoc outputs examples of all structures used in json-rpc communication
 func GenDoc(ctx *cli.Context) error {
 	var (
@@ -1166,19 +1196,10 @@ func GenDoc(ctx *cli.Context) error {
 			"\n\n" +
 			"The `OnApproved` method cannot be responded to, it's purely informative"
 
-		to := common.BytesToAddress([]byte{0x12, 0x34})
-		tx := types.NewTx(&types.DynamicFeeTx{
-			ChainID:    big.NewInt(1337),
-			Nonce:      100,
-			GasTipCap:  big.NewInt(0),
-			GasFeeCap:  big.NewInt(1),
-			Gas:        params.TxGas,
-			To:         &to,
-			Value:      big.NewInt(1),
-			Descriptor: [3]byte{0x01, 0x00, 0x00},
-			PublicKey:  bytes.Repeat([]byte{0x22}, pqcrypto.MLDSA87PublicKeyLength),
-			Signature:  bytes.Repeat([]byte{0x11}, pqcrypto.MLDSA87SignatureLength),
-		})
+		tx, err := newGenDocOnApprovedTx()
+		if err != nil {
+			return err
+		}
 		rlpdata, err := tx.MarshalBinary()
 		if err != nil {
 			return fmt.Errorf("marshal OnApproved transaction fixture: %w", err)

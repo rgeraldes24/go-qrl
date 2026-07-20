@@ -62,7 +62,7 @@ func (a Account) Wallet(t testing.TB) wallet.Wallet {
 // signing. Use this only in tests that need stable signed transaction hashes.
 func (a Account) DeterministicWallet(t testing.TB) wallet.Wallet {
 	t.Helper()
-	w, err := newDeterministicWallet(a.Wallet(t))
+	w, err := NewDeterministicWallet(a.Wallet(t))
 	if err != nil {
 		t.Fatalf("testutil: account %q: deterministic wallet: %v", a.Label, err)
 	}
@@ -73,7 +73,9 @@ type deterministicWallet struct {
 	*wallet.MLDSA87Wallet
 }
 
-func newDeterministicWallet(w wallet.Wallet) (wallet.Wallet, error) {
+// NewDeterministicWallet wraps an ML-DSA-87 wallet for reproducible fixture
+// signing. Runtime transaction signing must use the wallet's regular Sign path.
+func NewDeterministicWallet(w wallet.Wallet) (wallet.Wallet, error) {
 	signer, ok := w.(*wallet.MLDSA87Wallet)
 	if !ok {
 		return nil, fmt.Errorf("deterministic signing is only supported for ML-DSA-87 wallets, got %T", w)
