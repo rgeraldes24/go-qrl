@@ -338,7 +338,7 @@ func bindType(kind abi.Type, structs map[string]*tmplStruct) string {
 // bindTopicType converts a Hyperion indexed topic type to a Go event field type.
 func bindTopicType(kind abi.Type, structs map[string]*tmplStruct) string {
 	switch kind.T {
-	case abi.TupleTy, abi.StringTy, abi.BytesTy, abi.SliceTy, abi.ArrayTy:
+	case abi.StringTy, abi.BytesTy, abi.SliceTy, abi.ArrayTy:
 		return "common.LogTopic"
 	default:
 		return bindType(kind, structs)
@@ -347,11 +347,11 @@ func bindTopicType(kind abi.Type, structs map[string]*tmplStruct) string {
 
 // bindTopicRuleType converts an indexed topic type to the Go filter/watch
 // parameter element type. Strings and bytes remain preimage types because
-// abi.MakeTopics can hash them; tuples, arrays, and slices require precomputed
+// abi.MakeTopics can hash them; arrays and slices require precomputed
 // topics because their original values cannot be reconstructed from the log.
 func bindTopicRuleType(kind abi.Type, structs map[string]*tmplStruct) string {
 	switch kind.T {
-	case abi.TupleTy, abi.SliceTy, abi.ArrayTy:
+	case abi.SliceTy, abi.ArrayTy:
 		return "common.LogTopic"
 	default:
 		return bindType(kind, structs)

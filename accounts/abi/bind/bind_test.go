@@ -1905,10 +1905,10 @@ var bindTests = []struct {
 	},
 }
 
-func TestBindIndexedCompositeTopicsUseLogTopic(t *testing.T) {
+func TestBindIndexedArrayTopicsUseLogTopic(t *testing.T) {
 	code, err := Bind(
 		[]string{"ArrayTopics"},
-		[]string{`[{"anonymous":false,"inputs":[{"indexed":true,"name":"nums","type":"uint256[]"},{"indexed":true,"name":"addrs","type":"address[2]"},{"components":[{"name":"id","type":"uint256"},{"name":"owner","type":"address"}],"indexed":true,"name":"meta","type":"tuple"},{"indexed":true,"name":"name","type":"string"},{"indexed":true,"name":"data","type":"bytes"}],"name":"Indexed","type":"event"}]`},
+		[]string{`[{"anonymous":false,"inputs":[{"indexed":true,"name":"nums","type":"uint256[]"},{"indexed":true,"name":"addrs","type":"address[2]"},{"indexed":true,"name":"name","type":"string"},{"indexed":true,"name":"data","type":"bytes"}],"name":"Indexed","type":"event"}]`},
 		[]string{"00"},
 		nil,
 		"bindtest",
@@ -1921,11 +1921,10 @@ func TestBindIndexedCompositeTopicsUseLogTopic(t *testing.T) {
 	for _, want := range []string{
 		`(?m)\bNums\s+common\.LogTopic\b`,
 		`(?m)\bAddrs\s+common\.LogTopic\b`,
-		`(?m)\bMeta\s+common\.LogTopic\b`,
 		`(?m)\bName\s+common\.LogTopic\b`,
 		`(?m)\bData\s+common\.LogTopic\b`,
-		`FilterIndexed\(opts \*bind\.FilterOpts, nums \[\]common\.LogTopic, addrs \[\]common\.LogTopic, meta \[\]common\.LogTopic, name \[\]string, data \[\]\[\]byte\)`,
-		`WatchIndexed\(opts \*bind\.WatchOpts, sink chan<- \*ArrayTopicsIndexed, nums \[\]common\.LogTopic, addrs \[\]common\.LogTopic, meta \[\]common\.LogTopic, name \[\]string, data \[\]\[\]byte\)`,
+		`FilterIndexed\(opts \*bind\.FilterOpts, nums \[\]common\.LogTopic, addrs \[\]common\.LogTopic, name \[\]string, data \[\]\[\]byte\)`,
+		`WatchIndexed\(opts \*bind\.WatchOpts, sink chan<- \*ArrayTopicsIndexed, nums \[\]common\.LogTopic, addrs \[\]common\.LogTopic, name \[\]string, data \[\]\[\]byte\)`,
 	} {
 		if !regexp.MustCompile(want).MatchString(code) {
 			t.Fatalf("generated binding missing pattern %q", want)

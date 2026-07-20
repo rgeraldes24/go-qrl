@@ -255,13 +255,10 @@ type int256Struct struct {
 }
 
 // hashStruct receives the indexed keccak256 hash of a dynamic type. Topics
-// are 64 bytes; the reconstructed value uses the full LogTopic slot.
+// are 64 bytes; the reconstructed value uses the full LogTopic slot (hash
+// right-aligned in the low 32 bytes).
 type hashStruct struct {
 	HashValue common.LogTopic
-}
-
-type tupleTopicStruct struct {
-	Tupletype common.LogTopic
 }
 
 // funcStruct mirrors the Solidity `function` type, which is address followed
@@ -291,10 +288,7 @@ func setupTopicsTests() []topicTest {
 	bytesType, _ := NewType("bytes5", "", nil)
 	int8Type, _ := NewType("int8", "", nil)
 	int256Type, _ := NewType("int256", "", nil)
-	tupleType, _ := NewType("tuple", "", []ArgumentMarshaling{
-		{Name: "a", Type: "int256"},
-		{Name: "b", Type: "int8"},
-	})
+	tupleType, _ := NewType("tuple(int256,int8)", "", nil)
 	stringType, _ := NewType("string", "", nil)
 	funcType, _ := NewType("function", "", nil)
 	hashTopic := func(hash []byte) common.LogTopic {
@@ -435,21 +429,19 @@ func setupTopicsTests() []topicTest {
 			wantErr: true,
 		},
 		{
-			name: "tuple topic hash",
+			name: "error on tuple in topic reconstruction",
 			args: args{
-				createObj: func() any { return &tupleTopicStruct{} },
-				resultObj: func() any { return &tupleTopicStruct{Tupletype: common.LogTopic{0x42}} },
-				resultMap: func() map[string]any {
-					return map[string]any{"tupletype": common.LogTopic{0x42}}
-				},
+				createObj: func() any { return &tupleType },
+				resultObj: func() any { return &tupleType },
+				resultMap: func() map[string]any { return make(map[string]any) },
 				fields: Arguments{Argument{
 					Name:    "tupletype",
 					Type:    tupleType,
 					Indexed: true,
 				}},
-				topics: []common.LogTopic{{0x42}},
+				topics: []common.LogTopic{{0}},
 			},
-			wantErr: false,
+			wantErr: true,
 		},
 		{
 			name: "error on improper encoded function",
