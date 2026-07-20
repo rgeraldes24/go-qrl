@@ -186,6 +186,79 @@ func TestResolveEndpointsUsesTopologyPorts(t *testing.T) {
 	if cfg.rpcURLs[1] != "http://127.0.0.1:28545" || cfg.vcMetricsURLs[0] != "http://127.0.0.1:18080/metrics" || cfg.signerURL != "http://127.0.0.1:18550" {
 		t.Fatalf("unexpected resolved endpoints: %+v", cfg)
 	}
+	if !cfg.rpcURLsFromKurtosis[0] || !cfg.rpcURLsFromKurtosis[1] || !cfg.clURLsFromKurtosis[0] || !cfg.clURLsFromKurtosis[1] || !cfg.vcMetricsURLsFromKurtosis[0] || !cfg.vcMetricsURLsFromKurtosis[1] || !cfg.signerURLFromKurtosis {
+		t.Fatalf("topology endpoint origins were not retained: %+v", cfg)
+	}
+
+	runner.outputs[strings.Join([]string{"port", "print", cfg.enclave, cfg.elServices[1], "rpc", "--format", "ip,number"}, " ")] = "127.0.0.1:38545"
+	runner.outputs[strings.Join([]string{"port", "print", cfg.enclave, cfg.clServices[1], "http", "--format", "ip,number"}, " ")] = "127.0.0.1:33500"
+	runner.outputs[strings.Join([]string{"port", "print", cfg.enclave, cfg.vcServices[1], "metrics", "--format", "ip,number"}, " ")] = "127.0.0.1:38080"
+	runner.outputs[strings.Join([]string{"port", "print", cfg.enclave, cfg.signerSvc, "http", "--format", "ip,number"}, " ")] = "127.0.0.1:38550"
+	k := kurtosis{enclave: cfg.enclave, runner: runner}
+	rpcURL, err := cfg.executionEndpoint(t.Context(), k, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	clURL, err := cfg.beaconEndpoint(t.Context(), k, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	vcURL, err := cfg.validatorEndpoint(t.Context(), k, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	signerURL, err := cfg.signerEndpoint(t.Context(), k)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.rpcURLs[1] != "http://127.0.0.1:28545" || cfg.clURLs[1] != "http://127.0.0.1:23500" || cfg.vcMetricsURLs[1] != "http://127.0.0.1:28080/metrics" || cfg.signerURL != "http://127.0.0.1:18550" {
+		t.Fatalf("candidate endpoint lookup changed live configuration before readiness: %+v", cfg)
+	}
+	if rpcURL != "http://127.0.0.1:38545" || clURL != "http://127.0.0.1:33500" || vcURL != "http://127.0.0.1:38080/metrics" || signerURL != "http://127.0.0.1:38550" {
+		t.Fatalf("unexpected restarted topology candidates: RPC=%s CL=%s VC=%s signer=%s", rpcURL, clURL, vcURL, signerURL)
+	}
+}
+
+func TestExplicitEndpointsAreNotReplacedAfterRestart(t *testing.T) {
+	cfg, err := parseConfig([]string{
+		"-rpc1", "http://127.0.0.1:18545",
+		"-rpc2", "http://127.0.0.1:28545",
+		"-cl1", "http://127.0.0.1:13500",
+		"-cl2", "http://127.0.0.1:23500",
+		"-vc1-metrics", "http://127.0.0.1:18080/metrics",
+		"-vc2-metrics", "http://127.0.0.1:28080/metrics",
+		"-signer", "http://127.0.0.1:18550",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	runner := &fakeRunner{outputs: map[string]string{}}
+	k := kurtosis{enclave: cfg.enclave, runner: runner}
+	if err := cfg.resolveEndpoints(t.Context(), k); err != nil {
+		t.Fatal(err)
+	}
+	rpcURL, err := cfg.executionEndpoint(t.Context(), k, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	clURL, err := cfg.beaconEndpoint(t.Context(), k, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	vcURL, err := cfg.validatorEndpoint(t.Context(), k, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	signerURL, err := cfg.signerEndpoint(t.Context(), k)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.rpcURLs[1] != "http://127.0.0.1:28545" || cfg.clURLs[1] != "http://127.0.0.1:23500" || cfg.vcMetricsURLs[1] != "http://127.0.0.1:28080/metrics" || cfg.signerURL != "http://127.0.0.1:18550" {
+		t.Fatalf("explicit endpoints changed after refresh: %+v", cfg)
+	}
+	if rpcURL != cfg.rpcURLs[1] || clURL != cfg.clURLs[1] || vcURL != cfg.vcMetricsURLs[1] || signerURL != cfg.signerURL {
+		t.Fatalf("explicit endpoint candidates changed: RPC=%s CL=%s VC=%s signer=%s", rpcURL, clURL, vcURL, signerURL)
+	}
 }
 
 type fakeRunner struct {
@@ -199,6 +272,435 @@ func (r *fakeRunner) run(_ context.Context, args ...string) (string, error) {
 		return "", fmt.Errorf("unexpected command %s", key)
 	}
 	return output, nil
+}
+
+type runnerResult struct {
+	output string
+	err    error
+}
+
+type scriptedRunner struct {
+	results map[string][]runnerResult
+	calls   map[string]int
+	onCall  func(string, int)
+}
+
+func (r *scriptedRunner) run(_ context.Context, args ...string) (string, error) {
+	key := strings.Join(args, " ")
+	r.calls[key]++
+	if r.onCall != nil {
+		r.onCall(key, r.calls[key])
+	}
+	results := r.results[key]
+	if len(results) == 0 {
+		return "", fmt.Errorf("unexpected command %s", key)
+	}
+	result := results[0]
+	if len(results) > 1 {
+		r.results[key] = results[1:]
+	}
+	return result.output, result.err
+}
+
+func TestRedialSecondExecutionCommitsOnlyHealthyCandidate(t *testing.T) {
+	oldAPI := new(testExecutionHealthAPI)
+	oldServer := rpc.NewServer()
+	if err := oldServer.RegisterName("qrl", oldAPI); err != nil {
+		t.Fatal(err)
+	}
+	oldClient := qrlclient.NewClient(rpc.DialInProc(oldServer))
+	t.Cleanup(func() {
+		oldClient.Close()
+		oldServer.Stop()
+	})
+
+	newAPI := new(testExecutionHealthAPI)
+	newRPC := rpc.NewServer()
+	if err := newRPC.RegisterName("qrl", newAPI); err != nil {
+		t.Fatal(err)
+	}
+	newHTTP := httptest.NewServer(newRPC)
+	t.Cleanup(func() {
+		newHTTP.Close()
+		newRPC.Stop()
+	})
+	failingAPI := new(testExecutionFailureAPI)
+	failingRPC := rpc.NewServer()
+	if err := failingRPC.RegisterName("qrl", failingAPI); err != nil {
+		t.Fatal(err)
+	}
+	failingHTTP := httptest.NewServer(failingRPC)
+	t.Cleanup(func() {
+		failingHTTP.Close()
+		failingRPC.Stop()
+	})
+
+	cfg := config{
+		enclave:             "test",
+		elServices:          [2]string{"el1", "el2"},
+		rpcURLs:             [2]string{"http://old-el1.invalid", "http://old-el2.invalid"},
+		rpcURLsFromKurtosis: [2]bool{false, true},
+		timeout:             time.Second,
+		pollInterval:        time.Millisecond,
+	}
+	key := strings.Join([]string{"port", "print", cfg.enclave, cfg.elServices[1], "rpc", "--format", "ip,number"}, " ")
+	var check *systemCheck
+	var prematureCommit string
+	runner := &scriptedRunner{
+		results: map[string][]runnerResult{
+			key: {
+				{output: failingHTTP.URL},
+				{output: newHTTP.URL},
+			},
+		},
+		calls: make(map[string]int),
+		onCall: func(calledKey string, count int) {
+			if calledKey == key && count == 2 && (check.clients[1] != oldClient || check.cfg.rpcURLs[1] != "http://old-el2.invalid") {
+				prematureCommit = "failed EL2 candidate changed live state before retry"
+			}
+		},
+	}
+	check = &systemCheck{
+		cfg:     cfg,
+		k:       kurtosis{enclave: cfg.enclave, runner: runner},
+		clients: [2]*qrlclient.Client{nil, oldClient},
+	}
+
+	if err := check.redialSecondExecution(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	if prematureCommit != "" {
+		t.Fatal(prematureCommit)
+	}
+	t.Cleanup(func() { check.close() })
+	if check.clients[1] == oldClient {
+		t.Fatal("healthy candidate did not replace the cached EL2 client")
+	}
+	if check.cfg.rpcURLs[1] != newHTTP.URL {
+		t.Fatalf("EL2 URL = %s, want %s", check.cfg.rpcURLs[1], newHTTP.URL)
+	}
+	if newAPI.chainIDCalls.Load() == 0 || newAPI.blockNumberCalls.Load() == 0 {
+		t.Fatalf("candidate health calls: chain ID=%d block number=%d", newAPI.chainIDCalls.Load(), newAPI.blockNumberCalls.Load())
+	}
+	if failingAPI.chainIDCalls.Load() == 0 || runner.calls[key] < 2 {
+		t.Fatalf("transient candidate calls: chain ID=%d discovery=%d", failingAPI.chainIDCalls.Load(), runner.calls[key])
+	}
+	if _, err := oldClient.ChainID(t.Context()); !errors.Is(err, rpc.ErrClientQuit) {
+		t.Fatalf("old EL2 client remained open: %v", err)
+	}
+}
+
+type testExecutionFailureAPI struct {
+	chainIDCalls atomic.Int64
+}
+
+func (api *testExecutionFailureAPI) ChainId() (*hexutil.Big, error) {
+	api.chainIDCalls.Add(1)
+	return nil, errors.New("candidate is not ready")
+}
+
+func TestRedialSecondExecutionKeepsOldClientOnCandidateFailure(t *testing.T) {
+	oldAPI := new(testExecutionHealthAPI)
+	oldServer := rpc.NewServer()
+	if err := oldServer.RegisterName("qrl", oldAPI); err != nil {
+		t.Fatal(err)
+	}
+	oldClient := qrlclient.NewClient(rpc.DialInProc(oldServer))
+	t.Cleanup(func() {
+		oldClient.Close()
+		oldServer.Stop()
+	})
+
+	failingAPI := new(testExecutionFailureAPI)
+	failingRPC := rpc.NewServer()
+	if err := failingRPC.RegisterName("qrl", failingAPI); err != nil {
+		t.Fatal(err)
+	}
+	failingHTTP := httptest.NewServer(failingRPC)
+	t.Cleanup(func() {
+		failingHTTP.Close()
+		failingRPC.Stop()
+	})
+
+	cfg := config{
+		enclave:             "test",
+		elServices:          [2]string{"el1", "el2"},
+		rpcURLs:             [2]string{"http://old-el1.invalid", "http://old-el2.invalid"},
+		rpcURLsFromKurtosis: [2]bool{false, true},
+		timeout:             100 * time.Millisecond,
+		pollInterval:        time.Millisecond,
+	}
+	key := strings.Join([]string{"port", "print", cfg.enclave, cfg.elServices[1], "rpc", "--format", "ip,number"}, " ")
+	runner := &fakeRunner{outputs: map[string]string{key: failingHTTP.URL}}
+	check := &systemCheck{
+		cfg:     cfg,
+		k:       kurtosis{enclave: cfg.enclave, runner: runner},
+		clients: [2]*qrlclient.Client{nil, oldClient},
+	}
+
+	if err := check.redialSecondExecution(t.Context()); err == nil {
+		t.Fatal("redial unexpectedly accepted an unhealthy candidate")
+	}
+	if check.clients[1] != oldClient || check.cfg.rpcURLs[1] != "http://old-el2.invalid" {
+		t.Fatalf("failed candidate was committed: client=%p old=%p URL=%s", check.clients[1], oldClient, check.cfg.rpcURLs[1])
+	}
+	if _, err := oldClient.ChainID(t.Context()); err != nil {
+		t.Fatalf("old EL2 client was closed after candidate failure: %v", err)
+	}
+	if failingAPI.chainIDCalls.Load() < 2 {
+		t.Fatalf("candidate health was attempted %d times, want a bounded retry", failingAPI.chainIDCalls.Load())
+	}
+}
+
+type testSignerAPI struct {
+	versionCalls atomic.Int64
+	listCalls    atomic.Int64
+	accounts     []common.Address
+}
+
+func (api *testSignerAPI) Version() string {
+	api.versionCalls.Add(1)
+	return "6.1.0"
+}
+
+func (api *testSignerAPI) List() []common.Address {
+	api.listCalls.Add(1)
+	return api.accounts
+}
+
+func TestSignerReadinessRetriesDiscoveryAndCommitsHealthyEndpoint(t *testing.T) {
+	signerAddress := common.Address{common.AddressLength - 1: 0x42}
+	signerAPI := &testSignerAPI{accounts: []common.Address{signerAddress}}
+	signerRPC := rpc.NewServer()
+	if err := signerRPC.RegisterName("account", signerAPI); err != nil {
+		t.Fatal(err)
+	}
+	signerHTTP := httptest.NewServer(signerRPC)
+	t.Cleanup(func() {
+		signerHTTP.Close()
+		signerRPC.Stop()
+	})
+	var oldCalls atomic.Int64
+	oldHTTP := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		oldCalls.Add(1)
+		http.Error(w, "obsolete endpoint", http.StatusServiceUnavailable)
+	}))
+	defer oldHTTP.Close()
+
+	cfg := config{
+		enclave:               "test",
+		signerSvc:             "signer",
+		signerURL:             oldHTTP.URL,
+		signerURLFromKurtosis: true,
+		signerAddress:         signerAddress,
+		timeout:               time.Second,
+		pollInterval:          time.Millisecond,
+	}
+	key := strings.Join([]string{"port", "print", cfg.enclave, cfg.signerSvc, "http", "--format", "ip,number"}, " ")
+	runner := &scriptedRunner{
+		results: map[string][]runnerResult{
+			key: {
+				{err: errors.New("published port is not ready")},
+				{output: signerHTTP.URL},
+			},
+		},
+		calls: make(map[string]int),
+	}
+	check := &systemCheck{cfg: cfg, k: kurtosis{enclave: cfg.enclave, runner: runner}}
+
+	if err := check.waitSignerReady(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	if runner.calls[key] < 2 {
+		t.Fatalf("Kurtosis discovery calls = %d, want retry after transient failure", runner.calls[key])
+	}
+	if check.cfg.signerURL != signerHTTP.URL {
+		t.Fatalf("signer URL = %s, want %s", check.cfg.signerURL, signerHTTP.URL)
+	}
+	if signerAPI.versionCalls.Load() == 0 || signerAPI.listCalls.Load() == 0 {
+		t.Fatalf("new signer calls: version=%d list=%d", signerAPI.versionCalls.Load(), signerAPI.listCalls.Load())
+	}
+	if oldCalls.Load() != 0 {
+		t.Fatalf("obsolete signer endpoint received %d readiness requests", oldCalls.Load())
+	}
+}
+
+type testSignerOutageExecutionAPI struct{}
+
+func (*testSignerOutageExecutionAPI) ChainId() *hexutil.Big {
+	return (*hexutil.Big)(big.NewInt(32382))
+}
+
+func (*testSignerOutageExecutionAPI) BlockNumber() hexutil.Uint64 {
+	return 42
+}
+
+func (*testSignerOutageExecutionAPI) SendTransaction(context.Context, map[string]any) (common.Hash, error) {
+	return common.Hash{}, testRPCError{code: -32000, message: "external signer Clef is unavailable"}
+}
+
+func TestRestartSignerDoesNotDoubleStartAfterReadinessFailure(t *testing.T) {
+	executionRPC := rpc.NewServer()
+	if err := executionRPC.RegisterName("qrl", new(testSignerOutageExecutionAPI)); err != nil {
+		t.Fatal(err)
+	}
+	if err := executionRPC.RegisterName("net", new(testExecutionHealthNetAPI)); err != nil {
+		t.Fatal(err)
+	}
+	executionClient := qrlclient.NewClient(rpc.DialInProc(executionRPC))
+	t.Cleanup(func() {
+		executionClient.Close()
+		executionRPC.Stop()
+	})
+
+	cfg := config{
+		enclave:               "test",
+		signerSvc:             "signer",
+		signerURL:             "http://obsolete-signer.invalid",
+		signerURLFromKurtosis: true,
+		signerAddress:         common.Address{common.AddressLength - 1: 0x11},
+		recipient:             common.Address{common.AddressLength - 1: 0x22},
+		transferValue:         1,
+		timeout:               50 * time.Millisecond,
+		pollInterval:          time.Millisecond,
+	}
+	stopKey := strings.Join([]string{"service", "stop", cfg.enclave, cfg.signerSvc}, " ")
+	startKey := strings.Join([]string{"service", "start", cfg.enclave, cfg.signerSvc}, " ")
+	portKey := strings.Join([]string{"port", "print", cfg.enclave, cfg.signerSvc, "http", "--format", "ip,number"}, " ")
+	runner := &scriptedRunner{
+		results: map[string][]runnerResult{
+			stopKey:  {{output: ""}},
+			startKey: {{output: ""}},
+			portKey:  {{err: errors.New("restarted port is not published")}},
+		},
+		calls: make(map[string]int),
+	}
+	check := &systemCheck{
+		cfg:     cfg,
+		k:       kurtosis{enclave: cfg.enclave, runner: runner},
+		clients: [2]*qrlclient.Client{executionClient, nil},
+	}
+
+	err := check.restartSigner(t.Context())
+	if err == nil || !strings.Contains(err.Error(), "Clef did not recover after restart") {
+		t.Fatalf("restartSigner error = %v, want post-start readiness failure", err)
+	}
+	if runner.calls[stopKey] != 1 || runner.calls[startKey] != 1 {
+		t.Fatalf("service lifecycle calls: stop=%d start=%d, want exactly one each", runner.calls[stopKey], runner.calls[startKey])
+	}
+	if runner.calls[portKey] < 2 {
+		t.Fatalf("port discovery calls = %d, want bounded retries", runner.calls[portKey])
+	}
+}
+
+func TestParticipantReadinessCommitsRediscoveredEndpoints(t *testing.T) {
+	var oldCLCalls, oldVCCalls atomic.Int64
+	oldCL := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		oldCLCalls.Add(1)
+		http.Error(w, "obsolete endpoint", http.StatusServiceUnavailable)
+	}))
+	defer oldCL.Close()
+	oldVC := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		oldVCCalls.Add(1)
+		http.Error(w, "obsolete endpoint", http.StatusServiceUnavailable)
+	}))
+	defer oldVC.Close()
+
+	var newCLCalls, newVCCalls atomic.Int64
+	newCLMux := http.NewServeMux()
+	newCLMux.HandleFunc(syncStatusPath, func(w http.ResponseWriter, _ *http.Request) {
+		newCLCalls.Add(1)
+		fmt.Fprint(w, `{"data":{"head_slot":"96","sync_distance":"0","is_syncing":false,"is_optimistic":false,"el_offline":false}}`)
+	})
+	newCL := httptest.NewServer(newCLMux)
+	defer newCL.Close()
+	newVC := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		newVCCalls.Add(1)
+		if r.URL.Path != "/metrics" {
+			http.Error(w, "wrong path", http.StatusNotFound)
+			return
+		}
+		fmt.Fprint(w, validatorMetricsFixture("vc2", expectedValidatorsPerClient, expectedValidatorsPerClient, 200))
+	}))
+	defer newVC.Close()
+	badCL := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		fmt.Fprint(w, `{}`)
+	}))
+	defer badCL.Close()
+	badVC := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/metrics" {
+			http.Error(w, "wrong path", http.StatusNotFound)
+			return
+		}
+		fmt.Fprint(w, "# HELP unrelated_metric Not a validator readiness metric.\n# TYPE unrelated_metric gauge\nunrelated_metric 1\n")
+	}))
+	defer badVC.Close()
+
+	cfg := config{
+		enclave:                   "test",
+		clServices:                [2]string{"cl1", "cl2"},
+		vcServices:                [2]string{"vc1", "vc2"},
+		clURLs:                    [2]string{"http://old-cl1.invalid", oldCL.URL},
+		vcMetricsURLs:             [2]string{"http://old-vc1.invalid/metrics", oldVC.URL + "/metrics"},
+		clURLsFromKurtosis:        [2]bool{false, true},
+		vcMetricsURLsFromKurtosis: [2]bool{false, true},
+		timeout:                   time.Second,
+		pollInterval:              time.Millisecond,
+		validatorPollInterval:     time.Millisecond,
+	}
+	clKey := strings.Join([]string{"port", "print", cfg.enclave, cfg.clServices[1], "http", "--format", "ip,number"}, " ")
+	vcKey := strings.Join([]string{"port", "print", cfg.enclave, cfg.vcServices[1], "metrics", "--format", "ip,number"}, " ")
+	var check *systemCheck
+	var prematureCommit string
+	runner := &scriptedRunner{
+		results: map[string][]runnerResult{
+			clKey: {{output: badCL.URL}, {output: newCL.URL}},
+			vcKey: {{output: badVC.URL}, {output: newVC.URL + "/"}},
+		},
+		calls: make(map[string]int),
+		onCall: func(key string, count int) {
+			if count != 2 {
+				return
+			}
+			switch key {
+			case clKey:
+				if check.cfg.clURLs[1] != oldCL.URL {
+					prematureCommit = fmt.Sprintf("invalid CL2 candidate was committed before retry: %s", check.cfg.clURLs[1])
+				}
+			case vcKey:
+				if check.cfg.vcMetricsURLs[1] != oldVC.URL+"/metrics" {
+					prematureCommit = fmt.Sprintf("invalid VC2 candidate was committed before retry: %s", check.cfg.vcMetricsURLs[1])
+				}
+			}
+		},
+	}
+	check = &systemCheck{
+		cfg:  cfg,
+		k:    kurtosis{enclave: cfg.enclave, runner: runner},
+		http: httpReader{client: &http.Client{Timeout: time.Second}},
+	}
+
+	if err := check.waitBeaconReachable(t.Context(), 1); err != nil {
+		t.Fatal(err)
+	}
+	if err := check.waitMetricsReachable(t.Context(), 1); err != nil {
+		t.Fatal(err)
+	}
+	if prematureCommit != "" {
+		t.Fatal(prematureCommit)
+	}
+	if check.cfg.clURLs[1] != newCL.URL || check.cfg.vcMetricsURLs[1] != newVC.URL+"/metrics" {
+		t.Fatalf("rediscovered endpoints not committed: CL=%s VC=%s", check.cfg.clURLs[1], check.cfg.vcMetricsURLs[1])
+	}
+	if newCLCalls.Load() == 0 || newVCCalls.Load() == 0 {
+		t.Fatalf("new endpoint calls: CL=%d VC=%d", newCLCalls.Load(), newVCCalls.Load())
+	}
+	if runner.calls[clKey] < 2 || runner.calls[vcKey] < 2 {
+		t.Fatalf("transient discovery calls: CL=%d VC=%d", runner.calls[clKey], runner.calls[vcKey])
+	}
+	if oldCLCalls.Load() != 0 || oldVCCalls.Load() != 0 {
+		t.Fatalf("obsolete endpoint calls: CL=%d VC=%d", oldCLCalls.Load(), oldVCCalls.Load())
+	}
 }
 
 func TestBeaconStatus(t *testing.T) {

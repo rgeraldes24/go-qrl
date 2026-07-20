@@ -24,6 +24,7 @@ import (
 	"log"
 	"math/big"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -253,7 +254,11 @@ func (s *systemCheck) waitExecutionHealthy(ctx context.Context) error {
 
 func (s *systemCheck) waitSignerReady(ctx context.Context) error {
 	return waitFor(ctx, s.cfg.timeout, s.cfg.pollInterval, "topology Clef to become ready", func(ctx context.Context) (bool, error) {
-		client, err := rpc.DialContext(ctx, s.cfg.signerURL)
+		endpoint, err := s.cfg.signerEndpoint(ctx, s.k)
+		if err != nil {
+			return false, err
+		}
+		client, err := rpc.DialContext(ctx, endpoint)
 		if err != nil {
 			return false, err
 		}
@@ -271,6 +276,10 @@ func (s *systemCheck) waitSignerReady(ctx context.Context) error {
 		}
 		if !containsAddress(accounts, s.cfg.signerAddress) {
 			return false, fmt.Errorf("Clef account list does not contain %s", s.cfg.signerAddress)
+		}
+		if endpoint != s.cfg.signerURL {
+			log.Printf("systemcheck: refreshed %s HTTP endpoint after restart: %s -> %s", s.cfg.signerSvc, s.cfg.signerURL, endpoint)
+			s.cfg.signerURL = endpoint
 		}
 		return true, nil
 	})
@@ -1304,13 +1313,13 @@ func (s *systemCheck) restartSigner(ctx context.Context) (err error) {
 	if err := s.k.start(ctx, s.cfg.signerSvc); err != nil {
 		return err
 	}
+	stopped = false
 	if err := s.waitSignerReady(ctx); err != nil {
 		return fmt.Errorf("Clef did not recover after restart: %w", err)
 	}
 	if err := s.verifyManagedAccounts(ctx); err != nil {
 		return fmt.Errorf("execution account manager did not recover after Clef restart: %w", err)
 	}
-	stopped = false
 	hash, err := s.sendManagedTransfer(ctx, 0)
 	if err != nil {
 		return fmt.Errorf("transaction after Clef restart: %w", err)
@@ -1459,6 +1468,7 @@ func (s *systemCheck) restartSecondParticipant(ctx context.Context, previousFina
 		if err := s.k.start(ctx, service); err != nil {
 			return err
 		}
+		delete(stopped, service)
 		switch service {
 		case s.cfg.elServices[1]:
 			if err := s.redialSecondExecution(ctx); err != nil {
@@ -1473,7 +1483,6 @@ func (s *systemCheck) restartSecondParticipant(ctx context.Context, previousFina
 				return err
 			}
 		}
-		delete(stopped, service)
 	}
 	recoveryValidatorBaseline, observedRecoveryValidators, err := s.waitRestartedValidatorBaseline(ctx, preFaultValidatorDuties)
 	if err != nil {
@@ -1555,27 +1564,65 @@ func (s *systemCheck) waitSecondParticipantEndpointsDown(ctx context.Context) er
 
 func (s *systemCheck) redialSecondExecution(ctx context.Context) error {
 	return waitFor(ctx, s.cfg.timeout, s.cfg.pollInterval, "EL2 RPC after restart", func(ctx context.Context) (bool, error) {
-		client, err := qrlclient.DialContext(ctx, s.cfg.rpcURLs[1])
+		endpoint, err := s.cfg.executionEndpoint(ctx, s.k, 1)
 		if err != nil {
 			return false, err
 		}
-		if _, err := client.ChainID(ctx); err != nil {
+		client, err := qrlclient.DialContext(ctx, endpoint)
+		if err != nil {
+			return false, err
+		}
+		chainID, err := client.ChainID(ctx)
+		if err != nil {
 			client.Close()
 			return false, err
 		}
-		if s.clients[1] != nil {
-			s.clients[1].Close()
+		if chainID.Sign() <= 0 {
+			client.Close()
+			return false, fmt.Errorf("EL2 chain ID is not positive: %s", chainID)
 		}
+		block, err := client.BlockNumber(ctx)
+		if err != nil {
+			client.Close()
+			return false, err
+		}
+		if block == 0 {
+			client.Close()
+			return false, fmt.Errorf("EL2 has not imported a post-genesis block")
+		}
+		if endpoint != s.cfg.rpcURLs[1] {
+			log.Printf("systemcheck: refreshed %s RPC endpoint after restart: %s -> %s", s.cfg.elServices[1], s.cfg.rpcURLs[1], endpoint)
+		}
+		previous := s.clients[1]
+		s.cfg.rpcURLs[1] = endpoint
 		s.clients[1] = client
+		if previous != nil {
+			previous.Close()
+		}
 		return true, nil
 	})
 }
 
 func (s *systemCheck) waitBeaconReachable(ctx context.Context, index int) error {
 	return waitFor(ctx, s.cfg.timeout, s.cfg.pollInterval, fmt.Sprintf("CL%d HTTP after restart", index+1), func(ctx context.Context) (bool, error) {
-		var response beaconSyncResponse
-		if err := s.http.getJSON(ctx, s.cfg.clURLs[index], syncStatusPath, &response); err != nil {
+		endpoint, err := s.cfg.beaconEndpoint(ctx, s.k, index)
+		if err != nil {
 			return false, err
+		}
+		var response beaconSyncResponse
+		if err := s.http.getJSON(ctx, endpoint, syncStatusPath, &response); err != nil {
+			return false, err
+		}
+		headSlot, err := strconv.ParseUint(response.Data.HeadSlot, 10, 64)
+		if err != nil {
+			return false, fmt.Errorf("CL%d returned invalid head slot %q: %w", index+1, response.Data.HeadSlot, err)
+		}
+		if headSlot == 0 {
+			return false, fmt.Errorf("CL%d has not imported a post-genesis slot", index+1)
+		}
+		if endpoint != s.cfg.clURLs[index] {
+			log.Printf("systemcheck: refreshed %s HTTP endpoint after restart: %s -> %s", s.cfg.clServices[index], s.cfg.clURLs[index], endpoint)
+			s.cfg.clURLs[index] = endpoint
 		}
 		return true, nil
 	})
@@ -1584,12 +1631,30 @@ func (s *systemCheck) waitBeaconReachable(ctx context.Context, index int) error 
 func (s *systemCheck) waitMetricsReachable(ctx context.Context, index int) error {
 	interval := min(s.validatorPollInterval(), 5*time.Second)
 	return waitFor(ctx, validatorMetricsReachabilityTimeout, interval, fmt.Sprintf("VC%d metrics endpoint to become reachable", index+1), func(ctx context.Context) (bool, error) {
-		body, err := s.http.getText(ctx, s.cfg.vcMetricsURLs[index])
+		endpoint, err := s.cfg.validatorEndpoint(ctx, s.k, index)
 		if err != nil {
 			return false, err
 		}
-		_, err = parseMetrics(body)
-		return err == nil, err
+		body, err := s.http.getText(ctx, endpoint)
+		if err != nil {
+			return false, err
+		}
+		metrics, err := parseMetrics(body)
+		if err != nil {
+			return false, err
+		}
+		processStart, err := checkedSingleMetric(metrics, "process_start_time_seconds")
+		if err != nil {
+			return false, err
+		}
+		if processStart <= 0 {
+			return false, fmt.Errorf("VC%d process start time has invalid value %v", index+1, processStart)
+		}
+		if endpoint != s.cfg.vcMetricsURLs[index] {
+			log.Printf("systemcheck: refreshed %s metrics endpoint after restart: %s -> %s", s.cfg.vcServices[index], s.cfg.vcMetricsURLs[index], endpoint)
+			s.cfg.vcMetricsURLs[index] = endpoint
+		}
+		return true, nil
 	})
 }
 

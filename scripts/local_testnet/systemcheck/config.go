@@ -44,6 +44,11 @@ type config struct {
 	vcMetricsURLs [2]string
 	signerURL     string
 
+	rpcURLsFromKurtosis       [2]bool
+	clURLsFromKurtosis        [2]bool
+	vcMetricsURLsFromKurtosis [2]bool
+	signerURLFromKurtosis     bool
+
 	signerAddress       common.Address
 	recipient           common.Address
 	feeRecipient        common.Address

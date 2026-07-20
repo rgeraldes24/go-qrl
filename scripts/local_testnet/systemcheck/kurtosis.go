@@ -88,33 +88,81 @@ func parsePortOutput(output, scheme string) (string, error) {
 func (cfg *config) resolveEndpoints(ctx context.Context, k kurtosis) error {
 	for i := range cfg.rpcURLs {
 		if cfg.rpcURLs[i] == "" {
-			endpoint, err := k.endpoint(ctx, cfg.elServices[i], "rpc", "http")
+			cfg.rpcURLsFromKurtosis[i] = true
+			endpoint, err := cfg.executionEndpoint(ctx, k, i)
 			if err != nil {
-				return fmt.Errorf("resolve %s RPC: %w", cfg.elServices[i], err)
+				return err
 			}
 			cfg.rpcURLs[i] = endpoint
 		}
 		if cfg.clURLs[i] == "" {
-			endpoint, err := k.endpoint(ctx, cfg.clServices[i], "http", "http")
+			cfg.clURLsFromKurtosis[i] = true
+			endpoint, err := cfg.beaconEndpoint(ctx, k, i)
 			if err != nil {
-				return fmt.Errorf("resolve %s HTTP: %w", cfg.clServices[i], err)
+				return err
 			}
 			cfg.clURLs[i] = endpoint
 		}
 		if cfg.vcMetricsURLs[i] == "" {
-			endpoint, err := k.endpoint(ctx, cfg.vcServices[i], "metrics", "http")
+			cfg.vcMetricsURLsFromKurtosis[i] = true
+			endpoint, err := cfg.validatorEndpoint(ctx, k, i)
 			if err != nil {
-				return fmt.Errorf("resolve %s metrics: %w", cfg.vcServices[i], err)
+				return err
 			}
-			cfg.vcMetricsURLs[i] = endpoint + "/metrics"
+			cfg.vcMetricsURLs[i] = endpoint
 		}
 	}
 	if cfg.signerURL == "" {
-		endpoint, err := k.endpoint(ctx, cfg.signerSvc, "http", "http")
+		cfg.signerURLFromKurtosis = true
+		endpoint, err := cfg.signerEndpoint(ctx, k)
 		if err != nil {
-			return fmt.Errorf("resolve %s HTTP: %w", cfg.signerSvc, err)
+			return err
 		}
 		cfg.signerURL = endpoint
 	}
 	return nil
+}
+
+func (cfg *config) executionEndpoint(ctx context.Context, k kurtosis, index int) (string, error) {
+	if !cfg.rpcURLsFromKurtosis[index] {
+		return cfg.rpcURLs[index], nil
+	}
+	endpoint, err := k.endpoint(ctx, cfg.elServices[index], "rpc", "http")
+	if err != nil {
+		return "", fmt.Errorf("resolve %s RPC: %w", cfg.elServices[index], err)
+	}
+	return endpoint, nil
+}
+
+func (cfg *config) beaconEndpoint(ctx context.Context, k kurtosis, index int) (string, error) {
+	if !cfg.clURLsFromKurtosis[index] {
+		return cfg.clURLs[index], nil
+	}
+	endpoint, err := k.endpoint(ctx, cfg.clServices[index], "http", "http")
+	if err != nil {
+		return "", fmt.Errorf("resolve %s HTTP: %w", cfg.clServices[index], err)
+	}
+	return endpoint, nil
+}
+
+func (cfg *config) validatorEndpoint(ctx context.Context, k kurtosis, index int) (string, error) {
+	if !cfg.vcMetricsURLsFromKurtosis[index] {
+		return cfg.vcMetricsURLs[index], nil
+	}
+	endpoint, err := k.endpoint(ctx, cfg.vcServices[index], "metrics", "http")
+	if err != nil {
+		return "", fmt.Errorf("resolve %s metrics: %w", cfg.vcServices[index], err)
+	}
+	return strings.TrimRight(endpoint, "/") + "/metrics", nil
+}
+
+func (cfg *config) signerEndpoint(ctx context.Context, k kurtosis) (string, error) {
+	if !cfg.signerURLFromKurtosis {
+		return cfg.signerURL, nil
+	}
+	endpoint, err := k.endpoint(ctx, cfg.signerSvc, "http", "http")
+	if err != nil {
+		return "", fmt.Errorf("resolve %s HTTP: %w", cfg.signerSvc, err)
+	}
+	return endpoint, nil
 }
