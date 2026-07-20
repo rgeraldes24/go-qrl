@@ -27,6 +27,7 @@ import (
 
 	"github.com/theQRL/go-qrl/common"
 	"github.com/theQRL/go-qrl/common/hexutil"
+	"github.com/theQRL/go-qrl/common/uint512"
 	"github.com/theQRL/go-qrl/core/vm"
 	"github.com/theQRL/go-qrl/crypto"
 	"github.com/theQRL/go-qrl/qrl/tracers"
@@ -392,14 +393,13 @@ func (t *jsTracer) setBuiltinFunctions() {
 		return hexutil.Encode(b)
 	})
 	vm.Set("toWord", func(v goja.Value) goja.Value {
-		// TODO: add test with []byte len < 32 or > 32
 		b, err := t.fromBuf(vm, v, true)
 		if err != nil {
 			vm.Interrupt(err)
 			return nil
 		}
-		b = common.BytesToHash(b).Bytes()
-		res, err := t.toBuf(vm, b)
+		word := new(uint512.Int).SetBytes(b).Bytes64()
+		res, err := t.toBuf(vm, word[:])
 		if err != nil {
 			vm.Interrupt(err)
 			return nil
