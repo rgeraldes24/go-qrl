@@ -124,9 +124,37 @@ func genIntType(rule int64, size uint) common.LogTopic {
 
 // ParseTopics converts the indexed topic fields into actual log field values.
 func ParseTopics(out any, fields Arguments, topics []common.LogTopic) error {
+	return parseTopics(out, fields, topics, nil)
+}
+
+// ParseTopicsWithKnownFields converts indexed topic fields while allowing ABI
+// tags for non-indexed fields from the same event struct.
+func ParseTopicsWithKnownFields(out any, fields Arguments, topics []common.LogTopic, knownFields Arguments) error {
+	allowedMissingTags := make(map[string]struct{})
+	for _, arg := range knownFields {
+		if !arg.Indexed {
+			allowedMissingTags[arg.Name] = struct{}{}
+		}
+	}
+	return parseTopics(out, fields, topics, allowedMissingTags)
+}
+
+func parseTopics(out any, fields Arguments, topics []common.LogTopic, allowedMissingTags map[string]struct{}) error {
+	if len(fields) != len(topics) {
+		return errors.New("topic/field count mismatch")
+	}
+	value := reflect.ValueOf(out).Elem()
+	argNames := make([]string, len(fields))
+	for i, arg := range fields {
+		argNames[i] = arg.Name
+	}
+	abi2struct, err := mapArgNamesToStructFields(argNames, value, allowedMissingTags)
+	if err != nil {
+		return err
+	}
 	return parseTopicWithSetter(fields, topics,
 		func(arg Argument, reconstr any) {
-			field := reflect.ValueOf(out).Elem().FieldByName(ToCamelCase(arg.Name))
+			field := value.FieldByName(abi2struct[arg.Name])
 			field.Set(reflect.ValueOf(reconstr))
 		})
 }

@@ -202,6 +202,43 @@ func TestUnpackIndexedStringTyLogIntoMap(t *testing.T) {
 	unpackAndCheck(t, bc, expectedReceivedMap, mockLog)
 }
 
+func TestUnpackLogPopulatesRenamedEventFields(t *testing.T) {
+	const abiJSON = `[{"anonymous":false,"inputs":[{"indexed":false,"name":"msg","type":"uint256"},{"indexed":true,"name":"_msg","type":"uint256"},{"indexed":true,"name":"range","type":"uint256"}],"name":"renamed","type":"event"}]`
+	parsed, err := abi.JSON(strings.NewReader(abiJSON))
+	if err != nil {
+		t.Fatalf("parse ABI: %v", err)
+	}
+	event := parsed.Events["renamed"]
+	data, err := event.Inputs.NonIndexed().Pack(big.NewInt(11))
+	if err != nil {
+		t.Fatalf("pack event data: %v", err)
+	}
+	topicRules, err := abi.MakeTopics([]any{big.NewInt(22)}, []any{big.NewInt(33)})
+	if err != nil {
+		t.Fatalf("make event topics: %v", err)
+	}
+	log := types.Log{
+		Data: data,
+		Topics: []common.LogTopic{
+			common.HashToLogTopic(event.ID),
+			topicRules[0][0],
+			topicRules[1][0],
+		},
+	}
+	var out struct {
+		Msg  *big.Int `abi:"msg"`
+		Msg0 *big.Int `abi:"_msg"`
+		Arg2 *big.Int `abi:"range"`
+	}
+	contract := bind.NewBoundContract(common.Address{}, parsed, nil, nil, nil)
+	if err := contract.UnpackLog(&out, "renamed", log); err != nil {
+		t.Fatalf("unpack renamed event: %v", err)
+	}
+	if out.Msg.Cmp(big.NewInt(11)) != 0 || out.Msg0.Cmp(big.NewInt(22)) != 0 || out.Arg2.Cmp(big.NewInt(33)) != 0 {
+		t.Fatalf("renamed event mismatch: msg=%v _msg=%v range=%v", out.Msg, out.Msg0, out.Arg2)
+	}
+}
+
 func TestUnpackAnonymousLogIntoMap(t *testing.T) {
 	mockLog := newMockLog(nil, common.HexToHash("0x0"))
 

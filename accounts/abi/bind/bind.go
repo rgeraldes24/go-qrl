@@ -25,6 +25,7 @@ import (
 	"fmt"
 	"go/format"
 	"regexp"
+	"strconv"
 	"strings"
 	"text/template"
 	"unicode"
@@ -279,6 +280,7 @@ func Bind(types []string, abis []string, bytecodes []string, fsigs []map[string]
 	funcs := map[string]any{
 		"bindtype":      bindType,
 		"bindtopictype": bindTopicType,
+		"abitag":        abiTag,
 		"capitalise":    abi.ToCamelCase,
 		"decapitalise":  decapitalise,
 	}
@@ -411,6 +413,13 @@ func decapitalise(input string) string {
 	}
 	goForm := abi.ToCamelCase(input)
 	return strings.ToLower(goForm[:1]) + goForm[1:]
+}
+
+func abiTag(name string) string {
+	if name == "" {
+		return ""
+	}
+	return "`abi:" + strconv.Quote(name) + "`"
 }
 
 // structured checks whether a list of ABI data types has enough information to

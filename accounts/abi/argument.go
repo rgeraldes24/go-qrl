@@ -149,8 +149,18 @@ func (arguments Arguments) copyTuple(v any, marshalledValues []any) error {
 		for i, arg := range nonIndexedArgs {
 			argNames[i] = arg.Name
 		}
-		var err error
-		abi2struct, err := mapArgNamesToStructFields(argNames, value)
+		var allowedMissingTags map[string]struct{}
+		if len(nonIndexedArgs) != len(arguments) {
+			// Event structs also contain indexed fields, which are populated
+			// separately from topics after the non-indexed data is unpacked.
+			allowedMissingTags = make(map[string]struct{})
+			for _, arg := range arguments {
+				if arg.Indexed {
+					allowedMissingTags[arg.Name] = struct{}{}
+				}
+			}
+		}
+		abi2struct, err := mapArgNamesToStructFields(argNames, value, allowedMissingTags)
 		if err != nil {
 			return err
 		}
