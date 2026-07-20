@@ -148,7 +148,7 @@ var bindTests = []struct {
 				res  bool
 					str  string
 					dat  []byte
-					topic common.LogTopic
+					hash common.Hash
 				)
 				_, err = e.FilterEmpty(nil)
 				_, err = e.FilterIndexed(nil, []common.Address{}, []*big.Int{})
@@ -167,8 +167,8 @@ var bindTests = []struct {
 
 				str  = dit.Event.Str    // Make sure non-indexed strings retain their type
 				dat  = dit.Event.Dat    // Make sure non-indexed bytes retain their type
-				topic = dit.Event.IdxStr // Make sure indexed strings retain the full topic
-				topic = dit.Event.IdxDat // Make sure indexed bytes retain the full topic
+				hash = dit.Event.IdxStr // Make sure indexed strings turn into hashes
+				hash = dit.Event.IdxDat // Make sure indexed bytes turn into hashes
 
 				sink := make(chan *EventCheckerMixed)
 				sub, err := e.WatchMixed(nil, sink, []common.Address{})
@@ -179,7 +179,7 @@ var bindTests = []struct {
 				fmt.Println(event.Num)           // Make sure the unpacked non-indexed fields are present
 				fmt.Println(event.Addr)          // Make sure the reconstructed indexed fields are present
 
-				fmt.Println(res, str, dat, topic, err)
+				fmt.Println(res, str, dat, hash, err)
 
 				oit, err := e.FilterUnnamed(nil, []*big.Int{}, []*big.Int{})
 

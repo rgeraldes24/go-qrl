@@ -158,8 +158,14 @@ func parseTopicWithSetter(fields Arguments, topics []common.LogTopic, setter fun
 		switch arg.Type.T {
 		case TupleTy:
 			return errors.New("tuple type in topic reconstruction")
-		case StringTy, BytesTy, SliceTy, ArrayTy:
-			// Array types (including strings and bytes) have their keccak256 hashes stored in the topic — returned verbatim.
+		case StringTy, BytesTy:
+			// Indexed strings and bytes store their Keccak-256 hash as a
+			// left-aligned bytes32 value in the 64-byte topic.
+			var hash common.Hash
+			copy(hash[:], topics[i][:common.HashLength])
+			reconstr = hash
+		case SliceTy, ArrayTy:
+			// Indexed arrays cannot be reconstructed from their topic hash.
 			reconstr = topics[i]
 		case FunctionTy:
 			// Functions are AddressLength+4 bytes and fit right-aligned in the
