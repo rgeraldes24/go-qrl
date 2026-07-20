@@ -2,9 +2,13 @@
 ARG COMMIT=""
 ARG VERSION=""
 ARG BUILDNUM=""
+ARG GO_BUILDER_IMAGE="golang:1.25-alpine"
+ARG ALPINE_RUNTIME_IMAGE="alpine:latest"
 
 # Build Gqrl in a stock Go builder container
-FROM golang:1.25-alpine AS builder
+FROM ${GO_BUILDER_IMAGE} AS builder
+
+ARG COMMIT=""
 
 RUN apk add --no-cache gcc musl-dev linux-headers git
 
@@ -19,12 +23,12 @@ ADD . /go-qrl
 # makes it so that under certain circumstances, the docker layer can be cached,
 # and the builder can jump to the next (build all) command, with the go cache fully loaded.
 #
-RUN cd /go-qrl && go run build/ci.go install -static ./cmd/gqrl
+RUN cd /go-qrl && go run build/ci.go install -git-commit="$COMMIT" -static ./cmd/gqrl
 
-RUN cd /go-qrl && go run build/ci.go install -static
+RUN cd /go-qrl && go run build/ci.go install -git-commit="$COMMIT" -static
 
 # Pull all binaries into a second stage deploy alpine container
-FROM alpine:latest
+FROM ${ALPINE_RUNTIME_IMAGE}
 
 RUN apk add --no-cache ca-certificates
 COPY --from=builder /go-qrl/build/bin/* /usr/local/bin/

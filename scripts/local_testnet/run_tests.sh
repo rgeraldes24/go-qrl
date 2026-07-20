@@ -15,6 +15,10 @@ GRAPHQL_URL_EXPLICIT=false
 WS_URL=""
 WS_URL_EXPLICIT=false
 WAIT_TIMEOUT=600
+STRICT=false
+RUN_STANDALONE_CLEF=true
+RESULTS_DIR=""
+EXPECTED_GIT_COMMIT=${EXPECTED_GIT_COMMIT:-}
 
 # Prefunded dev account (see the prefunded_accounts comment in
 # network_params.yaml); used to sign the deployment transaction for
@@ -24,7 +28,7 @@ DEPLOYER_SEED=010000f29f58aff0b00de2844f7e20bd9eeaacc379150043beeb328335817512b2
 SUITES=(web3_sanity api_surfaces logs_topics event_roundtrip abi_vm64)
 
 # Get options
-while getopts "e:s:r:g:w:t:h" flag; do
+while getopts "e:s:r:g:w:t:o:cCh" flag; do
   case "${flag}" in
     e) ENCLAVE_NAME=${OPTARG};;
     s) EL_SERVICE=${OPTARG};;
@@ -32,6 +36,9 @@ while getopts "e:s:r:g:w:t:h" flag; do
     g) GRAPHQL_URL=${OPTARG}; GRAPHQL_URL_EXPLICIT=true;;
     w) WS_URL=${OPTARG}; WS_URL_EXPLICIT=true;;
     t) WAIT_TIMEOUT=${OPTARG};;
+    o) RESULTS_DIR=${OPTARG};;
+    c) STRICT=true;;
+    C) RUN_STANDALONE_CLEF=false;;
     h)
         echo "Run the local testnet E2E test suites."
         echo
@@ -41,9 +48,12 @@ while getopts "e:s:r:g:w:t:h" flag; do
         echo "   -e: enclave name                                default: $ENCLAVE_NAME"
         echo "   -s: execution layer kurtosis service name       default: $EL_SERVICE"
         echo "   -r: HTTP RPC endpoint; skips kurtosis service resolution when set"
-        echo "   -g: GraphQL endpoint; defaults to <HTTP RPC endpoint>/graphql when available"
-        echo "   -w: WS RPC endpoint; skips subscription checks when omitted/unavailable"
+        echo "   -g: GraphQL endpoint; defaults to <HTTP RPC endpoint>/graphql"
+        echo "   -w: WS RPC endpoint; resolved from Kurtosis when possible"
         echo "   -t: seconds to wait for block production        default: $WAIT_TIMEOUT"
+        echo "   -o: directory for per-suite logs and summary"
+        echo "   -c: strict CI mode; rebuild clients and require GraphQL and WS"
+        echo "   -C: skip the standalone Clef crypto suite (for a secondary-node run)"
         echo "   -h: this help"
         exit
         ;;
@@ -54,12 +64,76 @@ while getopts "e:s:r:g:w:t:h" flag; do
   esac
 done
 
+if [ "$STRICT" = true ] && [ -z "$EXPECTED_GIT_COMMIT" ]; then
+    EXPECTED_GIT_COMMIT=$(git -C "$ROOT_DIR" rev-parse HEAD)
+    echo "Strict mode derived expected revision $EXPECTED_GIT_COMMIT from the checkout."
+fi
+if [ -n "$EXPECTED_GIT_COMMIT" ] && [[ ! "$EXPECTED_GIT_COMMIT" =~ ^[0-9a-f]{40}$ ]]; then
+    echo "EXPECTED_GIT_COMMIT must be an exact lowercase 40-character commit, got: $EXPECTED_GIT_COMMIT" >&2
+    exit 1
+fi
+
 GQRL="$ROOT_DIR/build/bin/gqrl"
-if [ ! -x "$GQRL" ]; then
+CLEF="$ROOT_DIR/build/bin/clef"
+if [ "$STRICT" = true ]; then
+    BUILD_TARGETS=(./cmd/gqrl)
+    if [ "$RUN_STANDALONE_CLEF" = true ]; then
+        BUILD_TARGETS+=(./cmd/clef)
+        echo "Building gqrl and clef from the checked-out source."
+    else
+        echo "Building gqrl from the checked-out source; standalone Clef verification is disabled."
+    fi
+    (cd "$ROOT_DIR" && go run build/ci.go install "${BUILD_TARGETS[@]}")
+elif [ ! -x "$GQRL" ]; then
     echo "Building gqrl."
     (cd "$ROOT_DIR" && go run build/ci.go install ./cmd/gqrl)
 fi
-CLEF="$ROOT_DIR/build/bin/clef"
+
+if [ -n "$EXPECTED_GIT_COMMIT" ]; then
+    GQRL_VERSION=$("$GQRL" version)
+    if ! grep -Fq "Git Commit: $EXPECTED_GIT_COMMIT" <<<"$GQRL_VERSION"; then
+        echo "gqrl was not built from expected commit $EXPECTED_GIT_COMMIT:" >&2
+        echo "$GQRL_VERSION" >&2
+        exit 1
+    fi
+fi
+
+if [ -z "$RESULTS_DIR" ]; then
+    RESULTS_DIR="$SCRIPT_DIR/logs/test-results"
+fi
+mkdir -p "$RESULTS_DIR"
+SUMMARY_FILE="$RESULTS_DIR/summary.tsv"
+printf 'suite\texit_code\tmarker\n' > "$SUMMARY_FILE"
+PARAMS_FILE="$SCRIPT_DIR/tests/.params.js"
+cleanup() {
+    rm -f "$PARAMS_FILE"
+}
+trap cleanup EXIT
+
+FAILED_SUITES=()
+run_suite() {
+    local suite=$1
+    shift
+    local output_file="$RESULTS_DIR/$suite.log"
+    local status
+    local marker=missing
+
+    echo
+    echo "=== $suite ==="
+    if "$@" >"$output_file" 2>&1; then
+        status=0
+    else
+        status=$?
+    fi
+    cat "$output_file"
+    if grep -q "^SUITE $suite: PASSED" "$output_file"; then
+        marker=passed
+    fi
+    printf '%s\t%s\t%s\n' "$suite" "$status" "$marker" >> "$SUMMARY_FILE"
+    if [ "$status" -ne 0 ] || [ "$marker" != passed ]; then
+        FAILED_SUITES+=("$suite")
+    fi
+}
 
 if [ -z "$RPC_URL" ]; then
     if ! command -v kurtosis &> /dev/null; then
@@ -93,8 +167,8 @@ fi
 echo "Using RPC endpoint $RPC_URL."
 if [ -n "$WS_URL" ]; then
     echo "Using WS endpoint $WS_URL."
-elif [ "$WS_URL_EXPLICIT" = true ]; then
-    echo "WS endpoint was explicitly set but empty."
+elif [ "$WS_URL_EXPLICIT" = true ] || [ "$STRICT" = true ]; then
+    echo "WS endpoint is required but unavailable."
     exit 1
 else
     echo "WS endpoint unavailable; skipping subscription checks."
@@ -103,8 +177,17 @@ fi
 echo "Waiting for the chain to produce blocks (timeout ${WAIT_TIMEOUT}s)."
 START_TIME=$(date +%s)
 while true; do
-    BLOCK_NUMBER=$("$GQRL" attach --exec "qrl.blockNumber" "$RPC_URL" 2>/dev/null || echo "")
-    if [ -n "$BLOCK_NUMBER" ] && [ "$BLOCK_NUMBER" -gt 0 ] 2>/dev/null; then
+    BLOCK_RESPONSE=$(curl --fail --silent --show-error \
+        --connect-timeout 5 --max-time 15 \
+        -H "Content-Type: application/json" \
+        --data '{"jsonrpc":"2.0","method":"qrl_blockNumber","params":[],"id":1}' \
+        "$RPC_URL" 2>/dev/null || true)
+    BLOCK_HEX=$(sed -n 's/.*"result":"\(0x[0-9a-fA-F]*\)".*/\1/p' <<<"$BLOCK_RESPONSE")
+    BLOCK_NUMBER=""
+    if [[ "$BLOCK_HEX" =~ ^0x[0-9a-fA-F]+$ ]]; then
+        BLOCK_NUMBER=$((BLOCK_HEX))
+    fi
+    if [ -n "$BLOCK_NUMBER" ] && [ "$BLOCK_NUMBER" -gt 0 ]; then
         echo "Chain is at block $BLOCK_NUMBER."
         break
     fi
@@ -115,16 +198,36 @@ while true; do
     sleep 5
 done
 
-if [ "$GRAPHQL_URL_EXPLICIT" = false ]; then
-    GRAPHQL_PROBE=$(curl -sS -H "Content-Type: application/json" \
+GRAPHQL_PROBE=""
+for _ in $(seq 1 10); do
+    GRAPHQL_PROBE=$(curl --fail --silent --show-error \
+        --connect-timeout 5 --max-time 15 \
+        -H "Content-Type: application/json" \
         --data '{"query":"{chainID}","variables":null}' "$GRAPHQL_URL" 2>/dev/null || true)
-    if ! echo "$GRAPHQL_PROBE" | grep -q '"chainID"'; then
-        echo "GraphQL endpoint $GRAPHQL_URL is unavailable; skipping GraphQL checks."
-        GRAPHQL_URL=""
+    if grep -q '"chainID"' <<<"$GRAPHQL_PROBE"; then
+        break
     fi
-fi
-if [ -n "$GRAPHQL_URL" ]; then
+    sleep 2
+done
+if ! grep -q '"chainID"' <<<"$GRAPHQL_PROBE"; then
+    if [ "$GRAPHQL_URL_EXPLICIT" = true ] || [ "$STRICT" = true ]; then
+        echo "GraphQL endpoint $GRAPHQL_URL is required but unavailable."
+        exit 1
+    fi
+    echo "GraphQL endpoint $GRAPHQL_URL is unavailable; skipping GraphQL checks."
+    GRAPHQL_URL=""
+else
     echo "Using GraphQL endpoint $GRAPHQL_URL."
+fi
+
+if [ -n "$EXPECTED_GIT_COMMIT" ]; then
+    CLIENT_VERSION=$("$GQRL" attach --exec "web3.version.node" "$RPC_URL")
+    EXPECTED_SHORT_COMMIT=${EXPECTED_GIT_COMMIT:0:8}
+    if [[ "$CLIENT_VERSION" != *"$EXPECTED_SHORT_COMMIT"* ]]; then
+        echo "RPC node does not report expected commit $EXPECTED_SHORT_COMMIT: $CLIENT_VERSION" >&2
+        exit 1
+    fi
+    echo "RPC node reports expected commit $EXPECTED_SHORT_COMMIT."
 fi
 
 # Sign the contract deployment for event_roundtrip.js from the prefunded dev
@@ -138,21 +241,13 @@ fi
 echo "Signing the event_roundtrip deployment transaction."
 (cd "$ROOT_DIR" && go run ./scripts/local_testnet/txsigner \
     -rpc "$RPC_URL" -seed "$DEPLOYER_SEED" -data "$EMITTER_BIN" -format js) \
-    > "$SCRIPT_DIR/tests/.params.js"
+    > "$PARAMS_FILE"
 
-FAILED_SUITES=()
 for SUITE in "${SUITES[@]}"; do
-    echo
-    echo "=== $SUITE ==="
-    OUTPUT=$("$GQRL" attach --jspath "$SCRIPT_DIR/tests" --exec "loadScript('$SUITE.js')" "$RPC_URL" 2>&1) || true
-    echo "$OUTPUT"
-    if ! echo "$OUTPUT" | grep -q "^SUITE $SUITE: PASSED"; then
-        FAILED_SUITES+=("$SUITE")
-    fi
+    run_suite "$SUITE" "$GQRL" attach --jspath "$SCRIPT_DIR/tests" \
+        --exec "loadScript('$SUITE.js')" "$RPC_URL"
 done
 
-echo
-echo "=== go_abi ==="
 GOABI_ARGS=(-rpc "$RPC_URL" -seed "$DEPLOYER_SEED" -bin "$EMITTER_BIN")
 if [ -n "$GRAPHQL_URL" ]; then
     GOABI_ARGS+=(-graphql "$GRAPHQL_URL")
@@ -160,25 +255,24 @@ fi
 if [ -n "$WS_URL" ]; then
     GOABI_ARGS+=(-ws "$WS_URL")
 fi
-OUTPUT=$(cd "$ROOT_DIR" && go run ./scripts/local_testnet/goabi "${GOABI_ARGS[@]}" 2>&1) || true
-echo "$OUTPUT"
-if ! echo "$OUTPUT" | grep -q "^SUITE go_abi: PASSED"; then
-    FAILED_SUITES+=("go_abi")
-fi
+pushd "$ROOT_DIR" >/dev/null
+run_suite go_abi go run ./scripts/local_testnet/goabi "${GOABI_ARGS[@]}"
+popd >/dev/null
 
-echo
-echo "=== clef_api ==="
-OUTPUT=$(
+run_clef_api() (
     set -Eeuo pipefail
     if [ ! -x "$CLEF" ]; then
         echo "Building clef."
         (cd "$ROOT_DIR" && go run build/ci.go install ./cmd/clef)
     fi
     CLEF_DIR=$(mktemp -d)
-    CLEF_PORT=18550
-    CLEF_LOG="$CLEF_DIR/clef.log"
+    CLEF_ARTIFACT_DIR="$RESULTS_DIR/clef_api"
+    mkdir -p "$CLEF_ARTIFACT_DIR"
+    CLEF_PORT=${CLEF_PORT:-18550}
+    CLEF_LOG="$CLEF_ARTIFACT_DIR/clef.log"
     CLEF_MASTER_PASSWORD=localtestnetmaster
     CLEF_ACCOUNT_PASSWORD=localtestnetaccount
+    # shellcheck disable=SC2329 # Invoked indirectly by the EXIT trap below.
     cleanup() {
         if [ -n "${CLEF_PID:-}" ]; then
             kill "$CLEF_PID" >/dev/null 2>&1 || true
@@ -229,7 +323,8 @@ EOF
 
     RESPONSE=""
     for _ in $(seq 1 30); do
-        RESPONSE=$(curl -sS -H "Content-Type: application/json" \
+        RESPONSE=$(curl --fail --silent --show-error --connect-timeout 5 --max-time 15 \
+            -H "Content-Type: application/json" \
             --data '{"jsonrpc":"2.0","method":"account_version","params":[],"id":1}' \
             "http://127.0.0.1:$CLEF_PORT/" 2>/dev/null || true)
         if echo "$RESPONSE" | grep -q '"result":"[^"]\+"'; then
@@ -247,22 +342,22 @@ EOF
         cat "$CLEF_LOG"
         exit 1
     fi
+    printf '%s\n' "$RESPONSE" > "$CLEF_ARTIFACT_DIR/version-response.json"
 
-    LIST_RESPONSE=$(curl -sS -H "Content-Type: application/json" \
+    LIST_RESPONSE=$(curl --fail --silent --show-error --connect-timeout 5 --max-time 15 \
+        -H "Content-Type: application/json" \
         --data '{"jsonrpc":"2.0","method":"account_list","params":[],"id":2}' \
         "http://127.0.0.1:$CLEF_PORT/")
-    if ! echo "$LIST_RESPONSE" | grep -q "$CLEF_ACCOUNT"; then
-        echo "account_list did not include imported account: $LIST_RESPONSE"
-        exit 1
-    fi
-    SIGN_DATA_RESPONSE=$(curl -sS -H "Content-Type: application/json" \
-        --data "{\"jsonrpc\":\"2.0\",\"method\":\"account_signData\",\"params\":[\"text/plain\",\"$CLEF_ACCOUNT\",\"0x68656c6c6f\"],\"id\":3}" \
+    printf '%s\n' "$LIST_RESPONSE" > "$CLEF_ARTIFACT_DIR/list-response.json"
+    cat > "$CLEF_ARTIFACT_DIR/data-request.json" <<EOF
+{"jsonrpc":"2.0","method":"account_signData","params":["text/plain","$CLEF_ACCOUNT","0x436c656620564d3634207369676e44617461"],"id":3}
+EOF
+    SIGN_DATA_RESPONSE=$(curl --fail --silent --show-error --connect-timeout 5 --max-time 15 \
+        -H "Content-Type: application/json" \
+        --data-binary @"$CLEF_ARTIFACT_DIR/data-request.json" \
         "http://127.0.0.1:$CLEF_PORT/")
-    if ! echo "$SIGN_DATA_RESPONSE" | grep -Eq '"result":"0x[0-9a-fA-F]+"'; then
-        echo "account_signData did not return a signature: $SIGN_DATA_RESPONSE"
-        exit 1
-    fi
-    TYPED_DATA_PAYLOAD=$(cat <<EOF
+    printf '%s\n' "$SIGN_DATA_RESPONSE" > "$CLEF_ARTIFACT_DIR/data-response.json"
+    cat > "$CLEF_ARTIFACT_DIR/typed-request.json" <<EOF
 {
   "jsonrpc": "2.0",
   "method": "account_signTypedData",
@@ -270,7 +365,7 @@ EOF
     "$CLEF_ACCOUNT",
     {
       "types": {
-        "EIP712Domain": [
+        "QRLTypedDataDomain": [
           {"name": "name", "type": "string"},
           {"name": "version", "type": "string"},
           {"name": "chainId", "type": "uint256"},
@@ -284,52 +379,77 @@ EOF
       },
       "primaryType": "Message",
       "domain": {
-        "name": "Local Testnet",
+        "name": "Local Testnet VM64",
         "version": "1",
         "chainId": "1337",
         "verifyingContract": "$CLEF_ACCOUNT"
       },
       "message": {
         "sender": "$CLEF_ACCOUNT",
-        "contents": "hello",
-        "value": "1"
+        "contents": "Clef VM64 typed data",
+        "value": "340282366920938463463374607431768211457"
       }
     }
   ],
   "id": 4
 }
 EOF
-)
-    SIGN_TYPED_RESPONSE=$(curl -sS -H "Content-Type: application/json" \
-        --data "$TYPED_DATA_PAYLOAD" "http://127.0.0.1:$CLEF_PORT/")
-    if ! echo "$SIGN_TYPED_RESPONSE" | grep -Eq '"result":"0x[0-9a-fA-F]+"'; then
-        echo "account_signTypedData did not return a signature: $SIGN_TYPED_RESPONSE"
-        exit 1
-    fi
-    SIGN_TX_RESPONSE=$(curl -sS -H "Content-Type: application/json" \
-        --data "{\"jsonrpc\":\"2.0\",\"method\":\"account_signTransaction\",\"params\":[{\"from\":\"$CLEF_ACCOUNT\",\"to\":\"$CLEF_ACCOUNT\",\"gas\":\"0x5208\",\"maxFeePerGas\":\"0x3b9aca00\",\"maxPriorityFeePerGas\":\"0x0\",\"value\":\"0x0\",\"nonce\":\"0x0\",\"chainId\":\"0x539\"}],\"id\":5}" \
+    SIGN_TYPED_RESPONSE=$(curl --fail --silent --show-error --connect-timeout 5 --max-time 15 \
+        -H "Content-Type: application/json" \
+        --data-binary @"$CLEF_ARTIFACT_DIR/typed-request.json" "http://127.0.0.1:$CLEF_PORT/")
+    printf '%s\n' "$SIGN_TYPED_RESPONSE" > "$CLEF_ARTIFACT_DIR/typed-response.json"
+    cat > "$CLEF_ARTIFACT_DIR/tx-request.json" <<EOF
+{
+  "jsonrpc": "2.0",
+  "method": "account_signTransaction",
+  "params": [{
+    "from": "$CLEF_ACCOUNT",
+    "to": "Qd5812f6cf4a0f645aa620cd57319a0ed649dd8f5519a9dde7770ae5b0e49e547985f35eb972a2a07041561aa39c65a3991478f9b1e6749e05277dcf58a9a8b72",
+    "gas": "0x9c40",
+    "maxFeePerGas": "0x3b9aca00",
+    "maxPriorityFeePerGas": "0x7",
+    "value": "0x2a",
+    "nonce": "0x9",
+    "chainId": "0x539",
+    "input": "0x000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f",
+    "accessList": []
+  }],
+  "id": 5
+}
+EOF
+    SIGN_TX_RESPONSE=$(curl --fail --silent --show-error --connect-timeout 5 --max-time 15 \
+        -H "Content-Type: application/json" \
+        --data-binary @"$CLEF_ARTIFACT_DIR/tx-request.json" \
         "http://127.0.0.1:$CLEF_PORT/")
-    if ! echo "$SIGN_TX_RESPONSE" | grep -Eq '"raw":"0x[0-9a-fA-F]+"'; then
-        echo "account_signTransaction did not return a signed tx: $SIGN_TX_RESPONSE"
-        exit 1
-    fi
+    printf '%s\n' "$SIGN_TX_RESPONSE" > "$CLEF_ARTIFACT_DIR/tx-response.json"
 
-    echo "PASS: account_version returned $RESPONSE"
-    echo "PASS: account_list returned imported account $CLEF_ACCOUNT"
-    echo "PASS: account_signData returned a signature"
-    echo "PASS: account_signTypedData returned a signature"
-    echo "PASS: account_signTransaction returned a signed transaction"
-    echo "SUITE clef_api: PASSED"
-) || true
-echo "$OUTPUT"
-if ! echo "$OUTPUT" | grep -q "^SUITE clef_api: PASSED"; then
-    FAILED_SUITES+=("clef_api")
+    (cd "$ROOT_DIR" && go run ./scripts/local_testnet/clefverify \
+        -seed "$DEPLOYER_SEED" \
+        -account "$CLEF_ACCOUNT" \
+        -version-response "$CLEF_ARTIFACT_DIR/version-response.json" \
+        -list-response "$CLEF_ARTIFACT_DIR/list-response.json" \
+        -data-request "$CLEF_ARTIFACT_DIR/data-request.json" \
+        -data-response "$CLEF_ARTIFACT_DIR/data-response.json" \
+        -typed-request "$CLEF_ARTIFACT_DIR/typed-request.json" \
+        -typed-response "$CLEF_ARTIFACT_DIR/typed-response.json" \
+        -tx-request "$CLEF_ARTIFACT_DIR/tx-request.json" \
+        -tx-response "$CLEF_ARTIFACT_DIR/tx-response.json")
+)
+CLEF_SUITE_COUNT=0
+if [ "$RUN_STANDALONE_CLEF" = true ]; then
+    run_suite clef_api run_clef_api
+    CLEF_SUITE_COUNT=1
+else
+    echo
+    echo "Skipping the standalone Clef crypto suite by request; endpoint-dependent node suites remain enabled."
 fi
 
 echo
 if [ ${#FAILED_SUITES[@]} -ne 0 ]; then
     echo "Failed suites: ${FAILED_SUITES[*]}."
+    echo "Per-suite results: $SUMMARY_FILE"
     exit 1
 fi
-TOTAL_SUITES=$(( ${#SUITES[@]} + 2 ))
+TOTAL_SUITES=$(( ${#SUITES[@]} + 1 + CLEF_SUITE_COUNT ))
 echo "All $TOTAL_SUITES suites passed."
+echo "Per-suite results: $SUMMARY_FILE"

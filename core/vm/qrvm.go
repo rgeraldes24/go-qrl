@@ -444,8 +444,9 @@ func (qrvm *QRVM) Create(caller ContractRef, code []byte, gas uint64, value *big
 
 // Create2 creates a new contract using code as deployment code.
 //
-// The different between Create2 with Create is Create2 uses keccak256(0xff ++ msg.sender ++ salt ++ keccak256(init_code))[12:]
-// instead of the usual sender-and-nonce-hash as the address where the contract is initialized at.
+// Create2 differs from Create by deriving the full 64-byte contract address as
+// Keccak-512("QRL-ADDR-v1" || 0xff || sender64 || salt64 || Keccak-256(init_code))
+// instead of using the sender-and-nonce derivation. No address bytes are truncated.
 func (qrvm *QRVM) Create2(caller ContractRef, code []byte, gas uint64, endowment *big.Int, salt *uint512.Int) (ret []byte, contractAddr common.Address, leftOverGas uint64, err error) {
 	codeAndHash := &codeAndHash{code: code}
 	contractAddr = crypto.CreateAddress2(caller.Address(), salt.Bytes64(), codeAndHash.Hash().Bytes())

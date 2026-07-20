@@ -19,6 +19,8 @@ package main
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
+	"encoding/binary"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -37,12 +39,14 @@ import (
 	"github.com/theQRL/go-qrl/core/types"
 	"github.com/theQRL/go-qrl/core/vm"
 	"github.com/theQRL/go-qrl/crypto"
+	"github.com/theQRL/go-qrl/crypto/pqcrypto"
 	"github.com/theQRL/go-qrl/crypto/pqcrypto/wallet"
 	"github.com/theQRL/go-qrl/qrlclient"
 	"github.com/theQRL/go-qrl/qrlclient/gqrlclient"
+	"github.com/theQRL/go-qrl/qrldb/memorydb"
+	"github.com/theQRL/go-qrl/rlp"
+	"github.com/theQRL/go-qrl/trie"
 )
-
-const emitterABI = `[{"inputs":[],"stateMutability":"nonpayable","type":"constructor"},{"anonymous":false,"inputs":[{"indexed":false,"internalType":"uint256","name":"value","type":"uint256"}],"name":"Deployed","type":"event"}]`
 
 const vm64ABI = `[
 	{"name":"store","type":"function","inputs":[
@@ -82,7 +86,11 @@ func main() {
 }
 
 func run(rpcURL, graphqlURL, wsURL, seedHex, binHex string) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	// This suite intentionally serializes multiple mined transactions so each
+	// assertion has an unambiguous historical state root. Leave enough room for
+	// transient missed slots without turning a stalled chain into an endless CI
+	// job.
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Minute)
 	defer cancel()
 
 	w, err := wallet.RestoreFromSeedHex(strings.TrimPrefix(seedHex, "0x"))
@@ -104,6 +112,12 @@ func run(rpcURL, graphqlURL, wsURL, seedHex, binHex string) error {
 		return err
 	}
 	if err := checkStorageAPIs(ctx, graphqlURL, client, w, from); err != nil {
+		return err
+	}
+	if err := checkAddressUpperHalfIsolation(ctx, client, w, from); err != nil {
+		return err
+	}
+	if err := checkLivePrecompiles(ctx, client, from); err != nil {
 		return err
 	}
 	if graphqlURL != "" {
@@ -270,7 +284,272 @@ func checkLiveEventRoundTrip(ctx context.Context, client *qrlclient.Client, w wa
 			return err
 		}
 	}
+	if err := checkLiveVM64Contract(ctx, client, w, from, deployment); err != nil {
+		return err
+	}
 	return nil
+}
+
+func checkLiveVM64Contract(ctx context.Context, client *qrlclient.Client, w wallet.Wallet, from common.Address, deployment *eventDeployment) error {
+	amount := new(big.Int).Lsh(big.NewInt(1), 511)
+	amount.Add(amount, big.NewInt(0x1234))
+	delta := new(big.Int).Lsh(big.NewInt(1), 510)
+	delta.Neg(delta)
+	delta.Add(delta, big.NewInt(42))
+
+	var tag [64]byte
+	for i := range tag {
+		tag[i] = byte(0x80 + i)
+	}
+	payload := make([]byte, 129)
+	for i := range payload {
+		payload[i] = byte((i*29 + 7) & 0xff)
+	}
+	note := "VM64 string crosses the 64-byte ABI word boundary: 0123456789abcdef0123456789abcdef"
+	callOpts := &bind.CallOpts{Context: ctx, BlockNumber: deployment.receipt.BlockNumber}
+
+	echoAmount, echoDelta, echoTag, echoRecipient, echoPayload, echoNote, echoEnabled, err := deployment.binding.Echo(
+		callOpts, amount, delta, tag, from, payload, note, true,
+	)
+	if err != nil {
+		return fmt.Errorf("VM64 echo through generated binding: %w", err)
+	}
+	if echoAmount.Cmp(amount) != 0 || echoDelta.Cmp(delta) != 0 || echoTag != tag || echoRecipient != from ||
+		!bytes.Equal(echoPayload, payload) || echoNote != note || !echoEnabled {
+		return fmt.Errorf("VM64 echo mismatch: amount=%x delta=%x tag=%x recipient=%s payload=%x note=%q enabled=%t",
+			echoAmount, echoDelta, echoTag, echoRecipient, echoPayload, echoNote, echoEnabled)
+	}
+
+	value1 := [1]byte{0xa5}
+	var value32 [32]byte
+	var value33 [33]byte
+	for i := range value32 {
+		value32[i] = byte(i + 1)
+	}
+	for i := range value33 {
+		value33[i] = byte(0x40 + i)
+	}
+	fixed1, fixed32, fixed33, fixed64, err := deployment.binding.EchoFixed(callOpts, value1, value32, value33, tag)
+	if err != nil {
+		return fmt.Errorf("VM64 fixed-bytes echo through generated binding: %w", err)
+	}
+	if fixed1 != value1 || fixed32 != value32 || fixed33 != value33 || fixed64 != tag {
+		return fmt.Errorf("VM64 fixed-bytes echo mismatch")
+	}
+
+	arrayValues := []*big.Int{big.NewInt(0), big.NewInt(1), amount}
+	arrayTags := [2][64]byte{tag, {}}
+	copy(arrayTags[1][:], payload[:64])
+	gotValues, gotTags, err := deployment.binding.EchoArrays(callOpts, arrayValues, arrayTags)
+	if err != nil {
+		return fmt.Errorf("VM64 array echo through generated binding: %w", err)
+	}
+	if len(gotValues) != len(arrayValues) || gotTags != arrayTags {
+		return fmt.Errorf("VM64 array echo shape mismatch: values=%d tags=%x", len(gotValues), gotTags)
+	}
+	for i := range arrayValues {
+		if gotValues[i].Cmp(arrayValues[i]) != 0 {
+			return fmt.Errorf("VM64 array echo value %d mismatch: have %x want %x", i, gotValues[i], arrayValues[i])
+		}
+	}
+
+	record := EventEmitterRecord{Amount: amount, Recipient: from, Tag: tag}
+	gotRecord, err := deployment.binding.EchoRecord(callOpts, record)
+	if err != nil {
+		return fmt.Errorf("VM64 tuple echo through generated binding: %w", err)
+	}
+	if gotRecord.Amount.Cmp(record.Amount) != 0 || gotRecord.Recipient != record.Recipient || gotRecord.Tag != record.Tag {
+		return fmt.Errorf("VM64 tuple echo mismatch: %+v", gotRecord)
+	}
+
+	auth, err := newTransactor(ctx, client, w, from)
+	if err != nil {
+		return err
+	}
+	tx, err := deployment.binding.Store(auth, amount, delta, tag, from, payload, note, true)
+	if err != nil {
+		return fmt.Errorf("VM64 store through generated binding: %w", err)
+	}
+	receipt, err := waitReceipt(ctx, client, tx.Hash())
+	if err != nil {
+		return err
+	}
+	if receipt.Status != types.ReceiptStatusSuccessful {
+		return fmt.Errorf("VM64 store failed with status %d", receipt.Status)
+	}
+	if len(receipt.Logs) != 3 {
+		return fmt.Errorf("VM64 store emitted %d logs, want 3", len(receipt.Logs))
+	}
+
+	read, err := deployment.binding.Read(&bind.CallOpts{Context: ctx, BlockNumber: receipt.BlockNumber})
+	if err != nil {
+		return fmt.Errorf("VM64 read through generated binding: %w", err)
+	}
+	if read.Amount.Cmp(amount) != 0 || read.Delta.Cmp(delta) != 0 || read.Tag != tag || read.Recipient != from ||
+		!bytes.Equal(read.Payload, payload) || read.Note != note || !read.Enabled {
+		return fmt.Errorf("VM64 stored state mismatch: %+v", read)
+	}
+	if err := checkVM64StorageSlots(ctx, client, deployment.address, receipt.BlockNumber, amount, delta, tag, from); err != nil {
+		return err
+	}
+	if err := checkVM64EventLogs(ctx, deployment.binding, receipt, from, amount, delta, tag, payload, note); err != nil {
+		return err
+	}
+
+	auth, err = newTransactor(ctx, client, w, from)
+	if err != nil {
+		return err
+	}
+	clearTx, err := deployment.binding.Clear(auth)
+	if err != nil {
+		return fmt.Errorf("VM64 clear through generated binding: %w", err)
+	}
+	clearReceipt, err := waitReceipt(ctx, client, clearTx.Hash())
+	if err != nil {
+		return err
+	}
+	if clearReceipt.Status != types.ReceiptStatusSuccessful {
+		return fmt.Errorf("VM64 clear failed with status %d", clearReceipt.Status)
+	}
+	cleared, err := deployment.binding.Read(&bind.CallOpts{Context: ctx, BlockNumber: clearReceipt.BlockNumber})
+	if err != nil {
+		return fmt.Errorf("VM64 read after clear: %w", err)
+	}
+	if cleared.Amount.Sign() != 0 || cleared.Delta.Sign() != 0 || cleared.Tag != ([64]byte{}) ||
+		cleared.Recipient != (common.Address{}) || len(cleared.Payload) != 0 || cleared.Note != "" || cleared.Enabled {
+		return fmt.Errorf("VM64 clear left non-zero state: %+v", cleared)
+	}
+	return nil
+}
+
+func checkVM64StorageSlots(ctx context.Context, client *qrlclient.Client, contract common.Address, block *big.Int, amount, delta *big.Int, tag [64]byte, recipient common.Address) error {
+	want := []common.StorageValue64{
+		common.BytesToStorageValue64(unsignedWord(amount)),
+		common.BytesToStorageValue64(signedWord(delta)),
+		common.StorageValue64(tag),
+		common.StorageValue64(recipient),
+	}
+	for i, expected := range want {
+		slot := common.BigToHash(big.NewInt(int64(i)))
+		value, err := client.StorageAt(ctx, contract, slot, block)
+		if err != nil {
+			return fmt.Errorf("read VM64 storage slot %d: %w", i, err)
+		}
+		if !bytes.Equal(value, expected[:]) {
+			return fmt.Errorf("VM64 storage slot %d mismatch:\nhave %x\nwant %x", i, value, expected)
+		}
+	}
+	return nil
+}
+
+func checkVM64EventLogs(ctx context.Context, binding *EventEmitter, receipt *types.Receipt, recipient common.Address, amount, delta *big.Int, tag [64]byte, payload []byte, note string) error {
+	parsed, err := EventEmitterMetaData.GetAbi()
+	if err != nil {
+		return fmt.Errorf("parse VM64 event ABI: %w", err)
+	}
+	storedLog, dynamicLog, anonymousLog := receipt.Logs[0], receipt.Logs[1], receipt.Logs[2]
+
+	storedTopic := hashTopic(parsed.Events["Stored"].ID)
+	if len(storedLog.Topics) != 4 || storedLog.Topics[0] != storedTopic ||
+		storedLog.Topics[1] != bytesTopic(recipient[:]) ||
+		storedLog.Topics[2] != bytesTopic(unsignedWord(amount)) ||
+		storedLog.Topics[3] != bytesTopic(signedWord(delta)) {
+		return fmt.Errorf("VM64 Stored topics mismatch: %v", storedLog.Topics)
+	}
+	stored, err := binding.ParseStored(*storedLog)
+	if err != nil {
+		return fmt.Errorf("parse VM64 Stored event through generated binding: %w", err)
+	}
+	if stored.Recipient != recipient || stored.Amount.Cmp(amount) != 0 || stored.Delta.Cmp(delta) != 0 ||
+		stored.Tag != tag || !bytes.Equal(stored.Payload, payload) || stored.Note != note || !stored.Enabled {
+		return fmt.Errorf("decoded VM64 Stored event mismatch: %+v", stored)
+	}
+	storedIt, err := binding.FilterStored(&bind.FilterOpts{
+		Start: receipt.BlockNumber.Uint64(), End: uint64Ptr(receipt.BlockNumber.Uint64()), Context: ctx,
+	}, []common.Address{recipient}, []*big.Int{amount}, []*big.Int{delta})
+	if err != nil {
+		return fmt.Errorf("filter VM64 Stored event through generated binding: %w", err)
+	}
+	defer storedIt.Close()
+	if !storedIt.Next() || storedIt.Event.Raw.TxHash != receipt.TxHash || storedIt.Event.Delta.Cmp(delta) != 0 {
+		if err := storedIt.Error(); err != nil {
+			return fmt.Errorf("iterate VM64 Stored event: %w", err)
+		}
+		return fmt.Errorf("filtered VM64 Stored event mismatch")
+	}
+	if storedIt.Next() {
+		return fmt.Errorf("VM64 Stored filter returned more than one event")
+	}
+	if err := storedIt.Error(); err != nil {
+		return fmt.Errorf("finish VM64 Stored event iterator: %w", err)
+	}
+
+	dynamicTopic := hashTopic(parsed.Events["Dynamic"].ID)
+	payloadHash := crypto.Keccak256Hash(payload)
+	noteHash := crypto.Keccak256Hash([]byte(note))
+	if len(dynamicLog.Topics) != 3 || dynamicLog.Topics[0] != dynamicTopic ||
+		dynamicLog.Topics[1] != hashTopic(payloadHash) || dynamicLog.Topics[2] != hashTopic(noteHash) {
+		return fmt.Errorf("VM64 Dynamic topics mismatch: %v", dynamicLog.Topics)
+	}
+	dynamic, err := binding.ParseDynamic(*dynamicLog)
+	if err != nil {
+		return fmt.Errorf("parse VM64 Dynamic event through generated binding: %w", err)
+	}
+	if dynamic.Payload != payloadHash || dynamic.Note != noteHash || dynamic.Amount.Cmp(amount) != 0 {
+		return fmt.Errorf("decoded VM64 Dynamic event mismatch: %+v", dynamic)
+	}
+	dynamicIt, err := binding.FilterDynamic(&bind.FilterOpts{
+		Start: receipt.BlockNumber.Uint64(), End: uint64Ptr(receipt.BlockNumber.Uint64()), Context: ctx,
+	}, [][]byte{payload}, []string{note})
+	if err != nil {
+		return fmt.Errorf("filter VM64 Dynamic event through generated binding: %w", err)
+	}
+	defer dynamicIt.Close()
+	if !dynamicIt.Next() || dynamicIt.Event.Raw.TxHash != receipt.TxHash {
+		if err := dynamicIt.Error(); err != nil {
+			return fmt.Errorf("iterate VM64 Dynamic event: %w", err)
+		}
+		return fmt.Errorf("filtered VM64 Dynamic event mismatch")
+	}
+	if dynamicIt.Next() {
+		return fmt.Errorf("VM64 Dynamic filter returned more than one event")
+	}
+	if err := dynamicIt.Error(); err != nil {
+		return fmt.Errorf("finish VM64 Dynamic event iterator: %w", err)
+	}
+
+	wantAnonymous := []common.LogTopic{
+		bytesTopic(recipient[:]),
+		bytesTopic(unsignedWord(amount)),
+		bytesTopic(tag[:]),
+		bytesTopic(unsignedWord(big.NewInt(1))),
+	}
+	if len(anonymousLog.Topics) != len(wantAnonymous) {
+		return fmt.Errorf("VM64 anonymous event topic count mismatch: have %d want %d", len(anonymousLog.Topics), len(wantAnonymous))
+	}
+	for i := range wantAnonymous {
+		if anonymousLog.Topics[i] != wantAnonymous[i] {
+			return fmt.Errorf("VM64 anonymous event topic %d mismatch: have %s want %s", i, anonymousLog.Topics[i], wantAnonymous[i])
+		}
+	}
+	if len(anonymousLog.Data) != 0 {
+		return fmt.Errorf("VM64 anonymous event unexpectedly has data: %x", anonymousLog.Data)
+	}
+	return nil
+}
+
+func newTransactor(ctx context.Context, client *qrlclient.Client, w wallet.Wallet, from common.Address) (*bind.TransactOpts, error) {
+	chainID, err := client.ChainID(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("chain id: %w", err)
+	}
+	auth, err := bind.NewKeyedTransactorWithChainID(w, chainID)
+	if err != nil {
+		return nil, fmt.Errorf("generated binding transactor: %w", err)
+	}
+	auth.Context = ctx
+	auth.From = from
+	return auth, nil
 }
 
 func deployEventEmitter(ctx context.Context, client *qrlclient.Client, w wallet.Wallet, from common.Address) (*eventDeployment, error) {
@@ -355,12 +634,13 @@ func checkStorageAPIs(ctx context.Context, graphqlURL string, client *qrlclient.
 	if !bytes.Equal(output, value[:]) {
 		return fmt.Errorf("contract call output mismatch:\nhave %x\nwant %x", output, value)
 	}
-	proof, err := gqrlclient.New(client.Client()).GetProof(ctx, receipt.ContractAddress, []string{slot.Hex()}, receipt.BlockNumber)
+	absentSlot := common.BigToHash(big.NewInt(0xdead))
+	proof, err := gqrlclient.New(client.Client()).GetProof(ctx, receipt.ContractAddress, []string{slot.Hex(), absentSlot.Hex()}, receipt.BlockNumber)
 	if err != nil {
 		return fmt.Errorf("qrl_getProof through gqrlclient: %w", err)
 	}
-	if len(proof.StorageProof) != 1 {
-		return fmt.Errorf("storage proof length mismatch: have %d want 1", len(proof.StorageProof))
+	if len(proof.StorageProof) != 2 {
+		return fmt.Errorf("storage proof length mismatch: have %d want 2", len(proof.StorageProof))
 	}
 	if proof.StorageProof[0].Key != slot.Hex() {
 		return fmt.Errorf("storage proof key mismatch: have %s want %s", proof.StorageProof[0].Key, slot.Hex())
@@ -368,10 +648,369 @@ func checkStorageAPIs(ctx context.Context, graphqlURL string, client *qrlclient.
 	if proof.StorageProof[0].Value.Cmp(new(big.Int).SetBytes(value[:])) != 0 {
 		return fmt.Errorf("storage proof value mismatch: have %s want 0x%x", proof.StorageProof[0].Value.Text(16), value)
 	}
+	if proof.StorageProof[1].Key != absentSlot.Hex() || proof.StorageProof[1].Value.Sign() != 0 {
+		return fmt.Errorf("absent storage proof mismatch: %+v", proof.StorageProof[1])
+	}
+
+	header, err := client.HeaderByNumber(ctx, receipt.BlockNumber)
+	if err != nil {
+		return fmt.Errorf("header for proof block: %w", err)
+	}
+	accountLeaf, err := verifyProofNodes(header.Root, crypto.Keccak256(receipt.ContractAddress.Bytes()), proof.AccountProof)
+	if err != nil {
+		return fmt.Errorf("verify account proof: %w", err)
+	}
+	if accountLeaf == nil {
+		return fmt.Errorf("verified account proof returned an absent contract")
+	}
+	var account types.StateAccount
+	if err := rlp.DecodeBytes(accountLeaf, &account); err != nil {
+		return fmt.Errorf("decode account proof leaf: %w", err)
+	}
+	if account.Nonce != proof.Nonce || account.Balance.Cmp(proof.Balance) != 0 || account.Root != proof.StorageHash ||
+		!bytes.Equal(account.CodeHash, proof.CodeHash[:]) {
+		return fmt.Errorf("verified account leaf differs from RPC result: account=%+v proof=%+v", account, proof)
+	}
+
+	storageLeaf, err := verifyProofNodes(proof.StorageHash, crypto.Keccak256(slot.Bytes()), proof.StorageProof[0].Proof)
+	if err != nil {
+		return fmt.Errorf("verify storage inclusion proof: %w", err)
+	}
+	if storageLeaf == nil {
+		return fmt.Errorf("verified storage proof returned an absent populated slot")
+	}
+	var trimmedStorage []byte
+	if err := rlp.DecodeBytes(storageLeaf, &trimmedStorage); err != nil {
+		return fmt.Errorf("decode storage proof leaf: %w", err)
+	}
+	if got := common.BytesToStorageValue64(trimmedStorage); got != common.StorageValue64(value) {
+		return fmt.Errorf("verified storage leaf mismatch: have %x want %x", got, value)
+	}
+
+	absentLeaf, err := verifyProofNodes(proof.StorageHash, crypto.Keccak256(absentSlot.Bytes()), proof.StorageProof[1].Proof)
+	if err != nil {
+		return fmt.Errorf("verify storage absence proof: %w", err)
+	}
+	if absentLeaf != nil {
+		return fmt.Errorf("verified storage absence proof returned value %x", absentLeaf)
+	}
+	tampered := append([]string(nil), proof.AccountProof...)
+	if len(tampered) == 0 {
+		return fmt.Errorf("account proof unexpectedly has no nodes")
+	}
+	tamperedNode, err := hexutil.Decode(tampered[0])
+	if err != nil || len(tamperedNode) == 0 {
+		return fmt.Errorf("decode account proof node for tamper check: %w", err)
+	}
+	tamperedNode[len(tamperedNode)/2] ^= 0x01
+	tampered[0] = hexutil.Encode(tamperedNode)
+	if _, err := verifyProofNodes(header.Root, crypto.Keccak256(receipt.ContractAddress.Bytes()), tampered); err == nil {
+		return fmt.Errorf("tampered account proof unexpectedly verified")
+	}
 	if graphqlURL != "" {
 		if err := checkGraphQLStorage(ctx, graphqlURL, receipt.ContractAddress, receipt.BlockNumber, from, slot, value); err != nil {
 			return err
 		}
+	}
+	return nil
+}
+
+func verifyProofNodes(root common.Hash, key []byte, nodes []string) ([]byte, error) {
+	db := memorydb.New()
+	defer db.Close()
+	for i, encoded := range nodes {
+		node, err := hexutil.Decode(encoded)
+		if err != nil {
+			return nil, fmt.Errorf("decode proof node %d: %w", i, err)
+		}
+		if err := db.Put(crypto.Keccak256(node), node); err != nil {
+			return nil, fmt.Errorf("store proof node %d: %w", i, err)
+		}
+	}
+	return trie.VerifyProof(root, key, db)
+}
+
+func checkAddressUpperHalfIsolation(ctx context.Context, client *qrlclient.Client, w wallet.Wallet, from common.Address) error {
+	// Derive fresh collision fixtures from the sender's current nonce. A fixed
+	// pair makes this otherwise-valid state test fail on every second run against
+	// the same developer network because both recipients are already funded.
+	// Advancing the sender nonce also makes a retry after any submitted transfer
+	// select a new pair while retaining deterministic, reproducible derivation.
+	nonce, err := client.PendingNonceAt(ctx, from)
+	if err != nil {
+		return fmt.Errorf("upper-half address fixture nonce: %w", err)
+	}
+	first, second := upperHalfIsolationAddresses(from, nonce)
+	if bytes.Equal(first[:common.AddressLength/2], second[:common.AddressLength/2]) ||
+		!bytes.Equal(first[common.AddressLength/2:], second[common.AddressLength/2:]) {
+		return fmt.Errorf("invalid upper-half address collision fixture")
+	}
+	if crypto.Keccak256Hash(first.Bytes()) == crypto.Keccak256Hash(second.Bytes()) {
+		return fmt.Errorf("full-width address trie keys unexpectedly collide")
+	}
+
+	firstValue := big.NewInt(1111)
+	secondValue := big.NewInt(2222)
+	firstReceipt, err := sendValue(ctx, client, w, from, first, firstValue)
+	if err != nil {
+		return fmt.Errorf("fund first upper-half address: %w", err)
+	}
+	firstHeader, err := client.HeaderByNumber(ctx, firstReceipt.BlockNumber)
+	if err != nil {
+		return fmt.Errorf("header after first upper-half address funding: %w", err)
+	}
+	firstAtFirstBlock, err := client.BalanceAt(ctx, first, firstReceipt.BlockNumber)
+	if err != nil {
+		return fmt.Errorf("first upper-half address balance: %w", err)
+	}
+	secondAtFirstBlock, err := client.BalanceAt(ctx, second, firstReceipt.BlockNumber)
+	if err != nil {
+		return fmt.Errorf("second upper-half address pre-funding balance: %w", err)
+	}
+	if firstAtFirstBlock.Cmp(firstValue) != 0 || secondAtFirstBlock.Sign() != 0 {
+		return fmt.Errorf("upper-half address isolation failed before second funding: first=%s second=%s", firstAtFirstBlock, secondAtFirstBlock)
+	}
+
+	proofClient := gqrlclient.New(client.Client())
+	firstProof, err := proofClient.GetProof(ctx, first, nil, firstReceipt.BlockNumber)
+	if err != nil {
+		return fmt.Errorf("first upper-half address proof: %w", err)
+	}
+	secondAbsentProof, err := proofClient.GetProof(ctx, second, nil, firstReceipt.BlockNumber)
+	if err != nil {
+		return fmt.Errorf("second upper-half address absence proof: %w", err)
+	}
+	if err := verifyAccountProof(firstHeader.Root, first, firstProof, firstValue, true); err != nil {
+		return fmt.Errorf("verify first upper-half address proof: %w", err)
+	}
+	if err := verifyAccountProof(firstHeader.Root, second, secondAbsentProof, new(big.Int), false); err != nil {
+		return fmt.Errorf("verify second upper-half address absence proof: %w", err)
+	}
+
+	secondReceipt, err := sendValue(ctx, client, w, from, second, secondValue)
+	if err != nil {
+		return fmt.Errorf("fund second upper-half address: %w", err)
+	}
+	secondHeader, err := client.HeaderByNumber(ctx, secondReceipt.BlockNumber)
+	if err != nil {
+		return fmt.Errorf("header after second upper-half address funding: %w", err)
+	}
+	if secondHeader.Root == firstHeader.Root {
+		return fmt.Errorf("state root did not change after funding the second upper-half address")
+	}
+	firstBalance, err := client.BalanceAt(ctx, first, secondReceipt.BlockNumber)
+	if err != nil {
+		return fmt.Errorf("first upper-half address final balance: %w", err)
+	}
+	secondBalance, err := client.BalanceAt(ctx, second, secondReceipt.BlockNumber)
+	if err != nil {
+		return fmt.Errorf("second upper-half address final balance: %w", err)
+	}
+	if firstBalance.Cmp(firstValue) != 0 || secondBalance.Cmp(secondValue) != 0 {
+		return fmt.Errorf("64-byte addresses with equal low halves aliased: first=%s second=%s", firstBalance, secondBalance)
+	}
+
+	firstProof, err = proofClient.GetProof(ctx, first, nil, secondReceipt.BlockNumber)
+	if err != nil {
+		return fmt.Errorf("first upper-half address final proof: %w", err)
+	}
+	secondProof, err := proofClient.GetProof(ctx, second, nil, secondReceipt.BlockNumber)
+	if err != nil {
+		return fmt.Errorf("second upper-half address final proof: %w", err)
+	}
+	if err := verifyAccountProof(secondHeader.Root, first, firstProof, firstValue, true); err != nil {
+		return fmt.Errorf("verify first upper-half address final proof: %w", err)
+	}
+	if err := verifyAccountProof(secondHeader.Root, second, secondProof, secondValue, true); err != nil {
+		return fmt.Errorf("verify second upper-half address final proof: %w", err)
+	}
+	return nil
+}
+
+func upperHalfIsolationAddresses(from common.Address, nonce uint64) (first, second common.Address) {
+	var encodedNonce [8]byte
+	binary.BigEndian.PutUint64(encodedNonce[:], nonce)
+	seed := crypto.Keccak256(
+		[]byte("go-qrl/vm64-address-isolation/v1"),
+		from.Bytes(),
+		encodedNonce[:],
+	)
+	firstUpper := crypto.Keccak256(seed, []byte("first-upper"))
+	secondUpper := crypto.Keccak256(seed, []byte("second-upper"))
+	sharedLower := crypto.Keccak256(seed, []byte("shared-lower"))
+	copy(first[:common.AddressLength/2], firstUpper)
+	copy(second[:common.AddressLength/2], secondUpper)
+	copy(first[common.AddressLength/2:], sharedLower)
+	copy(second[common.AddressLength/2:], sharedLower)
+	return first, second
+}
+
+func verifyAccountProof(root common.Hash, address common.Address, proof *gqrlclient.AccountResult, wantBalance *big.Int, wantExists bool) error {
+	if proof.Address != address || proof.Balance.Cmp(wantBalance) != 0 {
+		return fmt.Errorf("RPC proof identity mismatch: address=%s balance=%s", proof.Address, proof.Balance)
+	}
+	leaf, err := verifyProofNodes(root, crypto.Keccak256(address.Bytes()), proof.AccountProof)
+	if err != nil {
+		return err
+	}
+	if !wantExists {
+		if leaf != nil {
+			return fmt.Errorf("absence proof returned account leaf %x", leaf)
+		}
+		return nil
+	}
+	if leaf == nil {
+		return fmt.Errorf("inclusion proof returned no account leaf")
+	}
+	var account types.StateAccount
+	if err := rlp.DecodeBytes(leaf, &account); err != nil {
+		return fmt.Errorf("decode account leaf: %w", err)
+	}
+	if account.Balance.Cmp(wantBalance) != 0 || account.Nonce != proof.Nonce || account.Root != proof.StorageHash ||
+		!bytes.Equal(account.CodeHash, proof.CodeHash[:]) {
+		return fmt.Errorf("account leaf differs from RPC proof: account=%+v proof=%+v", account, proof)
+	}
+	return nil
+}
+
+func sendValue(ctx context.Context, client *qrlclient.Client, w wallet.Wallet, from, to common.Address, value *big.Int) (*types.Receipt, error) {
+	signed, err := signDynamicFeeTx(ctx, client, w, from, &to, value, nil)
+	if err != nil {
+		return nil, err
+	}
+	if err := client.SendTransaction(ctx, signed); err != nil {
+		return nil, fmt.Errorf("send tx %s: %w", signed.Hash().Hex(), err)
+	}
+	receipt, err := waitReceipt(ctx, client, signed.Hash())
+	if err != nil {
+		return nil, err
+	}
+	if receipt.Status != types.ReceiptStatusSuccessful {
+		return nil, fmt.Errorf("value transfer %s failed with status %d", signed.Hash(), receipt.Status)
+	}
+	return receipt, nil
+}
+
+const vm64DepositRootExpected = "0033398ac7d5822aba0b3f614e7728940a9597e122ddd462fe3b5c7c458a3d1a"
+
+func vm64DepositRootInput() []byte {
+	const amountLength = 8
+	publicKeyOffset := 0
+	withdrawalRecipientOffset := publicKeyOffset + pqcrypto.MLDSA87PublicKeyLength
+	amountOffset := withdrawalRecipientOffset + common.AddressLength
+	signatureOffset := amountOffset + amountLength
+	input := make([]byte, signatureOffset+pqcrypto.MLDSA87SignatureLength)
+
+	for i := 0; i < pqcrypto.MLDSA87PublicKeyLength; i++ {
+		input[publicKeyOffset+i] = byte(i*17 + 3)
+	}
+	// Populate both halves. In particular, the nonzero first half makes this
+	// vector detect a withdrawal-recipient regression back to 32 bytes.
+	for i := 0; i < common.AddressLength/2; i++ {
+		input[withdrawalRecipientOffset+i] = byte(0xa0 + i)
+		input[withdrawalRecipientOffset+common.AddressLength/2+i] = byte(0x30 + i)
+	}
+	binary.LittleEndian.PutUint64(input[amountOffset:signatureOffset], 32_000_000_000)
+	for i := 0; i < pqcrypto.MLDSA87SignatureLength; i++ {
+		input[signatureOffset+i] = byte(i*31 + 7)
+	}
+	return input
+}
+
+func legacyDepositRootInput() []byte {
+	const (
+		legacyWithdrawalRecipientLength = 32
+		legacySignatureLength           = pqcrypto.MLDSA87SignatureLength - 32
+		amountLength                    = 8
+	)
+	valid := vm64DepositRootInput()
+	withdrawalRecipientOffset := pqcrypto.MLDSA87PublicKeyLength
+	amountOffset := withdrawalRecipientOffset + common.AddressLength
+	signatureOffset := amountOffset + amountLength
+	return concat(
+		valid[:withdrawalRecipientOffset],
+		valid[withdrawalRecipientOffset+common.AddressLength-legacyWithdrawalRecipientLength:amountOffset],
+		valid[amountOffset:signatureOffset],
+		valid[signatureOffset:signatureOffset+legacySignatureLength],
+	)
+}
+
+func checkLivePrecompiles(ctx context.Context, client *qrlclient.Client, from common.Address) error {
+	call := func(address byte, input []byte) ([]byte, error) {
+		to := common.BytesToAddress([]byte{address})
+		return client.CallContract(ctx, qrl.CallMsg{From: from, To: &to, Data: input}, nil)
+	}
+
+	depositInput := vm64DepositRootInput()
+	got, err := call(1, depositInput)
+	if err != nil {
+		return fmt.Errorf("live VM64 deposit-root precompile at 0x01: %w", err)
+	}
+	wantDepositRoot := common.Hex2Bytes(vm64DepositRootExpected)
+	if !bytes.Equal(got, wantDepositRoot) {
+		return fmt.Errorf("live VM64 deposit-root precompile mismatch: have %x want %x", got, wantDepositRoot)
+	}
+	legacyInput := legacyDepositRootInput()
+	legacyRoot, err := call(1, legacyInput)
+	if err != nil {
+		return fmt.Errorf("live legacy-width deposit-root compatibility call: %w", err)
+	}
+	paddedLegacy := append(append([]byte(nil), legacyInput...), make([]byte, len(depositInput)-len(legacyInput))...)
+	paddedLegacyRoot, err := call(1, paddedLegacy)
+	if err != nil {
+		return fmt.Errorf("live padded legacy-width deposit-root call: %w", err)
+	}
+	if !bytes.Equal(legacyRoot, paddedLegacyRoot) {
+		return fmt.Errorf("live legacy-width compatibility root mismatch: have %x want padded %x", legacyRoot, paddedLegacyRoot)
+	}
+	extendedRoot, err := call(1, append(append([]byte(nil), depositInput...), 0xff))
+	if err != nil {
+		return fmt.Errorf("live extended deposit-root compatibility call: %w", err)
+	}
+	if !bytes.Equal(extendedRoot, got) {
+		return fmt.Errorf("live extended deposit-root root mismatch: have %x want canonical %x", extendedRoot, got)
+	}
+
+	input := make([]byte, 129)
+	for i := range input {
+		input[i] = byte((i*17 + 3) & 0xff)
+	}
+	wantSHA := sha256.Sum256(input)
+	got, err = call(2, input)
+	if err != nil {
+		return fmt.Errorf("live SHA-256 precompile at 0x02: %w", err)
+	}
+	if !bytes.Equal(got, wantSHA[:]) {
+		return fmt.Errorf("live SHA-256 precompile mismatch: have %x want %x", got, wantSHA)
+	}
+
+	got, err = call(4, input)
+	if err != nil {
+		return fmt.Errorf("live identity precompile at 0x04: %w", err)
+	}
+	if !bytes.Equal(got, input) {
+		return fmt.Errorf("live identity precompile mismatch: have %x want %x", got, input)
+	}
+	legacy, err := call(3, input)
+	if err != nil {
+		return fmt.Errorf("call inactive legacy precompile address 0x03: %w", err)
+	}
+	if len(legacy) != 0 {
+		return fmt.Errorf("inactive legacy precompile address 0x03 returned %x", legacy)
+	}
+
+	modExpInput := concat(
+		common.LeftPadBytes([]byte{1}, 32),
+		common.LeftPadBytes([]byte{1}, 32),
+		common.LeftPadBytes([]byte{1}, 32),
+		[]byte{2, 5, 13},
+	)
+	got, err = call(5, modExpInput)
+	if err != nil {
+		return fmt.Errorf("live modular-exponentiation precompile at 0x05: %w", err)
+	}
+	if !bytes.Equal(got, []byte{6}) {
+		return fmt.Errorf("live modular-exponentiation precompile mismatch: have %x want 06", got)
 	}
 	return nil
 }
@@ -731,6 +1370,24 @@ func hashTopic(hash common.Hash) common.LogTopic {
 	var topic common.LogTopic
 	copy(topic[:common.HashLength], hash[:])
 	return topic
+}
+
+func bytesTopic(input []byte) common.LogTopic {
+	var topic common.LogTopic
+	copy(topic[:], input)
+	return topic
+}
+
+func unsignedWord(value *big.Int) []byte {
+	return common.LeftPadBytes(value.Bytes(), common.LogTopicLength)
+}
+
+func signedWord(value *big.Int) []byte {
+	encoded := new(big.Int).Set(value)
+	if encoded.Sign() < 0 {
+		encoded.Add(encoded, new(big.Int).Lsh(big.NewInt(1), common.LogTopicLength*8))
+	}
+	return unsignedWord(encoded)
 }
 
 func word(hex string) []byte {

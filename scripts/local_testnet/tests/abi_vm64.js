@@ -1,7 +1,7 @@
 // VM64 ABI suite, run through `gqrl attach --exec` by run_tests.sh. It
 // exercises the embedded web3 ABI coder without relying on account management:
-// getData builds calldata locally, and unpackOutput decodes synthetic return
-// data using the same contract ABI path used by qrl.call results.
+// getData builds calldata locally, and a provider shim returns synthetic data
+// through the public contract call path used for real qrl.call results.
 
 var _pass = 0;
 var _fail = 0;
@@ -77,6 +77,38 @@ var miner = qrl.getBlock("latest").miner;
 var minerHex = miner.slice(1).toLowerCase();
 var contract = qrl.contract(abi).at(miner);
 
+function callReadWithOutput(output) {
+    var previousProvider = web3.currentProvider;
+    var callPayload = null;
+    var provider = {
+        send: function (payload) {
+            if (payload.method === "qrl_call") {
+                callPayload = payload;
+                return {jsonrpc: "2.0", id: payload.id, result: output};
+            }
+            return previousProvider.send(payload);
+        },
+        sendAsync: function (payload, callback) {
+            if (payload.method === "qrl_call") {
+                callPayload = payload;
+                callback(null, {jsonrpc: "2.0", id: payload.id, result: output});
+                return;
+            }
+            return previousProvider.sendAsync(payload, callback);
+        },
+        isConnected: function () {
+            return true;
+        }
+    };
+
+    try {
+        web3.setProvider(provider);
+        return {decoded: contract.read.call(), payload: callPayload};
+    } finally {
+        web3.setProvider(previousProvider);
+    }
+}
+
 check("ABI calldata uses 64-byte VM words", function () {
     var data = contract.store.getData(web3.toBigNumber(1337), "0x01020304", miner, "0xabcd");
     var expected = "0x" +
@@ -108,7 +140,12 @@ check("ABI output decoding consumes 64-byte dynamic offsets", function () {
         word("100") +
         word("2") +
         fixedBytes("abcd");
-    var decoded = contract.read.unpackOutput(encoded);
+    var result = callReadWithOutput(encoded);
+    var decoded = result.decoded;
+
+    assertEqual("RPC method", result.payload.method, "qrl_call");
+    assertEqual("call recipient", result.payload.params[0].to.toLowerCase(), miner.toLowerCase());
+    assertEqual("read selector", result.payload.params[0].data.toLowerCase(), "0x" + selector("read()"));
 
     assertEqual("decoded amount", decoded[0].toString(10), "1337");
     assertEqual("decoded bytes4", decoded[1].toLowerCase(), "0x01020304");
@@ -120,11 +157,14 @@ check("ABI output decoding consumes 64-byte dynamic offsets", function () {
 check("ABI rejects malformed trailing partial words", function () {
     var encoded = "0x" + word("1") + "00";
     try {
-        contract.read.unpackOutput(encoded);
+        callReadWithOutput(encoded);
     } catch (e) {
+        if (String(e).indexOf("complete 64-byte words") === -1) {
+            throw new Error("unexpected decoder error: " + e);
+        }
         return true;
     }
-    throw new Error("expected unpackOutput to reject trailing partial word");
+    throw new Error("expected public contract call to reject trailing partial word");
 });
 
 console.log("SUITE abi_vm64: " + (_fail === 0 ? "PASSED" : "FAILED") +

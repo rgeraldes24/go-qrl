@@ -254,11 +254,15 @@ type int256Struct struct {
 	Int256Value *big.Int
 }
 
-// hashStruct receives the indexed keccak256 hash of a dynamic type. Topics
-// are 64 bytes; the reconstructed value uses the full LogTopic slot (hash
-// right-aligned in the low 32 bytes).
+// hashStruct receives the indexed Keccak-256 hash of a composite type. VM64
+// topics are 64 bytes, but Hyperion encodes this digest as a left-aligned
+// bytes32 value, so generated bindings expose the meaningful common.Hash.
 type hashStruct struct {
-	HashValue common.LogTopic
+	HashValue common.Hash
+}
+
+type tupleHashStruct struct {
+	Tupletype common.Hash
 }
 
 // funcStruct mirrors the Solidity `function` type, which is address followed
@@ -357,10 +361,10 @@ func setupTopicsTests() []topicTest {
 			args: args{
 				createObj: func() any { return &hashStruct{} },
 				resultObj: func() any {
-					return &hashStruct{hashTopic(crypto.Keccak256([]byte("stringtopic")))}
+					return &hashStruct{crypto.Keccak256Hash([]byte("stringtopic"))}
 				},
 				resultMap: func() map[string]any {
-					return map[string]any{"hashValue": hashTopic(crypto.Keccak256([]byte("stringtopic")))}
+					return map[string]any{"hashValue": crypto.Keccak256Hash([]byte("stringtopic"))}
 				},
 				fields: Arguments{Argument{
 					Name:    "hashValue",
@@ -429,11 +433,11 @@ func setupTopicsTests() []topicTest {
 			wantErr: true,
 		},
 		{
-			name: "error on tuple in topic reconstruction",
+			name: "tuple is reconstructed as its indexed hash",
 			args: args{
-				createObj: func() any { return &tupleType },
-				resultObj: func() any { return &tupleType },
-				resultMap: func() map[string]any { return make(map[string]any) },
+				createObj: func() any { return &tupleHashStruct{} },
+				resultObj: func() any { return &tupleHashStruct{} },
+				resultMap: func() map[string]any { return map[string]any{"tupletype": common.Hash{}} },
 				fields: Arguments{Argument{
 					Name:    "tupletype",
 					Type:    tupleType,
@@ -441,7 +445,7 @@ func setupTopicsTests() []topicTest {
 				}},
 				topics: []common.LogTopic{{0}},
 			},
-			wantErr: true,
+			wantErr: false,
 		},
 		{
 			name: "error on improper encoded function",

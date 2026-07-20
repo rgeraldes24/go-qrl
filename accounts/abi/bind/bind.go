@@ -334,21 +334,16 @@ func bindType(kind abi.Type, structs map[string]*tmplStruct) string {
 	}
 }
 
-// bindTopicType converts a Hyperion topic type to a Go one. It is almost the same
-// functionality as for simple types, but dynamic types get converted to hashes.
+// bindTopicType converts a Hyperion indexed-event type to the Go value exposed
+// by a generated binding. Composite values are represented by the Keccak-256
+// digest stored in their topic because their original value cannot be recovered.
 func bindTopicType(kind abi.Type, structs map[string]*tmplStruct) string {
-	bound := bindType(kind, structs)
-
-	// todo(rjl493456442) according hyperion documentation, indexed event
-	// parameters that are not value types i.e. arrays and structs are not
-	// stored directly but instead a keccak256-hash of an encoding is stored.
-	//
-	// We only convert strings and bytes to hash, still need to deal with
-	// array(both fixed-size and dynamic-size) and struct.
-	if bound == "string" || bound == "[]byte" {
-		bound = "common.Hash"
+	switch kind.T {
+	case abi.StringTy, abi.BytesTy, abi.SliceTy, abi.ArrayTy, abi.TupleTy:
+		return "common.Hash"
+	default:
+		return bindType(kind, structs)
 	}
-	return bound
 }
 
 // bindStructType converts a Hyperion tuple type to a Go one and records the mapping

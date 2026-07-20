@@ -292,6 +292,18 @@ var Vectors = []Vector{
 		ExpectedError: ErrInvalidOpcode,
 	},
 	{
+		// CALLCODE was deliberately removed from the VM64 instruction set.
+		Name:          "removed CALLCODE (0xF2) is invalid",
+		BytecodeHex:   "f2",
+		ExpectedError: ErrInvalidOpcode,
+	},
+	{
+		// SELFDESTRUCT was deliberately removed from the VM64 instruction set.
+		Name:          "removed SELFDESTRUCT (0xFF) is invalid",
+		BytecodeHex:   "ff",
+		ExpectedError: ErrInvalidOpcode,
+	},
+	{
 		// REVERT returns an error class but can still leave returndata.
 		// We don't set ExpectedReturnHex because REVERT data depends on
 		// the host wiring; here we only assert the error class.

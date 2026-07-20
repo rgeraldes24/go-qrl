@@ -124,18 +124,39 @@ func genIntType(rule int64, size uint) common.LogTopic {
 
 // ParseTopics converts the indexed topic fields into actual log field values.
 func ParseTopics(out any, fields Arguments, topics []common.LogTopic) error {
+	value := reflect.ValueOf(out)
+	if value.Kind() != reflect.Ptr || value.IsNil() || value.Elem().Kind() != reflect.Struct {
+		return errors.New("abi: ParseTopics output must be a non-nil pointer to a struct")
+	}
+	value = value.Elem()
 	return parseTopicWithSetter(fields, topics,
-		func(arg Argument, reconstr any) {
-			field := reflect.ValueOf(out).Elem().FieldByName(ToCamelCase(arg.Name))
-			field.Set(reflect.ValueOf(reconstr))
+		func(arg Argument, reconstr any) error {
+			fieldName := ToCamelCase(arg.Name)
+			field := value.FieldByName(fieldName)
+			if !field.IsValid() {
+				return fmt.Errorf("abi: struct field %s not found", fieldName)
+			}
+			if !field.CanSet() {
+				return fmt.Errorf("abi: struct field %s cannot be set", fieldName)
+			}
+			reconstructed := reflect.ValueOf(reconstr)
+			if !reconstructed.Type().AssignableTo(field.Type()) {
+				return fmt.Errorf("abi: cannot unmarshal indexed %s into %s (topic decodes to %s)", arg.Type.String(), field.Type(), reconstructed.Type())
+			}
+			field.Set(reconstructed)
+			return nil
 		})
 }
 
 // ParseTopicsIntoMap converts the indexed topic field-value pairs into map key-value pairs.
 func ParseTopicsIntoMap(out map[string]any, fields Arguments, topics []common.LogTopic) error {
+	if out == nil {
+		return errors.New("abi: ParseTopicsIntoMap output map is nil")
+	}
 	return parseTopicWithSetter(fields, topics,
-		func(arg Argument, reconstr any) {
+		func(arg Argument, reconstr any) error {
 			out[arg.Name] = reconstr
+			return nil
 		})
 }
 
@@ -144,7 +165,7 @@ func ParseTopicsIntoMap(out map[string]any, fields Arguments, topics []common.Lo
 //
 // Note, dynamic types cannot be reconstructed since they get mapped to Keccak256
 // hashes as the topic value!
-func parseTopicWithSetter(fields Arguments, topics []common.LogTopic, setter func(Argument, any)) error {
+func parseTopicWithSetter(fields Arguments, topics []common.LogTopic, setter func(Argument, any) error) error {
 	// Sanity check that the fields and topics match up
 	if len(fields) != len(topics) {
 		return errors.New("topic/field count mismatch")
@@ -156,11 +177,20 @@ func parseTopicWithSetter(fields Arguments, topics []common.LogTopic, setter fun
 		}
 		var reconstr any
 		switch arg.Type.T {
-		case TupleTy:
-			return errors.New("tuple type in topic reconstruction")
-		case StringTy, BytesTy, SliceTy, ArrayTy:
-			// Array types (including strings and bytes) have their keccak256 hashes stored in the topic — returned verbatim.
-			reconstr = topics[i]
+		case StringTy, BytesTy, SliceTy, ArrayTy, TupleTy:
+			// Indexed composite values cannot be reconstructed from a log. Hyperion
+			// stores their Keccak-256 digest as a left-aligned bytes32 value in the
+			// 64-byte VM64 topic. Decode the meaningful hash while rejecting a
+			// non-canonical suffix, otherwise two distinct raw topics could collapse
+			// to the same common.Hash in generated bindings.
+			for _, b := range topics[i][common.HashLength:] {
+				if b != 0 {
+					return fmt.Errorf("abi: improperly encoded indexed %s hash, got %x", arg.Type.String(), topics[i])
+				}
+			}
+			var hash common.Hash
+			copy(hash[:], topics[i][:common.HashLength])
+			reconstr = hash
 		case FunctionTy:
 			// Functions are AddressLength+4 bytes and fit right-aligned in the
 			// 64-byte topic. Reject topics with non-zero bytes in the leading
@@ -188,7 +218,9 @@ func parseTopicWithSetter(fields Arguments, topics []common.LogTopic, setter fun
 			}
 		}
 		// Use the setter function to store the value
-		setter(arg, reconstr)
+		if err := setter(arg, reconstr); err != nil {
+			return err
+		}
 	}
 
 	return nil

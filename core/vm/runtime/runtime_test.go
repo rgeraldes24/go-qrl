@@ -17,6 +17,7 @@
 package runtime
 
 import (
+	"bytes"
 	"fmt"
 	"math/big"
 	"os"
@@ -31,6 +32,7 @@ import (
 	"github.com/theQRL/go-qrl/core/state"
 	"github.com/theQRL/go-qrl/core/types"
 	"github.com/theQRL/go-qrl/core/vm"
+	"github.com/theQRL/go-qrl/crypto"
 	"github.com/theQRL/go-qrl/params"
 	"github.com/theQRL/go-qrl/qrl/tracers"
 	"github.com/theQRL/go-qrl/qrl/tracers/logger"
@@ -100,6 +102,49 @@ func TestExecute(t *testing.T) {
 	}
 }
 
+func TestStorageKeysUseLow256BitsAndValuesUseFullVM64Word(t *testing.T) {
+	// Storage keys remain protocol-defined 32-byte hashes even though the VM
+	// stack is 64 bytes. The high half of a stack key is therefore ignored,
+	// while the complete 64-byte storage value must survive SSTORE/SLOAD.
+	var lowKey, upperHalfKey, firstValue, secondValue [vm.WordBytes]byte
+	lowKey[len(lowKey)-1] = 1
+	upperHalfKey = lowKey
+	upperHalfKey[0] = 1
+	firstValue[len(firstValue)-1] = 0x11
+	secondValue[0] = 0xaa
+	secondValue[len(secondValue)-1] = 0x22
+
+	code := make([]byte, 0, 6*(1+vm.WordBytes)+16)
+	code = appendPush64(code, firstValue)
+	code = appendPush64(code, lowKey)
+	code = append(code, byte(vm.SSTORE))
+	code = appendPush64(code, secondValue)
+	code = appendPush64(code, upperHalfKey)
+	code = append(code, byte(vm.SSTORE))
+	code = appendPush64(code, lowKey)
+	code = append(code,
+		byte(vm.SLOAD),
+		byte(vm.PUSH1), 0,
+		byte(vm.MSTORE),
+		byte(vm.PUSH1), vm.WordBytes,
+		byte(vm.PUSH1), 0,
+		byte(vm.RETURN),
+	)
+
+	got, _, err := Execute(code, nil, nil)
+	if err != nil {
+		t.Fatalf("execute storage boundary program: %v", err)
+	}
+	if !bytes.Equal(got, secondValue[:]) {
+		t.Fatalf("SLOAD result mismatch:\nhave %x\nwant %x", got, secondValue)
+	}
+}
+
+func appendPush64(code []byte, value [vm.WordBytes]byte) []byte {
+	code = append(code, byte(vm.PUSH64))
+	return append(code, value[:]...)
+}
+
 func TestCall(t *testing.T) {
 	state, _ := state.New(types.EmptyRootHash, state.NewDatabase(rawdb.NewMemoryDatabase()), nil)
 	address := common.MustParseAddress("Q0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000a")
@@ -121,6 +166,341 @@ func TestCall(t *testing.T) {
 	if num.Cmp(big.NewInt(10)) != 0 {
 		t.Error("Expected 10, got", num)
 	}
+}
+
+func TestAddressOpcodesPreserveFullVM64Addresses(t *testing.T) {
+	stateDB, err := state.New(types.EmptyRootHash, state.NewDatabase(rawdb.NewMemoryDatabase()), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	contractAddress := patternedAddress(0x10)
+	origin := patternedAddress(0x50)
+	coinbase := patternedAddress(0x90)
+	code := []byte{
+		byte(vm.ADDRESS), byte(vm.PUSH1), 0, byte(vm.MSTORE),
+		byte(vm.ORIGIN), byte(vm.PUSH1), vm.WordBytes, byte(vm.MSTORE),
+		byte(vm.CALLER), byte(vm.PUSH1), 2 * vm.WordBytes, byte(vm.MSTORE),
+		byte(vm.COINBASE), byte(vm.PUSH1), 3 * vm.WordBytes, byte(vm.MSTORE),
+		byte(vm.PUSH2), 0x01, 0x00,
+		byte(vm.PUSH1), 0,
+		byte(vm.RETURN),
+	}
+	stateDB.CreateAccount(contractAddress)
+	stateDB.SetCode(contractAddress, code)
+
+	got, _, err := Call(contractAddress, nil, &Config{
+		State:    stateDB,
+		Origin:   origin,
+		Coinbase: coinbase,
+	})
+	if err != nil {
+		t.Fatalf("execute address opcode contract: %v", err)
+	}
+	want := make([]byte, 0, 4*vm.WordBytes)
+	want = append(want, contractAddress[:]...)
+	want = append(want, origin[:]...)
+	want = append(want, origin[:]...)
+	want = append(want, coinbase[:]...)
+	if !bytes.Equal(got, want) {
+		t.Fatalf("address opcode output mismatch:\nhave %x\nwant %x", got, want)
+	}
+}
+
+func TestAccountOpcodesDistinguishAddressUpperHalves(t *testing.T) {
+	stateDB, err := state.New(types.EmptyRootHash, state.NewDatabase(rawdb.NewMemoryDatabase()), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	contractAddress := patternedAddress(0x10)
+	first := common.Address{0: 0x01, common.AddressLength - 1: 0x44}
+	second := common.Address{0: 0x02, common.AddressLength - 1: 0x44}
+	stateDB.CreateAccount(first)
+	stateDB.CreateAccount(second)
+	stateDB.SetBalance(first, big.NewInt(111))
+	stateDB.SetBalance(second, big.NewInt(222))
+	stateDB.SetCode(first, []byte{byte(vm.STOP)})
+	stateDB.SetCode(second, []byte{byte(vm.PUSH1), 0, byte(vm.STOP)})
+
+	code := make([]byte, 0, 4*(1+vm.WordBytes)+32)
+	code = appendPush64(code, [vm.WordBytes]byte(first))
+	code = append(code, byte(vm.BALANCE), byte(vm.PUSH1), 0, byte(vm.MSTORE))
+	code = appendPush64(code, [vm.WordBytes]byte(second))
+	code = append(code, byte(vm.BALANCE), byte(vm.PUSH1), vm.WordBytes, byte(vm.MSTORE))
+	code = appendPush64(code, [vm.WordBytes]byte(first))
+	code = append(code, byte(vm.EXTCODESIZE), byte(vm.PUSH1), 2*vm.WordBytes, byte(vm.MSTORE))
+	code = appendPush64(code, [vm.WordBytes]byte(second))
+	code = append(code, byte(vm.EXTCODESIZE), byte(vm.PUSH1), 3*vm.WordBytes, byte(vm.MSTORE))
+	code = append(code,
+		byte(vm.PUSH2), 0x01, 0x00,
+		byte(vm.PUSH1), 0,
+		byte(vm.RETURN),
+	)
+	stateDB.CreateAccount(contractAddress)
+	stateDB.SetCode(contractAddress, code)
+
+	got, _, err := Call(contractAddress, nil, &Config{State: stateDB})
+	if err != nil {
+		t.Fatalf("execute account opcode contract: %v", err)
+	}
+	want := make([]byte, 4*vm.WordBytes)
+	want[vm.WordBytes-1] = 111
+	want[2*vm.WordBytes-1] = 222
+	want[3*vm.WordBytes-1] = 1
+	want[4*vm.WordBytes-1] = 3
+	if !bytes.Equal(got, want) {
+		t.Fatalf("account opcode output mismatch:\nhave %x\nwant %x", got, want)
+	}
+}
+
+func TestVM64AccountOpcodeAddressIsolation(t *testing.T) {
+	// Both targets have the low byte used by the identity precompile and are
+	// identical throughout the low 32 bytes. Only a high-half byte differs.
+	// This catches address paths that accidentally retain a legacy-width mask.
+	first := common.Address{0: 0x11, common.AddressLength - 1: 0x04}
+	second := first
+	second[0] = 0x22
+	targets := []struct {
+		name    string
+		address common.Address
+		marker  byte
+		balance *big.Int
+	}{
+		{name: "first", address: first, marker: 0x71, balance: big.NewInt(0x171)},
+		{name: "second", address: second, marker: 0x82, balance: big.NewInt(0x282)},
+	}
+
+	newState := func(t *testing.T) *state.StateDB {
+		t.Helper()
+		stateDB, err := state.New(types.EmptyRootHash, state.NewDatabase(rawdb.NewMemoryDatabase()), nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, target := range targets {
+			stateDB.CreateAccount(target.address)
+			stateDB.SetCode(target.address, returnMarkerCode(target.marker))
+			stateDB.SetBalance(target.address, target.balance)
+		}
+		return stateDB
+	}
+
+	for _, target := range targets {
+		t.Run("EXTCODECOPY/"+target.name, func(t *testing.T) {
+			stateDB := newState(t)
+			caller := patternedAddress(0x30)
+			want := stateDB.GetCode(target.address)
+			code := []byte{
+				byte(vm.PUSH1), byte(len(want)),
+				byte(vm.PUSH1), 0,
+				byte(vm.PUSH1), 0,
+			}
+			code = appendPush64(code, [vm.WordBytes]byte(target.address))
+			code = append(code,
+				byte(vm.EXTCODECOPY),
+				byte(vm.PUSH1), byte(len(want)),
+				byte(vm.PUSH1), 0,
+				byte(vm.RETURN),
+			)
+			stateDB.CreateAccount(caller)
+			stateDB.SetCode(caller, code)
+
+			got, _, err := Call(caller, nil, &Config{State: stateDB})
+			if err != nil {
+				t.Fatalf("execute EXTCODECOPY: %v", err)
+			}
+			if !bytes.Equal(got, want) {
+				t.Fatalf("EXTCODECOPY selected the wrong full address:\nhave %x\nwant %x", got, want)
+			}
+		})
+
+		t.Run("EXTCODEHASH/"+target.name, func(t *testing.T) {
+			stateDB := newState(t)
+			caller := patternedAddress(0x40)
+			code := appendPush64(nil, [vm.WordBytes]byte(target.address))
+			code = append(code,
+				byte(vm.EXTCODEHASH),
+				byte(vm.PUSH1), 0,
+				byte(vm.MSTORE),
+				byte(vm.PUSH1), vm.WordBytes,
+				byte(vm.PUSH1), 0,
+				byte(vm.RETURN),
+			)
+			stateDB.CreateAccount(caller)
+			stateDB.SetCode(caller, code)
+
+			got, _, err := Call(caller, nil, &Config{State: stateDB})
+			if err != nil {
+				t.Fatalf("execute EXTCODEHASH: %v", err)
+			}
+			want := make([]byte, vm.WordBytes)
+			copy(want[vm.WordBytes-common.HashLength:], crypto.Keccak256(stateDB.GetCode(target.address)))
+			if !bytes.Equal(got, want) {
+				t.Fatalf("EXTCODEHASH selected the wrong full address:\nhave %x\nwant %x", got, want)
+			}
+		})
+
+		for _, opcode := range []vm.OpCode{vm.CALL, vm.DELEGATECALL, vm.STATICCALL} {
+			t.Run(opcode.String()+"/"+target.name, func(t *testing.T) {
+				stateDB := newState(t)
+				caller := patternedAddress(byte(opcode))
+				code := accountCallCode(opcode, target.address)
+				stateDB.CreateAccount(caller)
+				stateDB.SetCode(caller, code)
+
+				got, _, err := Call(caller, nil, &Config{State: stateDB})
+				if err != nil {
+					t.Fatalf("execute %s: %v", opcode, err)
+				}
+				want := make([]byte, vm.WordBytes)
+				want[len(want)-1] = target.marker
+				if !bytes.Equal(got, want) {
+					t.Fatalf("%s selected the wrong full address:\nhave %x\nwant %x", opcode, got, want)
+				}
+			})
+		}
+
+		t.Run("SELFBALANCE/"+target.name, func(t *testing.T) {
+			stateDB := newState(t)
+			stateDB.SetCode(target.address, []byte{
+				byte(vm.SELFBALANCE),
+				byte(vm.PUSH1), 0,
+				byte(vm.MSTORE),
+				byte(vm.PUSH1), vm.WordBytes,
+				byte(vm.PUSH1), 0,
+				byte(vm.RETURN),
+			})
+
+			got, _, err := Call(target.address, nil, &Config{State: stateDB})
+			if err != nil {
+				t.Fatalf("execute SELFBALANCE: %v", err)
+			}
+			want := common.LeftPadBytes(target.balance.Bytes(), vm.WordBytes)
+			if !bytes.Equal(got, want) {
+				t.Fatalf("SELFBALANCE used the wrong full address:\nhave %x\nwant %x", got, want)
+			}
+		})
+	}
+}
+
+func TestVM64InternalCreateReturnsFullAddress(t *testing.T) {
+	initCode := []byte{byte(vm.PUSH1), 0, byte(vm.PUSH1), 0, byte(vm.RETURN)}
+	creator := patternedAddress(0x21)
+	var highHalfSalt [vm.WordBytes]byte
+	highHalfSalt[0] = 0xa5
+	highHalfSalt[31] = 0x5a
+	highHalfSalt[len(highHalfSalt)-1] = 0x07
+	initHash := crypto.Keccak256(initCode)
+	lowHalfOnlySalt := highHalfSalt
+	clear(lowHalfOnlySalt[:vm.WordBytes/2])
+	if crypto.CreateAddress2(creator, highHalfSalt, initHash) == crypto.CreateAddress2(creator, lowHalfOnlySalt, initHash) {
+		t.Fatal("CREATE2 derivation ignored the salt's high half")
+	}
+
+	tests := []struct {
+		name     string
+		opcode   vm.OpCode
+		salt     [vm.WordBytes]byte
+		expected func() common.Address
+	}{
+		{
+			name:   "CREATE",
+			opcode: vm.CREATE,
+			expected: func() common.Address {
+				return crypto.CreateAddress(creator, 0)
+			},
+		},
+		{
+			name:   "CREATE2_high_half_salt",
+			opcode: vm.CREATE2,
+			salt:   highHalfSalt,
+			expected: func() common.Address {
+				return crypto.CreateAddress2(creator, highHalfSalt, initHash)
+			},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			stateDB, err := state.New(types.EmptyRootHash, state.NewDatabase(rawdb.NewMemoryDatabase()), nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+			stateDB.CreateAccount(creator)
+			stateDB.SetCode(creator, internalCreateCode(test.opcode, test.salt, initCode))
+
+			got, _, err := Call(creator, nil, &Config{State: stateDB})
+			if err != nil {
+				t.Fatalf("execute internal %s: %v", test.opcode, err)
+			}
+			want := test.expected()
+			if !bytes.Equal(got, want[:]) {
+				t.Fatalf("%s return value lost VM64 address bytes:\nhave %x\nwant %x", test.opcode, got, want)
+			}
+			if nonce := stateDB.GetNonce(want); nonce != 1 {
+				t.Fatalf("created account nonce = %d, want 1", nonce)
+			}
+		})
+	}
+}
+
+func returnMarkerCode(marker byte) []byte {
+	return []byte{
+		byte(vm.PUSH1), marker,
+		byte(vm.PUSH1), 0,
+		byte(vm.MSTORE),
+		byte(vm.PUSH1), vm.WordBytes,
+		byte(vm.PUSH1), 0,
+		byte(vm.RETURN),
+	}
+}
+
+func accountCallCode(opcode vm.OpCode, target common.Address) []byte {
+	code := []byte{
+		byte(vm.PUSH1), vm.WordBytes, // output size
+		byte(vm.PUSH1), 0, // output offset
+		byte(vm.PUSH1), 0, // input size
+		byte(vm.PUSH1), 0, // input offset
+	}
+	if opcode == vm.CALL {
+		code = append(code, byte(vm.PUSH1), 0) // value
+	}
+	code = appendPush64(code, [vm.WordBytes]byte(target))
+	code = append(code,
+		byte(vm.GAS),
+		byte(opcode),
+		byte(vm.POP),
+		byte(vm.PUSH1), vm.WordBytes,
+		byte(vm.PUSH1), 0,
+		byte(vm.RETURN),
+	)
+	return code
+}
+
+func internalCreateCode(opcode vm.OpCode, salt [vm.WordBytes]byte, initCode []byte) []byte {
+	code := append([]byte{byte(vm.OpCode(int(vm.PUSH1) + len(initCode) - 1))}, initCode...)
+	code = append(code, byte(vm.PUSH1), 0, byte(vm.MSTORE))
+	if opcode == vm.CREATE2 {
+		code = appendPush64(code, salt)
+	}
+	code = append(code,
+		byte(vm.PUSH1), byte(len(initCode)),
+		byte(vm.PUSH1), byte(vm.WordBytes-len(initCode)),
+		byte(vm.PUSH1), 0,
+		byte(opcode),
+		byte(vm.PUSH1), 0,
+		byte(vm.MSTORE),
+		byte(vm.PUSH1), vm.WordBytes,
+		byte(vm.PUSH1), 0,
+		byte(vm.RETURN),
+	)
+	return code
+}
+
+func patternedAddress(start byte) common.Address {
+	var address common.Address
+	for i := range address {
+		address[i] = start + byte(i)
+	}
+	return address
 }
 
 func BenchmarkCall(b *testing.B) {

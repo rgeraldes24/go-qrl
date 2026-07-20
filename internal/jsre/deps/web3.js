@@ -3674,7 +3674,30 @@ HyperionFunction.prototype.unpackOutput = function (output) {
         return;
     }
 
-    output = output.length >= 2 ? output.slice(2) : output;
+    if (this._outputTypes.length > 0) {
+        if (typeof output !== 'string' || !/^(0x)?[0-9a-f]*$/i.test(output)) {
+            throw new Error('Invalid ABI output: expected a hex string');
+        }
+        output = output.slice(0, 2).toLowerCase() === '0x' ? output.slice(2) : output;
+        if (output.length % 128 !== 0) {
+            throw new Error('Invalid ABI output: expected complete 64-byte words');
+        }
+
+        var hyperionTypes = coder.getHyperionTypes(this._outputTypes);
+        var minimumBytes = hyperionTypes.reduce(function (total, hyperionType, index) {
+            var type = this._outputTypes[index];
+            if (hyperionType.isDynamicType(type) || hyperionType.isDynamicArray(type)) {
+                return total + 64;
+            }
+            var staticLength = hyperionType.staticPartLength(type);
+            return total + Math.floor((staticLength + 63) / 64) * 64;
+        }.bind(this), 0);
+        if (output.length < minimumBytes * 2) {
+            throw new Error('Invalid ABI output: incomplete 64-byte ABI head');
+        }
+    } else if (typeof output === 'string' && output.slice(0, 2).toLowerCase() === '0x') {
+        output = output.slice(2);
+    }
     var result = coder.decodeParams(this._outputTypes, output);
     return result.length === 1 ? result[0] : result;
 };

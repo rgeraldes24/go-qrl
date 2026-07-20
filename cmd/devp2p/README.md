@@ -105,23 +105,46 @@ Start the test by running `devp2p discv5 test -listen1 127.0.0.1 -listen2 127.0.
 
 ### QRL Protocol Test Suite
 
-The QRL Protocol test suite is a conformance test suite for the qrl protocol.
+The QRL and snap protocol test suites are wire-level conformance tests for a
+VM64 node. They check the current `qrl/1` and `snap/1` handshakes, exact status
+fields, header and body retrieval, request IDs, transaction ingress/fetch/
+propagation, account and storage range proofs, bytecode retrieval, and account
+and storage trie-node retrieval. The fixture deliberately contains 64-byte
+addresses, a contract, and a storage value whose decoded width is exactly 64
+bytes.
 
-To run the qrl protocol test suite against your implementation, the node needs to be initialized as such:
+To run the suites against your implementation, initialize an isolated node as
+follows:
 
-1. initialize the gqrl node with the `genesis.json` file contained in the `testdata` directory
-2. import the `halfchain.rlp` file in the `testdata` directory
-3. run gqrl with the following flags:
-```
-gqrl --datadir <datadir> --nodiscover --nat=none --networkid 19763 --verbosity 5
-```
+1. Initialize the gqrl node with
+   `cmd/devp2p/internal/qrltest/testdata/genesis.json`.
+2. Import `cmd/devp2p/internal/qrltest/testdata/halfchain.rlp`. The node must be
+   at the exact imported head; the full fixture contains later blocks used as
+   test data.
+3. Start gqrl with networking enabled but isolated from public discovery:
 
-Then, run the following command, replacing `<qnode>` with the qnode of the gqrl node:
- ```
- devp2p rlpx qrl-test <qnode> cmd/devp2p/internal/qrltest/testdata/chain.rlp cmd/devp2p/internal/qrltest/testdata/genesis.json
-```
+       gqrl --datadir <datadir> --nodiscover --nat=none --networkid 19763 --verbosity 5
 
-Repeat the above process (re-initialising the node) in order to run the QRL Protocol test suite again.
+4. Ensure the execution node has received a valid Engine API
+   `forkchoiceUpdated` from its consensus client. Until initial sync is marked
+   complete, gqrl intentionally ignores remotely submitted transactions and
+   the transaction propagation test will fail. A standalone execution node is
+   therefore sufficient for the read-only qrl and snap checks, but the complete
+   suite requires the consensus/execution integration to be live.
+
+Then run both commands, replacing `<qnode>` with the qnode record of the gqrl
+node:
+
+    devp2p rlpx qrl-test <qnode> cmd/devp2p/internal/qrltest/testdata/chain.rlp cmd/devp2p/internal/qrltest/testdata/genesis.json
+    devp2p rlpx snap-test <qnode> cmd/devp2p/internal/qrltest/testdata/chain.rlp cmd/devp2p/internal/qrltest/testdata/genesis.json
+
+The suites support `-run <regexp>` for a focused test and `-tap` for TAP output.
+Reinitialize the node before repeating the transaction suite because it submits
+transactions to the pool.
+
+After changing `genesis.json`, regenerate both RLP fixtures with:
+
+    go run ./cmd/devp2p/internal/qrltest/testdata/gen_chain.go
 
 [eth]: https://github.com/ethereum/devp2p/blob/master/caps/eth.md
 [dns-tutorial]: https://geth.ethereum.org/docs/developers/geth-developer/dns-discovery-setup

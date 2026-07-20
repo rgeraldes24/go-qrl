@@ -502,6 +502,15 @@ web3._extend({
 			name: 'getBlockReceipts',
 			call: 'qrl_getBlockReceipts',
 			params: 1,
+			inputFormatter: [function (blockNumberOrHash) {
+				// Preserve EIP-1898 block selector objects. Numeric block numbers
+				// must be encoded as hex quantities before they reach the RPC
+				// BlockNumberOrHash decoder.
+				if (blockNumberOrHash !== null && typeof blockNumberOrHash === 'object') {
+					return blockNumberOrHash;
+				}
+				return web3._extend.formatters.inputBlockNumberFormatter(blockNumberOrHash);
+			}],
 		}),
 	],
 	properties: [

@@ -17,9 +17,11 @@
 package external
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"math/big"
+	"reflect"
 	"sync"
 
 	qrl "github.com/theQRL/go-qrl"
@@ -227,7 +229,65 @@ func (api *ExternalSigner) SignTx(account accounts.Account, tx *types.Transactio
 	if err := api.client.Call(&res, "account_signTransaction", args); err != nil {
 		return nil, err
 	}
+	if res.Tx == nil {
+		return nil, errors.New("external signer returned no transaction")
+	}
+	expectedChainID := tx.ChainId()
+	if expectedChainID.Sign() == 0 && chainID != nil {
+		expectedChainID = chainID
+	}
+	if expectedChainID.Sign() != 0 && res.Tx.ChainId().Cmp(expectedChainID) != 0 {
+		return nil, fmt.Errorf("external signer returned transaction for chain %s, want %s", res.Tx.ChainId(), expectedChainID)
+	}
+	if err := validateSignedTransactionBody(tx, res.Tx); err != nil {
+		return nil, fmt.Errorf("external signer changed transaction: %w", err)
+	}
+	sender, err := types.Sender(types.LatestSignerForChainID(res.Tx.ChainId()), res.Tx)
+	if err != nil {
+		return nil, fmt.Errorf("external signer returned invalid transaction: %w", err)
+	}
+	if sender != account.Address {
+		return nil, fmt.Errorf("external signer returned transaction from %s, want %s", sender, account.Address)
+	}
 	return res.Tx, nil
+}
+
+func validateSignedTransactionBody(requested, signed *types.Transaction) error {
+	if signed.Type() != requested.Type() {
+		return fmt.Errorf("type %d, want %d", signed.Type(), requested.Type())
+	}
+	if signed.Nonce() != requested.Nonce() {
+		return fmt.Errorf("nonce %d, want %d", signed.Nonce(), requested.Nonce())
+	}
+	if signed.Gas() != requested.Gas() {
+		return fmt.Errorf("gas %d, want %d", signed.Gas(), requested.Gas())
+	}
+	if signed.GasTipCap().Cmp(requested.GasTipCap()) != 0 {
+		return fmt.Errorf("max priority fee %s, want %s", signed.GasTipCap(), requested.GasTipCap())
+	}
+	if signed.GasFeeCap().Cmp(requested.GasFeeCap()) != 0 {
+		return fmt.Errorf("max fee %s, want %s", signed.GasFeeCap(), requested.GasFeeCap())
+	}
+	if signed.Value().Cmp(requested.Value()) != 0 {
+		return fmt.Errorf("value %s, want %s", signed.Value(), requested.Value())
+	}
+	if !sameTransactionRecipient(signed.To(), requested.To()) {
+		return fmt.Errorf("recipient %v, want %v", signed.To(), requested.To())
+	}
+	if !bytes.Equal(signed.Data(), requested.Data()) {
+		return fmt.Errorf("data %x, want %x", signed.Data(), requested.Data())
+	}
+	if !reflect.DeepEqual(signed.AccessList(), requested.AccessList()) {
+		return fmt.Errorf("access list %v, want %v", signed.AccessList(), requested.AccessList())
+	}
+	return nil
+}
+
+func sameTransactionRecipient(a, b *common.Address) bool {
+	if a == nil || b == nil {
+		return a == nil && b == nil
+	}
+	return *a == *b
 }
 
 func (api *ExternalSigner) SignTextWithPassphrase(account accounts.Account, passphrase string, text []byte) ([]byte, error) {

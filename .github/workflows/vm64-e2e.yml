@@ -1,0 +1,464 @@
+name: VM64 end-to-end
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: vm64-e2e-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  vm64-unit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - name: Check out the tested revision
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Set up Go
+        uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 # v5.5.0
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Validate workflow, shell, JavaScript, and generated artifacts
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          go run github.com/rhysd/actionlint/cmd/actionlint@v1.7.7
+          find scripts/local_testnet -type f -name '*.sh' -print0 |
+            xargs -0 docker run --rm \
+              --network=none \
+              -v "$PWD:/mnt:ro" \
+              -w /mnt \
+              koalaman/shellcheck@sha256:bb596a0d169b85ddd81d8b6d3a2ff6d5baf5fca10b97f575ebc647c3dff62b3d \
+              --severity=warning
+          for script in scripts/local_testnet/tests/*.js scripts/local_testnet/tests/fixtures/*.js; do
+            node --check "$script"
+          done
+          python3 scripts/local_testnet/vm64_genesis_gqrl.py --self-test
+          go generate ./scripts/local_testnet/goabi
+          (
+            cd scripts/local_testnet/tests/fixtures
+            go run generate_emitter_js.go
+          )
+          git diff --exit-code -- \
+            scripts/local_testnet/goabi/emitter_binding.go \
+            scripts/local_testnet/tests/fixtures/emitter.js
+
+      - name: Run the complete Go test and vet suites
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          go test -count=1 -timeout=20m \
+            -covermode=atomic -coverprofile="$RUNNER_TEMP/vm64-unit.coverage" ./...
+          go vet ./...
+
+      - name: Run race-sensitive VM64 packages
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          go test -count=1 -race -timeout=20m \
+            ./accounts/abi/... \
+            ./accounts/external \
+            ./cmd/devp2p/... \
+            ./cmd/qrlkey \
+            ./common \
+            ./console \
+            ./core/vm \
+            ./core/vm/runtime \
+            ./internal/jsre \
+            ./scripts/local_testnet/clefverify \
+            ./scripts/local_testnet/depositcheck \
+            ./scripts/local_testnet/freshsync \
+            ./scripts/local_testnet/goabi \
+            ./scripts/local_testnet/systemcheck \
+            ./scripts/local_testnet/txsigner
+
+      - name: Run bounded native fuzzing
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          go test -run='^$' -fuzz='^FuzzAddressTextAndJSONRoundTrip$' -fuzztime=20s -parallel=2 ./common
+          go test -run='^$' -fuzz='^FuzzABI$' -fuzztime=20s -parallel=2 ./accounts/abi
+          go test -run='^$' -fuzz='^FuzzVmRuntime$' -fuzztime=20s -parallel=2 ./core/vm/runtime
+          go test -run='^$' -fuzz='^FuzzPrecompiledContracts$' -fuzztime=20s -parallel=2 ./core/vm
+          go test -run='^$' -fuzz='^FuzzDepositRootInputCompatibility$' -fuzztime=20s -parallel=2 ./core/vm
+
+      - name: Upload unit coverage
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: vm64-unit-coverage-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/vm64-unit.coverage
+          if-no-files-found: warn
+          retention-days: 14
+
+  hyperion-fixture:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - name: Check out the tested revision
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Set up Go
+        uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 # v5.5.0
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Recompile the VM64 fixture with the pinned Hyperion toolchain
+        env:
+          HYPERION_BUILD_JOBS: 2
+        run: make vm64-fixture-check
+
+  local-testnet:
+    needs:
+      - vm64-unit
+      - hyperion-fixture
+    runs-on: ubuntu-24.04
+    # The explicit bounded setup/live steps below consume at most 328 minutes.
+    # Reserve the remaining job-level headroom for checkout, validation, the
+    # always-run enclave dump, and diagnostics upload.
+    timeout-minutes: 360
+    env:
+      KURTOSIS_VERSION: 1.20.0
+      KURTOSIS_SHA256: 20e924582082f0cd2b557b463ffcb0a303b6f90ef25204e794384741d88986fc
+      YQ_VERSION: v4.47.2
+      YQ_SHA256: 1bb99e1019e23de33c7e6afc23e93dad72aad6cf2cb03c797f068ea79814ddb0
+      ENCLAVE_NAME: vm64-${{ github.run_id }}-${{ github.run_attempt }}
+      ARTIFACT_DIR: /tmp/vm64-${{ github.run_id }}-${{ github.run_attempt }}
+      EFFECTIVE_PARAMS_OUTPUT: /tmp/vm64-${{ github.run_id }}-${{ github.run_attempt }}/network_params.effective.yaml
+
+    steps:
+      - name: Check out the tested revision
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+
+      - name: Initialize diagnostics and immutable inputs
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          mkdir -p "$ARTIFACT_DIR"
+          source_sha=$(git rev-parse HEAD)
+          # shellcheck source=scripts/local_testnet/images.lock.env
+          source scripts/local_testnet/images.lock.env
+          {
+            echo "SOURCE_SHA=$source_sha"
+            echo "EXPECTED_GIT_COMMIT=$source_sha"
+            echo "QRL_PACKAGE_REPO=$PINNED_QRL_PACKAGE_REPO"
+            echo "QRL_PKG_VERSION=$PINNED_QRL_PACKAGE_COMMIT"
+            echo "CL_BASE_IMAGE=$PINNED_CL_BASE_IMAGE"
+            echo "VC_BASE_IMAGE=$PINNED_VC_BASE_IMAGE"
+            echo "QRYSM_GO_BUILDER_IMAGE=$PINNED_QRYSM_GO_BUILDER_IMAGE"
+            echo "GENESIS_BASE_IMAGE=$PINNED_GENESIS_BASE_IMAGE"
+            echo "GENESIS_GO_BUILDER_IMAGE=$PINNED_GENESIS_GO_BUILDER_IMAGE"
+            echo "QRYSM_GIT_REPO=$PINNED_QRYSM_GIT_REPO"
+            echo "QRYSM_GIT_COMMIT=$PINNED_QRYSM_GIT_COMMIT"
+            echo "CL_IMAGE=theqrl-dev/qrysm-beacon:${PINNED_QRYSM_GIT_COMMIT:0:12}"
+            echo "VC_IMAGE=theqrl-dev/qrysm-validator:${PINNED_QRYSM_GIT_COMMIT:0:12}"
+            echo "BUILD_QRYSM_IMAGES=true"
+            echo "GENERATOR_GIT_REPO=$PINNED_GENERATOR_GIT_REPO"
+            echo "GENERATOR_GIT_COMMIT=$PINNED_GENERATOR_GIT_COMMIT"
+            echo "GENESIS_IMAGE=theqrl-dev/qrl-genesis-generator:${PINNED_GENERATOR_GIT_COMMIT:0:12}-${PINNED_QRYSM_GIT_COMMIT:0:12}"
+            echo "GO_BUILDER_IMAGE=$PINNED_GO_BUILDER_IMAGE"
+            echo "ALPINE_RUNTIME_IMAGE=$PINNED_ALPINE_RUNTIME_IMAGE"
+          } >> "$GITHUB_ENV"
+          {
+            echo "source_sha=$source_sha"
+            echo "QRL_PACKAGE_REPO=$PINNED_QRL_PACKAGE_REPO"
+            echo "QRL_PKG_VERSION=$PINNED_QRL_PACKAGE_COMMIT"
+            echo "CL_BASE_IMAGE=$PINNED_CL_BASE_IMAGE"
+            echo "VC_BASE_IMAGE=$PINNED_VC_BASE_IMAGE"
+            echo "QRYSM_GO_BUILDER_IMAGE=$PINNED_QRYSM_GO_BUILDER_IMAGE"
+            echo "GENESIS_BASE_IMAGE=$PINNED_GENESIS_BASE_IMAGE"
+            echo "GENESIS_GO_BUILDER_IMAGE=$PINNED_GENESIS_GO_BUILDER_IMAGE"
+            echo "QRYSM_GIT_REPO=$PINNED_QRYSM_GIT_REPO"
+            echo "QRYSM_GIT_COMMIT=$PINNED_QRYSM_GIT_COMMIT"
+            echo "CL_IMAGE=theqrl-dev/qrysm-beacon:${PINNED_QRYSM_GIT_COMMIT:0:12}"
+            echo "VC_IMAGE=theqrl-dev/qrysm-validator:${PINNED_QRYSM_GIT_COMMIT:0:12}"
+            echo "GENERATOR_GIT_REPO=$PINNED_GENERATOR_GIT_REPO"
+            echo "GENERATOR_GIT_COMMIT=$PINNED_GENERATOR_GIT_COMMIT"
+            echo "GENESIS_IMAGE=theqrl-dev/qrl-genesis-generator:${PINNED_GENERATOR_GIT_COMMIT:0:12}-${PINNED_QRYSM_GIT_COMMIT:0:12}"
+            echo "GO_BUILDER_IMAGE=$PINNED_GO_BUILDER_IMAGE"
+            echo "ALPINE_RUNTIME_IMAGE=$PINNED_ALPINE_RUNTIME_IMAGE"
+          } > "$ARTIFACT_DIR/external-images.txt"
+
+      - name: Set up Go
+        uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 # v5.5.0
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Validate the E2E harness
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          bash -n \
+            scripts/local_testnet/run_e2e_from_scratch.sh \
+            scripts/local_testnet/start_local_testnet.sh \
+            scripts/local_testnet/run_tests.sh \
+            scripts/local_testnet/stop_local_testnet.sh
+          for script in scripts/local_testnet/tests/*.js scripts/local_testnet/tests/fixtures/*.js; do
+            node --check "$script"
+          done
+          go test -count=1 \
+            ./scripts/local_testnet/goabi \
+            ./scripts/local_testnet/txsigner \
+            ./scripts/local_testnet/depositcheck \
+            ./scripts/local_testnet/systemcheck \
+            ./scripts/local_testnet/freshsync
+
+      - name: Install pinned testnet tooling
+        timeout-minutes: 10
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          curl -fsSL "https://github.com/mikefarah/yq/releases/download/${YQ_VERSION}/yq_linux_amd64" -o /tmp/yq
+          echo "${YQ_SHA256}  /tmp/yq" | sha256sum --check
+          sudo install -m 0755 /tmp/yq /usr/local/bin/yq
+
+          kurtosis_deb="/tmp/kurtosis-cli_${KURTOSIS_VERSION}_linux_amd64.deb"
+          curl -fsSL \
+            "https://github.com/kurtosis-tech/kurtosis-cli-release-artifacts/releases/download/${KURTOSIS_VERSION}/kurtosis-cli_${KURTOSIS_VERSION}_linux_amd64.deb" \
+            -o "$kurtosis_deb"
+          echo "${KURTOSIS_SHA256}  ${kurtosis_deb}" | sha256sum --check
+          sudo dpkg --install "$kurtosis_deb"
+          kurtosis engine start 2>&1 | tee "$ARTIFACT_DIR/kurtosis-engine-start.log"
+
+      - name: Record isolated-run tooling
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          {
+            echo "source_sha=$SOURCE_SHA"
+            go version
+            docker version
+            yq --version
+            kurtosis version
+          } > "$ARTIFACT_DIR/versions.txt" 2>&1
+
+      - name: Verify immutable external images are available
+        timeout-minutes: 15
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          for image in \
+            "$CL_BASE_IMAGE" \
+            "$VC_BASE_IMAGE" \
+            "$QRYSM_GO_BUILDER_IMAGE" \
+            "$GENESIS_BASE_IMAGE" \
+            "$GENESIS_GO_BUILDER_IMAGE" \
+            "$GO_BUILDER_IMAGE" \
+            "$ALPINE_RUNTIME_IMAGE"; do
+            if [[ "$image" != *@sha256:* ]]; then
+              echo "External image is not digest-pinned: $image" >&2
+              exit 1
+            fi
+            docker pull "$image"
+          done 2>&1 | tee "$ARTIFACT_DIR/external-image-pulls.log"
+
+      - name: Warm every host binary before validators start
+        timeout-minutes: 15
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          make local-testnet-host-preflight 2>&1 |
+            tee "$ARTIFACT_DIR/host-preflight.log"
+
+      - name: Atomically reserve the test enclave
+        id: reserve_enclave
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          if ! add_output=$(kurtosis enclave add -n "$ENCLAVE_NAME" 2>&1); then
+            echo "$add_output" | tee "$ARTIFACT_DIR/enclave-reservation.log" >&2
+            exit 1
+          fi
+          printf '%s\n' "$add_output" > "$ARTIFACT_DIR/enclave-reservation.log"
+          if ! inspect_output=$(kurtosis enclave inspect --full-uuids "$ENCLAVE_NAME" 2>&1); then
+            printf '%s\n' "$inspect_output" | tee -a "$ARTIFACT_DIR/enclave-reservation.log" >&2
+            echo "The newly reserved enclave was preserved because its UUID could not be captured safely." >&2
+            exit 1
+          fi
+          enclave_uuid=$(printf '%s\n' "$inspect_output" |
+            awk '$1 == "UUID:" { print $2; exit }')
+          if [[ ! "$enclave_uuid" =~ ^[0-9a-f]{32}$ ]]; then
+            printf '%s\n' "$inspect_output" | tee -a "$ARTIFACT_DIR/enclave-reservation.log" >&2
+            echo "The newly reserved enclave was preserved because inspection returned an invalid full UUID: $enclave_uuid" >&2
+            exit 1
+          fi
+          printf '%s\n' "$inspect_output" >> "$ARTIFACT_DIR/enclave-reservation.log"
+          printf 'ENCLAVE_UUID=%s\n' "$enclave_uuid" >> "$GITHUB_ENV"
+          printf 'name=%s\nuuid=%s\n' "$ENCLAVE_NAME" "$enclave_uuid" \
+            > "$ARTIFACT_DIR/enclave-ownership.txt"
+
+      - name: Build exact revision and start local testnet
+        id: start_testnet
+        timeout-minutes: 50
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          scripts/local_testnet/start_local_testnet.sh -c -k -e "$ENCLAVE_UUID" 2>&1 |
+            tee "$ARTIFACT_DIR/start-local-testnet.log"
+          docker image inspect \
+            "theqrl-dev/go-qrl:${SOURCE_SHA:0:12}" \
+            "theqrl-dev/go-qrl-alltools:${SOURCE_SHA:0:12}" \
+            "$CL_IMAGE" \
+            "$VC_IMAGE" \
+            "$GENESIS_IMAGE" \
+            > "$ARTIFACT_DIR/go-qrl-images.json"
+          generator_image_id=$(docker image inspect --format '{{.Id}}' "$GENESIS_IMAGE")
+          docker run --rm --pull=never --network=none \
+            --entrypoint cat "$generator_image_id" \
+            /apps/el-gen/vm64-deposit-manifest.json \
+            > "$ARTIFACT_DIR/vm64-deposit-manifest.json"
+
+          runtime_dir="$ARTIFACT_DIR/runtime-services"
+          mkdir -p "$runtime_dir"
+          kurtosis enclave inspect --full-uuids "$ENCLAVE_UUID" \
+            > "$runtime_dir/enclave.txt"
+          for service in \
+            el-1-gqrl-qrysm \
+            el-2-gqrl-qrysm \
+            cl-1-qrysm-gqrl \
+            cl-2-qrysm-gqrl \
+            vc-1-gqrl-qrysm \
+            vc-2-gqrl-qrysm \
+            signer-clef \
+            clef-keystore-generation-el-clef-keystore \
+            validator-key-generation-cl-validator-keystore; do
+            kurtosis service inspect -o json "$ENCLAVE_UUID" "$service" \
+              > "$runtime_dir/$service.json"
+          done
+          for service in el-1-gqrl-qrysm el-2-gqrl-qrysm; do
+            kurtosis service exec "$ENCLAVE_UUID" "$service" 'gqrl version' \
+              > "$runtime_dir/$service.version.txt"
+            grep -Fq "$SOURCE_SHA" "$runtime_dir/$service.version.txt"
+          done
+          kurtosis service exec "$ENCLAVE_UUID" signer-clef 'clef --version' \
+            > "$runtime_dir/signer-clef.version.txt"
+          grep -Fq "${SOURCE_SHA:0:8}" "$runtime_dir/signer-clef.version.txt"
+          docker run --rm "$CL_IMAGE" --version > "$runtime_dir/cl-image.version.txt"
+          docker run --rm "$VC_IMAGE" --version > "$runtime_dir/vc-image.version.txt"
+          grep -Fq "$QRYSM_GIT_COMMIT" "$runtime_dir/cl-image.version.txt"
+          grep -Fq "$QRYSM_GIT_COMMIT" "$runtime_dir/vc-image.version.txt"
+
+      - name: Run strict VM64 suites against execution node one
+        id: el1_suites
+        if: ${{ !cancelled() && steps.start_testnet.outcome == 'success' }}
+        timeout-minutes: 12
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          scripts/local_testnet/run_tests.sh \
+            -c \
+            -e "$ENCLAVE_UUID" \
+            -s el-1-gqrl-qrysm \
+            -o "$ARTIFACT_DIR/test-results/el-1" 2>&1 |
+            tee "$ARTIFACT_DIR/run-tests-el-1.log"
+
+      - name: Run strict VM64 suites against execution node two
+        id: el2_suites
+        if: ${{ !cancelled() && steps.start_testnet.outcome == 'success' }}
+        timeout-minutes: 12
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          scripts/local_testnet/run_tests.sh \
+            -c \
+            -C \
+            -e "$ENCLAVE_UUID" \
+            -s el-2-gqrl-qrysm \
+            -o "$ARTIFACT_DIR/test-results/el-2" 2>&1 |
+            tee "$ARTIFACT_DIR/run-tests-el-2.log"
+
+      - name: Prove the validator deposit lifecycle
+        id: depositcheck
+        if: ${{ !cancelled() && steps.el1_suites.outcome == 'success' && steps.el2_suites.outcome == 'success' }}
+        timeout-minutes: 18
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          go run ./scripts/local_testnet/depositcheck \
+            -enclave "$ENCLAVE_UUID" \
+            -generator-image "$GENESIS_IMAGE" \
+            -timeout 15m 2>&1 |
+            tee "$ARTIFACT_DIR/depositcheck.log"
+
+      - name: Run multi-node system checks
+        id: systemcheck
+        if: ${{ !cancelled() && steps.depositcheck.outcome == 'success' }}
+        timeout-minutes: 120
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          go run ./scripts/local_testnet/systemcheck \
+            -enclave "$ENCLAVE_UUID" \
+            -require-zero-duty-history \
+            -timeout 115m 2>&1 |
+            tee "$ARTIFACT_DIR/systemcheck.log"
+
+      - name: Run fresh snap synchronization check
+        id: freshsync_snap
+        if: ${{ !cancelled() && steps.systemcheck.outcome == 'success' }}
+        timeout-minutes: 38
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          go run ./scripts/local_testnet/freshsync \
+            -enclave "$ENCLAVE_UUID" \
+            -syncmode snap \
+            -timeout 35m \
+            -keep-services \
+            -fresh-el-service fresh-sync-el-snap \
+            -fresh-cl-service fresh-sync-cl-snap 2>&1 |
+            tee "$ARTIFACT_DIR/freshsync-snap.log"
+
+      - name: Run fresh full synchronization check
+        id: freshsync_full
+        if: ${{ !cancelled() && steps.freshsync_snap.outcome == 'success' }}
+        timeout-minutes: 38
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          go run ./scripts/local_testnet/freshsync \
+            -enclave "$ENCLAVE_UUID" \
+            -syncmode full \
+            -timeout 35m \
+            -keep-services \
+            -fresh-el-service fresh-sync-el-full \
+            -fresh-cl-service fresh-sync-cl-full 2>&1 |
+            tee "$ARTIFACT_DIR/freshsync-full.log"
+
+      - name: Dump and remove enclave
+        if: always()
+        timeout-minutes: 15
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          if [ -z "${ENCLAVE_UUID:-}" ]; then
+            echo "No captured enclave UUID is available; refusing name-based cleanup."
+            exit 0
+          fi
+          scripts/local_testnet/stop_local_testnet.sh \
+            "$ENCLAVE_UUID" "$ARTIFACT_DIR/kurtosis" 2>&1 |
+            tee "$ARTIFACT_DIR/stop-local-testnet.log"
+
+      - name: Upload diagnostics
+        if: always()
+        timeout-minutes: 20
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: vm64-e2e-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ env.ARTIFACT_DIR }}
+          if-no-files-found: error
+          retention-days: 14

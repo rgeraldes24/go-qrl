@@ -28,6 +28,7 @@ import (
 	"math/big"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/theQRL/go-qrl"
 	"github.com/theQRL/go-qrl/common"
@@ -36,6 +37,8 @@ import (
 	"github.com/theQRL/go-qrl/crypto/pqcrypto/wallet"
 	"github.com/theQRL/go-qrl/qrlclient"
 )
+
+const rpcTimeout = 60 * time.Second
 
 func main() {
 	var (
@@ -58,25 +61,22 @@ func main() {
 	}
 	from := common.Address(w.GetAddress())
 
-	var toAddr *common.Address
-	if *to != "" {
-		addr, err := common.NewAddressFromString(*to)
-		if err != nil {
-			fatalf("invalid -to address: %v", err)
-		}
-		toAddr = &addr
+	toAddr, err := parseRecipient(*to)
+	if err != nil {
+		fatalf("invalid -to address: %v", err)
 	}
-	payload, err := hexutil.Decode(*data)
-	if *data != "" && err != nil {
+	payload, err := parsePayload(*data)
+	if err != nil {
 		fatalf("invalid -data: %v", err)
 	}
-	amount, ok := new(big.Int).SetString(*value, 10)
-	if !ok {
-		fatalf("invalid -value: %q", *value)
+	amount, err := parseAmount(*value)
+	if err != nil {
+		fatalf("invalid -value: %v", err)
 	}
 
-	ctx := context.Background()
-	client, err := qrlclient.Dial(*rpcURL)
+	ctx, cancel := newRPCContext()
+	defer cancel()
+	client, err := qrlclient.DialContext(ctx, *rpcURL)
 	if err != nil {
 		fatalf("dial %s: %v", *rpcURL, err)
 	}
@@ -152,13 +152,51 @@ func main() {
 	if err != nil {
 		fatalf("marshal output: %v", err)
 	}
-	switch *format {
+	rendered, err := formatOutput(*format, out)
+	if err != nil {
+		fatalf("%v", err)
+	}
+	fmt.Print(rendered)
+}
+
+func newRPCContext() (context.Context, context.CancelFunc) {
+	return context.WithTimeout(context.Background(), rpcTimeout)
+}
+
+func parseRecipient(input string) (*common.Address, error) {
+	if input == "" {
+		return nil, nil
+	}
+	addr, err := common.NewAddressFromString(input)
+	if err != nil {
+		return nil, err
+	}
+	return &addr, nil
+}
+
+func parsePayload(input string) ([]byte, error) {
+	if input == "" {
+		return nil, nil
+	}
+	return hexutil.Decode(input)
+}
+
+func parseAmount(input string) (*big.Int, error) {
+	amount, ok := new(big.Int).SetString(input, 10)
+	if !ok || amount.Sign() < 0 || strings.HasPrefix(input, "+") {
+		return nil, fmt.Errorf("%q must be a non-negative base-10 integer", input)
+	}
+	return amount, nil
+}
+
+func formatOutput(format string, out []byte) (string, error) {
+	switch format {
 	case "json":
-		fmt.Println(string(out))
+		return string(out) + "\n", nil
 	case "js":
-		fmt.Printf("var PARAMS = %s;\n", out)
+		return fmt.Sprintf("var PARAMS = %s;\n", out), nil
 	default:
-		fatalf("unknown -format %q", *format)
+		return "", fmt.Errorf("unknown -format %q", format)
 	}
 }
 

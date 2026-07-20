@@ -25,6 +25,7 @@ import (
 	"github.com/theQRL/go-qrl/core/rawdb"
 	"github.com/theQRL/go-qrl/core/types"
 	"github.com/theQRL/go-qrl/core/vm"
+	"github.com/theQRL/go-qrl/crypto/pqcrypto"
 	"github.com/theQRL/go-qrl/crypto/pqcrypto/wallet"
 	"github.com/theQRL/go-qrl/params"
 	"github.com/theQRL/go-qrl/qrl/tracers"
@@ -45,11 +46,28 @@ type fixtureScenario struct {
 	extraAlloc core.GenesisAlloc
 }
 
+// deterministicFixtureWallet keeps checked-in tracer transactions stable while
+// production signing remains hedged. Exact fixture diffs are important here
+// because the transaction bytes are part of every JSON test vector.
+type deterministicFixtureWallet struct {
+	*wallet.MLDSA87Wallet
+}
+
+func (w *deterministicFixtureWallet) Sign(message []byte) ([]byte, error) {
+	sig, err := w.MLDSA87Wallet.Wallet.SignDeterministic(message)
+	if err != nil {
+		return nil, err
+	}
+	return sig[:], nil
+}
+
 // TestRegenerateFixtures regenerates JSON fixtures under testdata/ for each
 // tracer exercised by TestCallTracerNative, TestCallTracerNativeWithLog,
 // TestFlatCallTracerNative, TestPrestateTracer, and TestPrestateWithDiffModeTracer.
 // It is gated by the WRITE_FIXTURES environment variable so it only runs when
 // explicitly requested (e.g. WRITE_FIXTURES=1 go test -run TestRegenerateFixtures).
+// TRACE_FIXTURE_FILTER may name one exact path relative to testdata/ when only
+// one vector needs to be refreshed.
 //
 // The scenarios are deliberately small and self-contained so they exercise each
 // tracer's core code paths without depending on external state snapshots.
@@ -59,10 +77,15 @@ func TestRegenerateFixtures(t *testing.T) {
 	}
 
 	const fixtureSeedHex = "01000041f6e321b31e72173f8ff2e292359e1862f24fba42fe6f97efaf641980eff29862f24fba42fe6f97efaf641980eff298"
-	senderWallet, err := wallet.RestoreFromSeedHex(fixtureSeedHex)
+	restoredWallet, err := wallet.RestoreFromSeedHex(fixtureSeedHex)
 	if err != nil {
 		t.Fatalf("wallet.RestoreFromSeedHex: %v", err)
 	}
+	mldsaWallet, ok := restoredWallet.(*wallet.MLDSA87Wallet)
+	if !ok {
+		t.Fatalf("fixture seed restored unexpected wallet type %T", restoredWallet)
+	}
+	senderWallet := &deterministicFixtureWallet{MLDSA87Wallet: mldsaWallet}
 	sender := senderWallet.GetAddress()
 	contractAddr := common.BytesToAddress(common.FromHex(
 		"c0decafec0decafec0decafec0decafec0decafec0decafec0decafec0decafec0decafec0decafec0decafec0decafe"))
@@ -88,6 +111,9 @@ func TestRegenerateFixtures(t *testing.T) {
 	}
 
 	for _, sc := range scenarios {
+		if filter := os.Getenv("TRACE_FIXTURE_FILTER"); filter != "" && sc.path != filter {
+			continue
+		}
 		var to *common.Address
 		if !sc.create {
 			to = &contractAddr
@@ -230,10 +256,18 @@ func seq(parts ...[]byte) []byte {
 }
 
 func callContract(addr common.Address) []byte {
+	return callContractWithInputSize(addr, 0)
+}
+
+func callContractWithInputSize(addr common.Address, inputSize uint64) []byte {
+	inputSizePush := push1(0x00)
+	if inputSize != 0 {
+		inputSizePush = pushBytes(new(big.Int).SetUint64(inputSize).Bytes())
+	}
 	return seq(
 		push1(0x00), // retSize
 		push1(0x00), // retOffset
-		push1(0x00), // inSize
+		inputSizePush,
 		push1(0x00), // inOffset
 		push1(0x00), // value
 		pushAddress(addr),
@@ -253,10 +287,18 @@ func delegateCallContract(addr common.Address) []byte {
 }
 
 func staticCallContract(addr common.Address) []byte {
+	return staticCallContractWithInputSize(addr, 0)
+}
+
+func staticCallContractWithInputSize(addr common.Address, inputSize uint64) []byte {
+	inputSizePush := push1(0x00)
+	if inputSize != 0 {
+		inputSizePush = pushBytes(new(big.Int).SetUint64(inputSize).Bytes())
+	}
 	return seq(
 		push1(0x00), // retSize
 		push1(0x00), // retOffset
-		push1(0x00), // inSize
+		inputSizePush,
 		push1(0x00), // inOffset
 		pushAddress(addr),
 		[]byte{byte(vm.GAS), byte(vm.STATICCALL)},
@@ -339,12 +381,25 @@ func multiContractScenario(sc *fixtureScenario) {
 }
 
 func precompileScenario(sc *fixtureScenario) {
+	const depositInputLength = pqcrypto.MLDSA87PublicKeyLength + common.AddressLength + 8 + pqcrypto.MLDSA87SignatureLength
+
 	var code []byte
 	for i := byte(1); i <= 9; i++ {
-		code = append(code, callContract(fixtureAddress(i))...)
+		inputSize := uint64(0)
+		if i == 1 {
+			// Exercise the canonical VM64 public-key, 64-byte withdrawal
+			// recipient, amount, and signature span. A zero-filled payload keeps
+			// this tracer fixture independent of cryptographic fixture generation.
+			inputSize = depositInputLength
+		}
+		code = append(code, callContractWithInputSize(fixtureAddress(i), inputSize)...)
 	}
 	for i := byte(1); i <= 4; i++ {
-		code = append(code, staticCallContract(fixtureAddress(i))...)
+		inputSize := uint64(0)
+		if i == 1 {
+			inputSize = depositInputLength
+		}
+		code = append(code, staticCallContractWithInputSize(fixtureAddress(i), inputSize)...)
 	}
 	sc.targetCode = append(seq(code, log1(0x61)), byte(vm.STOP))
 }
@@ -397,6 +452,8 @@ func tracerForFixture(rel string) (string, json.RawMessage, error) {
 		return "callTracer", json.RawMessage(`{"withLog":true}`), nil
 	case strings.HasPrefix(rel, "call_tracer/"):
 		return "callTracer", nil, nil
+	case rel == "call_tracer_flat/include_precompiled.json":
+		return "flatCallTracer", json.RawMessage(`{"includePrecompiles":true}`), nil
 	case strings.HasPrefix(rel, "call_tracer_flat/"):
 		return "flatCallTracer", nil, nil
 	case strings.HasPrefix(rel, "prestate_tracer_with_diff_mode/"):

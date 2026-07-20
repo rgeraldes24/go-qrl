@@ -189,6 +189,27 @@ func TestEvaluate(t *testing.T) {
 	}
 }
 
+// Tests that the console wrapper encodes numeric block selectors for
+// qrl_getBlockReceipts without breaking hash and EIP-1898 selectors.
+func TestGetBlockReceiptsSelectorFormatting(t *testing.T) {
+	tester := newTester(t, nil)
+	defer tester.Close(t)
+
+	result, err := tester.console.jsre.Run(`
+var genesisHash = qrl.getBlock(0, false).hash;
+JSON.stringify([
+    Array.isArray(qrl.getBlockReceipts(0)),
+    Array.isArray(qrl.getBlockReceipts(genesisHash)),
+    Array.isArray(qrl.getBlockReceipts({blockHash: genesisHash, requireCanonical: true}))
+]);`)
+	if err != nil {
+		t.Fatalf("qrl.getBlockReceipts selector formatting failed: %v", err)
+	}
+	if got, want := result.String(), `[true,true,true]`; got != want {
+		t.Fatalf("unexpected qrl.getBlockReceipts results: got %s, want %s", got, want)
+	}
+}
+
 // Tests that the console can be used in interactive mode.
 func TestInteractive(t *testing.T) {
 	// Create a tester and run an interactive console in the background

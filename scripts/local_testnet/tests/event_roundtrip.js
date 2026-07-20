@@ -30,6 +30,15 @@ function zeros(n) {
     return new Array(n + 1).join("0");
 }
 
+function patternedHex(length, multiplier, addend) {
+    var out = "0x";
+    for (var i = 0; i < length; i++) {
+        var value = (i * multiplier + addend) & 0xff;
+        out += (value < 16 ? "0" : "") + value.toString(16);
+    }
+    return out;
+}
+
 // loadScript throws when the file is missing or does not compile.
 var _abort = false;
 try {
@@ -60,7 +69,7 @@ if (!_abort) {
         if (txHash !== PARAMS.txHash) {
             throw new Error("tx hash mismatch: have " + txHash + " want " + PARAMS.txHash);
         }
-        // Mainnet-preset slots are 60s, so allow a few slots.
+        // Allow transient missed slots without hiding a stalled chain.
         for (var i = 0; i < 60; i++) {
             receipt = qrl.getTransactionReceipt(txHash);
             if (receipt !== null && receipt.blockNumber !== null) {
@@ -155,6 +164,78 @@ if (receipt !== null) {
     });
 
     var contract = qrl.contract(EMITTER.abi).at(receipt.contractAddress);
+
+    var vm64Amount = "6703903964971298549787012499102923063739682910296196688861780721860882015036773488400937149083451713845015929093243025426876941405973284973216824503046708";
+    var vm64Delta = "-3351951982485649274893506249551461531869841455148098344430890360930441007518386744200468574541725856922507964546621512713438470702986642486608412251520982";
+    var vm64Tag = patternedHex(64, 1, 0x80);
+    var vm64Payload = patternedHex(129, 29, 7);
+    var vm64Note = "VM64 string crosses the 64-byte ABI word boundary: 0123456789abcdef0123456789abcdef";
+
+    check("live contract echoes uint512/int512/address/bytes64/dynamic values", function () {
+        var echoed = contract.echo(vm64Amount, vm64Delta, vm64Tag, PARAMS.address, vm64Payload, vm64Note, true);
+        if (!(echoed instanceof Array) || echoed.length !== 7) {
+            throw new Error("unexpected echo result: " + JSON.stringify(echoed));
+        }
+        if (echoed[0].toString(10) !== vm64Amount || echoed[1].toString(10) !== vm64Delta) {
+            throw new Error("integer mismatch: " + echoed[0] + ", " + echoed[1]);
+        }
+        if (echoed[2].toLowerCase() !== vm64Tag || echoed[3].toLowerCase() !== PARAMS.address.toLowerCase()) {
+            throw new Error("fixed-width mismatch: " + echoed[2] + ", " + echoed[3]);
+        }
+        if (echoed[4].toLowerCase() !== vm64Payload || echoed[5] !== vm64Note || echoed[6] !== true) {
+            throw new Error("dynamic-value mismatch: " + JSON.stringify(echoed));
+        }
+        return true;
+    });
+
+    check("live contract echoes bytes1/bytes32/bytes33/bytes64 boundaries", function () {
+        var value1 = "0xa5";
+        var value32 = patternedHex(32, 1, 1);
+        var value33 = patternedHex(33, 1, 0x40);
+        var echoed = contract.echoFixed(value1, value32, value33, vm64Tag);
+        var want = [value1, value32, value33, vm64Tag];
+        if (!(echoed instanceof Array) || echoed.length !== want.length) {
+            throw new Error("unexpected fixed-bytes result: " + JSON.stringify(echoed));
+        }
+        for (var i = 0; i < want.length; i++) {
+            if (echoed[i].toLowerCase() !== want[i]) {
+                throw new Error("fixed bytes " + i + " mismatch: have " + echoed[i] + " want " + want[i]);
+            }
+        }
+        return true;
+    });
+
+    check("live contract echoes dynamic and fixed VM64 arrays", function () {
+        var secondTag = vm64Payload.substr(0, 2 + 64 * 2);
+        var echoed = contract.echoArrays([0, 1, vm64Amount], [vm64Tag, secondTag]);
+        if (!(echoed instanceof Array) || echoed.length !== 2 || echoed[0].length !== 3 || echoed[1].length !== 2) {
+            throw new Error("unexpected array result: " + JSON.stringify(echoed));
+        }
+        if (echoed[0][0].toString(10) !== "0" || echoed[0][1].toString(10) !== "1" || echoed[0][2].toString(10) !== vm64Amount) {
+            throw new Error("integer array mismatch: " + JSON.stringify(echoed[0]));
+        }
+        if (echoed[1][0].toLowerCase() !== vm64Tag || echoed[1][1].toLowerCase() !== secondTag) {
+            throw new Error("bytes64 array mismatch: " + JSON.stringify(echoed[1]));
+        }
+        return true;
+    });
+
+    check("live contract default storage decodes as zero values", function () {
+        var stored = contract.read();
+        if (!(stored instanceof Array) || stored.length !== 7) {
+            throw new Error("unexpected read result: " + JSON.stringify(stored));
+        }
+        if (stored[0].toString(10) !== "0" || stored[1].toString(10) !== "0") {
+            throw new Error("default integer state is nonzero");
+        }
+        if (stored[2] !== "0x" + zeros(128) || stored[3] !== "Q" + zeros(128)) {
+            throw new Error("default fixed-width state is nonzero: " + stored[2] + ", " + stored[3]);
+        }
+        if (stored[4] !== "0x" || stored[5] !== "" || stored[6] !== false) {
+            throw new Error("default dynamic state is nonzero: " + JSON.stringify(stored));
+        }
+        return true;
+    });
 
     check("contract event filter matches the emitted log", function () {
         var filter = contract.Deployed({}, {

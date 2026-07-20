@@ -17,6 +17,7 @@
 package vm
 
 import (
+	"bytes"
 	"testing"
 
 	"github.com/theQRL/go-qrl/common"
@@ -39,6 +40,36 @@ func FuzzPrecompiledContracts(f *testing.F) {
 		RunPrecompiledContract(p, input, gas)
 		if inHave := string(input); inWant != inHave {
 			t.Errorf("Precompiled %v modified input data", a)
+		}
+	})
+}
+
+func FuzzDepositRootInputCompatibility(f *testing.F) {
+	f.Add([]byte(nil))
+	f.Add(make([]byte, depositInputLength-64)) // Legacy 32-byte recipient/signature layout.
+	f.Add(make([]byte, depositInputLength))
+	f.Add(make([]byte, depositInputLength+1))
+
+	f.Fuzz(func(t *testing.T, input []byte) {
+		before := string(input)
+		result, err := (&depositroot{}).Run(input)
+		if err != nil {
+			t.Fatalf("length %d failed: %v", len(input), err)
+		}
+		if len(result) != common.HashLength {
+			t.Fatalf("root length = %d, want %d", len(result), common.HashLength)
+		}
+		canonical := make([]byte, depositInputLength)
+		copy(canonical, input)
+		want, err := (&depositroot{}).Run(canonical)
+		if err != nil {
+			t.Fatalf("canonical input failed: %v", err)
+		}
+		if !bytes.Equal(result, want) {
+			t.Fatalf("length %d root = %x, canonical root = %x", len(input), result, want)
+		}
+		if string(input) != before {
+			t.Fatal("deposit-root precompile modified input")
 		}
 	})
 }

@@ -144,6 +144,73 @@ JSON.stringify({
 	}
 }
 
+func TestEmbeddedWeb3RejectsMalformedABIOutput(t *testing.T) {
+	t.Parallel()
+
+	re := newEmbeddedWeb3(t)
+	contractAddress := "Q" + strings.Repeat("0", common.AddressLength*2)
+	script := fmt.Sprintf(web3EchoProvider+`
+var Web3 = require("web3");
+var web3 = new Web3(provider);
+var contract = web3.qrl.contract([{
+  inputs: [],
+  name: "read",
+  outputs: [{name: "value", type: "uint512"}],
+  stateMutability: "view",
+  type: "function"
+}, {
+  inputs: [],
+  name: "noOutputs",
+  outputs: [],
+  stateMutability: "view",
+  type: "function"
+}]).at(%q);
+
+function rejects(output, expectedMessage) {
+  currentOutput = output;
+  try {
+    contract.read();
+  } catch (err) {
+    return String(err).indexOf(expectedMessage) !== -1;
+  }
+  return false;
+}
+
+currentOutput = "0x%s";
+var valid = contract.read().toString(10);
+currentOutput = "0X%s";
+var upperPrefix = contract.read().toString(10);
+currentOutput = "0x";
+var zeroOutputs = contract.noOutputs();
+JSON.stringify({
+  valid: valid,
+  upperPrefix: upperPrefix,
+  zeroOutputs: zeroOutputs instanceof Array && zeroOutputs.length === 0,
+  missingHead: rejects("0x", "incomplete 64-byte ABI head"),
+  partialWord: rejects("0x%s00", "complete 64-byte words"),
+  nonHex: rejects("0xzz", "expected a hex string")
+});
+`, contractAddress, abiWordHex(7), abiWordHex(8), abiWordHex(1))
+	value, err := re.Run(script)
+	if err != nil {
+		t.Fatalf("run malformed ABI output script: %v", err)
+	}
+	var got struct {
+		Valid       string `json:"valid"`
+		UpperPrefix string `json:"upperPrefix"`
+		ZeroOutputs bool   `json:"zeroOutputs"`
+		MissingHead bool   `json:"missingHead"`
+		PartialWord bool   `json:"partialWord"`
+		NonHex      bool   `json:"nonHex"`
+	}
+	if err := json.Unmarshal([]byte(value.String()), &got); err != nil {
+		t.Fatalf("decode malformed ABI output result %q: %v", value.String(), err)
+	}
+	if got.Valid != "7" || got.UpperPrefix != "8" || !got.ZeroOutputs || !got.MissingHead || !got.PartialWord || !got.NonHex {
+		t.Fatalf("ABI output validation mismatch: %+v", got)
+	}
+}
+
 func TestEmbeddedWeb3DynamicBytesAndArrays(t *testing.T) {
 	t.Parallel()
 

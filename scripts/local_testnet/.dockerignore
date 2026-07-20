@@ -1,0 +1,11 @@
+# The consensus and genesis-generator builds use this directory as their
+# context. Send only the Dockerfiles and the two source inputs actually copied
+# by Dockerfile.genesis-generator; local dumps and generated endpoint data may
+# contain development credentials.
+*
+!Dockerfile.genesis-generator
+!Dockerfile.qrysm-consensus
+!vm64_genesis_gqrl.py
+!qrysm-deposit-runtime/
+qrysm-deposit-runtime/*
+!qrysm-deposit-runtime/main.go

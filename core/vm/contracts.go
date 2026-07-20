@@ -89,6 +89,7 @@ const (
 	depositWithdrawalRecipientOffset = depositPublicKeyOffset + depositPublicKeyLength
 	depositAmountOffset              = depositWithdrawalRecipientOffset + depositWithdrawalRecipientLength
 	depositSignatureOffset           = depositAmountOffset + depositAmountLength
+	depositInputLength               = depositSignatureOffset + depositSignatureLength
 )
 
 func (c *depositroot) RequiredGas(input []byte) uint64 {

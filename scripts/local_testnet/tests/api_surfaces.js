@@ -32,6 +32,33 @@ function rpc(method, params) {
     return response.result;
 }
 
+function requireInvalidArgumentRPCError(method, params, expectedMessage) {
+    var response;
+    try {
+        response = web3.currentProvider.send({
+            jsonrpc: "2.0",
+            id: _nextID++,
+            method: method,
+            params: params || []
+        });
+    } catch (e) {
+        throw new Error(method + " provider threw instead of returning a JSON-RPC error: " + e);
+    }
+    if (!response || !response.error) {
+        throw new Error(method + " unexpectedly accepted " + JSON.stringify(params) +
+            ": " + JSON.stringify(response));
+    }
+    if (response.error.code !== -32602) {
+        throw new Error(method + " returned error code " + response.error.code +
+            ", want -32602: " + JSON.stringify(response.error));
+    }
+    if (response.error.message !== expectedMessage) {
+        throw new Error(method + " returned error message " + JSON.stringify(response.error.message) +
+            ", want " + JSON.stringify(expectedMessage));
+    }
+    return true;
+}
+
 function requireHexQuantity(name, value) {
     if (typeof value !== "string" || !/^0x[0-9a-f]+$/i.test(value)) {
         throw new Error(name + " is not a hex quantity: " + value);
@@ -113,6 +140,31 @@ check("qrl balance, nonce, gas price and priority fee APIs respond", function ()
     if (!(priorityFee >= 0)) {
         throw new Error("unexpected maxPriorityFeePerGas: " + priorityFee);
     }
+    return true;
+});
+
+check("RPC rejects legacy, truncated, over-wide, and wrong-prefix addresses", function () {
+    var malformed = [
+        {
+            address: "Q" + new Array(21).join("11"),
+            message: "invalid argument 0: hex string has length 40, want 128 for common.Address"
+        },
+        {
+            address: "Q" + new Array(64).join("11"),
+            message: "invalid argument 0: hex string has length 126, want 128 for common.Address"
+        },
+        {
+            address: "Q" + new Array(66).join("11"),
+            message: "invalid argument 0: hex string has length 130, want 128 for common.Address"
+        },
+        {
+            address: "0x" + new Array(65).join("11"),
+            message: "invalid argument 0: json: cannot unmarshal hex string without Q prefix into Go value of type common.Address"
+        }
+    ];
+    malformed.forEach(function (test) {
+        requireInvalidArgumentRPCError("qrl_getBalance", [test.address, "latest"], test.message);
+    });
     return true;
 });
 

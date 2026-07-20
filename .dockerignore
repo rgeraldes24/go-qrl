@@ -2,3 +2,20 @@
 
 build/_workspace
 build/_bin
+build/bin
+build/cache
+
+# Local agent/runtime state is never part of a source image. Excluding it keeps
+# VM64 E2E contexts small. The exact revision is passed as a build argument and
+# embedded explicitly, so the Git object database is not needed in the image.
+.git
+.agents
+.claude
+.codex
+.runtime
+
+# Local-testnet output can contain JWTs, deterministic development keystores,
+# and endpoint-specific generated parameters. None belongs in an image layer
+# or a reusable builder cache.
+scripts/local_testnet/logs
+scripts/local_testnet/tests/.params.js

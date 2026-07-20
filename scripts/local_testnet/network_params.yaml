@@ -21,7 +21,19 @@ participants:
     remote_signer_type: clef
     remote_signer_image: theqrl-dev/go-qrl-alltools:latest
 network_params:
+  # Keep the mainnet compile-time field layout used by the source-built Qrysm
+  # images, but shorten slots for E2E fault/recovery testing. Production timing
+  # (60 seconds x 128 slots) cannot reach finality within a practical CI job
+  # and provides no additional VM64 coverage.
   preset: "mainnet"
+  seconds_per_slot: 5
+  slots_per_epoch: 128
+  # Let both beacon nodes ingest a newly mined execution-layer deposit within
+  # the bounded E2E lifecycle check instead of the production 512-block delay.
+  execution_follow_distance: 8
+  # Keep withdrawals distinct from the validator fee-recipient account so the
+  # E2E gate can reconcile each balance transition independently.
+  withdrawal_address: "Qa5aedb928f8300de98c66bb4bb66b9bb137e9a17e9d41039d98a664671b7c8a34bf63d49800d4ff8f4fd28aef583920e018988d994651b6f0f5966b1dbe11a8b"
   prefunded_accounts:
     Q738a3bdbcd5e0924d4923ebedfc378dd9111c977bb36116394e900761c741636cb1b9eff5fba549af1f624fed38d628aa1cc1d8f158def9e58eae84d3645a7a7:
       balance: "2000000QRL"

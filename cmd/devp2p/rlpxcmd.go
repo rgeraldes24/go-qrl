@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"net"
 
+	"github.com/theQRL/go-qrl/cmd/devp2p/internal/qrltest"
 	"github.com/theQRL/go-qrl/crypto"
 	"github.com/theQRL/go-qrl/p2p"
 	"github.com/theQRL/go-qrl/p2p/rlpx"
@@ -83,12 +84,11 @@ func rlpxPing(ctx *cli.Context) error {
 	}
 	switch code {
 	case 0:
-		// TODO(now.youtrack.cloud/issue/TGZ-6)
-		// var h qrltest.Hello
-		// if err := rlp.DecodeBytes(data, &h); err != nil {
-		// 	return fmt.Errorf("invalid handshake: %v", err)
-		// }
-		// fmt.Printf("%+v\n", h)
+		var hello qrltest.Hello
+		if err := rlp.DecodeBytes(data, &hello); err != nil {
+			return fmt.Errorf("invalid handshake: %v", err)
+		}
+		fmt.Printf("%+v\n", hello)
 	case 1:
 		var msg []p2p.DiscReason
 		if rlp.DecodeBytes(data, &msg); len(msg) == 0 {
@@ -104,27 +104,23 @@ func rlpxPing(ctx *cli.Context) error {
 // rlpxQRLTest runs the qrl protocol test suite.
 func rlpxQRLTest(ctx *cli.Context) error {
 	if ctx.NArg() < 3 {
-		exit("missing path to chain.rlp as command-line argument")
+		return errors.New("usage: qrl-test <node> <chain.rlp> <genesis.json>")
 	}
-	// TODO(now.youtrack.cloud/issue/TGZ-6)
-	// suite, err := qrltest.NewSuite(getNodeArg(ctx), ctx.Args().Get(1), ctx.Args().Get(2))
-	// if err != nil {
-	// 	exit(err)
-	// }
-	// return runTests(ctx, suite.QRLTests())
-	return nil
+	suite, err := qrltest.NewSuite(getNodeArg(ctx), ctx.Args().Get(1), ctx.Args().Get(2))
+	if err != nil {
+		return err
+	}
+	return runTests(ctx, suite.QRLTests())
 }
 
 // rlpxSnapTest runs the snap protocol test suite.
 func rlpxSnapTest(ctx *cli.Context) error {
 	if ctx.NArg() < 3 {
-		exit("missing path to chain.rlp as command-line argument")
+		return errors.New("usage: snap-test <node> <chain.rlp> <genesis.json>")
 	}
-	// TODO(now.youtrack.cloud/issue/TGZ-6)
-	// suite, err := qrltest.NewSuite(getNodeArg(ctx), ctx.Args().Get(1), ctx.Args().Get(2))
-	// if err != nil {
-	// 	exit(err)
-	// }
-	// return runTests(ctx, suite.SnapTests())
-	return nil
+	suite, err := qrltest.NewSuite(getNodeArg(ctx), ctx.Args().Get(1), ctx.Args().Get(2))
+	if err != nil {
+		return err
+	}
+	return runTests(ctx, suite.SnapTests())
 }

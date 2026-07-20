@@ -26,6 +26,27 @@ function zeros(n) {
     return new Array(n + 1).join("0");
 }
 
+function requireTopicError(topic, expectedDetail) {
+    captured = null;
+    try {
+        qrl.getLogs({fromBlock: "0x0", toBlock: "latest", topics: [topic]});
+    } catch (e) {
+        if (captured === null) {
+            throw new Error("provider spy captured no qrl_getLogs request");
+        }
+        if (JSON.stringify(captured.topics) !== JSON.stringify([topic])) {
+            throw new Error("outgoing topics changed: have " + JSON.stringify(captured.topics) +
+                " want " + JSON.stringify([topic]));
+        }
+        var message = String(e);
+        if (message.indexOf("invalid argument 0") === -1 || message.indexOf(expectedDetail) === -1) {
+            throw new Error("unexpected RPC validation error: " + message);
+        }
+        return true;
+    }
+    throw new Error("RPC unexpectedly accepted topic " + JSON.stringify(topic));
+}
+
 var realProvider = web3.currentProvider;
 var captured = null;
 var spy = {
@@ -93,69 +114,32 @@ try {
     });
 
     check("raw 32-byte hash topics are rejected unless expanded to VM64", function () {
-        captured = null;
-        try {
-            qrl.getLogs({fromBlock: "0x0", toBlock: "latest", topics: ["0x" + hash]});
-        } catch (e) {
-            if (captured.topics[0] !== "0x" + hash) {
-                throw new Error("provider did not pass raw hash through: " + captured.topics[0]);
-            }
-            return true;
-        }
-        throw new Error("expected an error");
+        return requireTopicError("0x" + hash,
+            "hex has invalid length 32 after decoding; expected 64 for topic");
     });
 
     check("short hex topics are rejected", function () {
-        captured = null;
-        try {
-            qrl.getLogs({fromBlock: "0x0", toBlock: "latest", topics: ["0xbb"]});
-        } catch (e) {
-            if (captured.topics[0] !== "0xbb") {
-                throw new Error("provider did not pass short topic through: " + captured.topics[0]);
-            }
-            return true;
-        }
-        throw new Error("expected an error");
+        return requireTopicError("0xbb",
+            "hex has invalid length 1 after decoding; expected 64 for topic");
     });
 
     check("over-wide topics are rejected", function () {
-        try {
-            qrl.getLogs({fromBlock: "0x0", toBlock: "latest", topics: ["0x" + zeros(130)]});
-        } catch (e) {
-            return true;
-        }
-        throw new Error("expected an error");
+        return requireTopicError("0x" + zeros(130),
+            "hex has invalid length 65 after decoding; expected 64 for topic");
     });
 
-    check("plain string topics are converted to bytes and rejected as short", function () {
-        captured = null;
-        try {
-            qrl.getLogs({fromBlock: "0x0", toBlock: "latest", topics: ["hello"]});
-        } catch (e) {
-            if (captured.topics[0] !== "0x68656c6c6f") {
-                throw new Error("unexpected converted string topic: " + captured.topics[0]);
-            }
-            return true;
-        }
-        throw new Error("expected an error");
+    check("plain string topics pass through verbatim and are rejected by RPC", function () {
+        // qrl.getLogs is the low-level web3 extension method, not the ABI
+        // event-filter API. It must preserve caller-supplied JSON-RPC values.
+        return requireTopicError("hello", "hex string without 0x prefix");
     });
 
     check("odd-nibble topic hex is rejected", function () {
-        try {
-            qrl.getLogs({fromBlock: "0x0", toBlock: "latest", topics: ["0xb"]});
-        } catch (e) {
-            return true;
-        }
-        throw new Error("expected an error");
+        return requireTopicError("0xb", "hex string of odd length");
     });
 
     check("invalid topic hex is rejected", function () {
-        try {
-            qrl.getLogs({fromBlock: "0x0", toBlock: "latest", topics: ["0xzz"]});
-        } catch (e) {
-            return true;
-        }
-        throw new Error("expected an error");
+        return requireTopicError("0xzz", "invalid hex string");
     });
 } finally {
     web3.setProvider(realProvider);
