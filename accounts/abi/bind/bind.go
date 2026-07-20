@@ -277,10 +277,11 @@ func Bind(types []string, abis []string, bytecodes []string, fsigs []map[string]
 	buffer := new(bytes.Buffer)
 
 	funcs := map[string]any{
-		"bindtype":      bindType,
-		"bindtopictype": bindTopicType,
-		"capitalise":    abi.ToCamelCase,
-		"decapitalise":  decapitalise,
+		"bindtype":          bindType,
+		"bindtopictype":     bindTopicType,
+		"bindtopicruletype": bindTopicRuleType,
+		"capitalise":        abi.ToCamelCase,
+		"decapitalise":      decapitalise,
 	}
 	tmpl := template.Must(template.New("").Funcs(funcs).Parse(tmplSource))
 	if err := tmpl.Execute(buffer, data); err != nil {
@@ -334,21 +335,27 @@ func bindType(kind abi.Type, structs map[string]*tmplStruct) string {
 	}
 }
 
-// bindTopicType converts a Hyperion topic type to a Go one. It is almost the same
-// functionality as for simple types, but dynamic types get converted to hashes.
+// bindTopicType converts a Hyperion indexed topic type to a Go event field type.
 func bindTopicType(kind abi.Type, structs map[string]*tmplStruct) string {
-	bound := bindType(kind, structs)
-
-	// todo(rjl493456442) according hyperion documentation, indexed event
-	// parameters that are not value types i.e. arrays and structs are not
-	// stored directly but instead a keccak256-hash of an encoding is stored.
-	//
-	// We only convert strings and bytes to hash, still need to deal with
-	// array(both fixed-size and dynamic-size) and struct.
-	if bound == "string" || bound == "[]byte" {
-		bound = "common.Hash"
+	switch kind.T {
+	case abi.TupleTy, abi.StringTy, abi.BytesTy, abi.SliceTy, abi.ArrayTy:
+		return "common.LogTopic"
+	default:
+		return bindType(kind, structs)
 	}
-	return bound
+}
+
+// bindTopicRuleType converts an indexed topic type to the Go filter/watch
+// parameter element type. Strings and bytes remain preimage types because
+// abi.MakeTopics can hash them; tuples, arrays, and slices require precomputed
+// topics because their original values cannot be reconstructed from the log.
+func bindTopicRuleType(kind abi.Type, structs map[string]*tmplStruct) string {
+	switch kind.T {
+	case abi.TupleTy, abi.SliceTy, abi.ArrayTy:
+		return "common.LogTopic"
+	default:
+		return bindType(kind, structs)
+	}
 }
 
 // bindStructType converts a Hyperion tuple type to a Go one and records the mapping

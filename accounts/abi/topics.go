@@ -156,10 +156,10 @@ func parseTopicWithSetter(fields Arguments, topics []common.LogTopic, setter fun
 		}
 		var reconstr any
 		switch arg.Type.T {
-		case TupleTy:
-			return errors.New("tuple type in topic reconstruction")
-		case StringTy, BytesTy, SliceTy, ArrayTy:
-			// Array types (including strings and bytes) have their keccak256 hashes stored in the topic — returned verbatim.
+		case TupleTy, StringTy, BytesTy, SliceTy, ArrayTy:
+			// Indexed dynamic and composite values have their keccak256 hashes
+			// stored in the topic and cannot be reconstructed, so return the
+			// complete VM64 topic verbatim.
 			reconstr = topics[i]
 		case FunctionTy:
 			// Functions are AddressLength+4 bytes and fit right-aligned in the
