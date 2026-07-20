@@ -183,19 +183,19 @@ func benchmarkQRVM_Create(bench *testing.B, code string) {
 
 func BenchmarkQRVM_CREATE_500(bench *testing.B) {
 	// initcode size 500K, repeatedly calls CREATE and then modifies the mem contents
-	benchmarkQRVM_Create(bench, "5b6207a120600080f0600152600056")
+	benchmarkQRVM_Create(bench, "5b6207a1206000a0f0600152600056")
 }
 func BenchmarkQRVM_CREATE2_500(bench *testing.B) {
 	// initcode size 500K, repeatedly calls CREATE2 and then modifies the mem contents
-	benchmarkQRVM_Create(bench, "5b586207a120600080f5600152600056")
+	benchmarkQRVM_Create(bench, "5b586207a1206000a0f5600152600056")
 }
 func BenchmarkQRVM_CREATE_1200(bench *testing.B) {
 	// initcode size 1200K, repeatedly calls CREATE and then modifies the mem contents
-	benchmarkQRVM_Create(bench, "5b62124f80600080f0600152600056")
+	benchmarkQRVM_Create(bench, "5b62124f806000a0f0600152600056")
 }
 func BenchmarkQRVM_CREATE2_1200(bench *testing.B) {
 	// initcode size 1200K, repeatedly calls CREATE2 and then modifies the mem contents
-	benchmarkQRVM_Create(bench, "5b5862124f80600080f5600152600056")
+	benchmarkQRVM_Create(bench, "5b5862124f806000a0f5600152600056")
 }
 
 func fakeHeader(n uint64, parentHash common.Hash) *types.Header {
