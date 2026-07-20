@@ -277,11 +277,10 @@ func Bind(types []string, abis []string, bytecodes []string, fsigs []map[string]
 	buffer := new(bytes.Buffer)
 
 	funcs := map[string]any{
-		"bindtype":            bindType,
-		"bindtopictype":       bindTopicType,
-		"bindtopicfiltertype": bindTopicFilterType,
-		"capitalise":          abi.ToCamelCase,
-		"decapitalise":        decapitalise,
+		"bindtype":      bindType,
+		"bindtopictype": bindTopicType,
+		"capitalise":    abi.ToCamelCase,
+		"decapitalise":  decapitalise,
 	}
 	tmpl := template.Must(template.New("").Funcs(funcs).Parse(tmplSource))
 	if err := tmpl.Execute(buffer, data); err != nil {
@@ -335,25 +334,18 @@ func bindType(kind abi.Type, structs map[string]*tmplStruct) string {
 	}
 }
 
-// bindTopicType converts a Hyperion topic type to a Go event field type.
+// bindTopicType converts a Hyperion topic type to a Go one. It is almost the same
+// functionality as for simple types, but dynamic types get converted to topics.
 func bindTopicType(kind abi.Type, structs map[string]*tmplStruct) string {
 	bound := bindType(kind, structs)
 
-	switch kind.T {
-	case abi.StringTy, abi.BytesTy, abi.SliceTy, abi.ArrayTy:
-		bound = "common.LogTopic"
-	}
-	return bound
-}
-
-// bindTopicFilterType converts an indexed topic type to the Go filter/watch
-// parameter type. MakeTopics can hash string and byte preimages, but indexed
-// arrays and slices must be supplied as precomputed topics.
-func bindTopicFilterType(kind abi.Type, structs map[string]*tmplStruct) string {
-	bound := bindType(kind, structs)
-
-	switch kind.T {
-	case abi.SliceTy, abi.ArrayTy:
+	// todo(rjl493456442) according hyperion documentation, indexed event
+	// parameters that are not value types i.e. arrays and structs are not
+	// stored directly but instead a keccak256-hash of an encoding is stored.
+	//
+	// We only convert strings and bytes to topics, still need to deal with
+	// array(both fixed-size and dynamic-size) and struct.
+	if bound == "string" || bound == "[]byte" {
 		bound = "common.LogTopic"
 	}
 	return bound
