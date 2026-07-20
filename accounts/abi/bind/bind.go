@@ -277,11 +277,11 @@ func Bind(types []string, abis []string, bytecodes []string, fsigs []map[string]
 	buffer := new(bytes.Buffer)
 
 	funcs := map[string]any{
-		"bindtype":          bindType,
-		"bindtopictype":     bindTopicType,
-		"bindtopicruletype": bindTopicRuleType,
-		"capitalise":        abi.ToCamelCase,
-		"decapitalise":      decapitalise,
+		"bindtype":            bindType,
+		"bindtopictype":       bindTopicType,
+		"bindtopicfiltertype": bindTopicFilterType,
+		"capitalise":          abi.ToCamelCase,
+		"decapitalise":        decapitalise,
 	}
 	tmpl := template.Must(template.New("").Funcs(funcs).Parse(tmplSource))
 	if err := tmpl.Execute(buffer, data); err != nil {
@@ -335,27 +335,28 @@ func bindType(kind abi.Type, structs map[string]*tmplStruct) string {
 	}
 }
 
-// bindTopicType converts a Hyperion indexed topic type to a Go event field type.
+// bindTopicType converts a Hyperion topic type to a Go event field type.
 func bindTopicType(kind abi.Type, structs map[string]*tmplStruct) string {
+	bound := bindType(kind, structs)
+
 	switch kind.T {
 	case abi.StringTy, abi.BytesTy, abi.SliceTy, abi.ArrayTy:
-		return "common.LogTopic"
-	default:
-		return bindType(kind, structs)
+		bound = "common.LogTopic"
 	}
+	return bound
 }
 
-// bindTopicRuleType converts an indexed topic type to the Go filter/watch
-// parameter element type. Strings and bytes remain preimage types because
-// abi.MakeTopics can hash them; arrays and slices require precomputed
-// topics because their original values cannot be reconstructed from the log.
-func bindTopicRuleType(kind abi.Type, structs map[string]*tmplStruct) string {
+// bindTopicFilterType converts an indexed topic type to the Go filter/watch
+// parameter type. MakeTopics can hash string and byte preimages, but indexed
+// arrays and slices must be supplied as precomputed topics.
+func bindTopicFilterType(kind abi.Type, structs map[string]*tmplStruct) string {
+	bound := bindType(kind, structs)
+
 	switch kind.T {
 	case abi.SliceTy, abi.ArrayTy:
-		return "common.LogTopic"
-	default:
-		return bindType(kind, structs)
+		bound = "common.LogTopic"
 	}
+	return bound
 }
 
 // bindStructType converts a Hyperion tuple type to a Go one and records the mapping

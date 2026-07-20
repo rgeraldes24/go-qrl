@@ -492,7 +492,7 @@ var (
 		// Filter{{.Normalized.Name}} is a free log retrieval operation binding the contract event 0x{{printf "%x" .Original.ID}}.
 		//
 		// Hyperion: {{.Original.String}}
-		func (_{{$contract.Type}} *{{$contract.Type}}Filterer) Filter{{.Normalized.Name}}(opts *bind.FilterOpts{{range .Normalized.Inputs}}{{if .Indexed}}, {{.Name}} []{{bindtopicruletype .Type $structs}}{{end}}{{end}}) (*{{$contract.Type}}{{.Normalized.Name}}Iterator, error) {
+		func (_{{$contract.Type}} *{{$contract.Type}}Filterer) Filter{{.Normalized.Name}}(opts *bind.FilterOpts{{range .Normalized.Inputs}}{{if .Indexed}}, {{.Name}} []{{bindtopicfiltertype .Type $structs}}{{end}}{{end}}) (*{{$contract.Type}}{{.Normalized.Name}}Iterator, error) {
 			{{range .Normalized.Inputs}}
 			{{if .Indexed}}var {{.Name}}Rule []any
 			for _, {{.Name}}Item := range {{.Name}} {
@@ -509,7 +509,7 @@ var (
 		// Watch{{.Normalized.Name}} is a free log subscription operation binding the contract event 0x{{printf "%x" .Original.ID}}.
 		//
 		// Hyperion: {{.Original.String}}
-		func (_{{$contract.Type}} *{{$contract.Type}}Filterer) Watch{{.Normalized.Name}}(opts *bind.WatchOpts, sink chan<- *{{$contract.Type}}{{.Normalized.Name}}{{range .Normalized.Inputs}}{{if .Indexed}}, {{.Name}} []{{bindtopicruletype .Type $structs}}{{end}}{{end}}) (event.Subscription, error) {
+		func (_{{$contract.Type}} *{{$contract.Type}}Filterer) Watch{{.Normalized.Name}}(opts *bind.WatchOpts, sink chan<- *{{$contract.Type}}{{.Normalized.Name}}{{range .Normalized.Inputs}}{{if .Indexed}}, {{.Name}} []{{bindtopicfiltertype .Type $structs}}{{end}}{{end}}) (event.Subscription, error) {
 			{{range .Normalized.Inputs}}
 			{{if .Indexed}}var {{.Name}}Rule []any
 			for _, {{.Name}}Item := range {{.Name}} {
