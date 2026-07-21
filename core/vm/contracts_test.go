@@ -26,6 +26,9 @@ import (
 	"time"
 
 	"github.com/theQRL/go-qrl/common"
+	"github.com/theQRL/go-qrl/crypto"
+	"github.com/theQRL/go-qrl/params"
+	cryptomldsa87 "github.com/theQRL/go-qrllib/crypto/ml_dsa_87"
 )
 
 // precompiledTest defines the input/output pairs for precompiled contract tests.
@@ -47,14 +50,7 @@ type precompiledFailureTest struct {
 }
 */
 
-// allPrecompiles does not map to the actual set of precompiles, as it also contains
-// repriced versions of precompiles at certain slots
-var allPrecompiles = map[common.Address]PrecompiledContract{
-	common.BytesToAddress([]byte{1}): &depositroot{},
-	common.BytesToAddress([]byte{2}): &sha256hash{},
-	common.BytesToAddress([]byte{3}): &dataCopy{},
-	common.BytesToAddress([]byte{4}): &bigModExp{},
-}
+var allPrecompiles = PrecompiledContractsZond
 
 func precompileAddress(n string) string {
 	return "Q" + strings.Repeat("0", 2*common.AddressLength-len(n)) + n
@@ -178,7 +174,7 @@ func BenchmarkPrecompiledSha256(bench *testing.B) {
 		Expected: "811c7003375852fabd0d362e40e68607a12bdabae61a7d068fe5fdd1dbbf2a5d",
 		Name:     "128",
 	}
-	benchmarkPrecompiled("02", t, bench)
+	benchmarkPrecompiled(precompileAddress("02"), t, bench)
 }
 
 // Benchmarks the sample inputs from the identiy precompile.
@@ -188,15 +184,15 @@ func BenchmarkPrecompiledIdentity(bench *testing.B) {
 		Expected: "38d18acb67d25c8bb9942764b62f18e17054f66a817bd4295423adf9ed98873e000000000000000000000000000000000000000000000000000000000000001b38d18acb67d25c8bb9942764b62f18e17054f66a817bd4295423adf9ed98873e789d1dd423d25f0772d2748d60f7e4b81bb14d086eba8e8e8efb6dcff8a4ae02",
 		Name:     "128",
 	}
-	benchmarkPrecompiled("04", t, bench)
+	benchmarkPrecompiled(precompileAddress("04"), t, bench)
 }
 
 // Tests the sample inputs from the ModExp.
 func TestPrecompiledModExp(t *testing.T) {
-	testJson("modexp", precompileAddress("04"), t)
+	testJson("modexp", precompileAddress("05"), t)
 }
 func BenchmarkPrecompiledModExp(b *testing.B) {
-	benchJson("modexp", precompileAddress("04"), b)
+	benchJson("modexp", precompileAddress("05"), b)
 }
 
 // Tests OOG
@@ -206,7 +202,7 @@ func TestPrecompiledModExpOOG(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, test := range modexpTests {
-		testPrecompiledOOG(precompileAddress("04"), test, t)
+		testPrecompiledOOG(precompileAddress("05"), test, t)
 	}
 }
 
@@ -271,3 +267,126 @@ func loadJsonFail(name string) ([]precompiledFailureTest, error) {
 	return testcases, err
 }
 */
+
+func TestPrecompiledMLDSA87Verify(t *testing.T) {
+	testJson("mldsa87_verify", precompileAddress("03"), t)
+}
+
+func TestPrecompiledMLDSA87VerifyContexts(t *testing.T) {
+	want := common.LeftPadBytes([]byte{1}, WordBytes)
+	tests := []struct {
+		name    string
+		context []byte
+	}{
+		{name: "empty"},
+		{name: "eight bytes", context: bytes.Repeat([]byte{0x5a}, 8)},
+		{name: "maximum length", context: bytes.Repeat([]byte{0xa5}, mldsa87VerifyMaxContextLength)},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			input := newRawMLDSA87VerifyInput(t, test.context)
+			output := runMLDSA87Verify(t, input)
+			if !bytes.Equal(output, want) {
+				t.Fatalf("verification output %x, want true", output)
+			}
+		})
+	}
+}
+
+func TestPrecompiledMLDSA87VerifyRejectsInvalidInput(t *testing.T) {
+	validInput := newRawMLDSA87VerifyInput(t, []byte("QRL"))
+	tests := []struct {
+		name   string
+		mutate func([]byte) []byte
+	}{
+		{name: "short fixed frame", mutate: func(input []byte) []byte {
+			return input[:mldsa87VerifyMinInputLength-1]
+		}},
+		{name: "truncated context", mutate: func(input []byte) []byte {
+			return input[:len(input)-1]
+		}},
+		{name: "trailing byte", mutate: func(input []byte) []byte {
+			return append(input, 0)
+		}},
+		{name: "wrong context length", mutate: func(input []byte) []byte {
+			input[mldsa87VerifyContextLengthOffset]--
+			return input
+		}},
+		{name: "oversized context", mutate: func([]byte) []byte {
+			input := make([]byte, mldsa87VerifyMinInputLength+mldsa87VerifyMaxContextLength+1)
+			input[mldsa87VerifyContextLengthOffset] = mldsa87VerifyMaxContextLength
+			return input
+		}},
+		{name: "wrong digest", mutate: func(input []byte) []byte {
+			input[mldsa87VerifyDigestOffset] ^= 0x01
+			return input
+		}},
+		{name: "wrong public key", mutate: func(input []byte) []byte {
+			input[mldsa87VerifyPublicKeyOffset] ^= 0x01
+			return input
+		}},
+		{name: "wrong signature", mutate: func(input []byte) []byte {
+			input[mldsa87VerifySignatureOffset] ^= 0x01
+			return input
+		}},
+		{name: "wrong context", mutate: func(input []byte) []byte {
+			input[mldsa87VerifyContextOffset] ^= 0x01
+			return input
+		}},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			input := test.mutate(common.CopyBytes(validInput))
+			output := runMLDSA87Verify(t, input)
+			if output != nil {
+				t.Fatalf("verification output %x, want nil", output)
+			}
+		})
+	}
+}
+
+func TestPrecompiledMLDSA87VerifyOOG(t *testing.T) {
+	tests, err := loadJson("mldsa87_verify")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, test := range tests {
+		testPrecompiledOOG(precompileAddress("03"), test, t)
+	}
+}
+
+func BenchmarkPrecompiledMLDSA87Verify(b *testing.B) {
+	benchJson("mldsa87_verify", precompileAddress("03"), b)
+}
+
+func newRawMLDSA87VerifyInput(tb testing.TB, context []byte) []byte {
+	tb.Helper()
+	signer, err := cryptomldsa87.New()
+	if err != nil {
+		tb.Fatal(err)
+	}
+	digest := crypto.Keccak256([]byte("QRL raw ML-DSA-87 precompile test"))
+	signature, err := signer.Sign(context, digest)
+	if err != nil {
+		tb.Fatal(err)
+	}
+	publicKey := signer.GetPK()
+	input := make([]byte, 0, mldsa87VerifyMinInputLength+len(context))
+	input = append(input, digest...)
+	input = append(input, publicKey[:]...)
+	input = append(input, signature[:]...)
+	input = append(input, byte(len(context)))
+	return append(input, context...)
+}
+
+func runMLDSA87Verify(t *testing.T, input []byte) []byte {
+	t.Helper()
+	output, remaining, err := RunPrecompiledContract(new(mldsa87Verify), input, params.MLDSA87VerifyGas)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if remaining != 0 {
+		t.Fatalf("remaining gas %d, want 0", remaining)
+	}
+	return output
+}
