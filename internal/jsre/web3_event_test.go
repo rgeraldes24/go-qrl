@@ -31,11 +31,8 @@ func TestEmbeddedWeb3EventsUseVM64Topics(t *testing.T) {
 	re := newEmbeddedWeb3(t)
 	contractAddress := "Q" + strings.Repeat("0", common.AddressLength*2)
 	indexedAddress := "Q" + strings.Repeat("a", common.AddressLength*2)
-	signatureTopic := common.HashToLogTopic(crypto.Keccak256Hash([]byte("Transfer(address,string,bytes,uint512)"))).Hex()
+	signatureTopic := common.HashToLogTopic(crypto.Keccak256Hash([]byte("Transfer(address,uint512)"))).Hex()
 	addressTopic := "0x" + strings.Repeat("a", common.LogTopicLength*2)
-	labelTopic := common.HashToLogTopic(crypto.Keccak256Hash([]byte("hello"))).Hex()
-	payloadTopic := common.HashToLogTopic(crypto.Keccak256Hash([]byte{0xab, 0xcd})).Hex()
-	emptyPayloadTopic := common.HashToLogTopic(crypto.Keccak256Hash(nil)).Hex()
 	amountWord := abiWordHex(2)
 
 	script := fmt.Sprintf(eventCaptureProvider+`
@@ -45,19 +42,16 @@ var contract = web3.qrl.contract([{
   anonymous: false,
   inputs: [
     {indexed: true, name: "from", type: "address"},
-    {indexed: true, name: "label", type: "string"},
-    {indexed: true, name: "payload", type: "bytes"},
     {indexed: false, name: "amount", type: "uint512"}
   ],
   name: "Transfer",
   type: "event"
 }]).at(%q);
 
-var filter = contract.Transfer({from: %q, label: "hello", payload: "0xabcd"});
-contract.Transfer({payload: "0x"});
+var filter = contract.Transfer({from: %q});
 var log = {
   address: %q,
-  topics: [%q, %q, %q, %q],
+  topics: [%q, %q],
   data: "0x%s",
   blockNumber: "0x1",
   transactionIndex: "0x0",
@@ -68,44 +62,35 @@ var allEventsDecoded = contract.allEvents().formatter(JSON.parse(JSON.stringify(
 
 JSON.stringify({
   topics: captured[0].topics,
-  emptyPayloadTopic: captured[1].topics[3],
   event: decoded.event,
   from: decoded.args.from,
-  label: decoded.args.label,
-  payload: decoded.args.payload,
   amount: decoded.args.amount.toString(10),
   allEventsEvent: allEventsDecoded.event,
   signatureIsTopic: web3._extend.utils.isTopic(%q),
   eventIDIsTopic: web3._extend.utils.isTopic(%q)
 });
-`, contractAddress, indexedAddress, contractAddress, signatureTopic, addressTopic, labelTopic, payloadTopic, amountWord, signatureTopic, "0x"+common.Bytes2Hex(crypto.Keccak256([]byte("Transfer(address,string,bytes,uint512)"))))
+`, contractAddress, indexedAddress, contractAddress, signatureTopic, addressTopic, amountWord, signatureTopic, "0x"+common.Bytes2Hex(crypto.Keccak256([]byte("Transfer(address,uint512)"))))
 	value, err := re.Run(script)
 	if err != nil {
 		t.Fatalf("run event script: %v", err)
 	}
 	var got struct {
-		Topics            []string `json:"topics"`
-		EmptyPayloadTopic string   `json:"emptyPayloadTopic"`
-		Event             string   `json:"event"`
-		From              string   `json:"from"`
-		Label             string   `json:"label"`
-		Payload           string   `json:"payload"`
-		Amount            string   `json:"amount"`
-		AllEventsEvent    string   `json:"allEventsEvent"`
-		SignatureIsTopic  bool     `json:"signatureIsTopic"`
-		EventIDIsTopic    bool     `json:"eventIDIsTopic"`
+		Topics           []string `json:"topics"`
+		Event            string   `json:"event"`
+		From             string   `json:"from"`
+		Amount           string   `json:"amount"`
+		AllEventsEvent   string   `json:"allEventsEvent"`
+		SignatureIsTopic bool     `json:"signatureIsTopic"`
+		EventIDIsTopic   bool     `json:"eventIDIsTopic"`
 	}
 	if err := json.Unmarshal([]byte(value.String()), &got); err != nil {
 		t.Fatalf("decode event result %q: %v", value.String(), err)
 	}
-	wantTopics := []string{signatureTopic, addressTopic, labelTopic, payloadTopic}
+	wantTopics := []string{signatureTopic, addressTopic}
 	if strings.Join(got.Topics, ",") != strings.Join(wantTopics, ",") {
 		t.Fatalf("event topics mismatch:\nhave %v\nwant %v", got.Topics, wantTopics)
 	}
-	if got.EmptyPayloadTopic != emptyPayloadTopic {
-		t.Fatalf("empty bytes topic mismatch: have %s, want %s", got.EmptyPayloadTopic, emptyPayloadTopic)
-	}
-	if got.Event != "Transfer" || got.AllEventsEvent != "Transfer" || got.From != indexedAddress || got.Label != labelTopic || got.Payload != payloadTopic || got.Amount != "2" {
+	if got.Event != "Transfer" || got.AllEventsEvent != "Transfer" || got.From != indexedAddress || got.Amount != "2" {
 		t.Fatalf("decoded event mismatch: %+v", got)
 	}
 	if !got.SignatureIsTopic || got.EventIDIsTopic {

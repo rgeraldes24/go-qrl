@@ -2850,20 +2850,12 @@ HyperionEvent.prototype.encode = function (indexed, options) {
             return null;
         }
 
-        var encodeTopic = function (v) {
-            if (i.type === 'string') {
-                return '0x' + utils.padRight(sha3(v), 128);
-            }
-            if (i.type === 'bytes') {
-                return '0x' + utils.padRight(sha3(v === '0x' ? '' : v, {encoding: 'hex'}), 128);
-            }
-            return '0x' + coder.encodeParam(i.type, v);
-        };
-
         if (utils.isArray(value)) {
-            return value.map(encodeTopic);
+            return value.map(function (v) {
+                return '0x' + coder.encodeParam(i.type, v);
+            });
         }
-        return encodeTopic(value);
+        return '0x' + coder.encodeParam(i.type, value);
     });
 
     result.topics = result.topics.concat(indexedTopics);
@@ -2883,15 +2875,9 @@ HyperionEvent.prototype.decode = function (data) {
     data.data = data.data || '';
     data.topics = data.topics || [];
 
-    var indexedTypes = this.types(true);
     var argTopics = this._anonymous ? data.topics : data.topics.slice(1);
-    var indexedParams = argTopics.map(function (topic, index) {
-        var type = indexedTypes[index];
-        if (type === 'string' || type === 'bytes') {
-            return topic;
-        }
-        return coder.decodeParam(type, topic.slice(2));
-    });
+    var indexedData = argTopics.map(function (topics) { return topics.slice(2); }).join("");
+    var indexedParams = coder.decodeParams(this.types(true), indexedData);
 
     var notIndexedData = data.data.slice(2);
     var notIndexedParams = coder.decodeParams(this.types(false), notIndexedData);
