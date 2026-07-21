@@ -19,25 +19,16 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"strings"
 	"testing"
 
-	"github.com/theQRL/go-qrl/accounts/abi"
 	"github.com/theQRL/go-qrl/common"
 	"github.com/theQRL/go-qrl/common/uint512"
 	"github.com/theQRL/go-qrl/crypto"
 	"github.com/theQRL/go-qrl/internal/jsre/deps"
 )
 
-func abiWordHex(value uint64) string {
-	return fmt.Sprintf("%0*x", uint512.WordBytes*2, value)
-}
-
-func methodSelector(signature string) string {
-	return common.Bytes2Hex(crypto.Keccak256([]byte(signature))[:4])
-}
-
-const web3CallProvider = `
+const (
+	web3CallProvider = `
 var currentOutput = null;
 var lastPayload = null;
 var provider = {
@@ -52,7 +43,7 @@ var provider = {
 };
 `
 
-const web3FilterProvider = `
+	web3FilterProvider = `
 var captured = [];
 var provider = {
   send: function(payload) {
@@ -67,16 +58,18 @@ var provider = {
 };
 `
 
-const web3Setup = `
+	web3Setup = `
 var Web3 = require("web3");
 var web3 = new Web3(provider);
 `
+)
 
 func newEmbeddedWeb3(t *testing.T) *JSRE {
 	t.Helper()
 
 	re := New("", os.Stdout)
 	t.Cleanup(func() { re.Stop(false) })
+
 	if err := re.Compile("bignumber.js", deps.BigNumberJS); err != nil {
 		t.Fatalf("compile bignumber.js: %v", err)
 	}
@@ -92,6 +85,7 @@ func runWeb3ContractJSON(t *testing.T, re *JSRE, provider, contractABI, address,
 	contractSetup := fmt.Sprintf(`
 var contract = web3.qrl.contract(%s).at(%q);
 `, contractABI, address)
+
 	runWeb3JSON(t, re, provider, contractSetup+script, result)
 }
 
@@ -102,37 +96,16 @@ func runWeb3JSON(t *testing.T, re *JSRE, provider, script string, result any) {
 	if err != nil {
 		t.Fatalf("run web3 script: %v", err)
 	}
+
 	if err := json.Unmarshal([]byte(value.String()), result); err != nil {
 		t.Fatalf("decode web3 result %q: %v", value.String(), err)
 	}
 }
 
-func mustParseABI(t *testing.T, definition string) abi.ABI {
-	t.Helper()
-
-	parsed, err := abi.JSON(strings.NewReader(definition))
-	if err != nil {
-		t.Fatalf("parse ABI: %v", err)
-	}
-	return parsed
+func abiWordHex(value uint64) string {
+	return fmt.Sprintf("%0*x", uint512.WordBytes*2, value)
 }
 
-func packCallHex(t *testing.T, contractABI abi.ABI, method string, args ...any) string {
-	t.Helper()
-
-	data, err := contractABI.Pack(method, args...)
-	if err != nil {
-		t.Fatalf("pack %s call: %v", method, err)
-	}
-	return "0x" + common.Bytes2Hex(data)
-}
-
-func packOutputHex(t *testing.T, contractABI abi.ABI, method string, args ...any) string {
-	t.Helper()
-
-	data, err := contractABI.Methods[method].Outputs.Pack(args...)
-	if err != nil {
-		t.Fatalf("pack %s output: %v", method, err)
-	}
-	return "0x" + common.Bytes2Hex(data)
+func methodSelector(signature string) string {
+	return common.Bytes2Hex(crypto.Keccak256([]byte(signature))[:4])
 }

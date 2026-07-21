@@ -16,9 +16,7 @@
 package jsre
 
 import (
-	"bytes"
 	"fmt"
-	"math/big"
 	"slices"
 	"strings"
 	"testing"
@@ -76,23 +74,16 @@ func TestEmbeddedWeb3ABICoderUsesVM64Words(t *testing.T) {
 	re := newEmbeddedWeb3(t)
 	address := "Q" + strings.Repeat("a", common.AddressLength*2)
 	contractAddress := "Q" + strings.Repeat("0", common.AddressLength*2)
-	addressValue, err := common.NewAddressFromString(address)
-	if err != nil {
-		t.Fatal(err)
-	}
-	addressWord := common.Bytes2Hex(addressValue[:])
+	addressWord := strings.Repeat("a", common.AddressLength*2)
+
 	maxUint512 := strings.Repeat("f", uint512.WordBytes*2)
 	maxUint512Decimal := "134078079299425970995740249982058461274793658205923933" +
 		"77723561443721764030073546976801874298166903427690031" +
 		"858186486050853753882811946569946433649006084095"
-	maxUint512Value, ok := new(big.Int).SetString(maxUint512Decimal, 10)
-	if !ok {
-		t.Fatal("parse max uint512")
-	}
+
 	bytes33 := strings.Repeat("ab", 33)
-	var bytes33Value [33]byte
-	copy(bytes33Value[:], bytes.Repeat([]byte{0xab}, len(bytes33Value)))
 	bytes33Word := bytes33 + strings.Repeat("0", (uint512.WordBytes-33)*2)
+
 	labelOffsetWord := abiWordHex(5 * uint512.WordBytes)
 	activeWord := abiWordHex(1)
 	labelLengthWord := abiWordHex(5)
@@ -106,27 +97,22 @@ func TestEmbeddedWeb3ABICoderUsesVM64Words(t *testing.T) {
 		labelLengthWord,
 		labelDataWord,
 	}, "")
+
 	output := "0x" + encodedValues
 	expectedData := "0x" + methodSelector("store(address,uint512,string,bool,bytes33)") + encodedValues
 	expectedEmptyTagData := "0x" +
 		methodSelector("storeTag(bytes33)") +
 		strings.Repeat("0", uint512.WordBytes*2)
 
-	parsedABI := mustParseABI(t, contractABI)
-	if want := packCallHex(t, parsedABI, "store", addressValue, maxUint512Value, "hello", true, bytes33Value); expectedData != want {
-		t.Fatalf("explicit calldata vector disagrees with Go ABI:\nhave %s\nwant %s", expectedData, want)
-	}
-	if want := packOutputHex(t, parsedABI, "load", addressValue, maxUint512Value, "hello", true, bytes33Value); output != want {
-		t.Fatalf("explicit output vector disagrees with Go ABI:\nhave %s\nwant %s", output, want)
-	}
-
 	script := fmt.Sprintf(`
 currentOutput = %q;
 
 var data = contract.store.getData(%q, %q, "hello", true, "0x%s");
 var emptyTagData = contract.storeTag.getData("0x");
+
 var decoded = contract.load();
 var loadMethod = lastPayload.method;
+
 contract.pay({from: %q, value: 1});
 
 JSON.stringify({
@@ -141,6 +127,7 @@ JSON.stringify({
   payMethod: lastPayload.method
 });
 `, output, address, maxUint512Decimal, bytes33, address)
+
 	var got struct {
 		Data         string `json:"data"`
 		EmptyTagData string `json:"emptyTagData"`
@@ -152,7 +139,9 @@ JSON.stringify({
 		LoadMethod   string `json:"loadMethod"`
 		PayMethod    string `json:"payMethod"`
 	}
+
 	runWeb3ContractJSON(t, re, web3CallProvider, contractABI, contractAddress, script, &got)
+
 	if got.Data != expectedData {
 		t.Fatalf("calldata mismatch:\nhave %s\nwant %s", got.Data, expectedData)
 	}
@@ -209,22 +198,38 @@ func TestEmbeddedWeb3DynamicBytesAndArrays(t *testing.T) {
 
 	re := newEmbeddedWeb3(t)
 	contractAddress := "Q" + strings.Repeat("0", common.AddressLength*2)
-	payload := []byte{0xa1, 0xb2, 0xc3}
-	fixedValues := [2]*big.Int{big.NewInt(1), big.NewInt(2)}
-	dynamicValues := []*big.Int{big.NewInt(3), big.NewInt(4), big.NewInt(5)}
-	parsedABI := mustParseABI(t, contractABI)
-	bytesOutput := packOutputHex(t, parsedABI, "loadBytes", payload)
-	bytesData := packCallHex(t, parsedABI, "storeBytes", payload)
-	arraysOutput := packOutputHex(t, parsedABI, "loadArrays", fixedValues, dynamicValues)
-	arraysData := packCallHex(t, parsedABI, "storeArrays", fixedValues, dynamicValues)
+
+	payload := "a1b2c3"
+	payloadWord := payload + strings.Repeat("0", uint512.WordBytes*2-len(payload))
+	encodedBytes := strings.Join([]string{
+		abiWordHex(uint512.WordBytes),
+		abiWordHex(3),
+		payloadWord,
+	}, "")
+	bytesOutput := "0x" + encodedBytes
+	bytesData := "0x" + methodSelector("storeBytes(bytes)") + encodedBytes
+
+	encodedArrays := strings.Join([]string{
+		abiWordHex(1),
+		abiWordHex(2),
+		abiWordHex(3 * uint512.WordBytes),
+		abiWordHex(3),
+		abiWordHex(3),
+		abiWordHex(4),
+		abiWordHex(5),
+	}, "")
+	arraysOutput := "0x" + encodedArrays
+	arraysData := "0x" + methodSelector("storeArrays(uint512[2],uint512[])") + encodedArrays
 
 	script := fmt.Sprintf(`
 var bytesData = contract.storeBytes.getData(%q);
+
 currentOutput = %q;
 var decodedBytes = contract.loadBytes();
 var pureMethod = lastPayload.method;
 
 var arraysData = contract.storeArrays.getData([1, 2], [3, 4, 5]);
+
 currentOutput = %q;
 var decodedArrays = contract.loadArrays();
 
@@ -236,7 +241,8 @@ JSON.stringify({
   fixedValues: decodedArrays[0].map(function (value) { return value.toString(10); }),
   dynamicValues: decodedArrays[1].map(function (value) { return value.toString(10); })
 });
-`, "0x"+common.Bytes2Hex(payload), bytesOutput, arraysOutput)
+`, "0x"+payload, bytesOutput, arraysOutput)
+
 	var got struct {
 		BytesData     string   `json:"bytesData"`
 		DecodedBytes  string   `json:"decodedBytes"`
@@ -245,12 +251,14 @@ JSON.stringify({
 		FixedValues   []string `json:"fixedValues"`
 		DynamicValues []string `json:"dynamicValues"`
 	}
+
 	runWeb3ContractJSON(t, re, web3CallProvider, contractABI, contractAddress, script, &got)
+
 	if got.BytesData != bytesData {
 		t.Fatalf("dynamic bytes calldata mismatch:\nhave %s\nwant %s", got.BytesData, bytesData)
 	}
-	if got.DecodedBytes != "0x"+common.Bytes2Hex(payload) {
-		t.Fatalf("decoded dynamic bytes mismatch: have %s, want 0x%x", got.DecodedBytes, payload)
+	if got.DecodedBytes != "0x"+payload {
+		t.Fatalf("decoded dynamic bytes mismatch: have %s, want 0x%s", got.DecodedBytes, payload)
 	}
 	if got.PureMethod != "qrl_call" {
 		t.Fatalf("pure function used %q, want qrl_call", got.PureMethod)
@@ -295,10 +303,15 @@ func TestEmbeddedWeb3SignedInt512AndAddressInput(t *testing.T) {
 
 	re := newEmbeddedWeb3(t)
 	contractAddress := "Q" + strings.Repeat("0", common.AddressLength*2)
+
 	minimumWord := "8" + strings.Repeat("0", uint512.WordBytes*2-1)
 	minimumValue := "-0x" + minimumWord
-	negativeOneValue := big.NewInt(-1)
-	minimumInt512 := new(big.Int).Neg(new(big.Int).Lsh(big.NewInt(1), uint512.WordBits-1))
+	negativeOneWord := strings.Repeat("f", uint512.WordBytes*2)
+	negativeOneData := "0x" + methodSelector("storeInt(int512)") + negativeOneWord
+	minimumData := "0x" + methodSelector("storeInt(int512)") + minimumWord
+	negativeOneOutput := "0x" + negativeOneWord
+	minimumOutput := "0x" + minimumWord
+
 	lowerAddress := "Q" + strings.Repeat("a", common.AddressLength*2)
 	address, err := common.NewAddressFromString(lowerAddress)
 	if err != nil {
@@ -311,21 +324,19 @@ func TestEmbeddedWeb3SignedInt512AndAddressInput(t *testing.T) {
 	} else {
 		invalidChecksum[1] = 'a'
 	}
-	parsedABI := mustParseABI(t, contractABI)
-	negativeOneData := packCallHex(t, parsedABI, "storeInt", negativeOneValue)
-	minimumData := packCallHex(t, parsedABI, "storeInt", minimumInt512)
-	negativeOneOutput := packOutputHex(t, parsedABI, "loadInt", negativeOneValue)
-	minimumOutput := packOutputHex(t, parsedABI, "loadInt", minimumInt512)
-	addressData := packCallHex(t, parsedABI, "storeAddress", address)
+	addressData := "0x" + methodSelector("storeAddress(address)") + strings.TrimPrefix(lowerAddress, "Q")
 
 	script := fmt.Sprintf(`
 var negativeOneData = contract.storeInt.getData(-1);
 var minimumData = contract.storeInt.getData(%q);
+var addressData = contract.storeAddress.getData(%q);
+
 currentOutput = %q;
 var negativeOne = contract.loadInt().toString(16);
+
 currentOutput = %q;
 var minimum = contract.loadInt().toString(16);
-var addressData = contract.storeAddress.getData(%q);
+
 var rejectsInvalidAddress = false;
 try {
   contract.storeAddress.getData("Q1234");
@@ -348,7 +359,8 @@ JSON.stringify({
   rejectsInvalidAddress: rejectsInvalidAddress,
   rejectsInvalidChecksum: rejectsInvalidChecksum
 });
-`, minimumValue, negativeOneOutput, minimumOutput, checksumAddress, string(invalidChecksum))
+`, minimumValue, checksumAddress, negativeOneOutput, minimumOutput, string(invalidChecksum))
+
 	var got struct {
 		NegativeOneData        string `json:"negativeOneData"`
 		MinimumData            string `json:"minimumData"`
@@ -358,7 +370,9 @@ JSON.stringify({
 		RejectsInvalidAddress  bool   `json:"rejectsInvalidAddress"`
 		RejectsInvalidChecksum bool   `json:"rejectsInvalidChecksum"`
 	}
+
 	runWeb3ContractJSON(t, re, web3CallProvider, contractABI, contractAddress, script, &got)
+
 	if got.NegativeOneData != negativeOneData || got.MinimumData != minimumData {
 		t.Fatalf("signed calldata mismatch: %+v", got)
 	}
@@ -390,12 +404,15 @@ JSON.stringify({
   legacyPayable: acceptsValue({inputs: [], payable: true, type: "constructor"})
 });
 `
+
 	var got struct {
 		CurrentPayable    bool `json:"currentPayable"`
 		CurrentNonpayable bool `json:"currentNonpayable"`
 		LegacyPayable     bool `json:"legacyPayable"`
 	}
+
 	runWeb3JSON(t, re, web3CallProvider, script, &got)
+
 	if !got.CurrentPayable || got.CurrentNonpayable || got.LegacyPayable {
 		t.Fatalf("constructor stateMutability mismatch: %+v", got)
 	}

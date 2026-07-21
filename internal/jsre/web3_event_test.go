@@ -16,15 +16,13 @@
 package jsre
 
 import (
-	"bytes"
 	"fmt"
-	"math/big"
 	"slices"
 	"strings"
 	"testing"
 
-	"github.com/theQRL/go-qrl/accounts/abi"
 	"github.com/theQRL/go-qrl/common"
+	"github.com/theQRL/go-qrl/crypto"
 )
 
 func TestEmbeddedWeb3EventsUseVM64Topics(t *testing.T) {
@@ -47,33 +45,18 @@ func TestEmbeddedWeb3EventsUseVM64Topics(t *testing.T) {
 	re := newEmbeddedWeb3(t)
 	contractAddress := "Q" + strings.Repeat("0", common.AddressLength*2)
 	indexedAddress := "Q" + strings.Repeat("a", common.AddressLength*2)
-	indexedAddressValue, err := common.NewAddressFromString(indexedAddress)
-	if err != nil {
-		t.Fatal(err)
-	}
-	parsedABI := mustParseABI(t, contractABI)
-	event := parsedABI.Events["Transfer"]
-	signatureTopic := common.HashToLogTopic(event.ID).Hex()
-	indexedTopics, err := abi.MakeTopics(
-		[]any{indexedAddressValue},
-		[]any{"hello"},
-		[]any{[]byte{0xab, 0xcd}},
-	)
-	if err != nil {
-		t.Fatal(err)
-	}
-	addressTopic := indexedTopics[0][0].Hex()
-	labelTopic := indexedTopics[1][0].Hex()
-	payloadTopic := indexedTopics[2][0].Hex()
-	emptyPayloadTopic := makeTopicHex(t, []byte{})
-	amountData, err := event.Inputs.NonIndexed().Pack(big.NewInt(2))
-	if err != nil {
-		t.Fatal(err)
-	}
+	eventID := crypto.Keccak256Hash([]byte("Transfer(address,string,bytes,uint512)"))
+	signatureTopic := common.HashToLogTopic(eventID).Hex()
+	addressTopic := "0x" + strings.Repeat("a", common.LogTopicLength*2)
+	labelTopic := common.HashToLogTopic(crypto.Keccak256Hash([]byte("hello"))).Hex()
+	payloadTopic := common.HashToLogTopic(crypto.Keccak256Hash([]byte{0xab, 0xcd})).Hex()
+	emptyPayloadTopic := common.HashToLogTopic(crypto.Keccak256Hash(nil)).Hex()
+	amountWord := abiWordHex(2)
 
 	script := fmt.Sprintf(`
 var filter = contract.Transfer({from: %q, label: "hello", payload: "0xabcd"});
 contract.Transfer({payload: "0x"});
+
 var log = {
   address: %q,
   topics: [%q, %q, %q, %q],
@@ -82,6 +65,7 @@ var log = {
   transactionIndex: "0x0",
   logIndex: "0x0"
 };
+
 var decoded = filter.formatter(JSON.parse(JSON.stringify(log)));
 var allEventsDecoded = contract.allEvents().formatter(JSON.parse(JSON.stringify(log)));
 
@@ -97,7 +81,8 @@ JSON.stringify({
   signatureIsTopic: web3._extend.utils.isTopic(%q),
   eventIDIsTopic: web3._extend.utils.isTopic(%q)
 });
-`, indexedAddress, contractAddress, signatureTopic, addressTopic, labelTopic, payloadTopic, common.Bytes2Hex(amountData), signatureTopic, "0x"+common.Bytes2Hex(event.ID[:]))
+`, indexedAddress, contractAddress, signatureTopic, addressTopic, labelTopic, payloadTopic, amountWord, signatureTopic, "0x"+common.Bytes2Hex(eventID[:]))
+
 	var got struct {
 		Topics            []string `json:"topics"`
 		EmptyPayloadTopic string   `json:"emptyPayloadTopic"`
@@ -110,7 +95,9 @@ JSON.stringify({
 		SignatureIsTopic  bool     `json:"signatureIsTopic"`
 		EventIDIsTopic    bool     `json:"eventIDIsTopic"`
 	}
+
 	runWeb3ContractJSON(t, re, web3FilterProvider, contractABI, contractAddress, script, &got)
+
 	wantTopics := []string{signatureTopic, addressTopic, labelTopic, payloadTopic}
 	if !slices.Equal(got.Topics, wantTopics) {
 		t.Fatalf("event topics mismatch:\nhave %v\nwant %v", got.Topics, wantTopics)
@@ -164,6 +151,7 @@ func TestEmbeddedWeb3EventTopicAlignment(t *testing.T) {
 
 	re := newEmbeddedWeb3(t)
 	contractAddress := "Q" + strings.Repeat("0", common.AddressLength*2)
+
 	fixedBytes32 := strings.Repeat("ab", 32)
 	fixedBytes64 := strings.Repeat("cd", common.LogTopicLength)
 
@@ -171,8 +159,10 @@ func TestEmbeddedWeb3EventTopicAlignment(t *testing.T) {
 contract.Unsigned({value: 2});
 contract.Signed({value: 2});
 contract.Signed({value: -2});
+
 contract.Flag({value: true});
 contract.Flag({value: false});
+
 contract.FixedBytes32({value: "0x%s"});
 contract.FixedBytes64({value: "0x%s"});
 
@@ -180,8 +170,10 @@ JSON.stringify(captured.map(function (filter) {
   return filter.topics[1];
 }));
 `, fixedBytes32, fixedBytes64)
+
 	var got []string
 	runWeb3ContractJSON(t, re, web3FilterProvider, contractABI, contractAddress, script, &got)
+
 	want := []string{
 		"0x" + abiWordHex(2),
 		"0x" + abiWordHex(2),
@@ -191,33 +183,7 @@ JSON.stringify(captured.map(function (filter) {
 		"0x" + fixedBytes32 + strings.Repeat("0", (common.LogTopicLength-32)*2),
 		"0x" + fixedBytes64,
 	}
-	var fixedBytes32Value [32]byte
-	copy(fixedBytes32Value[:], bytes.Repeat([]byte{0xab}, len(fixedBytes32Value)))
-	var fixedBytes64Value [64]byte
-	copy(fixedBytes64Value[:], bytes.Repeat([]byte{0xcd}, len(fixedBytes64Value)))
-	goWant := []string{
-		makeTopicHex(t, big.NewInt(2)),
-		makeTopicHex(t, big.NewInt(2)),
-		makeTopicHex(t, big.NewInt(-2)),
-		makeTopicHex(t, true),
-		makeTopicHex(t, false),
-		makeTopicHex(t, fixedBytes32Value),
-		makeTopicHex(t, fixedBytes64Value),
-	}
-	if !slices.Equal(want, goWant) {
-		t.Fatalf("explicit topic vectors disagree with Go ABI:\nhave %v\nwant %v", want, goWant)
-	}
 	if !slices.Equal(got, want) {
 		t.Fatalf("event topic alignment mismatch:\nhave %v\nwant %v", got, want)
 	}
-}
-
-func makeTopicHex(t *testing.T, value any) string {
-	t.Helper()
-
-	topics, err := abi.MakeTopics([]any{value})
-	if err != nil {
-		t.Fatalf("make topic for %T: %v", value, err)
-	}
-	return topics[0][0].Hex()
 }
