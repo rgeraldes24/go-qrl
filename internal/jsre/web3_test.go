@@ -45,10 +45,10 @@ func TestEmbeddedWeb3ABICoderUsesVM64Words(t *testing.T) {
 	labelWord := common.Bytes2Hex([]byte("hello")) + strings.Repeat("0", common.StorageValue64Length*2-len("hello")*2)
 	output := "0x" + strings.Repeat("a", common.AddressLength*2) + maxUint512 + offsetWord + boolWord + bytes33Word + lengthWord + labelWord
 	expectedData := "0x" +
-		common.Bytes2Hex(crypto.Keccak256([]byte("store(address,uint512,string,bool,bytes33)"))[:4]) +
+		methodSelector("store(address,uint512,string,bool,bytes33)") +
 		strings.Repeat("a", common.AddressLength*2) + maxUint512 + offsetWord + boolWord + bytes33Word + lengthWord + labelWord
 	expectedEmptyTagData := "0x" +
-		common.Bytes2Hex(crypto.Keccak256([]byte("storeTag(bytes33)"))[:4]) +
+		methodSelector("storeTag(bytes33)") +
 		strings.Repeat("0", common.StorageValue64Length*2)
 
 	script := fmt.Sprintf(web3CallProvider+`
@@ -147,14 +147,14 @@ func TestEmbeddedWeb3DynamicBytesAndArrays(t *testing.T) {
 	payloadWord := payload + strings.Repeat("0", common.StorageValue64Length*2-len(payload))
 	bytesOutput := "0x" + abiWordHex(common.StorageValue64Length) + abiWordHex(3) + payloadWord
 	bytesData := "0x" +
-		common.Bytes2Hex(crypto.Keccak256([]byte("storeBytes(bytes)"))[:4]) +
+		methodSelector("storeBytes(bytes)") +
 		abiWordHex(common.StorageValue64Length) + abiWordHex(3) + payloadWord
 
 	arraysOutput := "0x" +
 		abiWordHex(1) + abiWordHex(2) + abiWordHex(3*common.StorageValue64Length) +
 		abiWordHex(3) + abiWordHex(3) + abiWordHex(4) + abiWordHex(5)
 	arraysData := "0x" +
-		common.Bytes2Hex(crypto.Keccak256([]byte("storeArrays(uint512[2],uint512[])"))[:4]) +
+		methodSelector("storeArrays(uint512[2],uint512[])") +
 		strings.TrimPrefix(arraysOutput, "0x")
 
 	script := fmt.Sprintf(web3CallProvider+`
@@ -232,8 +232,8 @@ func TestEmbeddedWeb3SignedInt512AndAddressInput(t *testing.T) {
 	negativeOneWord := strings.Repeat("f", common.StorageValue64Length*2)
 	minimumWord := "8" + strings.Repeat("0", common.StorageValue64Length*2-1)
 	minimumValue := "-0x" + minimumWord
-	negativeOneData := "0x" + common.Bytes2Hex(crypto.Keccak256([]byte("storeInt(int512)"))[:4]) + negativeOneWord
-	minimumData := "0x" + common.Bytes2Hex(crypto.Keccak256([]byte("storeInt(int512)"))[:4]) + minimumWord
+	negativeOneData := "0x" + methodSelector("storeInt(int512)") + negativeOneWord
+	minimumData := "0x" + methodSelector("storeInt(int512)") + minimumWord
 	lowerAddress := "Q" + strings.Repeat("a", common.AddressLength*2)
 	address, err := common.NewAddressFromString(lowerAddress)
 	if err != nil {
@@ -246,7 +246,7 @@ func TestEmbeddedWeb3SignedInt512AndAddressInput(t *testing.T) {
 	} else {
 		invalidChecksum[1] = 'a'
 	}
-	addressData := "0x" + common.Bytes2Hex(crypto.Keccak256([]byte("storeAddress(address)"))[:4]) + strings.Repeat("a", common.AddressLength*2)
+	addressData := "0x" + methodSelector("storeAddress(address)") + strings.Repeat("a", common.AddressLength*2)
 
 	script := fmt.Sprintf(web3CallProvider+`
 var Web3 = require("web3");
@@ -505,6 +505,10 @@ JSON.stringify(captured.map(function (filter) {
 
 func abiWordHex(value uint64) string {
 	return fmt.Sprintf("%0*x", common.StorageValue64Length*2, value)
+}
+
+func methodSelector(signature string) string {
+	return common.Bytes2Hex(crypto.Keccak256([]byte(signature))[:4])
 }
 
 const web3CallProvider = `
