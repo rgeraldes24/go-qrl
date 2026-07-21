@@ -1659,7 +1659,7 @@ var fromAscii = function(str) {
  *
  * @method transformToFullName
  * @param {Object} json-abi
- * @return {String} full fnction/event name
+ * @return {String} full function/event name
  */
 var transformToFullName = function (json) {
     if (json.name.indexOf('(') !== -1) {
