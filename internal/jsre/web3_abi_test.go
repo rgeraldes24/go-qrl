@@ -115,6 +115,13 @@ var loadMethod = lastPayload.method;
 
 contract.pay({from: %q, value: 1});
 
+var rejectsNonpayableValue = false;
+try {
+  contract.store(%q, %q, "hello", true, "0x%s", {from: %q, value: 1});
+} catch (err) {
+  rejectsNonpayableValue = true;
+}
+
 JSON.stringify({
   data: data,
   emptyTagData: emptyTagData,
@@ -124,20 +131,22 @@ JSON.stringify({
   active: decoded[3],
   tag: decoded[4],
   loadMethod: loadMethod,
-  payMethod: lastPayload.method
+  payMethod: lastPayload.method,
+  rejectsNonpayableValue: rejectsNonpayableValue
 });
-`, output, address, maxUint512Decimal, bytes33, address)
+`, output, address, maxUint512Decimal, bytes33, address, address, maxUint512Decimal, bytes33, address)
 
 	var got struct {
-		Data         string `json:"data"`
-		EmptyTagData string `json:"emptyTagData"`
-		Address      string `json:"address"`
-		Amount       string `json:"amount"`
-		Label        string `json:"label"`
-		Active       bool   `json:"active"`
-		Tag          string `json:"tag"`
-		LoadMethod   string `json:"loadMethod"`
-		PayMethod    string `json:"payMethod"`
+		Data                   string `json:"data"`
+		EmptyTagData           string `json:"emptyTagData"`
+		Address                string `json:"address"`
+		Amount                 string `json:"amount"`
+		Label                  string `json:"label"`
+		Active                 bool   `json:"active"`
+		Tag                    string `json:"tag"`
+		LoadMethod             string `json:"loadMethod"`
+		PayMethod              string `json:"payMethod"`
+		RejectsNonpayableValue bool   `json:"rejectsNonpayableValue"`
 	}
 
 	runWeb3ContractJSON(t, re, web3CallProvider, contractABI, contractAddress, script, &got)
@@ -153,6 +162,9 @@ JSON.stringify({
 	}
 	if got.LoadMethod != "qrl_call" || got.PayMethod != "qrl_sendTransaction" {
 		t.Fatalf("stateMutability routing mismatch: load=%q pay=%q", got.LoadMethod, got.PayMethod)
+	}
+	if !got.RejectsNonpayableValue {
+		t.Fatal("nonpayable function accepted transaction value")
 	}
 }
 

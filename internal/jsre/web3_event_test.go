@@ -49,6 +49,7 @@ func TestEmbeddedWeb3EventsUseVM64Topics(t *testing.T) {
 	signatureTopic := common.HashToLogTopic(eventID).Hex()
 	addressTopic := "0x" + strings.Repeat("a", common.LogTopicLength*2)
 	labelTopic := common.HashToLogTopic(crypto.Keccak256Hash([]byte("hello"))).Hex()
+	worldTopic := common.HashToLogTopic(crypto.Keccak256Hash([]byte("world"))).Hex()
 	payloadTopic := common.HashToLogTopic(crypto.Keccak256Hash([]byte{0xab, 0xcd})).Hex()
 	emptyPayloadTopic := common.HashToLogTopic(crypto.Keccak256Hash(nil)).Hex()
 	amountWord := abiWordHex(2)
@@ -56,6 +57,7 @@ func TestEmbeddedWeb3EventsUseVM64Topics(t *testing.T) {
 	script := fmt.Sprintf(`
 var filter = contract.Transfer({from: %q, label: "hello", payload: "0xabcd"});
 contract.Transfer({payload: "0x"});
+contract.Transfer({label: ["hello", "world"], payload: ["0xabcd", "0x"]});
 
 var log = {
   address: %q,
@@ -72,6 +74,8 @@ var allEventsDecoded = contract.allEvents().formatter(JSON.parse(JSON.stringify(
 JSON.stringify({
   topics: captured[0].topics,
   emptyPayloadTopic: captured[1].topics[3],
+  labelAlternatives: captured[2].topics[2],
+  payloadAlternatives: captured[2].topics[3],
   event: decoded.event,
   from: decoded.args.from,
   label: decoded.args.label,
@@ -86,6 +90,8 @@ JSON.stringify({
 	var got struct {
 		Topics                []string `json:"topics"`
 		EmptyPayloadTopic     string   `json:"emptyPayloadTopic"`
+		LabelAlternatives     []string `json:"labelAlternatives"`
+		PayloadAlternatives   []string `json:"payloadAlternatives"`
 		Event                 string   `json:"event"`
 		From                  string   `json:"from"`
 		Label                 string   `json:"label"`
@@ -104,6 +110,12 @@ JSON.stringify({
 	}
 	if got.EmptyPayloadTopic != emptyPayloadTopic {
 		t.Fatalf("empty bytes topic mismatch: have %s, want %s", got.EmptyPayloadTopic, emptyPayloadTopic)
+	}
+	if want := []string{labelTopic, worldTopic}; !slices.Equal(got.LabelAlternatives, want) {
+		t.Fatalf("indexed string alternatives mismatch: have %v, want %v", got.LabelAlternatives, want)
+	}
+	if want := []string{payloadTopic, emptyPayloadTopic}; !slices.Equal(got.PayloadAlternatives, want) {
+		t.Fatalf("indexed bytes alternatives mismatch: have %v, want %v", got.PayloadAlternatives, want)
 	}
 	if got.Event != "Transfer" || got.AllEventsEvent != "Transfer" || got.From != indexedAddress || got.Label != labelTopic || got.Payload != payloadTopic || got.Amount != "2" {
 		t.Fatalf("decoded event mismatch: %+v", got)
