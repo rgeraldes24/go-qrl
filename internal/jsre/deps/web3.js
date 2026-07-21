@@ -1972,7 +1972,7 @@ var isFunction = function (object) {
 };
 
 /**
- * Returns true if object is Objet, otherwise false
+ * Returns true if object is Object, otherwise false
  *
  * @method isObject
  * @param {Object}
