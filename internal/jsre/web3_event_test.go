@@ -113,6 +113,78 @@ JSON.stringify({
 	}
 }
 
+func TestEmbeddedWeb3EventTopicAlignment(t *testing.T) {
+	t.Parallel()
+
+	re := newEmbeddedWeb3(t)
+	contractAddress := "Q" + strings.Repeat("0", common.AddressLength*2)
+	fixedBytes32 := strings.Repeat("ab", 32)
+	fixedBytes64 := strings.Repeat("cd", common.LogTopicLength)
+
+	script := fmt.Sprintf(eventCaptureProvider+`
+var Web3 = require("web3");
+var web3 = new Web3(provider);
+var contract = web3.qrl.contract([{
+  anonymous: false,
+  inputs: [{indexed: true, name: "value", type: "uint512"}],
+  name: "Unsigned",
+  type: "event"
+}, {
+  anonymous: false,
+  inputs: [{indexed: true, name: "value", type: "int512"}],
+  name: "Signed",
+  type: "event"
+}, {
+  anonymous: false,
+  inputs: [{indexed: true, name: "value", type: "bool"}],
+  name: "Flag",
+  type: "event"
+}, {
+  anonymous: false,
+  inputs: [{indexed: true, name: "value", type: "bytes32"}],
+  name: "FixedBytes32",
+  type: "event"
+}, {
+  anonymous: false,
+  inputs: [{indexed: true, name: "value", type: "bytes64"}],
+  name: "FixedBytes64",
+  type: "event"
+}]).at(%q);
+
+contract.Unsigned({value: 2});
+contract.Signed({value: 2});
+contract.Signed({value: -2});
+contract.Flag({value: true});
+contract.Flag({value: false});
+contract.FixedBytes32({value: "0x%s"});
+contract.FixedBytes64({value: "0x%s"});
+
+JSON.stringify(captured.map(function (filter) {
+  return filter.topics[1];
+}));
+`, contractAddress, fixedBytes32, fixedBytes64)
+	value, err := re.Run(script)
+	if err != nil {
+		t.Fatalf("run event topic alignment script: %v", err)
+	}
+	var got []string
+	if err := json.Unmarshal([]byte(value.String()), &got); err != nil {
+		t.Fatalf("decode event topics %q: %v", value.String(), err)
+	}
+	want := []string{
+		"0x" + abiWordHex(2),
+		"0x" + abiWordHex(2),
+		"0x" + strings.Repeat("f", common.LogTopicLength*2-1) + "e",
+		"0x" + abiWordHex(1),
+		"0x" + abiWordHex(0),
+		"0x" + fixedBytes32 + strings.Repeat("0", (common.LogTopicLength-32)*2),
+		"0x" + fixedBytes64,
+	}
+	if strings.Join(got, ",") != strings.Join(want, ",") {
+		t.Fatalf("event topic alignment mismatch:\nhave %v\nwant %v", got, want)
+	}
+}
+
 const eventCaptureProvider = `
 var captured = [];
 var provider = {
