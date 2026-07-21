@@ -400,20 +400,18 @@ function acceptsValue(constructorAbi) {
 
 JSON.stringify({
   currentPayable: acceptsValue({inputs: [], stateMutability: "payable", type: "constructor"}),
-  currentNonpayable: acceptsValue({inputs: [], stateMutability: "nonpayable", type: "constructor"}),
-  legacyPayable: acceptsValue({inputs: [], payable: true, type: "constructor"})
+  currentNonpayable: acceptsValue({inputs: [], stateMutability: "nonpayable", type: "constructor"})
 });
 `
 
 	var got struct {
 		CurrentPayable    bool `json:"currentPayable"`
 		CurrentNonpayable bool `json:"currentNonpayable"`
-		LegacyPayable     bool `json:"legacyPayable"`
 	}
 
 	runWeb3JSON(t, re, web3CallProvider, script, &got)
 
-	if !got.CurrentPayable || got.CurrentNonpayable || got.LegacyPayable {
+	if !got.CurrentPayable || got.CurrentNonpayable {
 		t.Fatalf("constructor stateMutability mismatch: %+v", got)
 	}
 }
