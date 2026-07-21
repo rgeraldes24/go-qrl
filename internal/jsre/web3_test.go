@@ -51,7 +51,7 @@ func TestEmbeddedWeb3ABICoderUsesVM64Words(t *testing.T) {
 		common.Bytes2Hex(crypto.Keccak256([]byte("storeTag(bytes33)"))[:4]) +
 		strings.Repeat("0", common.StorageValue64Length*2)
 
-	script := fmt.Sprintf(web3EchoProvider+`
+	script := fmt.Sprintf(web3CallProvider+`
 currentOutput = %q;
 
 var Web3 = require("web3");
@@ -112,10 +112,6 @@ JSON.stringify({
   payMethod: lastPayload.method
 });
 `, output, contractAddress, address, maxUint512Decimal, bytes33, address)
-	value, err := re.Run(script)
-	if err != nil {
-		t.Fatalf("run ABI coder script: %v", err)
-	}
 	var got struct {
 		Data         string `json:"data"`
 		EmptyTagData string `json:"emptyTagData"`
@@ -127,9 +123,7 @@ JSON.stringify({
 		LoadMethod   string `json:"loadMethod"`
 		PayMethod    string `json:"payMethod"`
 	}
-	if err := json.Unmarshal([]byte(value.String()), &got); err != nil {
-		t.Fatalf("decode ABI coder result %q: %v", value.String(), err)
-	}
+	runWeb3JSON(t, re, script, &got)
 	if got.Data != expectedData {
 		t.Fatalf("calldata mismatch:\nhave %s\nwant %s", got.Data, expectedData)
 	}
@@ -163,7 +157,7 @@ func TestEmbeddedWeb3DynamicBytesAndArrays(t *testing.T) {
 		common.Bytes2Hex(crypto.Keccak256([]byte("storeArrays(uint512[2],uint512[])"))[:4]) +
 		strings.TrimPrefix(arraysOutput, "0x")
 
-	script := fmt.Sprintf(web3EchoProvider+`
+	script := fmt.Sprintf(web3CallProvider+`
 var Web3 = require("web3");
 var web3 = new Web3(provider);
 var contract = web3.qrl.contract([{
@@ -210,10 +204,6 @@ JSON.stringify({
   dynamicValues: decodedArrays[1].map(function (value) { return value.toString(10); })
 });
 `, contractAddress, payload, bytesOutput, arraysOutput)
-	value, err := re.Run(script)
-	if err != nil {
-		t.Fatalf("run dynamic bytes and arrays script: %v", err)
-	}
 	var got struct {
 		BytesData     string   `json:"bytesData"`
 		DecodedBytes  string   `json:"decodedBytes"`
@@ -222,9 +212,7 @@ JSON.stringify({
 		FixedValues   []string `json:"fixedValues"`
 		DynamicValues []string `json:"dynamicValues"`
 	}
-	if err := json.Unmarshal([]byte(value.String()), &got); err != nil {
-		t.Fatalf("decode dynamic bytes and arrays result %q: %v", value.String(), err)
-	}
+	runWeb3JSON(t, re, script, &got)
 	if got.BytesData != bytesData || got.DecodedBytes != "0x"+payload {
 		t.Fatalf("dynamic bytes mismatch: %+v", got)
 	}
@@ -260,7 +248,7 @@ func TestEmbeddedWeb3SignedInt512AndAddressInput(t *testing.T) {
 	}
 	addressData := "0x" + common.Bytes2Hex(crypto.Keccak256([]byte("storeAddress(address)"))[:4]) + strings.Repeat("a", common.AddressLength*2)
 
-	script := fmt.Sprintf(web3EchoProvider+`
+	script := fmt.Sprintf(web3CallProvider+`
 var Web3 = require("web3");
 var web3 = new Web3(provider);
 var contract = web3.qrl.contract([{
@@ -313,10 +301,6 @@ JSON.stringify({
   rejectsInvalidChecksum: rejectsInvalidChecksum
 });
 `, contractAddress, minimumValue, negativeOneWord, minimumWord, checksumAddress, string(invalidChecksum))
-	value, err := re.Run(script)
-	if err != nil {
-		t.Fatalf("run signed integer script: %v", err)
-	}
 	var got struct {
 		NegativeOneData        string `json:"negativeOneData"`
 		MinimumData            string `json:"minimumData"`
@@ -326,9 +310,7 @@ JSON.stringify({
 		RejectsInvalidAddress  bool   `json:"rejectsInvalidAddress"`
 		RejectsInvalidChecksum bool   `json:"rejectsInvalidChecksum"`
 	}
-	if err := json.Unmarshal([]byte(value.String()), &got); err != nil {
-		t.Fatalf("decode signed integer result %q: %v", value.String(), err)
-	}
+	runWeb3JSON(t, re, script, &got)
 	if got.NegativeOneData != negativeOneData || got.MinimumData != minimumData {
 		t.Fatalf("signed calldata mismatch: %+v", got)
 	}
@@ -341,7 +323,7 @@ func TestEmbeddedWeb3ConstructorStateMutability(t *testing.T) {
 	t.Parallel()
 
 	re := newEmbeddedWeb3(t)
-	script := web3EchoProvider + `
+	script := web3CallProvider + `
 var Web3 = require("web3");
 var web3 = new Web3(provider);
 web3.qrl.sendTransaction = function() { return "0x01"; };
@@ -362,18 +344,12 @@ JSON.stringify({
   legacyPayable: acceptsValue({inputs: [], payable: true, type: "constructor"})
 });
 `
-	value, err := re.Run(script)
-	if err != nil {
-		t.Fatalf("run constructor stateMutability script: %v", err)
-	}
 	var got struct {
 		CurrentPayable    bool `json:"currentPayable"`
 		CurrentNonpayable bool `json:"currentNonpayable"`
 		LegacyPayable     bool `json:"legacyPayable"`
 	}
-	if err := json.Unmarshal([]byte(value.String()), &got); err != nil {
-		t.Fatalf("decode constructor stateMutability result %q: %v", value.String(), err)
-	}
+	runWeb3JSON(t, re, script, &got)
 	if !got.CurrentPayable || got.CurrentNonpayable || got.LegacyPayable {
 		t.Fatalf("constructor stateMutability mismatch: %+v", got)
 	}
@@ -392,7 +368,7 @@ func TestEmbeddedWeb3EventsUseVM64Topics(t *testing.T) {
 	emptyPayloadTopic := common.HashToLogTopic(crypto.Keccak256Hash(nil)).Hex()
 	amountWord := abiWordHex(2)
 
-	script := fmt.Sprintf(eventCaptureProvider+`
+	script := fmt.Sprintf(web3FilterProvider+`
 var Web3 = require("web3");
 var web3 = new Web3(provider);
 var contract = web3.qrl.contract([{
@@ -433,10 +409,6 @@ JSON.stringify({
   eventIDIsTopic: web3._extend.utils.isTopic(%q)
 });
 `, contractAddress, indexedAddress, contractAddress, signatureTopic, addressTopic, labelTopic, payloadTopic, amountWord, signatureTopic, "0x"+common.Bytes2Hex(crypto.Keccak256([]byte("Transfer(address,string,bytes,uint512)"))))
-	value, err := re.Run(script)
-	if err != nil {
-		t.Fatalf("run event script: %v", err)
-	}
 	var got struct {
 		Topics            []string `json:"topics"`
 		EmptyPayloadTopic string   `json:"emptyPayloadTopic"`
@@ -449,9 +421,7 @@ JSON.stringify({
 		SignatureIsTopic  bool     `json:"signatureIsTopic"`
 		EventIDIsTopic    bool     `json:"eventIDIsTopic"`
 	}
-	if err := json.Unmarshal([]byte(value.String()), &got); err != nil {
-		t.Fatalf("decode event result %q: %v", value.String(), err)
-	}
+	runWeb3JSON(t, re, script, &got)
 	wantTopics := []string{signatureTopic, addressTopic, labelTopic, payloadTopic}
 	if strings.Join(got.Topics, ",") != strings.Join(wantTopics, ",") {
 		t.Fatalf("event topics mismatch:\nhave %v\nwant %v", got.Topics, wantTopics)
@@ -475,7 +445,7 @@ func TestEmbeddedWeb3EventTopicAlignment(t *testing.T) {
 	fixedBytes32 := strings.Repeat("ab", 32)
 	fixedBytes64 := strings.Repeat("cd", common.LogTopicLength)
 
-	script := fmt.Sprintf(eventCaptureProvider+`
+	script := fmt.Sprintf(web3FilterProvider+`
 var Web3 = require("web3");
 var web3 = new Web3(provider);
 var contract = web3.qrl.contract([{
@@ -517,14 +487,8 @@ JSON.stringify(captured.map(function (filter) {
   return filter.topics[1];
 }));
 `, contractAddress, fixedBytes32, fixedBytes64)
-	value, err := re.Run(script)
-	if err != nil {
-		t.Fatalf("run event topic alignment script: %v", err)
-	}
 	var got []string
-	if err := json.Unmarshal([]byte(value.String()), &got); err != nil {
-		t.Fatalf("decode event topics %q: %v", value.String(), err)
-	}
+	runWeb3JSON(t, re, script, &got)
 	want := []string{
 		"0x" + abiWordHex(2),
 		"0x" + abiWordHex(2),
@@ -543,7 +507,7 @@ func abiWordHex(value uint64) string {
 	return fmt.Sprintf("%0*x", common.StorageValue64Length*2, value)
 }
 
-const web3EchoProvider = `
+const web3CallProvider = `
 var currentOutput = null;
 var lastPayload = null;
 var provider = {
@@ -558,7 +522,7 @@ var provider = {
 };
 `
 
-const eventCaptureProvider = `
+const web3FilterProvider = `
 var captured = [];
 var provider = {
   send: function(payload) {
@@ -585,4 +549,16 @@ func newEmbeddedWeb3(t *testing.T) *JSRE {
 		t.Fatalf("compile web3.js: %v", err)
 	}
 	return re
+}
+
+func runWeb3JSON(t *testing.T, re *JSRE, script string, result any) {
+	t.Helper()
+
+	value, err := re.Run(script)
+	if err != nil {
+		t.Fatalf("run web3 script: %v", err)
+	}
+	if err := json.Unmarshal([]byte(value.String()), result); err != nil {
+		t.Fatalf("decode web3 result %q: %v", value.String(), err)
+	}
 }
