@@ -102,6 +102,8 @@ source-revision-tagged final images, and uploads effective network parameters,
 image metadata, per-suite results, the deposit manifest, and the Kurtosis dump
 even when a live gate fails. Digest changes in the network lock file are
 explicit and reviewable; a same-source workflow rerun never follows a moved tag.
+Live commands share a 300-minute absolute pre-cleanup deadline, leaving the
+remaining job budget for the enclave dump, removal, and artifact upload.
 
 The workflow also runs actionlint, pinned ShellCheck, JavaScript syntax checks,
 generated-artifact drift checks, all Go tests and vet, race-sensitive packages,

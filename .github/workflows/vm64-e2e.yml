@@ -124,15 +124,16 @@ jobs:
       - vm64-unit
       - hyperion-fixture
     runs-on: ubuntu-24.04
-    # The explicit bounded setup/live steps below consume at most 328 minutes.
-    # Reserve the remaining job-level headroom for checkout, validation, the
-    # always-run enclave dump, and diagnostics upload.
+    # Commands after enclave reservation share a 300-minute absolute deadline.
+    # This leaves about one hour for the always-run dump, cleanup, diagnostics
+    # upload, and runner overhead before GitHub's six-hour job limit.
     timeout-minutes: 360
     env:
       KURTOSIS_VERSION: 1.20.0
       KURTOSIS_SHA256: 20e924582082f0cd2b557b463ffcb0a303b6f90ef25204e794384741d88986fc
       YQ_VERSION: v4.47.2
       YQ_SHA256: 1bb99e1019e23de33c7e6afc23e93dad72aad6cf2cb03c797f068ea79814ddb0
+      VM64_E2E_PRE_CLEANUP_BUDGET_MINUTES: 300
       ENCLAVE_NAME: vm64-${{ github.run_id }}-${{ github.run_attempt }}
       ARTIFACT_DIR: /tmp/vm64-${{ github.run_id }}-${{ github.run_attempt }}
       EFFECTIVE_PARAMS_OUTPUT: /tmp/vm64-${{ github.run_id }}-${{ github.run_attempt }}/network_params.effective.yaml
@@ -149,11 +150,20 @@ jobs:
           set -Eeuo pipefail
           mkdir -p "$ARTIFACT_DIR"
           source_sha=$(git rev-parse HEAD)
+          initialized_epoch=$(date +%s)
+          if [[ ! "$VM64_E2E_PRE_CLEANUP_BUDGET_MINUTES" =~ ^[1-9][0-9]*$ ]]; then
+            echo "VM64_E2E_PRE_CLEANUP_BUDGET_MINUTES must be a positive integer." >&2
+            exit 1
+          fi
+          deadline_epoch=$((
+            initialized_epoch + VM64_E2E_PRE_CLEANUP_BUDGET_MINUTES * 60
+          ))
           # shellcheck source=scripts/local_testnet/images.lock.env
           source scripts/local_testnet/images.lock.env
           {
             echo "SOURCE_SHA=$source_sha"
             echo "EXPECTED_GIT_COMMIT=$source_sha"
+            echo "VM64_E2E_PRE_CLEANUP_DEADLINE_EPOCH=$deadline_epoch"
             echo "QRL_PACKAGE_REPO=$PINNED_QRL_PACKAGE_REPO"
             echo "QRL_PKG_VERSION=$PINNED_QRL_PACKAGE_COMMIT"
             echo "CL_BASE_IMAGE=$PINNED_CL_BASE_IMAGE"
@@ -191,6 +201,11 @@ jobs:
             echo "GO_BUILDER_IMAGE=$PINNED_GO_BUILDER_IMAGE"
             echo "ALPINE_RUNTIME_IMAGE=$PINNED_ALPINE_RUNTIME_IMAGE"
           } > "$ARTIFACT_DIR/external-images.txt"
+          {
+            echo "initialized_epoch=$initialized_epoch"
+            echo "pre_cleanup_budget_minutes=$VM64_E2E_PRE_CLEANUP_BUDGET_MINUTES"
+            echo "pre_cleanup_deadline_epoch=$deadline_epoch"
+          } > "$ARTIFACT_DIR/timing.txt"
 
       - name: Set up Go
         uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 # v5.5.0
@@ -203,6 +218,9 @@ jobs:
         run: |
           set -Eeuo pipefail
           bash -n \
+            scripts/testing/e2e/recover_enclave_uuid.sh \
+            scripts/testing/e2e/recover_enclave_uuid_test.sh \
+            scripts/testing/e2e/run_before_deadline.sh \
             scripts/testing/e2e/run_e2e_from_scratch.sh \
             scripts/local_testnet/start_local_testnet.sh \
             scripts/testing/e2e/run_tests.sh \
@@ -216,6 +234,32 @@ jobs:
             ./scripts/testing/e2e/depositcheck \
             ./scripts/testing/e2e/systemcheck \
             ./scripts/testing/e2e/freshsync
+          scripts/testing/e2e/recover_enclave_uuid_test.sh
+          scripts/testing/e2e/run_before_deadline.sh true
+          expired_status=0
+          VM64_E2E_PRE_CLEANUP_DEADLINE_EPOCH=1 \
+            scripts/testing/e2e/run_before_deadline.sh true 2>/dev/null || \
+            expired_status=$?
+          if (( expired_status != 124 )); then
+            echo "Expired deadline status = $expired_status, want 124." >&2
+            exit 1
+          fi
+          child_status=0
+          scripts/testing/e2e/run_before_deadline.sh \
+            bash -c 'exit 37' || child_status=$?
+          if (( child_status != 37 )); then
+            echo "Deadline guard child status = $child_status, want 37." >&2
+            exit 1
+          fi
+          timeout_status=0
+          near_deadline=$(( $(date +%s) + 1 ))
+          VM64_E2E_PRE_CLEANUP_DEADLINE_EPOCH=$near_deadline \
+            scripts/testing/e2e/run_before_deadline.sh sleep 60 || \
+            timeout_status=$?
+          if (( timeout_status != 124 )); then
+            echo "Deadline guard timeout status = $timeout_status, want 124." >&2
+            exit 1
+          fi
 
       - name: Install pinned testnet tooling
         timeout-minutes: 10
@@ -276,27 +320,32 @@ jobs:
 
       - name: Atomically reserve the test enclave
         id: reserve_enclave
+        timeout-minutes: 5
         shell: bash
         run: |
           set -Eeuo pipefail
-          if ! add_output=$(kurtosis enclave add -n "$ENCLAVE_NAME" 2>&1); then
+          scripts/testing/e2e/run_before_deadline.sh true
+          intent_file="$ARTIFACT_DIR/enclave-reservation-intent.txt"
+          owned_file="$ARTIFACT_DIR/enclave-reservation-owned-name.txt"
+          # This name is unique to the run/attempt on a fresh hosted runner.
+          # Preserve intent on every CLI failure because the engine may have
+          # accepted the add request before the client returned an error.
+          printf '%s\n' "$ENCLAVE_NAME" > "$intent_file"
+          add_status=0
+          add_output=$(scripts/testing/e2e/run_before_deadline.sh \
+            kurtosis enclave add -n "$ENCLAVE_NAME" 2>&1) || add_status=$?
+          if (( add_status != 0 )); then
             echo "$add_output" | tee "$ARTIFACT_DIR/enclave-reservation.log" >&2
             exit 1
           fi
           printf '%s\n' "$add_output" > "$ARTIFACT_DIR/enclave-reservation.log"
-          if ! inspect_output=$(kurtosis enclave inspect --full-uuids "$ENCLAVE_NAME" 2>&1); then
-            printf '%s\n' "$inspect_output" | tee -a "$ARTIFACT_DIR/enclave-reservation.log" >&2
+          mv "$intent_file" "$owned_file"
+          if ! enclave_uuid=$(scripts/testing/e2e/run_before_deadline.sh \
+            scripts/testing/e2e/recover_enclave_uuid.sh \
+            "$ENCLAVE_NAME" 60 2>> "$ARTIFACT_DIR/enclave-reservation.log"); then
             echo "The newly reserved enclave was preserved because its UUID could not be captured safely." >&2
             exit 1
           fi
-          enclave_uuid=$(printf '%s\n' "$inspect_output" |
-            awk '$1 == "UUID:" { print $2; exit }')
-          if [[ ! "$enclave_uuid" =~ ^[0-9a-f]{32}$ ]]; then
-            printf '%s\n' "$inspect_output" | tee -a "$ARTIFACT_DIR/enclave-reservation.log" >&2
-            echo "The newly reserved enclave was preserved because inspection returned an invalid full UUID: $enclave_uuid" >&2
-            exit 1
-          fi
-          printf '%s\n' "$inspect_output" >> "$ARTIFACT_DIR/enclave-reservation.log"
           printf 'ENCLAVE_UUID=%s\n' "$enclave_uuid" >> "$GITHUB_ENV"
           printf 'name=%s\nuuid=%s\n' "$ENCLAVE_NAME" "$enclave_uuid" \
             > "$ARTIFACT_DIR/enclave-ownership.txt"
@@ -307,24 +356,29 @@ jobs:
         shell: bash
         run: |
           set -Eeuo pipefail
-          scripts/local_testnet/start_local_testnet.sh -c -k -e "$ENCLAVE_UUID" 2>&1 |
+          deadline_run() {
+            scripts/testing/e2e/run_before_deadline.sh "$@"
+          }
+          deadline_run scripts/local_testnet/start_local_testnet.sh \
+            -c -k -e "$ENCLAVE_UUID" 2>&1 |
             tee "$ARTIFACT_DIR/start-local-testnet.log"
-          docker image inspect \
+          deadline_run docker image inspect \
             "theqrl-dev/go-qrl:${SOURCE_SHA:0:12}" \
             "theqrl-dev/go-qrl-alltools:${SOURCE_SHA:0:12}" \
             "$CL_IMAGE" \
             "$VC_IMAGE" \
             "$GENESIS_IMAGE" \
             > "$ARTIFACT_DIR/go-qrl-images.json"
-          generator_image_id=$(docker image inspect --format '{{.Id}}' "$GENESIS_IMAGE")
-          docker run --rm --pull=never --network=none \
+          generator_image_id=$(deadline_run docker image inspect \
+            --format '{{.Id}}' "$GENESIS_IMAGE")
+          deadline_run docker run --rm --pull=never --network=none \
             --entrypoint cat "$generator_image_id" \
             /apps/el-gen/vm64-deposit-manifest.json \
             > "$ARTIFACT_DIR/vm64-deposit-manifest.json"
 
           runtime_dir="$ARTIFACT_DIR/runtime-services"
           mkdir -p "$runtime_dir"
-          kurtosis enclave inspect --full-uuids "$ENCLAVE_UUID" \
+          deadline_run kurtosis enclave inspect --full-uuids "$ENCLAVE_UUID" \
             > "$runtime_dir/enclave.txt"
           for service in \
             el-1-gqrl-qrysm \
@@ -336,19 +390,24 @@ jobs:
             signer-clef \
             clef-keystore-generation-el-clef-keystore \
             validator-key-generation-cl-validator-keystore; do
-            kurtosis service inspect -o json "$ENCLAVE_UUID" "$service" \
+            deadline_run kurtosis service inspect -o json \
+              "$ENCLAVE_UUID" "$service" \
               > "$runtime_dir/$service.json"
           done
           for service in el-1-gqrl-qrysm el-2-gqrl-qrysm; do
-            kurtosis service exec "$ENCLAVE_UUID" "$service" 'gqrl version' \
+            deadline_run kurtosis service exec \
+              "$ENCLAVE_UUID" "$service" 'gqrl version' \
               > "$runtime_dir/$service.version.txt"
             grep -Fq "$SOURCE_SHA" "$runtime_dir/$service.version.txt"
           done
-          kurtosis service exec "$ENCLAVE_UUID" signer-clef 'clef --version' \
+          deadline_run kurtosis service exec \
+            "$ENCLAVE_UUID" signer-clef 'clef --version' \
             > "$runtime_dir/signer-clef.version.txt"
           grep -Fq "${SOURCE_SHA:0:8}" "$runtime_dir/signer-clef.version.txt"
-          docker run --rm "$CL_IMAGE" --version > "$runtime_dir/cl-image.version.txt"
-          docker run --rm "$VC_IMAGE" --version > "$runtime_dir/vc-image.version.txt"
+          deadline_run docker run --rm "$CL_IMAGE" --version \
+            > "$runtime_dir/cl-image.version.txt"
+          deadline_run docker run --rm "$VC_IMAGE" --version \
+            > "$runtime_dir/vc-image.version.txt"
           grep -Fq "$QRYSM_GIT_COMMIT" "$runtime_dir/cl-image.version.txt"
           grep -Fq "$QRYSM_GIT_COMMIT" "$runtime_dir/vc-image.version.txt"
 
@@ -359,7 +418,8 @@ jobs:
         shell: bash
         run: |
           set -Eeuo pipefail
-          scripts/testing/e2e/run_tests.sh \
+          scripts/testing/e2e/run_before_deadline.sh \
+            scripts/testing/e2e/run_tests.sh \
             -c \
             -e "$ENCLAVE_UUID" \
             -s el-1-gqrl-qrysm \
@@ -373,7 +433,8 @@ jobs:
         shell: bash
         run: |
           set -Eeuo pipefail
-          scripts/testing/e2e/run_tests.sh \
+          scripts/testing/e2e/run_before_deadline.sh \
+            scripts/testing/e2e/run_tests.sh \
             -c \
             -C \
             -e "$ENCLAVE_UUID" \
@@ -388,7 +449,8 @@ jobs:
         shell: bash
         run: |
           set -Eeuo pipefail
-          go run ./scripts/testing/e2e/depositcheck \
+          scripts/testing/e2e/run_before_deadline.sh \
+            go run ./scripts/testing/e2e/depositcheck \
             -enclave "$ENCLAVE_UUID" \
             -generator-image "$GENESIS_IMAGE" \
             -timeout 15m 2>&1 |
@@ -397,11 +459,12 @@ jobs:
       - name: Run multi-node system checks
         id: systemcheck
         if: ${{ !cancelled() && steps.depositcheck.outcome == 'success' }}
-        timeout-minutes: 120
+        timeout-minutes: 125
         shell: bash
         run: |
           set -Eeuo pipefail
-          go run ./scripts/testing/e2e/systemcheck \
+          scripts/testing/e2e/run_before_deadline.sh \
+            go run ./scripts/testing/e2e/systemcheck \
             -enclave "$ENCLAVE_UUID" \
             -require-zero-duty-history \
             -timeout 115m 2>&1 |
@@ -414,7 +477,8 @@ jobs:
         shell: bash
         run: |
           set -Eeuo pipefail
-          go run ./scripts/testing/e2e/freshsync \
+          scripts/testing/e2e/run_before_deadline.sh \
+            go run ./scripts/testing/e2e/freshsync \
             -enclave "$ENCLAVE_UUID" \
             -syncmode snap \
             -timeout 35m \
@@ -430,7 +494,8 @@ jobs:
         shell: bash
         run: |
           set -Eeuo pipefail
-          go run ./scripts/testing/e2e/freshsync \
+          scripts/testing/e2e/run_before_deadline.sh \
+            go run ./scripts/testing/e2e/freshsync \
             -enclave "$ENCLAVE_UUID" \
             -syncmode full \
             -timeout 35m \
@@ -445,12 +510,41 @@ jobs:
         shell: bash
         run: |
           set -Eeuo pipefail
-          if [ -z "${ENCLAVE_UUID:-}" ]; then
-            echo "No captured enclave UUID is available; refusing name-based cleanup."
-            exit 0
+          cleanup_uuid=${ENCLAVE_UUID:-}
+          if [ -z "$cleanup_uuid" ]; then
+            ownership_file="$ARTIFACT_DIR/enclave-reservation-owned-name.txt"
+            intent_file="$ARTIFACT_DIR/enclave-reservation-intent.txt"
+            reservation_state=owned
+            if [ ! -s "$ownership_file" ]; then
+              if [ ! -s "$intent_file" ]; then
+                echo "No captured enclave UUID or reservation marker is available; refusing name-based cleanup."
+                exit 0
+              fi
+              ownership_file=$intent_file
+              reservation_state=ambiguous
+            fi
+            owned_name=$(<"$ownership_file")
+            if [ "$owned_name" != "$ENCLAVE_NAME" ]; then
+              echo "Reservation marker contains $owned_name, expected $ENCLAVE_NAME; refusing cleanup." >&2
+              exit 1
+            fi
+            recovery_log="$ARTIFACT_DIR/enclave-uuid-recovery.log"
+            if ! cleanup_uuid=$(scripts/testing/e2e/recover_enclave_uuid.sh \
+              "$owned_name" 60 2> "$recovery_log"); then
+              echo "Could not recover the UUID for $reservation_state reservation $owned_name; refusing name-based removal." >&2
+              exit 1
+            fi
+            printf 'name=%s\nuuid=%s\nreservation_state=%s\nrecovered_after_reservation=true\n' \
+              "$owned_name" "$cleanup_uuid" "$reservation_state" \
+              > "$ARTIFACT_DIR/enclave-ownership-recovered.txt"
+            echo "Recovered full UUID $cleanup_uuid for $reservation_state reservation $owned_name."
+          fi
+          if [[ ! "$cleanup_uuid" =~ ^[0-9a-f]{32}$ ]]; then
+            echo "Cleanup UUID is invalid: $cleanup_uuid" >&2
+            exit 1
           fi
           scripts/local_testnet/stop_local_testnet.sh \
-            "$ENCLAVE_UUID" "$ARTIFACT_DIR/kurtosis" 2>&1 |
+            "$cleanup_uuid" "$ARTIFACT_DIR/kurtosis" 2>&1 |
             tee "$ARTIFACT_DIR/stop-local-testnet.log"
 
       - name: Upload diagnostics
