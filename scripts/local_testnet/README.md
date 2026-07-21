@@ -127,89 +127,11 @@ passed as the second argument:
 ./stop_local_testnet.sh local-testnet /tmp/local-testnet-dump
 ```
 
-## Running the VM64 end-to-end suites
+## End-to-end tests
 
-With the testnet running, execute:
-
-```bash
-./run_tests.sh
-```
-
-Strict mode rebuilds the host clients, requires HTTP, GraphQL, and WebSocket
-coverage, and preserves each suite's output and command status:
-
-```bash
-./run_tests.sh -c -o ./logs/test-results
-```
-
-The complete `make local-testnet-e2e` target and the GitHub workflow run those
-endpoint-dependent suites independently against both execution nodes. The EL1
-run also performs the standalone Clef cryptographic/API suite; the EL2 run uses
-`-C` to skip only that node-independent repetition. Topology Clef signing from
-both execution nodes is still exercised by the subsequent `systemcheck` gate.
-
-From the repository root, `make vm64-fixture-check` verifies the pinned
-Hyperion compiler output before a network is started. With the network running,
-`make local-testnet-e2e` runs the strict VM64 suites
-against both execution nodes, followed by a real 64-byte validator deposit
-through both EL and CL nodes, then the required two-node, topology-Clef,
-non-empty access-list, finality, restart, and genuinely empty-datadir snap/full
-synchronization checks. See
-[`depositcheck`](depositcheck/README.md) for the deposit lifecycle assertions and
-[`freshsync`](freshsync/README.md) for the temporary third EL/CL topology and
-its cleanup behavior. The canonical target requires zero validator-duty failure
-history, so a failure during an earlier endpoint or deposit phase cannot be
-hidden by a later baseline. A standalone `systemcheck` invocation instead
-baselines process-cumulative Qrysm counters and fails on every subsequent
-increase; pass `-require-zero-duty-history` to opt into the canonical policy.
-The automatic-withdrawal gate proves the exact recipient balance delta on both
-execution nodes while the withdrawal block is fresh. After consensus finality
-advances, it re-reads that block from both nodes and revalidates its hash,
-withdrawal root, exact body, full-width recipient, and amount. This finalized
-check deliberately does not require archive state, so the topology continues to
-exercise ordinary pruning full nodes.
-
-The deposit gate is one-shot. The safest complete local run uses a fresh
-enclave and one keep-awake lifecycle that performs the compiler preflight,
-starts the network, runs every live gate, writes a dump, and removes only that
-enclave:
-
-```bash
-make local-testnet-e2e-from-scratch-awake \
-  LOCAL_TESTNET_ENCLAVE=vm64-e2e \
-  LOCAL_TESTNET_DUMP_DIR=/tmp/vm64-e2e-dump
-```
-
-The from-scratch runner refuses to replace an existing enclave, wraps the whole
-lifecycle with macOS `caffeinate`, and performs the same steps directly on other
-operating systems. Before validators start, it also runs
-`local-testnet-host-preflight` so strict client rebuilds and all Go helpers use a
-warm host cache rather than competing with five-second duties. Use that target
-before manually provisioning a network too. `local-testnet-e2e-awake` remains
-available when a network is already running, but strict zero-history evidence
-begins when its validator processes start, so protect provisioning from sleep
-too. Keep laptops on AC power when possible: suspending a five-second-slot
-network makes already expired validator duties replay during wake-up and
-invalidates timing-sensitive finality evidence. Caffeinate cannot prevent
-lid-close or critical-battery sleep.
-
-Keep the Hyperion fixture preflight outside the live-network window: its
-compiler image is intentionally large and must not compete with the
-timing-sensitive clients for Docker disk or CPU.
-
-If startup used a `GENESIS_IMAGE` override, pass the same image reference (tag
-or image ID) as `LOCAL_TESTNET_GENESIS_IMAGE`; the deposit checker resolves it
-to an immutable image ID before validation. The Make target covers the runtime
-and generated Hyperion fixture. The GitHub workflow additionally runs actionlint, pinned
-ShellCheck, JavaScript syntax checks, generated-artifact drift checks, all Go
-tests and vet, race-sensitive packages, and bounded native fuzzing.
-
-The `VM64 end-to-end` GitHub Actions workflow runs this mode in an isolated,
-run-specific enclave. It pulls digest-pinned base/toolchain images, builds
-source-revision-tagged final images, and uploads the effective network
-parameters, deposit manifest, per-suite results, image metadata, and Kurtosis
-dump even when a suite fails. Digest updates are explicit reviewable changes
-to `images.lock.env`; a same-source workflow rerun never follows a moved tag.
+Starting or stopping this network does not run tests. The VM64 suites and their
+isolated lifecycle runner live in [`../testing/e2e`](../testing/e2e); see that
+directory's [README](../testing/e2e/README.md) for test commands and coverage.
 
 ## CLI options
 

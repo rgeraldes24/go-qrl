@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 
 # Runs the JavaScript E2E suites in ./tests against a running local testnet
-# (see start_local_testnet.sh) through the gqrl console.
+# (see scripts/local_testnet/start_local_testnet.sh) through the gqrl console.
 
 set -Eeuo pipefail
 
 SCRIPT_DIR="$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
-ROOT_DIR="$SCRIPT_DIR/../.."
+ROOT_DIR="$SCRIPT_DIR/../../.."
 ENCLAVE_NAME=local-testnet
 EL_SERVICE=el-1-gqrl-qrysm
 RPC_URL=""
@@ -21,7 +21,7 @@ RESULTS_DIR=""
 EXPECTED_GIT_COMMIT=${EXPECTED_GIT_COMMIT:-}
 
 # Prefunded dev account (see the prefunded_accounts comment in
-# network_params.yaml); used to sign the deployment transaction for
+# scripts/local_testnet/network_params.yaml); used to sign the deployment transaction for
 # tests/event_roundtrip.js.
 DEPLOYER_SEED=010000f29f58aff0b00de2844f7e20bd9eeaacc379150043beeb328335817512b29fbb7184da84a092f842b2a06d72a24a5d28
 
@@ -239,7 +239,7 @@ if [ -z "$EMITTER_BIN" ]; then
     exit 1
 fi
 echo "Signing the event_roundtrip deployment transaction."
-(cd "$ROOT_DIR" && go run ./scripts/local_testnet/txsigner \
+(cd "$ROOT_DIR" && go run ./scripts/testing/e2e/txsigner \
     -rpc "$RPC_URL" -seed "$DEPLOYER_SEED" -data "$EMITTER_BIN" -format js) \
     > "$PARAMS_FILE"
 
@@ -256,7 +256,7 @@ if [ -n "$WS_URL" ]; then
     GOABI_ARGS+=(-ws "$WS_URL")
 fi
 pushd "$ROOT_DIR" >/dev/null
-run_suite go_abi go run ./scripts/local_testnet/goabi "${GOABI_ARGS[@]}"
+run_suite go_abi go run ./scripts/testing/e2e/goabi "${GOABI_ARGS[@]}"
 popd >/dev/null
 
 run_clef_api() (
@@ -423,7 +423,7 @@ EOF
         "http://127.0.0.1:$CLEF_PORT/")
     printf '%s\n' "$SIGN_TX_RESPONSE" > "$CLEF_ARTIFACT_DIR/tx-response.json"
 
-    (cd "$ROOT_DIR" && go run ./scripts/local_testnet/clefverify \
+    (cd "$ROOT_DIR" && go run ./scripts/testing/e2e/clefverify \
         -seed "$DEPLOYER_SEED" \
         -account "$CLEF_ACCOUNT" \
         -version-response "$CLEF_ARTIFACT_DIR/version-response.json" \

@@ -54,7 +54,7 @@ tests cannot cover. It targets the default two-participant topology in
 Run it after the non-disruptive local-testnet suites:
 
 ```bash
-go run ./scripts/local_testnet/systemcheck \
+go run ./scripts/testing/e2e/systemcheck \
   -enclave local-testnet \
   -timeout 115m
 ```

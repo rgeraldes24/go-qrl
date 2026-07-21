@@ -3,8 +3,9 @@
 set -Eeuo pipefail
 
 SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
-REPO_ROOT=$(cd -- "$SCRIPT_DIR/../.." && pwd)
+REPO_ROOT=$(cd -- "$SCRIPT_DIR/../../.." && pwd)
 SCRIPT_PATH="$SCRIPT_DIR/$(basename -- "${BASH_SOURCE[0]}")"
+NETWORK_DIR="$REPO_ROOT/scripts/local_testnet"
 
 ENCLAVE_NAME=vm64-e2e
 DUMP_DIR=
@@ -76,7 +77,7 @@ stop_owned_enclave() {
 		echo "Reserved enclave lookup returned UUID $current_uuid, expected $owned_uuid; refusing cleanup." >&2
 		return 1
 	fi
-	"$SCRIPT_DIR/stop_local_testnet.sh" "$owned_uuid" "$DUMP_DIR"
+	"$NETWORK_DIR/stop_local_testnet.sh" "$owned_uuid" "$DUMP_DIR"
 }
 
 cleanup() {
@@ -118,7 +119,7 @@ make vm64-fixture-check
 make local-testnet-host-preflight
 
 # -k prevents the startup helper from deleting the atomically reserved enclave.
-"$SCRIPT_DIR/start_local_testnet.sh" -k -e "$owned_uuid"
+"$NETWORK_DIR/start_local_testnet.sh" -k -e "$owned_uuid"
 make local-testnet-e2e LOCAL_TESTNET_ENCLAVE="$owned_uuid"
 
 cleanup_attempted=1

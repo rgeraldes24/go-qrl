@@ -1,7 +1,7 @@
 # Local Testnet E2E Tests
 
-These suites run against the network created by `start_local_testnet.sh`. From
-`scripts/local_testnet`, run:
+These suites run against the network created by
+`scripts/local_testnet/start_local_testnet.sh`. From `scripts/testing/e2e`, run:
 
 ```bash
 ./run_tests.sh
@@ -36,7 +36,7 @@ production, prepares signed deployment transactions, and executes:
 The suite can also target an existing node directly:
 
 ```bash
-../run_tests.sh -r http://127.0.0.1:8547 -w ws://127.0.0.1:8548
+./run_tests.sh -r http://127.0.0.1:8547 -w ws://127.0.0.1:8548
 ```
 
 CI uses strict mode, which makes GraphQL and WebSocket availability mandatory,
@@ -45,7 +45,7 @@ plus one log per suite. The full workflow runs these endpoint-dependent checks
 against both execution services with isolated result directories:
 
 ```bash
-../run_tests.sh -c -o ../logs/test-results
+./run_tests.sh -c -o ./logs/test-results
 ```
 
 For a secondary execution-node run after the standalone Clef suite has already
@@ -54,7 +54,7 @@ not skip any console, RPC, GraphQL, WebSocket, ABI, storage, proof, transaction,
 or event check:
 
 ```bash
-../run_tests.sh -c -C -s el-2-gqrl-qrysm -o ../logs/test-results/el-2
+./run_tests.sh -c -C -s el-2-gqrl-qrysm -o ./logs/test-results/el-2
 ```
 
 The first run retains `clef_api`, and the later `systemcheck` separately proves
@@ -92,12 +92,12 @@ To update the fixture intentionally, compile with the same pinned VM64 Hyperion
 revision recorded in `emitter.js`:
 
 ```bash
-cd fixtures
+cd tests/fixtures
 hypc --bin --abi --storage-layout --no-cbor-metadata -o . --overwrite EventEmitter.hyp
 go run generate_emitter_js.go
-cd ../../../..
-go generate ./scripts/local_testnet/goabi
-go test ./scripts/local_testnet/goabi
+cd ../../../../..
+go generate ./scripts/testing/e2e/goabi
+go test ./scripts/testing/e2e/goabi
 ```
 
 The fast Go test fails if the checked-in ABI, bytecode, storage layout,

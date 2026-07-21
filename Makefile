@@ -59,21 +59,21 @@ devtools:
 
 #? vm64-fixture-check: Recompile and verify VM64 Hyperion contract artifacts with the pinned toolchain.
 vm64-fixture-check:
-	./scripts/local_testnet/tests/fixtures/verify_hyperion_fixture.sh
+	./scripts/testing/e2e/tests/fixtures/verify_hyperion_fixture.sh
 
 #? local-testnet-host-preflight: Warm every host binary used by the live VM64 lifecycle before validators start.
 local-testnet-host-preflight:
 	go run build/ci.go install ./cmd/gqrl ./cmd/clef
-	go build ./scripts/local_testnet/txsigner ./scripts/local_testnet/goabi ./scripts/local_testnet/clefverify ./scripts/local_testnet/depositcheck ./scripts/local_testnet/systemcheck ./scripts/local_testnet/freshsync
+	go build ./scripts/testing/e2e/txsigner ./scripts/testing/e2e/goabi ./scripts/testing/e2e/clefverify ./scripts/testing/e2e/depositcheck ./scripts/testing/e2e/systemcheck ./scripts/testing/e2e/freshsync
 
 #? local-testnet-e2e: Run strict VM64, deposit, multi-node, and fresh-sync checks against a running testnet.
 local-testnet-e2e:
-	EXPECTED_GIT_COMMIT="$(LOCAL_TESTNET_GIT_COMMIT)" ./scripts/local_testnet/run_tests.sh -c -e "$(LOCAL_TESTNET_ENCLAVE)" -s el-1-gqrl-qrysm -o scripts/local_testnet/logs/test-results/el-1
-	EXPECTED_GIT_COMMIT="$(LOCAL_TESTNET_GIT_COMMIT)" ./scripts/local_testnet/run_tests.sh -c -C -e "$(LOCAL_TESTNET_ENCLAVE)" -s el-2-gqrl-qrysm -o scripts/local_testnet/logs/test-results/el-2
-	go run ./scripts/local_testnet/depositcheck -enclave "$(LOCAL_TESTNET_ENCLAVE)" -generator-image "$(LOCAL_TESTNET_GENESIS_IMAGE)"
-	go run ./scripts/local_testnet/systemcheck -enclave "$(LOCAL_TESTNET_ENCLAVE)" -require-zero-duty-history
-	go run ./scripts/local_testnet/freshsync -enclave "$(LOCAL_TESTNET_ENCLAVE)" -syncmode snap -fresh-el-service fresh-sync-el-snap -fresh-cl-service fresh-sync-cl-snap
-	go run ./scripts/local_testnet/freshsync -enclave "$(LOCAL_TESTNET_ENCLAVE)" -syncmode full -fresh-el-service fresh-sync-el-full -fresh-cl-service fresh-sync-cl-full
+	EXPECTED_GIT_COMMIT="$(LOCAL_TESTNET_GIT_COMMIT)" ./scripts/testing/e2e/run_tests.sh -c -e "$(LOCAL_TESTNET_ENCLAVE)" -s el-1-gqrl-qrysm -o scripts/testing/e2e/logs/test-results/el-1
+	EXPECTED_GIT_COMMIT="$(LOCAL_TESTNET_GIT_COMMIT)" ./scripts/testing/e2e/run_tests.sh -c -C -e "$(LOCAL_TESTNET_ENCLAVE)" -s el-2-gqrl-qrysm -o scripts/testing/e2e/logs/test-results/el-2
+	go run ./scripts/testing/e2e/depositcheck -enclave "$(LOCAL_TESTNET_ENCLAVE)" -generator-image "$(LOCAL_TESTNET_GENESIS_IMAGE)"
+	go run ./scripts/testing/e2e/systemcheck -enclave "$(LOCAL_TESTNET_ENCLAVE)" -require-zero-duty-history
+	go run ./scripts/testing/e2e/freshsync -enclave "$(LOCAL_TESTNET_ENCLAVE)" -syncmode snap -fresh-el-service fresh-sync-el-snap -fresh-cl-service fresh-sync-cl-snap
+	go run ./scripts/testing/e2e/freshsync -enclave "$(LOCAL_TESTNET_ENCLAVE)" -syncmode full -fresh-el-service fresh-sync-el-full -fresh-cl-service fresh-sync-cl-full
 
 #? local-testnet-e2e-awake: Run the complete testnet gate while preventing macOS sleep.
 local-testnet-e2e-awake:
@@ -85,7 +85,7 @@ local-testnet-e2e-awake:
 
 #? local-testnet-e2e-from-scratch-awake: Run preflight, start, live gates, dump, and cleanup under one keep-awake assertion.
 local-testnet-e2e-from-scratch-awake:
-	./scripts/local_testnet/run_e2e_from_scratch.sh -e "$(LOCAL_TESTNET_ENCLAVE)" -d "$(LOCAL_TESTNET_DUMP_DIR)"
+	./scripts/testing/e2e/run_e2e_from_scratch.sh -e "$(LOCAL_TESTNET_ENCLAVE)" -d "$(LOCAL_TESTNET_DUMP_DIR)"
 
 #? help: Get more info on make commands.
 help: Makefile

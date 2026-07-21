@@ -41,7 +41,7 @@ would not prove that path.
 Run it after the strict RPC suites and before any restart/fresh-sync phase:
 
 ```sh
-go run ./scripts/local_testnet/depositcheck \
+go run ./scripts/testing/e2e/depositcheck \
   -enclave "$ENCLAVE_NAME" \
   -generator-image "$GENESIS_IMAGE"
 ```

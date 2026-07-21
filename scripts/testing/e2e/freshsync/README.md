@@ -46,13 +46,13 @@ Run snap and full modes after `systemcheck` has established a healthy and
 finalized two-participant network:
 
 ```bash
-go run ./scripts/local_testnet/freshsync \
+go run ./scripts/testing/e2e/freshsync \
   -enclave local-testnet \
   -syncmode snap \
   -fresh-el-service fresh-sync-el-snap \
   -fresh-cl-service fresh-sync-cl-snap
 
-go run ./scripts/local_testnet/freshsync \
+go run ./scripts/testing/e2e/freshsync \
   -enclave local-testnet \
   -syncmode full \
   -fresh-el-service fresh-sync-el-full \

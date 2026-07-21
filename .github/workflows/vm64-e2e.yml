@@ -33,25 +33,25 @@ jobs:
         run: |
           set -Eeuo pipefail
           go run github.com/rhysd/actionlint/cmd/actionlint@v1.7.7
-          find scripts/local_testnet -type f -name '*.sh' -print0 |
+          find scripts/local_testnet scripts/testing/e2e -type f -name '*.sh' -print0 |
             xargs -0 docker run --rm \
               --network=none \
               -v "$PWD:/mnt:ro" \
               -w /mnt \
               koalaman/shellcheck@sha256:bb596a0d169b85ddd81d8b6d3a2ff6d5baf5fca10b97f575ebc647c3dff62b3d \
               --severity=warning
-          for script in scripts/local_testnet/tests/*.js scripts/local_testnet/tests/fixtures/*.js; do
+          for script in scripts/testing/e2e/tests/*.js scripts/testing/e2e/tests/fixtures/*.js; do
             node --check "$script"
           done
           python3 scripts/local_testnet/vm64_genesis_gqrl.py --self-test
-          go generate ./scripts/local_testnet/goabi
+          go generate ./scripts/testing/e2e/goabi
           (
-            cd scripts/local_testnet/tests/fixtures
+            cd scripts/testing/e2e/tests/fixtures
             go run generate_emitter_js.go
           )
           git diff --exit-code -- \
-            scripts/local_testnet/goabi/emitter_binding.go \
-            scripts/local_testnet/tests/fixtures/emitter.js
+            scripts/testing/e2e/goabi/emitter_binding.go \
+            scripts/testing/e2e/tests/fixtures/emitter.js
 
       - name: Run the complete Go test and vet suites
         shell: bash
@@ -75,12 +75,12 @@ jobs:
             ./core/vm \
             ./core/vm/runtime \
             ./internal/jsre \
-            ./scripts/local_testnet/clefverify \
-            ./scripts/local_testnet/depositcheck \
-            ./scripts/local_testnet/freshsync \
-            ./scripts/local_testnet/goabi \
-            ./scripts/local_testnet/systemcheck \
-            ./scripts/local_testnet/txsigner
+            ./scripts/testing/e2e/clefverify \
+            ./scripts/testing/e2e/depositcheck \
+            ./scripts/testing/e2e/freshsync \
+            ./scripts/testing/e2e/goabi \
+            ./scripts/testing/e2e/systemcheck \
+            ./scripts/testing/e2e/txsigner
 
       - name: Run bounded native fuzzing
         shell: bash
@@ -203,19 +203,19 @@ jobs:
         run: |
           set -Eeuo pipefail
           bash -n \
-            scripts/local_testnet/run_e2e_from_scratch.sh \
+            scripts/testing/e2e/run_e2e_from_scratch.sh \
             scripts/local_testnet/start_local_testnet.sh \
-            scripts/local_testnet/run_tests.sh \
+            scripts/testing/e2e/run_tests.sh \
             scripts/local_testnet/stop_local_testnet.sh
-          for script in scripts/local_testnet/tests/*.js scripts/local_testnet/tests/fixtures/*.js; do
+          for script in scripts/testing/e2e/tests/*.js scripts/testing/e2e/tests/fixtures/*.js; do
             node --check "$script"
           done
           go test -count=1 \
-            ./scripts/local_testnet/goabi \
-            ./scripts/local_testnet/txsigner \
-            ./scripts/local_testnet/depositcheck \
-            ./scripts/local_testnet/systemcheck \
-            ./scripts/local_testnet/freshsync
+            ./scripts/testing/e2e/goabi \
+            ./scripts/testing/e2e/txsigner \
+            ./scripts/testing/e2e/depositcheck \
+            ./scripts/testing/e2e/systemcheck \
+            ./scripts/testing/e2e/freshsync
 
       - name: Install pinned testnet tooling
         timeout-minutes: 10
@@ -359,7 +359,7 @@ jobs:
         shell: bash
         run: |
           set -Eeuo pipefail
-          scripts/local_testnet/run_tests.sh \
+          scripts/testing/e2e/run_tests.sh \
             -c \
             -e "$ENCLAVE_UUID" \
             -s el-1-gqrl-qrysm \
@@ -373,7 +373,7 @@ jobs:
         shell: bash
         run: |
           set -Eeuo pipefail
-          scripts/local_testnet/run_tests.sh \
+          scripts/testing/e2e/run_tests.sh \
             -c \
             -C \
             -e "$ENCLAVE_UUID" \
@@ -388,7 +388,7 @@ jobs:
         shell: bash
         run: |
           set -Eeuo pipefail
-          go run ./scripts/local_testnet/depositcheck \
+          go run ./scripts/testing/e2e/depositcheck \
             -enclave "$ENCLAVE_UUID" \
             -generator-image "$GENESIS_IMAGE" \
             -timeout 15m 2>&1 |
@@ -401,7 +401,7 @@ jobs:
         shell: bash
         run: |
           set -Eeuo pipefail
-          go run ./scripts/local_testnet/systemcheck \
+          go run ./scripts/testing/e2e/systemcheck \
             -enclave "$ENCLAVE_UUID" \
             -require-zero-duty-history \
             -timeout 115m 2>&1 |
@@ -414,7 +414,7 @@ jobs:
         shell: bash
         run: |
           set -Eeuo pipefail
-          go run ./scripts/local_testnet/freshsync \
+          go run ./scripts/testing/e2e/freshsync \
             -enclave "$ENCLAVE_UUID" \
             -syncmode snap \
             -timeout 35m \
@@ -430,7 +430,7 @@ jobs:
         shell: bash
         run: |
           set -Eeuo pipefail
-          go run ./scripts/local_testnet/freshsync \
+          go run ./scripts/testing/e2e/freshsync \
             -enclave "$ENCLAVE_UUID" \
             -syncmode full \
             -timeout 35m \

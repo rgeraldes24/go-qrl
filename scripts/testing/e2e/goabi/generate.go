@@ -19,6 +19,6 @@ package main
 // Regenerate the checked-in Go binding from the deterministic Hyperion
 // artifacts. This command does not require hypc:
 //
-//     go generate ./scripts/local_testnet/goabi
+//     go generate ./scripts/testing/e2e/goabi
 //
-//go:generate go run ../../../cmd/abigen --abi ../tests/fixtures/EventEmitter.abi --bin ../tests/fixtures/EventEmitter.bin --pkg main --type EventEmitter --out emitter_binding.go
+//go:generate go run ../../../../cmd/abigen --abi ../tests/fixtures/EventEmitter.abi --bin ../tests/fixtures/EventEmitter.bin --pkg main --type EventEmitter --out emitter_binding.go

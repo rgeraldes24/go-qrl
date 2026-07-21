@@ -18,4 +18,5 @@ build/cache
 # and endpoint-specific generated parameters. None belongs in an image layer
 # or a reusable builder cache.
 scripts/local_testnet/logs
-scripts/local_testnet/tests/.params.js
+scripts/testing/e2e/logs
+scripts/testing/e2e/tests/.params.js

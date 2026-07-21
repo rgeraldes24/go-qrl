@@ -8,8 +8,8 @@
 // any divergence is a consensus bug.
 //
 // This package contains the Go-side runner only. The matching C++ runner
-// lives in qrvmone/test/conformance; the driver script that compares both
-// outputs is hack/vm-conformance.sh.
+// lives in qrvmone/test/conformance; a cross-runtime comparison driver is not
+// included in this repository.
 package conformance
 
 import (

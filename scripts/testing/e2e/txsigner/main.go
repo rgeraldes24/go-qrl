@@ -15,7 +15,7 @@
 
 // txsigner builds and signs a transaction from a raw ML-DSA-87 wallet seed
 // against a running node. The gqrl console has no account management, so the
-// local testnet test runner (scripts/local_testnet/run_tests.sh) uses this
+// local testnet test runner (scripts/testing/e2e/run_tests.sh) uses this
 // helper to pre-sign transactions from the prefunded dev accounts and feeds
 // the result to qrl.sendRawTransaction inside the JavaScript suites.
 package main

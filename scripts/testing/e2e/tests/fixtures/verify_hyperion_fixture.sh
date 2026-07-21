@@ -27,9 +27,9 @@ readonly HYPERION_SOURCE_SHA256="d743cf3d6eb5482a425d9bf75bc9aa9778256b4ad3ac84e
 readonly HYPERION_BUILD_IMAGE="solbuildpackpusher/solidity-buildpack-deps@sha256:4df420b7ccd96f540a4300a4fae0fcac2f4d3f23ffff9e3777c1f2d7c37ef901"
 
 SCRIPT_DIR=$(CDPATH='' cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)
-REPO_ROOT=$(CDPATH='' cd -- "${SCRIPT_DIR}/../../../.." && pwd -P)
+REPO_ROOT=$(CDPATH='' cd -- "${SCRIPT_DIR}/../../../../.." && pwd -P)
 readonly SCRIPT_DIR REPO_ROOT
-readonly FIXTURE_SOURCE="scripts/local_testnet/tests/fixtures/EventEmitter.hyp"
+readonly FIXTURE_SOURCE="scripts/testing/e2e/tests/fixtures/EventEmitter.hyp"
 
 if (( $# != 0 )); then
 	printf 'usage: %s\n' "$0" >&2
@@ -217,7 +217,7 @@ cp "${compiled_dir}/EventEmitter.bin" "${derived_dir}/"
 )
 
 compare_artifact "${SCRIPT_DIR}/emitter.js" "${derived_dir}/emitter.js" true || status=1
-compare_artifact "${REPO_ROOT}/scripts/local_testnet/goabi/emitter_binding.go" \
+compare_artifact "${REPO_ROOT}/scripts/testing/e2e/goabi/emitter_binding.go" \
 	"${derived_dir}/emitter_binding.go" true || status=1
 
 if (( status != 0 )); then
@@ -227,6 +227,6 @@ fi
 
 (
 	cd "$REPO_ROOT"
-	go test -count=1 ./scripts/local_testnet/goabi
+	go test -count=1 ./scripts/testing/e2e/goabi
 )
 printf 'Hyperion fixture and generated artifacts match compiler %s.\n' "$HYPERION_COMMIT"

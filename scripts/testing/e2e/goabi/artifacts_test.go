@@ -53,10 +53,10 @@ func TestEventEmitterArtifactsInSync(t *testing.T) {
 	// particular, this normalizes internalType strings such as "struct X".
 	wantBindingABI := strings.ReplaceAll(abiText, " ", "")
 	if EventEmitterMetaData.ABI != wantBindingABI {
-		t.Fatal("generated binding ABI differs from EventEmitter.abi; run go generate ./scripts/local_testnet/goabi")
+		t.Fatal("generated binding ABI differs from EventEmitter.abi; run go generate ./scripts/testing/e2e/goabi")
 	}
 	if normalizeHex(EventEmitterMetaData.Bin) != normalizeHex(binText) {
-		t.Fatal("generated binding bytecode differs from EventEmitter.bin; run go generate ./scripts/local_testnet/goabi")
+		t.Fatal("generated binding bytecode differs from EventEmitter.bin; run go generate ./scripts/testing/e2e/goabi")
 	}
 
 	abiLine := "  abi: " + abiText + ",\n"
