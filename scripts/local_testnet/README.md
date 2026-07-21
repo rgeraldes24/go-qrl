@@ -15,12 +15,30 @@ Reproducing every CI-only static gate also requires actionlint and ShellCheck.
 The source-built execution, alltools, Qrysm, generator, and Hyperion toolchains
 need several gigabytes of free Docker disk space.
 
+## Preparing without starting a network
+
+Preparation is independently reusable. It builds or selects the pinned images,
+attests their revisions, writes an effective Kurtosis parameter file, and emits
+machine-readable provenance without creating, inspecting, or removing an
+enclave:
+
+```bash
+EFFECTIVE_PARAMS_OUTPUT=/tmp/local-testnet/network_params.effective.yaml \
+PREPARATION_OUTPUT=/tmp/local-testnet/preparation.json \
+  ./scripts/local_testnet/prepare_local_testnet.sh
+```
+
+The network launcher calls this same preparation entrypoint before performing
+the enclave lifecycle and package run. `make vm64-e2e-unit` runs preparation's
+shell boundary test along with the nested E2E unit checks; it can also be run
+directly with `./scripts/local_testnet/prepare_local_testnet_test.sh`.
+
 ## Starting the testnet
 
 To start a testnet, from the go-qrl root repository:
+
 ```bash
-cd ./scripts/local_testnet
-./start_local_testnet.sh
+./scripts/local_testnet/start_local_testnet.sh
 ```
 
 When images are built, they are tagged with the checked-out Git commit and the
@@ -48,9 +66,12 @@ standard empty deposit root `0xd70a...e5e` and rejects the uninitialized VM64
 regression root `0x691a...c5c`.
 
 You will see a list of services running and "Started!" at the end. To select
-an existing go-qrl Docker image, start with `-b false` and either set
-`EL_IMAGE` or set `el_image` in `network_params.yaml` without an image
-override. Full configuration reference for Kurtosis is specified
+existing go-qrl Docker images, start with `-b false`. Set `EL_IMAGE` and
+`ALLTOOLS_IMAGE` explicitly, or leave an override unset to resolve that image
+from `el_image` or `remote_signer_image` in `network_params.yaml`. Every
+participant must provide the same non-empty value for an image resolved from
+YAML; preparation fails before touching an enclave if a value is missing or
+mixed. Full configuration reference for Kurtosis is specified
 [here](https://github.com/theQRL/qrl-package?tab=readme-ov-file#configuration).
 
 To view all running services:
@@ -89,13 +110,15 @@ where `$SERVICE_NAME` can be viewed by running `kurtosis enclave inspect local-t
 Some testnet parameters can be varied by modifying `network_params.yaml`.
 Startup normally builds the checkout and injects `EL_IMAGE`; setting that
 variable while builds are enabled chooses the tag for the newly built image.
-To select an already-existing execution image, pass `-b false` and set
-`EL_IMAGE`. The YAML `el_image` value is used only with `-b false` and no image
-override. Kurtosis also provides a web UI through `kurtosis web`.
+To select already-existing execution and remote-signer images, pass `-b false`
+and set `EL_IMAGE` and `ALLTOOLS_IMAGE`. When either override is omitted, its
+YAML value is accepted only when every participant declares one consistent
+image. Kurtosis also provides a web UI through `kurtosis web`.
 
 ## Attaching a console
 
-To attach a gqrl console to the first execution node:
+From the go-qrl repository root, attach a gqrl console to the first execution
+node:
 
 ```bash
 ./build/bin/gqrl attach "http://$(kurtosis port print local-testnet el-1-gqrl-qrysm rpc)"
@@ -113,8 +136,7 @@ qrl.sendTransaction({from: qrl.accounts[0], to: qrl.accounts[0], value: 1})
 To stop the testnet, from the go-qrl root repository:
 
 ```bash
-cd ./scripts/local_testnet
-./stop_local_testnet.sh
+./scripts/local_testnet/stop_local_testnet.sh
 ```
 
 This dumps all service logs to `./logs` before destroying the enclave. It
@@ -124,19 +146,23 @@ so diagnostic state is not destroyed. An alternative dump directory can be
 passed as the second argument:
 
 ```bash
-./stop_local_testnet.sh local-testnet /tmp/local-testnet-dump
+./scripts/local_testnet/stop_local_testnet.sh local-testnet /tmp/local-testnet-dump
 ```
 
 ## End-to-end tests
 
-Starting or stopping this network does not run tests. The VM64 suites and their
-isolated lifecycle runner live in [`../testing/e2e`](../testing/e2e); see that
-directory's [README](../testing/e2e/README.md) for test commands and coverage.
+Starting or stopping this network does not run the E2E suites. Provisioning
+still runs the deterministic genesis adapter's integrity self-test before
+launch. The VM64 suites and their isolated lifecycle runner live in
+[`../testing/e2e`](../testing/e2e); see that directory's
+[README](../testing/e2e/README.md) for test commands and coverage.
 
 ## CLI options
 
-The script comes with some CLI options, which can be viewed with `./start_local_testnet.sh -h`. One of the CLI options is to avoid rebuilding go-qrl each time the testnet starts, which can be configured with the command:
+The script comes with some CLI options, which can be viewed with
+`./scripts/local_testnet/start_local_testnet.sh -h`. One option avoids
+rebuilding go-qrl each time the testnet starts:
 
 ```bash
-./start_local_testnet.sh -b false
+./scripts/local_testnet/start_local_testnet.sh -b false
 ```

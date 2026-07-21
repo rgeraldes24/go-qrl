@@ -1907,7 +1907,7 @@ var bindTests = []struct {
 
 // TestGolangBindingsCompile verifies that every legacy binding fixture still
 // generates valid Go against the current VM64 types. Runtime behavior is
-// covered by the Hyperion-compiled VM64 binding in scripts/testing/e2e/goabi.
+// covered by the Hyperion-compiled VM64 binding in scripts/testing/e2e/suites/goabi.
 func TestGolangBindingsCompile(t *testing.T) {
 	// Skip the test if no Go command can be found
 	gocmd := runtime.GOROOT() + "/bin/go"

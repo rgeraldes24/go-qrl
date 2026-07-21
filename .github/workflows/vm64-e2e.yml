@@ -12,53 +12,32 @@ permissions:
 
 concurrency:
   group: vm64-e2e-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
+  # A canceled owned lifecycle cannot complete its 20-minute finalizer and
+  # artifact upload inside GitHub's short cancellation grace period.
+  cancel-in-progress: false
 
 jobs:
   vm64-unit:
+    name: Root Go unit tests
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     steps:
       - name: Check out the tested revision
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
-      - name: Set up Go
+      - name: Set up root-module Go
         uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 # v5.5.0
         with:
           go-version-file: go.mod
+          cache-dependency-path: go.sum
           cache: true
 
-      - name: Validate workflow, shell, JavaScript, and generated artifacts
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          go run github.com/rhysd/actionlint/cmd/actionlint@v1.7.7
-          find scripts/local_testnet scripts/testing/e2e -type f -name '*.sh' -print0 |
-            xargs -0 docker run --rm \
-              --network=none \
-              -v "$PWD:/mnt:ro" \
-              -w /mnt \
-              koalaman/shellcheck@sha256:bb596a0d169b85ddd81d8b6d3a2ff6d5baf5fca10b97f575ebc647c3dff62b3d \
-              --severity=warning
-          for script in scripts/testing/e2e/tests/*.js scripts/testing/e2e/tests/fixtures/*.js; do
-            node --check "$script"
-          done
-          python3 scripts/local_testnet/vm64_genesis_gqrl.py --self-test
-          go generate ./scripts/testing/e2e/goabi
-          (
-            cd scripts/testing/e2e/tests/fixtures
-            go run generate_emitter_js.go
-          )
-          git diff --exit-code -- \
-            scripts/testing/e2e/goabi/emitter_binding.go \
-            scripts/testing/e2e/tests/fixtures/emitter.js
-
-      - name: Run the complete Go test and vet suites
+      - name: Run root tests and vet
         shell: bash
         run: |
           set -Eeuo pipefail
           go test -count=1 -timeout=20m \
-            -covermode=atomic -coverprofile="$RUNNER_TEMP/vm64-unit.coverage" ./...
+            -covermode=atomic -coverprofile="$RUNNER_TEMP/vm64-root.coverage" ./...
           go vet ./...
 
       - name: Run race-sensitive VM64 packages
@@ -74,13 +53,7 @@ jobs:
             ./console \
             ./core/vm \
             ./core/vm/runtime \
-            ./internal/jsre \
-            ./scripts/testing/e2e/clefverify \
-            ./scripts/testing/e2e/depositcheck \
-            ./scripts/testing/e2e/freshsync \
-            ./scripts/testing/e2e/goabi \
-            ./scripts/testing/e2e/systemcheck \
-            ./scripts/testing/e2e/txsigner
+            ./internal/jsre
 
       - name: Run bounded native fuzzing
         shell: bash
@@ -92,26 +65,109 @@ jobs:
           go test -run='^$' -fuzz='^FuzzPrecompiledContracts$' -fuzztime=20s -parallel=2 ./core/vm
           go test -run='^$' -fuzz='^FuzzDepositRootInputCompatibility$' -fuzztime=20s -parallel=2 ./core/vm
 
-      - name: Upload unit coverage
+      - name: Upload root coverage
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          name: vm64-unit-coverage-${{ github.run_id }}-${{ github.run_attempt }}
-          path: ${{ runner.temp }}/vm64-unit.coverage
+          name: vm64-root-coverage-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/vm64-root.coverage
           if-no-files-found: warn
           retention-days: 14
 
-  hyperion-fixture:
+  vm64-e2e-unit:
+    name: E2E harness unit tests (Go 1.26)
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     steps:
       - name: Check out the tested revision
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
-      - name: Set up Go
+      - name: Set up E2E-module Go 1.26
         uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 # v5.5.0
         with:
-          go-version-file: go.mod
+          go-version: '1.26.0'
+          cache-dependency-path: |
+            go.sum
+            scripts/testing/e2e/go.sum
+          cache: true
+
+      - name: Validate workflow, scripts, JavaScript, and generated artifacts
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          go run github.com/rhysd/actionlint/cmd/actionlint@v1.7.7
+          find scripts/local_testnet scripts/testing/e2e scripts/upload-github-release-asset.sh \
+            -type f -name '*.sh' -print0 |
+            xargs -0 docker run --rm \
+              --network=none \
+              -v "$PWD:/mnt:ro" \
+              -w /mnt \
+              koalaman/shellcheck@sha256:bb596a0d169b85ddd81d8b6d3a2ff6d5baf5fca10b97f575ebc647c3dff62b3d \
+              --severity=warning
+          if grep -R -n --include='*.sh' 'testing/e2e' scripts/local_testnet; then
+            echo 'Network provisioning scripts must not depend on the E2E suite.' >&2
+            exit 1
+          fi
+          for script in scripts/testing/e2e/testdata/console/*.js scripts/testing/e2e/testdata/contracts/*.js; do
+            node --check "$script"
+          done
+          python3 scripts/testing/e2e/lifecycle_state_test.py
+          scripts/testing/e2e/lifecycle_lib_test.sh
+          scripts/testing/e2e/run_live_stages_test.sh
+          scripts/testing/e2e/recover_enclave_uuid_test.sh
+          deadline_guard_smoke_epoch=$(( $(date +%s) + 60 ))
+          VM64_E2E_PRE_CLEANUP_DEADLINE_EPOCH="$deadline_guard_smoke_epoch" \
+            scripts/testing/e2e/run_before_deadline.sh true
+          scripts/local_testnet/prepare_local_testnet_test.sh
+          python3 scripts/local_testnet/vm64_genesis_gqrl.py --self-test
+          go -C scripts/testing/e2e generate ./suites/goabi
+          (
+            cd scripts/testing/e2e/testdata/contracts
+            go run generate_emitter_js.go
+          )
+          git diff --exit-code -- \
+            scripts/testing/e2e/suites/goabi/emitter_binding.go \
+            scripts/testing/e2e/testdata/contracts/emitter.js
+
+      - name: Run nested E2E-module tests, vet, and build
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          go -C scripts/testing/e2e test -count=1 -timeout=30m \
+            -covermode=atomic -coverprofile="$RUNNER_TEMP/vm64-e2e.coverage" ./...
+          go -C scripts/testing/e2e vet ./...
+          go -C scripts/testing/e2e build -o "$RUNNER_TEMP/vm64e2e" ./cmd/vm64e2e
+
+      - name: Run the nested E2E module with the race detector
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          go -C scripts/testing/e2e test -count=1 -race -timeout=30m ./...
+
+      - name: Upload E2E harness coverage
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: vm64-e2e-unit-coverage-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/vm64-e2e.coverage
+          if-no-files-found: warn
+          retention-days: 14
+
+  hyperion-fixture:
+    name: Pinned Hyperion fixture
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - name: Check out the tested revision
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Set up Go 1.26
+        uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 # v5.5.0
+        with:
+          go-version: '1.26.0'
+          cache-dependency-path: |
+            go.sum
+            scripts/testing/e2e/go.sum
           cache: true
 
       - name: Recompile the VM64 fixture with the pinned Hyperion toolchain
@@ -120,23 +176,21 @@ jobs:
         run: make vm64-fixture-check
 
   local-testnet:
+    name: Live VM64 lifecycle
     needs:
       - vm64-unit
+      - vm64-e2e-unit
       - hyperion-fixture
     runs-on: ubuntu-24.04
-    # Commands after enclave reservation share a 300-minute absolute deadline.
-    # This leaves about one hour for the always-run dump, cleanup, diagnostics
-    # upload, and runner overhead before GitHub's six-hour job limit.
     timeout-minutes: 360
     env:
       KURTOSIS_VERSION: 1.20.0
       KURTOSIS_SHA256: 20e924582082f0cd2b557b463ffcb0a303b6f90ef25204e794384741d88986fc
       YQ_VERSION: v4.47.2
       YQ_SHA256: 1bb99e1019e23de33c7e6afc23e93dad72aad6cf2cb03c797f068ea79814ddb0
-      VM64_E2E_PRE_CLEANUP_BUDGET_MINUTES: 300
       ENCLAVE_NAME: vm64-${{ github.run_id }}-${{ github.run_attempt }}
       ARTIFACT_DIR: /tmp/vm64-${{ github.run_id }}-${{ github.run_attempt }}
-      EFFECTIVE_PARAMS_OUTPUT: /tmp/vm64-${{ github.run_id }}-${{ github.run_attempt }}/network_params.effective.yaml
+      VM64E2E_BIN: /tmp/vm64e2e-${{ github.run_id }}-${{ github.run_attempt }}
 
     steps:
       - name: Check out the tested revision
@@ -144,125 +198,36 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Initialize diagnostics and immutable inputs
+      - name: Initialize immutable run inputs
         shell: bash
         run: |
           set -Eeuo pipefail
           mkdir -p "$ARTIFACT_DIR"
           source_sha=$(git rev-parse HEAD)
-          initialized_epoch=$(date +%s)
-          if [[ ! "$VM64_E2E_PRE_CLEANUP_BUDGET_MINUTES" =~ ^[1-9][0-9]*$ ]]; then
-            echo "VM64_E2E_PRE_CLEANUP_BUDGET_MINUTES must be a positive integer." >&2
-            exit 1
-          fi
-          deadline_epoch=$((
-            initialized_epoch + VM64_E2E_PRE_CLEANUP_BUDGET_MINUTES * 60
-          ))
-          # shellcheck source=scripts/local_testnet/images.lock.env
-          source scripts/local_testnet/images.lock.env
-          {
-            echo "SOURCE_SHA=$source_sha"
-            echo "EXPECTED_GIT_COMMIT=$source_sha"
-            echo "VM64_E2E_PRE_CLEANUP_DEADLINE_EPOCH=$deadline_epoch"
-            echo "QRL_PACKAGE_REPO=$PINNED_QRL_PACKAGE_REPO"
-            echo "QRL_PKG_VERSION=$PINNED_QRL_PACKAGE_COMMIT"
-            echo "CL_BASE_IMAGE=$PINNED_CL_BASE_IMAGE"
-            echo "VC_BASE_IMAGE=$PINNED_VC_BASE_IMAGE"
-            echo "QRYSM_GO_BUILDER_IMAGE=$PINNED_QRYSM_GO_BUILDER_IMAGE"
-            echo "GENESIS_BASE_IMAGE=$PINNED_GENESIS_BASE_IMAGE"
-            echo "GENESIS_GO_BUILDER_IMAGE=$PINNED_GENESIS_GO_BUILDER_IMAGE"
-            echo "QRYSM_GIT_REPO=$PINNED_QRYSM_GIT_REPO"
-            echo "QRYSM_GIT_COMMIT=$PINNED_QRYSM_GIT_COMMIT"
-            echo "CL_IMAGE=theqrl-dev/qrysm-beacon:${PINNED_QRYSM_GIT_COMMIT:0:12}"
-            echo "VC_IMAGE=theqrl-dev/qrysm-validator:${PINNED_QRYSM_GIT_COMMIT:0:12}"
-            echo "BUILD_QRYSM_IMAGES=true"
-            echo "GENERATOR_GIT_REPO=$PINNED_GENERATOR_GIT_REPO"
-            echo "GENERATOR_GIT_COMMIT=$PINNED_GENERATOR_GIT_COMMIT"
-            echo "GENESIS_IMAGE=theqrl-dev/qrl-genesis-generator:${PINNED_GENERATOR_GIT_COMMIT:0:12}-${PINNED_QRYSM_GIT_COMMIT:0:12}"
-            echo "GO_BUILDER_IMAGE=$PINNED_GO_BUILDER_IMAGE"
-            echo "ALPINE_RUNTIME_IMAGE=$PINNED_ALPINE_RUNTIME_IMAGE"
-          } >> "$GITHUB_ENV"
-          {
-            echo "source_sha=$source_sha"
-            echo "QRL_PACKAGE_REPO=$PINNED_QRL_PACKAGE_REPO"
-            echo "QRL_PKG_VERSION=$PINNED_QRL_PACKAGE_COMMIT"
-            echo "CL_BASE_IMAGE=$PINNED_CL_BASE_IMAGE"
-            echo "VC_BASE_IMAGE=$PINNED_VC_BASE_IMAGE"
-            echo "QRYSM_GO_BUILDER_IMAGE=$PINNED_QRYSM_GO_BUILDER_IMAGE"
-            echo "GENESIS_BASE_IMAGE=$PINNED_GENESIS_BASE_IMAGE"
-            echo "GENESIS_GO_BUILDER_IMAGE=$PINNED_GENESIS_GO_BUILDER_IMAGE"
-            echo "QRYSM_GIT_REPO=$PINNED_QRYSM_GIT_REPO"
-            echo "QRYSM_GIT_COMMIT=$PINNED_QRYSM_GIT_COMMIT"
-            echo "CL_IMAGE=theqrl-dev/qrysm-beacon:${PINNED_QRYSM_GIT_COMMIT:0:12}"
-            echo "VC_IMAGE=theqrl-dev/qrysm-validator:${PINNED_QRYSM_GIT_COMMIT:0:12}"
-            echo "GENERATOR_GIT_REPO=$PINNED_GENERATOR_GIT_REPO"
-            echo "GENERATOR_GIT_COMMIT=$PINNED_GENERATOR_GIT_COMMIT"
-            echo "GENESIS_IMAGE=theqrl-dev/qrl-genesis-generator:${PINNED_GENERATOR_GIT_COMMIT:0:12}-${PINNED_QRYSM_GIT_COMMIT:0:12}"
-            echo "GO_BUILDER_IMAGE=$PINNED_GO_BUILDER_IMAGE"
-            echo "ALPINE_RUNTIME_IMAGE=$PINNED_ALPINE_RUNTIME_IMAGE"
-          } > "$ARTIFACT_DIR/external-images.txt"
-          {
-            echo "initialized_epoch=$initialized_epoch"
-            echo "pre_cleanup_budget_minutes=$VM64_E2E_PRE_CLEANUP_BUDGET_MINUTES"
-            echo "pre_cleanup_deadline_epoch=$deadline_epoch"
-          } > "$ARTIFACT_DIR/timing.txt"
+          deadline_origin_epoch=$(date +%s)
+          job_deadline_epoch=$((deadline_origin_epoch + 360 * 60))
+          pre_cleanup_deadline_epoch=$((deadline_origin_epoch + 300 * 60))
+          runner_deadline_epoch=$((deadline_origin_epoch + 325 * 60))
+          echo "SOURCE_SHA=$source_sha" >> "$GITHUB_ENV"
+          echo "VM64_E2E_JOB_DEADLINE_EPOCH=$job_deadline_epoch" >> "$GITHUB_ENV"
+          echo "VM64_E2E_PRE_CLEANUP_DEADLINE_EPOCH=$pre_cleanup_deadline_epoch" >> "$GITHUB_ENV"
+          echo "VM64_E2E_RUNNER_DEADLINE_EPOCH=$runner_deadline_epoch" >> "$GITHUB_ENV"
+          printf 'source_sha=%s\nenclave_name=%s\njob_deadline_epoch=%s\npre_cleanup_deadline_epoch=%s\nrunner_deadline_epoch=%s\n' \
+            "$source_sha" "$ENCLAVE_NAME" "$job_deadline_epoch" \
+            "$pre_cleanup_deadline_epoch" "$runner_deadline_epoch" \
+            > "$ARTIFACT_DIR/ci-inputs.txt"
 
-      - name: Set up Go
+      - name: Set up E2E-module Go 1.26
         uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 # v5.5.0
         with:
-          go-version-file: go.mod
+          go-version: '1.26.0'
+          cache-dependency-path: |
+            go.sum
+            scripts/testing/e2e/go.sum
           cache: true
 
-      - name: Validate the E2E harness
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          bash -n \
-            scripts/testing/e2e/recover_enclave_uuid.sh \
-            scripts/testing/e2e/recover_enclave_uuid_test.sh \
-            scripts/testing/e2e/run_before_deadline.sh \
-            scripts/testing/e2e/run_e2e_from_scratch.sh \
-            scripts/local_testnet/start_local_testnet.sh \
-            scripts/testing/e2e/run_tests.sh \
-            scripts/local_testnet/stop_local_testnet.sh
-          for script in scripts/testing/e2e/tests/*.js scripts/testing/e2e/tests/fixtures/*.js; do
-            node --check "$script"
-          done
-          go test -count=1 \
-            ./scripts/testing/e2e/goabi \
-            ./scripts/testing/e2e/txsigner \
-            ./scripts/testing/e2e/depositcheck \
-            ./scripts/testing/e2e/systemcheck \
-            ./scripts/testing/e2e/freshsync
-          scripts/testing/e2e/recover_enclave_uuid_test.sh
-          scripts/testing/e2e/run_before_deadline.sh true
-          expired_status=0
-          VM64_E2E_PRE_CLEANUP_DEADLINE_EPOCH=1 \
-            scripts/testing/e2e/run_before_deadline.sh true 2>/dev/null || \
-            expired_status=$?
-          if (( expired_status != 124 )); then
-            echo "Expired deadline status = $expired_status, want 124." >&2
-            exit 1
-          fi
-          child_status=0
-          scripts/testing/e2e/run_before_deadline.sh \
-            bash -c 'exit 37' || child_status=$?
-          if (( child_status != 37 )); then
-            echo "Deadline guard child status = $child_status, want 37." >&2
-            exit 1
-          fi
-          timeout_status=0
-          near_deadline=$(( $(date +%s) + 1 ))
-          VM64_E2E_PRE_CLEANUP_DEADLINE_EPOCH=$near_deadline \
-            scripts/testing/e2e/run_before_deadline.sh sleep 60 || \
-            timeout_status=$?
-          if (( timeout_status != 124 )); then
-            echo "Deadline guard timeout status = $timeout_status, want 124." >&2
-            exit 1
-          fi
-
-      - name: Install pinned testnet tooling
-        timeout-minutes: 10
+      - name: Install pinned local-testnet tooling and start Kurtosis
+        timeout-minutes: 15
         shell: bash
         run: |
           set -Eeuo pipefail
@@ -278,281 +243,192 @@ jobs:
           sudo dpkg --install "$kurtosis_deb"
           kurtosis engine start 2>&1 | tee "$ARTIFACT_DIR/kurtosis-engine-start.log"
 
-      - name: Record isolated-run tooling
+      - name: Build the vm64e2e runner
         shell: bash
         run: |
           set -Eeuo pipefail
+          go -C scripts/testing/e2e build -o "$VM64E2E_BIN" ./cmd/vm64e2e
+          "$VM64E2E_BIN" help > "$ARTIFACT_DIR/vm64e2e-help.txt"
           {
-            echo "source_sha=$SOURCE_SHA"
             go version
             docker version
             yq --version
             kurtosis version
           } > "$ARTIFACT_DIR/versions.txt" 2>&1
 
-      - name: Verify immutable external images are available
-        timeout-minutes: 15
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          for image in \
-            "$CL_BASE_IMAGE" \
-            "$VC_BASE_IMAGE" \
-            "$QRYSM_GO_BUILDER_IMAGE" \
-            "$GENESIS_BASE_IMAGE" \
-            "$GENESIS_GO_BUILDER_IMAGE" \
-            "$GO_BUILDER_IMAGE" \
-            "$ALPINE_RUNTIME_IMAGE"; do
-            if [[ "$image" != *@sha256:* ]]; then
-              echo "External image is not digest-pinned: $image" >&2
-              exit 1
-            fi
-            docker pull "$image"
-          done 2>&1 | tee "$ARTIFACT_DIR/external-image-pulls.log"
-
-      - name: Warm every host binary before validators start
-        timeout-minutes: 15
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          make local-testnet-host-preflight 2>&1 |
-            tee "$ARTIFACT_DIR/host-preflight.log"
-
-      - name: Atomically reserve the test enclave
-        id: reserve_enclave
+      - name: Smoke-test the Kurtosis SDK against the real engine
         timeout-minutes: 5
         shell: bash
         run: |
           set -Eeuo pipefail
-          scripts/testing/e2e/run_before_deadline.sh true
-          intent_file="$ARTIFACT_DIR/enclave-reservation-intent.txt"
-          owned_file="$ARTIFACT_DIR/enclave-reservation-owned-name.txt"
-          # This name is unique to the run/attempt on a fresh hosted runner.
-          # Preserve intent on every CLI failure because the engine may have
-          # accepted the add request before the client returned an error.
-          printf '%s\n' "$ENCLAVE_NAME" > "$intent_file"
-          add_status=0
-          add_output=$(scripts/testing/e2e/run_before_deadline.sh \
-            kurtosis enclave add -n "$ENCLAVE_NAME" 2>&1) || add_status=$?
-          if (( add_status != 0 )); then
-            echo "$add_output" | tee "$ARTIFACT_DIR/enclave-reservation.log" >&2
+          VM64_E2E_REAL_ENGINE_SMOKE=1 go -C scripts/testing/e2e test -count=1 \
+            -run '^TestSDKClientRealEngineSmoke$' ./internal/kurtosis
+
+      - name: Run vm64e2e doctor
+        timeout-minutes: 10
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          "$VM64E2E_BIN" doctor \
+            --repo-root "$GITHUB_WORKSPACE" \
+            --source-sha "$SOURCE_SHA" \
+            --network-params "$GITHUB_WORKSPACE/scripts/local_testnet/network_params.yaml" \
+            --results "$ARTIFACT_DIR" \
+            --global-timeout 6h \
+            --cleanup-reserve 1h \
+            --ci 2>&1 | tee "$ARTIFACT_DIR/doctor.log"
+
+      - name: Run the owned VM64 lifecycle
+        timeout-minutes: 330
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          run_log="$RUNNER_TEMP/vm64e2e-run.log"
+          now_epoch=$(date +%s)
+          remaining_seconds=$((VM64_E2E_RUNNER_DEADLINE_EPOCH - now_epoch))
+          cleanup_reserve_seconds=$((VM64_E2E_RUNNER_DEADLINE_EPOCH - VM64_E2E_PRE_CLEANUP_DEADLINE_EPOCH))
+          if [ "$remaining_seconds" -le 0 ]; then
+            echo 'The absolute VM64 runner deadline has already been reached.' >&2
             exit 1
           fi
-          printf '%s\n' "$add_output" > "$ARTIFACT_DIR/enclave-reservation.log"
-          mv "$intent_file" "$owned_file"
-          if ! enclave_uuid=$(scripts/testing/e2e/run_before_deadline.sh \
-            scripts/testing/e2e/recover_enclave_uuid.sh \
-            "$ENCLAVE_NAME" 60 2>> "$ARTIFACT_DIR/enclave-reservation.log"); then
-            echo "The newly reserved enclave was preserved because its UUID could not be captured safely." >&2
+          if [ "$cleanup_reserve_seconds" -le 0 ]; then
+            echo 'The VM64 cleanup reserve derived from the absolute deadlines is not positive.' >&2
             exit 1
           fi
-          printf 'ENCLAVE_UUID=%s\n' "$enclave_uuid" >> "$GITHUB_ENV"
-          printf 'name=%s\nuuid=%s\n' "$ENCLAVE_NAME" "$enclave_uuid" \
-            > "$ARTIFACT_DIR/enclave-ownership.txt"
-
-      - name: Build exact revision and start local testnet
-        id: start_testnet
-        timeout-minutes: 50
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          deadline_run() {
-            scripts/testing/e2e/run_before_deadline.sh "$@"
-          }
-          deadline_run scripts/local_testnet/start_local_testnet.sh \
-            -c -k -e "$ENCLAVE_UUID" 2>&1 |
-            tee "$ARTIFACT_DIR/start-local-testnet.log"
-          deadline_run docker image inspect \
-            "theqrl-dev/go-qrl:${SOURCE_SHA:0:12}" \
-            "theqrl-dev/go-qrl-alltools:${SOURCE_SHA:0:12}" \
-            "$CL_IMAGE" \
-            "$VC_IMAGE" \
-            "$GENESIS_IMAGE" \
-            > "$ARTIFACT_DIR/go-qrl-images.json"
-          generator_image_id=$(deadline_run docker image inspect \
-            --format '{{.Id}}' "$GENESIS_IMAGE")
-          deadline_run docker run --rm --pull=never --network=none \
-            --entrypoint cat "$generator_image_id" \
-            /apps/el-gen/vm64-deposit-manifest.json \
-            > "$ARTIFACT_DIR/vm64-deposit-manifest.json"
-
-          runtime_dir="$ARTIFACT_DIR/runtime-services"
-          mkdir -p "$runtime_dir"
-          deadline_run kurtosis enclave inspect --full-uuids "$ENCLAVE_UUID" \
-            > "$runtime_dir/enclave.txt"
-          for service in \
-            el-1-gqrl-qrysm \
-            el-2-gqrl-qrysm \
-            cl-1-qrysm-gqrl \
-            cl-2-qrysm-gqrl \
-            vc-1-gqrl-qrysm \
-            vc-2-gqrl-qrysm \
-            signer-clef \
-            clef-keystore-generation-el-clef-keystore \
-            validator-key-generation-cl-validator-keystore; do
-            deadline_run kurtosis service inspect -o json \
-              "$ENCLAVE_UUID" "$service" \
-              > "$runtime_dir/$service.json"
-          done
-          for service in el-1-gqrl-qrysm el-2-gqrl-qrysm; do
-            deadline_run kurtosis service exec \
-              "$ENCLAVE_UUID" "$service" 'gqrl version' \
-              > "$runtime_dir/$service.version.txt"
-            grep -Fq "$SOURCE_SHA" "$runtime_dir/$service.version.txt"
-          done
-          deadline_run kurtosis service exec \
-            "$ENCLAVE_UUID" signer-clef 'clef --version' \
-            > "$runtime_dir/signer-clef.version.txt"
-          grep -Fq "${SOURCE_SHA:0:8}" "$runtime_dir/signer-clef.version.txt"
-          deadline_run docker run --rm "$CL_IMAGE" --version \
-            > "$runtime_dir/cl-image.version.txt"
-          deadline_run docker run --rm "$VC_IMAGE" --version \
-            > "$runtime_dir/vc-image.version.txt"
-          grep -Fq "$QRYSM_GIT_COMMIT" "$runtime_dir/cl-image.version.txt"
-          grep -Fq "$QRYSM_GIT_COMMIT" "$runtime_dir/vc-image.version.txt"
-
-      - name: Run strict VM64 suites against execution node one
-        id: el1_suites
-        if: ${{ !cancelled() && steps.start_testnet.outcome == 'success' }}
-        timeout-minutes: 12
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          scripts/testing/e2e/run_before_deadline.sh \
-            scripts/testing/e2e/run_tests.sh \
-            -c \
-            -e "$ENCLAVE_UUID" \
-            -s el-1-gqrl-qrysm \
-            -o "$ARTIFACT_DIR/test-results/el-1" 2>&1 |
-            tee "$ARTIFACT_DIR/run-tests-el-1.log"
-
-      - name: Run strict VM64 suites against execution node two
-        id: el2_suites
-        if: ${{ !cancelled() && steps.start_testnet.outcome == 'success' }}
-        timeout-minutes: 12
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          scripts/testing/e2e/run_before_deadline.sh \
-            scripts/testing/e2e/run_tests.sh \
-            -c \
-            -C \
-            -e "$ENCLAVE_UUID" \
-            -s el-2-gqrl-qrysm \
-            -o "$ARTIFACT_DIR/test-results/el-2" 2>&1 |
-            tee "$ARTIFACT_DIR/run-tests-el-2.log"
-
-      - name: Prove the validator deposit lifecycle
-        id: depositcheck
-        if: ${{ !cancelled() && steps.el1_suites.outcome == 'success' && steps.el2_suites.outcome == 'success' }}
-        timeout-minutes: 18
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          scripts/testing/e2e/run_before_deadline.sh \
-            go run ./scripts/testing/e2e/depositcheck \
-            -enclave "$ENCLAVE_UUID" \
-            -generator-image "$GENESIS_IMAGE" \
-            -timeout 15m 2>&1 |
-            tee "$ARTIFACT_DIR/depositcheck.log"
-
-      - name: Run multi-node system checks
-        id: systemcheck
-        if: ${{ !cancelled() && steps.depositcheck.outcome == 'success' }}
-        timeout-minutes: 125
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          scripts/testing/e2e/run_before_deadline.sh \
-            go run ./scripts/testing/e2e/systemcheck \
-            -enclave "$ENCLAVE_UUID" \
-            -require-zero-duty-history \
-            -timeout 115m 2>&1 |
-            tee "$ARTIFACT_DIR/systemcheck.log"
-
-      - name: Run fresh snap synchronization check
-        id: freshsync_snap
-        if: ${{ !cancelled() && steps.systemcheck.outcome == 'success' }}
-        timeout-minutes: 38
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          scripts/testing/e2e/run_before_deadline.sh \
-            go run ./scripts/testing/e2e/freshsync \
-            -enclave "$ENCLAVE_UUID" \
-            -syncmode snap \
-            -timeout 35m \
-            -keep-services \
-            -fresh-el-service fresh-sync-el-snap \
-            -fresh-cl-service fresh-sync-cl-snap 2>&1 |
-            tee "$ARTIFACT_DIR/freshsync-snap.log"
-
-      - name: Run fresh full synchronization check
-        id: freshsync_full
-        if: ${{ !cancelled() && steps.freshsync_snap.outcome == 'success' }}
-        timeout-minutes: 38
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          scripts/testing/e2e/run_before_deadline.sh \
-            go run ./scripts/testing/e2e/freshsync \
-            -enclave "$ENCLAVE_UUID" \
-            -syncmode full \
-            -timeout 35m \
-            -keep-services \
-            -fresh-el-service fresh-sync-el-full \
-            -fresh-cl-service fresh-sync-cl-full 2>&1 |
-            tee "$ARTIFACT_DIR/freshsync-full.log"
-
-      - name: Dump and remove enclave
-        if: always()
-        timeout-minutes: 15
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          cleanup_uuid=${ENCLAVE_UUID:-}
-          if [ -z "$cleanup_uuid" ]; then
-            ownership_file="$ARTIFACT_DIR/enclave-reservation-owned-name.txt"
-            intent_file="$ARTIFACT_DIR/enclave-reservation-intent.txt"
-            reservation_state=owned
-            if [ ! -s "$ownership_file" ]; then
-              if [ ! -s "$intent_file" ]; then
-                echo "No captured enclave UUID or reservation marker is available; refusing name-based cleanup."
-                exit 0
-              fi
-              ownership_file=$intent_file
-              reservation_state=ambiguous
-            fi
-            owned_name=$(<"$ownership_file")
-            if [ "$owned_name" != "$ENCLAVE_NAME" ]; then
-              echo "Reservation marker contains $owned_name, expected $ENCLAVE_NAME; refusing cleanup." >&2
-              exit 1
-            fi
-            recovery_log="$ARTIFACT_DIR/enclave-uuid-recovery.log"
-            if ! cleanup_uuid=$(scripts/testing/e2e/recover_enclave_uuid.sh \
-              "$owned_name" 60 2> "$recovery_log"); then
-              echo "Could not recover the UUID for $reservation_state reservation $owned_name; refusing name-based removal." >&2
-              exit 1
-            fi
-            printf 'name=%s\nuuid=%s\nreservation_state=%s\nrecovered_after_reservation=true\n' \
-              "$owned_name" "$cleanup_uuid" "$reservation_state" \
-              > "$ARTIFACT_DIR/enclave-ownership-recovered.txt"
-            echo "Recovered full UUID $cleanup_uuid for $reservation_state reservation $owned_name."
-          fi
-          if [[ ! "$cleanup_uuid" =~ ^[0-9a-f]{32}$ ]]; then
-            echo "Cleanup UUID is invalid: $cleanup_uuid" >&2
+          if [ "$remaining_seconds" -le "$cleanup_reserve_seconds" ]; then
+            echo 'The absolute VM64 pre-cleanup deadline has already been reached.' >&2
             exit 1
           fi
-          scripts/local_testnet/stop_local_testnet.sh \
-            "$cleanup_uuid" "$ARTIFACT_DIR/kurtosis" 2>&1 |
-            tee "$ARTIFACT_DIR/stop-local-testnet.log"
+          set +e
+          "$VM64E2E_BIN" run \
+            --repo-root "$GITHUB_WORKSPACE" \
+            --source-sha "$SOURCE_SHA" \
+            --network-params "$GITHUB_WORKSPACE/scripts/local_testnet/network_params.yaml" \
+            --results "$ARTIFACT_DIR" \
+            --enclave "$ENCLAVE_NAME" \
+            --global-timeout "${remaining_seconds}s" \
+            --cleanup-reserve "${cleanup_reserve_seconds}s" \
+            --preserve-on-failure=true \
+            --ci 2>&1 | tee "$run_log"
+          run_pipeline_status=("${PIPESTATUS[@]}")
+          run_status=${run_pipeline_status[0]}
+          run_log_status=${run_pipeline_status[1]}
+          set -e
+          if [ "$run_log_status" -ne 0 ]; then
+            echo 'Could not preserve the initial lifecycle log; refusing to hide the artifact failure.' >&2
+            exit "$run_log_status"
+          fi
+          if [ "$run_status" -eq 0 ]; then
+            exit 0
+          fi
 
-      - name: Upload diagnostics
+          checkpoint="$ARTIFACT_DIR/checkpoint.json"
+          if [ ! -s "$checkpoint" ]; then
+            echo "The initial lifecycle failed before creating a resumable checkpoint." >&2
+            exit "$run_status"
+          fi
+          now_epoch=$(date +%s)
+          remaining_seconds=$((VM64_E2E_RUNNER_DEADLINE_EPOCH - now_epoch))
+          if [ "$remaining_seconds" -le "$cleanup_reserve_seconds" ]; then
+            echo 'The initial lifecycle failed after the pre-cleanup deadline; preserving diagnostics for finalization.' >&2
+            exit "$run_status"
+          fi
+
+          echo 'The initial lifecycle failed; resuming the same checkpoint and enclave without replaying completed stages.' | tee -a "$run_log"
+          set +e
+          "$VM64E2E_BIN" resume \
+            --checkpoint "$checkpoint" \
+            --repo-root "$GITHUB_WORKSPACE" \
+            --source-sha "$SOURCE_SHA" \
+            --global-timeout "${remaining_seconds}s" 2>&1 | tee -a "$run_log"
+          resume_pipeline_status=("${PIPESTATUS[@]}")
+          resume_status=${resume_pipeline_status[0]}
+          resume_log_status=${resume_pipeline_status[1]}
+          set -e
+          if [ "$resume_log_status" -ne 0 ]; then
+            echo 'Could not preserve the resumed lifecycle log; refusing to hide the artifact failure.' >&2
+            exit "$resume_log_status"
+          fi
+          exit "$resume_status"
+
+      - name: Independently finalize owned resources
         if: always()
         timeout-minutes: 20
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          run_log="$RUNNER_TEMP/vm64e2e-run.log"
+          if [ -s "$run_log" ]; then
+            if ! cp "$run_log" "$ARTIFACT_DIR/vm64e2e-run.log"; then
+              echo 'Warning: could not preserve the vm64e2e runner log before finalization.' >&2
+            fi
+          fi
+          ownership="$ARTIFACT_DIR/ownership.json"
+          if [ ! -s "$ownership" ]; then
+            echo 'No ownership record exists; no enclave reached the ownership boundary.'
+            exit 0
+          fi
+          if [ ! -x "$VM64E2E_BIN" ]; then
+            echo 'The vm64e2e binary is unavailable for finalization.' >&2
+            exit 1
+          fi
+          "$VM64E2E_BIN" finalize \
+            --ownership "$ownership" \
+            --results "$ARTIFACT_DIR" \
+            --timeout 18m \
+            --destroy-preserved
+
+      - name: Write VM64 result summary
+        if: always()
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          python3 - "$ARTIFACT_DIR/results.json" >> "$GITHUB_STEP_SUMMARY" <<'PY'
+          import json
+          import sys
+          from pathlib import Path
+
+          path = Path(sys.argv[1])
+          print("## VM64 end-to-end lifecycle")
+          if not path.is_file():
+              print("\n`results.json` was not produced. Inspect the uploaded diagnostics.")
+              raise SystemExit(0)
+          try:
+              results = json.loads(path.read_text(encoding="utf-8"))
+          except Exception as error:
+              print(f"\n`results.json` could not be decoded: {error}")
+              raise SystemExit(0)
+
+          def cell(value):
+              return str(value or "").replace("|", "\\|").replace("\n", " ")
+
+          print(f"\nOverall status: **{cell(results.get('status', 'unknown'))}**")
+          print(f"\nRun ID: `{cell(results.get('run_id', 'unknown'))}`")
+          print("\n| Stage | Attempt | Status | Duration | Message |")
+          print("| --- | ---: | --- | ---: | --- |")
+          for stage in results.get("stages", []):
+              duration = f"{int(stage.get('duration_ms', 0)) / 1000:.1f}s"
+              print(
+                  f"| {cell(stage.get('name'))} | {cell(stage.get('attempt'))} | "
+                  f"{cell(stage.get('status'))} | {duration} | {cell(stage.get('message'))} |"
+              )
+          suites = results.get("suites", [])
+          if suites:
+              print("\n| Suite | Stage | Status |")
+              print("| --- | --- | --- |")
+              for suite in suites:
+                  print(
+                      f"| {cell(suite.get('name'))} | {cell(suite.get('stage'))} | "
+                      f"{cell(suite.get('status'))} |"
+                  )
+          PY
+
+      - name: Upload complete VM64 artifacts
+        if: always()
+        timeout-minutes: 10
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: vm64-e2e-${{ github.run_id }}-${{ github.run_attempt }}
           path: ${{ env.ARTIFACT_DIR }}
-          if-no-files-found: error
+          if-no-files-found: warn
           retention-days: 14

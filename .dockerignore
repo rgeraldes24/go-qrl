@@ -19,4 +19,4 @@ build/cache
 # or a reusable builder cache.
 scripts/local_testnet/logs
 scripts/testing/e2e/logs
-scripts/testing/e2e/tests/.params.js
+scripts/testing/e2e/testdata/console/.params.js
