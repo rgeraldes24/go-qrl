@@ -19,10 +19,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"slices"
 	"strings"
 	"testing"
 
 	"github.com/theQRL/go-qrl/common"
+	"github.com/theQRL/go-qrl/common/uint512"
 	"github.com/theQRL/go-qrl/crypto"
 	"github.com/theQRL/go-qrl/internal/jsre/deps"
 )
@@ -33,23 +35,31 @@ func TestEmbeddedWeb3ABICoderUsesVM64Words(t *testing.T) {
 	re := newEmbeddedWeb3(t)
 	address := "Q" + strings.Repeat("a", common.AddressLength*2)
 	contractAddress := "Q" + strings.Repeat("0", common.AddressLength*2)
-	maxUint512 := strings.Repeat("f", common.StorageValue64Length*2)
+	addressWord := strings.Repeat("a", common.AddressLength*2)
+	maxUint512 := strings.Repeat("f", uint512.WordBytes*2)
 	maxUint512Decimal := "134078079299425970995740249982058461274793658205923933" +
 		"77723561443721764030073546976801874298166903427690031" +
 		"858186486050853753882811946569946433649006084095"
 	bytes33 := strings.Repeat("ab", 33)
-	bytes33Word := bytes33 + strings.Repeat("0", (common.StorageValue64Length-33)*2)
-	offsetWord := abiWordHex(5 * common.StorageValue64Length)
-	boolWord := abiWordHex(1)
-	lengthWord := abiWordHex(5)
-	labelWord := common.Bytes2Hex([]byte("hello")) + strings.Repeat("0", common.StorageValue64Length*2-len("hello")*2)
-	output := "0x" + strings.Repeat("a", common.AddressLength*2) + maxUint512 + offsetWord + boolWord + bytes33Word + lengthWord + labelWord
-	expectedData := "0x" +
-		methodSelector("store(address,uint512,string,bool,bytes33)") +
-		strings.Repeat("a", common.AddressLength*2) + maxUint512 + offsetWord + boolWord + bytes33Word + lengthWord + labelWord
+	bytes33Word := bytes33 + strings.Repeat("0", (uint512.WordBytes-33)*2)
+	labelOffsetWord := abiWordHex(5 * uint512.WordBytes)
+	activeWord := abiWordHex(1)
+	labelLengthWord := abiWordHex(5)
+	labelDataWord := common.Bytes2Hex([]byte("hello")) + strings.Repeat("0", uint512.WordBytes*2-len("hello")*2)
+	encodedValues := strings.Join([]string{
+		addressWord,
+		maxUint512,
+		labelOffsetWord,
+		activeWord,
+		bytes33Word,
+		labelLengthWord,
+		labelDataWord,
+	}, "")
+	output := "0x" + encodedValues
+	expectedData := "0x" + methodSelector("store(address,uint512,string,bool,bytes33)") + encodedValues
 	expectedEmptyTagData := "0x" +
 		methodSelector("storeTag(bytes33)") +
-		strings.Repeat("0", common.StorageValue64Length*2)
+		strings.Repeat("0", uint512.WordBytes*2)
 
 	script := fmt.Sprintf(web3CallProvider+`
 currentOutput = %q;
@@ -144,18 +154,26 @@ func TestEmbeddedWeb3DynamicBytesAndArrays(t *testing.T) {
 	re := newEmbeddedWeb3(t)
 	contractAddress := "Q" + strings.Repeat("0", common.AddressLength*2)
 	payload := "a1b2c3"
-	payloadWord := payload + strings.Repeat("0", common.StorageValue64Length*2-len(payload))
-	bytesOutput := "0x" + abiWordHex(common.StorageValue64Length) + abiWordHex(3) + payloadWord
-	bytesData := "0x" +
-		methodSelector("storeBytes(bytes)") +
-		abiWordHex(common.StorageValue64Length) + abiWordHex(3) + payloadWord
+	payloadWord := payload + strings.Repeat("0", uint512.WordBytes*2-len(payload))
+	encodedBytes := strings.Join([]string{
+		abiWordHex(uint512.WordBytes),
+		abiWordHex(3),
+		payloadWord,
+	}, "")
+	bytesOutput := "0x" + encodedBytes
+	bytesData := "0x" + methodSelector("storeBytes(bytes)") + encodedBytes
 
-	arraysOutput := "0x" +
-		abiWordHex(1) + abiWordHex(2) + abiWordHex(3*common.StorageValue64Length) +
-		abiWordHex(3) + abiWordHex(3) + abiWordHex(4) + abiWordHex(5)
-	arraysData := "0x" +
-		methodSelector("storeArrays(uint512[2],uint512[])") +
-		strings.TrimPrefix(arraysOutput, "0x")
+	encodedArrays := strings.Join([]string{
+		abiWordHex(1),
+		abiWordHex(2),
+		abiWordHex(3 * uint512.WordBytes),
+		abiWordHex(3),
+		abiWordHex(3),
+		abiWordHex(4),
+		abiWordHex(5),
+	}, "")
+	arraysOutput := "0x" + encodedArrays
+	arraysData := "0x" + methodSelector("storeArrays(uint512[2],uint512[])") + encodedArrays
 
 	script := fmt.Sprintf(web3CallProvider+`
 var Web3 = require("web3");
@@ -219,8 +237,14 @@ JSON.stringify({
 	if got.PureMethod != "qrl_call" {
 		t.Fatalf("pure function used %q, want qrl_call", got.PureMethod)
 	}
-	if got.ArraysData != arraysData || strings.Join(got.FixedValues, ",") != "1,2" || strings.Join(got.DynamicValues, ",") != "3,4,5" {
-		t.Fatalf("array encoding mismatch: %+v", got)
+	if got.ArraysData != arraysData {
+		t.Fatalf("array calldata mismatch:\nhave %s\nwant %s", got.ArraysData, arraysData)
+	}
+	if want := []string{"1", "2"}; !slices.Equal(got.FixedValues, want) {
+		t.Fatalf("decoded fixed array mismatch: have %v, want %v", got.FixedValues, want)
+	}
+	if want := []string{"3", "4", "5"}; !slices.Equal(got.DynamicValues, want) {
+		t.Fatalf("decoded dynamic array mismatch: have %v, want %v", got.DynamicValues, want)
 	}
 }
 
@@ -229,8 +253,8 @@ func TestEmbeddedWeb3SignedInt512AndAddressInput(t *testing.T) {
 
 	re := newEmbeddedWeb3(t)
 	contractAddress := "Q" + strings.Repeat("0", common.AddressLength*2)
-	negativeOneWord := strings.Repeat("f", common.StorageValue64Length*2)
-	minimumWord := "8" + strings.Repeat("0", common.StorageValue64Length*2-1)
+	negativeOneWord := strings.Repeat("f", uint512.WordBytes*2)
+	minimumWord := "8" + strings.Repeat("0", uint512.WordBytes*2-1)
 	minimumValue := "-0x" + minimumWord
 	negativeOneData := "0x" + methodSelector("storeInt(int512)") + negativeOneWord
 	minimumData := "0x" + methodSelector("storeInt(int512)") + minimumWord
@@ -423,7 +447,7 @@ JSON.stringify({
 	}
 	runWeb3JSON(t, re, script, &got)
 	wantTopics := []string{signatureTopic, addressTopic, labelTopic, payloadTopic}
-	if strings.Join(got.Topics, ",") != strings.Join(wantTopics, ",") {
+	if !slices.Equal(got.Topics, wantTopics) {
 		t.Fatalf("event topics mismatch:\nhave %v\nwant %v", got.Topics, wantTopics)
 	}
 	if got.EmptyPayloadTopic != emptyPayloadTopic {
@@ -498,13 +522,13 @@ JSON.stringify(captured.map(function (filter) {
 		"0x" + fixedBytes32 + strings.Repeat("0", (common.LogTopicLength-32)*2),
 		"0x" + fixedBytes64,
 	}
-	if strings.Join(got, ",") != strings.Join(want, ",") {
+	if !slices.Equal(got, want) {
 		t.Fatalf("event topic alignment mismatch:\nhave %v\nwant %v", got, want)
 	}
 }
 
 func abiWordHex(value uint64) string {
-	return fmt.Sprintf("%0*x", common.StorageValue64Length*2, value)
+	return fmt.Sprintf("%0*x", uint512.WordBytes*2, value)
 }
 
 func methodSelector(signature string) string {
