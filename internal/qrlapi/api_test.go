@@ -56,6 +56,120 @@ import (
 	"github.com/theQRL/go-qrl/rpc"
 )
 
+type contextAwareSigningWallet struct {
+	accounts.Wallet
+	contextCalls int
+	legacyCalls  int
+	seenContext  context.Context
+	result       *types.Transaction
+	cancel       context.CancelFunc
+}
+
+func (w *contextAwareSigningWallet) SignTx(accounts.Account, *types.Transaction, *big.Int) (*types.Transaction, error) {
+	w.legacyCalls++
+	return w.result, nil
+}
+
+func (w *contextAwareSigningWallet) SignTxContext(ctx context.Context, _ accounts.Account, _ *types.Transaction, _ *big.Int) (*types.Transaction, error) {
+	w.contextCalls++
+	w.seenContext = ctx
+	if w.cancel != nil {
+		w.cancel()
+	}
+	return w.result, nil
+}
+
+type legacySigningWallet struct {
+	accounts.Wallet
+	calls  int
+	result *types.Transaction
+}
+
+type sendTrackingBackend struct {
+	Backend
+	sendCalls int
+}
+
+func (b *sendTrackingBackend) SendTx(context.Context, *types.Transaction) error {
+	b.sendCalls++
+	return nil
+}
+
+func (w *legacySigningWallet) SignTx(accounts.Account, *types.Transaction, *big.Int) (*types.Transaction, error) {
+	w.calls++
+	return w.result, nil
+}
+
+func TestSignTransactionUsesWalletContext(t *testing.T) {
+	tx := types.NewTx(&types.DynamicFeeTx{ChainID: big.NewInt(1)})
+	wallet := &contextAwareSigningWallet{result: tx}
+	type contextKey struct{}
+	ctx := context.WithValue(t.Context(), contextKey{}, "request-context")
+
+	got, err := signTransaction(ctx, wallet, accounts.Account{}, tx, big.NewInt(1))
+	if err != nil {
+		t.Fatalf("signTransaction: %v", err)
+	}
+	if got != tx {
+		t.Fatalf("signTransaction result = %p, want %p", got, tx)
+	}
+	if wallet.contextCalls != 1 || wallet.legacyCalls != 0 {
+		t.Fatalf("signing calls: context=%d legacy=%d, want context=1 legacy=0", wallet.contextCalls, wallet.legacyCalls)
+	}
+	if wallet.seenContext.Value(contextKey{}) != "request-context" {
+		t.Fatal("request context was not forwarded to context-aware wallet")
+	}
+}
+
+func TestSignTransactionFallsBackToLegacyWallet(t *testing.T) {
+	tx := types.NewTx(&types.DynamicFeeTx{ChainID: big.NewInt(1)})
+	wallet := &legacySigningWallet{result: tx}
+	got, err := signTransaction(t.Context(), wallet, accounts.Account{}, tx, big.NewInt(1))
+	if err != nil {
+		t.Fatalf("signTransaction: %v", err)
+	}
+	if got != tx {
+		t.Fatalf("signTransaction result = %p, want %p", got, tx)
+	}
+	if wallet.calls != 1 {
+		t.Fatalf("legacy SignTx calls = %d, want 1", wallet.calls)
+	}
+}
+
+func TestSignTransactionRejectsCancellationRacingSuccessfulSignature(t *testing.T) {
+	tx := types.NewTx(&types.DynamicFeeTx{ChainID: big.NewInt(1)})
+	ctx, cancel := context.WithCancel(t.Context())
+	wallet := &contextAwareSigningWallet{result: tx, cancel: cancel}
+
+	got, err := signTransaction(ctx, wallet, accounts.Account{}, tx, big.NewInt(1))
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("signTransaction error = %v, want context canceled", err)
+	}
+	if got != nil {
+		t.Fatalf("signTransaction result = %p, want nil", got)
+	}
+	if wallet.contextCalls != 1 || wallet.legacyCalls != 0 {
+		t.Fatalf("signing calls: context=%d legacy=%d, want context=1 legacy=0", wallet.contextCalls, wallet.legacyCalls)
+	}
+}
+
+func TestSubmitTransactionRejectsCanceledContextBeforeSend(t *testing.T) {
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel()
+	backend := new(sendTrackingBackend)
+
+	hash, err := SubmitTransaction(ctx, backend, new(types.Transaction))
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("SubmitTransaction error = %v, want context canceled", err)
+	}
+	if hash != (common.Hash{}) {
+		t.Fatalf("SubmitTransaction hash = %s, want zero hash", hash)
+	}
+	if backend.sendCalls != 0 {
+		t.Fatalf("backend SendTx calls = %d, want 0", backend.sendCalls)
+	}
+}
+
 func testTransactionMarshal(t *testing.T, tests []txData, config *params.ChainConfig) {
 	t.Parallel()
 	var (

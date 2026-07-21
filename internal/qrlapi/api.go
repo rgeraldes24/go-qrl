@@ -1381,8 +1381,31 @@ func marshalReceipt(receipt *types.Receipt, blockHash common.Hash, blockNumber u
 	return fields
 }
 
+type contextAwareTxSigner interface {
+	SignTxContext(context.Context, accounts.Account, *types.Transaction, *big.Int) (*types.Transaction, error)
+}
+
+func signTransaction(ctx context.Context, wallet accounts.Wallet, account accounts.Account, tx *types.Transaction, chainID *big.Int) (*types.Transaction, error) {
+	var (
+		signed *types.Transaction
+		err    error
+	)
+	if signer, ok := wallet.(contextAwareTxSigner); ok {
+		signed, err = signer.SignTxContext(ctx, account, tx, chainID)
+	} else {
+		signed, err = wallet.SignTx(account, tx, chainID)
+	}
+	if err != nil {
+		return nil, err
+	}
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	return signed, nil
+}
+
 // sign is a helper function that signs a transaction with the private key of the given address.
-func (s *TransactionAPI) sign(addr common.Address, tx *types.Transaction) (*types.Transaction, error) {
+func (s *TransactionAPI) sign(ctx context.Context, addr common.Address, tx *types.Transaction) (*types.Transaction, error) {
 	// Look up the wallet containing the requested signer
 	account := accounts.Account{Address: addr}
 
@@ -1391,11 +1414,16 @@ func (s *TransactionAPI) sign(addr common.Address, tx *types.Transaction) (*type
 		return nil, err
 	}
 	// Request the wallet to sign the transaction
-	return wallet.SignTx(account, tx, s.b.ChainConfig().ChainID)
+	return signTransaction(ctx, wallet, account, tx, s.b.ChainConfig().ChainID)
 }
 
 // SubmitTransaction is a helper function that submits tx to txPool and logs a message.
 func SubmitTransaction(ctx context.Context, b Backend, tx *types.Transaction) (common.Hash, error) {
+	// A signer response can race request cancellation. Reject a canceled request
+	// before touching the transaction pool even if the backend does not inspect ctx.
+	if err := ctx.Err(); err != nil {
+		return common.Hash{}, err
+	}
 	// If the transaction fee cap is already specified, ensure the
 	// fee of the given transaction is _reasonable_.
 	if err := checkTxFee(tx.GasPrice(), tx.Gas(), b.RPCTxFeeCap()); err != nil {
@@ -1445,7 +1473,7 @@ func (s *TransactionAPI) SendTransaction(ctx context.Context, args TransactionAr
 	// Assemble the transaction and sign with the wallet
 	tx := args.toTransaction()
 
-	signed, err := wallet.SignTx(account, tx, s.b.ChainConfig().ChainID)
+	signed, err := signTransaction(ctx, wallet, account, tx, s.b.ChainConfig().ChainID)
 	if err != nil {
 		return common.Hash{}, err
 	}
@@ -1522,7 +1550,7 @@ func (s *TransactionAPI) SignTransaction(ctx context.Context, args TransactionAr
 	if err := checkTxFee(tx.GasPrice(), tx.Gas(), s.b.RPCTxFeeCap()); err != nil {
 		return nil, err
 	}
-	signed, err := s.sign(args.from(), tx)
+	signed, err := s.sign(ctx, args.from(), tx)
 	if err != nil {
 		return nil, err
 	}
@@ -1598,7 +1626,7 @@ func (s *TransactionAPI) Resend(ctx context.Context, sendArgs TransactionArgs, g
 			if gasLimit != nil && *gasLimit != 0 {
 				sendArgs.Gas = gasLimit
 			}
-			signedTx, err := s.sign(sendArgs.from(), sendArgs.toTransaction())
+			signedTx, err := s.sign(ctx, sendArgs.from(), sendArgs.toTransaction())
 			if err != nil {
 				return common.Hash{}, err
 			}

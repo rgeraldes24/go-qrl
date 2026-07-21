@@ -10,9 +10,12 @@ package external
 
 import (
 	"context"
+	"errors"
 	"math/big"
+	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/theQRL/go-qrl/accounts"
 	"github.com/theQRL/go-qrl/common"
@@ -29,6 +32,79 @@ type testAccountService struct {
 
 func (s *testAccountService) SignTransaction(context.Context, apitypes.SendTxArgs) (signTransactionResult, error) {
 	return s.result, nil
+}
+
+type cancelableAccountService struct {
+	started  chan struct{}
+	canceled chan struct{}
+	release  chan struct{}
+}
+
+func (s *cancelableAccountService) SignTransaction(ctx context.Context, _ apitypes.SendTxArgs) (signTransactionResult, error) {
+	close(s.started)
+	select {
+	case <-ctx.Done():
+		close(s.canceled)
+		return signTransactionResult{}, ctx.Err()
+	case <-s.release:
+		return signTransactionResult{}, errors.New("test released signer request")
+	}
+}
+
+func TestExternalSignerSignTxContextCancellation(t *testing.T) {
+	service := &cancelableAccountService{
+		started:  make(chan struct{}),
+		canceled: make(chan struct{}),
+		release:  make(chan struct{}),
+	}
+	server := rpc.NewServer()
+	if err := server.RegisterName("account", service); err != nil {
+		t.Fatalf("register account service: %v", err)
+	}
+	httpServer := httptest.NewServer(server)
+	t.Cleanup(func() {
+		close(service.release)
+		httpServer.Close()
+		server.Stop()
+	})
+	client, err := rpc.Dial(httpServer.URL)
+	if err != nil {
+		t.Fatalf("dial account service: %v", err)
+	}
+	t.Cleanup(client.Close)
+
+	w, err := wallet.Generate(wallet.ML_DSA_87)
+	if err != nil {
+		t.Fatalf("generate wallet: %v", err)
+	}
+	chainID := big.NewInt(1337)
+	signer := &ExternalSigner{client: client, endpoint: httpServer.URL}
+	ctx, cancel := context.WithCancel(t.Context())
+	errCh := make(chan error, 1)
+	go func() {
+		_, err := signer.SignTxContext(ctx, accounts.Account{Address: common.Address(w.GetAddress())}, testDynamicFeeTx(chainID), chainID)
+		errCh <- err
+	}()
+
+	select {
+	case <-service.started:
+	case <-time.After(5 * time.Second):
+		t.Fatal("external signing request did not reach the service")
+	}
+	cancel()
+	select {
+	case err := <-errCh:
+		if !errors.Is(err, context.Canceled) {
+			t.Fatalf("SignTxContext error = %v, want context canceled", err)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("SignTxContext did not return after cancellation")
+	}
+	select {
+	case <-service.canceled:
+	case <-time.After(5 * time.Second):
+		t.Fatal("external signer service did not observe cancellation")
+	}
 }
 
 func TestExternalSignerRejectsUnexpectedSignedTransaction(t *testing.T) {

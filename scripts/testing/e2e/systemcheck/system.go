@@ -53,7 +53,18 @@ const (
 	// With 5-second slots and 64 of 128 validators on each VC, an aggregate
 	// attestation counter should advance well inside this bounded observation.
 	validatorDutyObservationTimeout = 2 * time.Minute
+	// A canceled external-signing request must remain side-effect free after
+	// Clef recovers and the chain has had time to include any leaked transaction.
+	signerCancellationObservationTimeout = 45 * time.Second
+	signerCancellationObservationBlocks  = uint64(2)
 )
+
+type managedAccountState struct {
+	head             uint64
+	nonce            uint64
+	pendingNonce     uint64
+	recipientBalance *big.Int
+}
 
 // validatorHealthError marks a validator endpoint or established validator
 // state as unhealthy. Once an endpoint has passed its bounded readiness probe,
@@ -332,6 +343,138 @@ func (s *systemCheck) sendManagedTransfer(ctx context.Context, origin int) (comm
 		return common.Hash{}, fmt.Errorf("qrl_sendTransaction returned a zero hash")
 	}
 	return hash, nil
+}
+
+func (s *systemCheck) readManagedAccountStates(ctx context.Context) ([2]managedAccountState, error) {
+	var states [2]managedAccountState
+	for i, client := range s.clients {
+		if client == nil {
+			return states, fmt.Errorf("EL%d client is unavailable", i+1)
+		}
+		head, err := client.BlockNumber(ctx)
+		if err != nil {
+			return states, fmt.Errorf("EL%d block number: %w", i+1, err)
+		}
+		nonce, err := client.NonceAt(ctx, s.cfg.signerAddress, nil)
+		if err != nil {
+			return states, fmt.Errorf("EL%d signer nonce: %w", i+1, err)
+		}
+		pendingNonce, err := client.PendingNonceAt(ctx, s.cfg.signerAddress)
+		if err != nil {
+			return states, fmt.Errorf("EL%d pending signer nonce: %w", i+1, err)
+		}
+		balance, err := client.BalanceAt(ctx, s.cfg.recipient, nil)
+		if err != nil {
+			return states, fmt.Errorf("EL%d recipient balance: %w", i+1, err)
+		}
+		states[i] = managedAccountState{
+			head:             head,
+			nonce:            nonce,
+			pendingNonce:     pendingNonce,
+			recipientBalance: new(big.Int).Set(balance),
+		}
+	}
+	return states, nil
+}
+
+func validateManagedAccountBaseline(states [2]managedAccountState) error {
+	for i, state := range states {
+		if state.recipientBalance == nil {
+			return fmt.Errorf("EL%d recipient balance is missing", i+1)
+		}
+		if state.pendingNonce != state.nonce {
+			return fmt.Errorf("EL%d signer has pending nonce %d above confirmed nonce %d", i+1, state.pendingNonce, state.nonce)
+		}
+	}
+	if states[0].nonce != states[1].nonce {
+		return fmt.Errorf("signer nonces differ: EL1=%d EL2=%d", states[0].nonce, states[1].nonce)
+	}
+	if states[0].recipientBalance.Cmp(states[1].recipientBalance) != 0 {
+		return fmt.Errorf("recipient balances differ: EL1=%s EL2=%s", states[0].recipientBalance, states[1].recipientBalance)
+	}
+	return nil
+}
+
+func validateManagedAccountUnchanged(baseline, current [2]managedAccountState) error {
+	for i := range current {
+		if current[i].recipientBalance == nil {
+			return fmt.Errorf("EL%d recipient balance is missing", i+1)
+		}
+		if current[i].nonce != baseline[i].nonce {
+			return fmt.Errorf("EL%d confirmed signer nonce changed from %d to %d", i+1, baseline[i].nonce, current[i].nonce)
+		}
+		if current[i].pendingNonce != baseline[i].pendingNonce {
+			return fmt.Errorf("EL%d pending signer nonce changed from %d to %d", i+1, baseline[i].pendingNonce, current[i].pendingNonce)
+		}
+		if baseline[i].recipientBalance == nil || current[i].recipientBalance.Cmp(baseline[i].recipientBalance) != 0 {
+			return fmt.Errorf("EL%d recipient balance changed from %v to %s", i+1, baseline[i].recipientBalance, current[i].recipientBalance)
+		}
+	}
+	return nil
+}
+
+func (s *systemCheck) waitManagedAccountBaseline(ctx context.Context) ([2]managedAccountState, error) {
+	var states [2]managedAccountState
+	err := waitFor(ctx, signerCancellationObservationTimeout, s.cfg.pollInterval, "managed account state to become quiescent before the Clef outage", func(ctx context.Context) (bool, error) {
+		observed, err := s.readManagedAccountStates(ctx)
+		if err != nil {
+			return false, err
+		}
+		if err := validateManagedAccountBaseline(observed); err != nil {
+			return false, err
+		}
+		states = observed
+		return true, nil
+	})
+	return states, err
+}
+
+func (s *systemCheck) waitCanceledTransferQuiescence(ctx context.Context, baseline [2]managedAccountState) error {
+	waitCtx, cancel := context.WithTimeout(ctx, signerCancellationObservationTimeout)
+	defer cancel()
+	var (
+		lastErr     error
+		targetHeads [2]uint64
+		haveTargets bool
+	)
+	for {
+		current, err := s.readManagedAccountStates(waitCtx)
+		if err == nil {
+			if err := validateManagedAccountUnchanged(baseline, current); err != nil {
+				return fmt.Errorf("timed-out Clef-outage request caused a transaction side effect: %w", err)
+			}
+			if !haveTargets {
+				for i := range current {
+					targetHeads[i] = current[i].head + signerCancellationObservationBlocks
+				}
+				haveTargets = true
+				lastErr = fmt.Errorf("captured post-restart heads EL1=%d EL2=%d; waiting for EL1=%d EL2=%d", current[0].head, current[1].head, targetHeads[0], targetHeads[1])
+			} else {
+				advanced := true
+				for i := range current {
+					if current[i].head < targetHeads[i] {
+						advanced = false
+						lastErr = fmt.Errorf("EL%d is at block %d, waiting for post-restart block %d", i+1, current[i].head, targetHeads[i])
+					}
+				}
+				if advanced {
+					return nil
+				}
+			}
+		} else {
+			lastErr = err
+		}
+		timer := time.NewTimer(s.cfg.pollInterval)
+		select {
+		case <-waitCtx.Done():
+			timer.Stop()
+			if lastErr != nil {
+				return fmt.Errorf("timed out proving the canceled Clef-outage request stayed side-effect free: %w", lastErr)
+			}
+			return fmt.Errorf("timed out proving the canceled Clef-outage request stayed side-effect free: %w", waitCtx.Err())
+		case <-timer.C:
+		}
+	}
 }
 
 func (s *systemCheck) checkManagedAccessListTransaction(ctx context.Context) (common.Hash, error) {
@@ -1278,6 +1421,10 @@ func (s *systemCheck) verifyFinalizedAncestor(ctx context.Context, previous exec
 }
 
 func (s *systemCheck) restartSigner(ctx context.Context) (err error) {
+	baseline, err := s.waitManagedAccountBaseline(ctx)
+	if err != nil {
+		return fmt.Errorf("capture managed account state before Clef outage: %w", err)
+	}
 	log.Printf("systemcheck: stopping %s to prove EL signing depends on the topology signer", s.cfg.signerSvc)
 	if err := s.k.stop(ctx, s.cfg.signerSvc); err != nil {
 		return err
@@ -1320,6 +1467,9 @@ func (s *systemCheck) restartSigner(ctx context.Context) (err error) {
 	if err := s.verifyManagedAccounts(ctx); err != nil {
 		return fmt.Errorf("execution account manager did not recover after Clef restart: %w", err)
 	}
+	if err := s.waitCanceledTransferQuiescence(ctx, baseline); err != nil {
+		return err
+	}
 	hash, err := s.sendManagedTransfer(ctx, 0)
 	if err != nil {
 		return fmt.Errorf("transaction after Clef restart: %w", err)
@@ -1327,7 +1477,7 @@ func (s *systemCheck) restartSigner(ctx context.Context) (err error) {
 	if _, err := s.verifyTransferOnBoth(ctx, hash); err != nil {
 		return fmt.Errorf("verify transaction after Clef restart: %w", err)
 	}
-	log.Printf("PASS: stopping Clef blocked managed signing, and restarting it restored a cross-node confirmed transaction %s", hash)
+	log.Printf("PASS: stopping Clef blocked managed signing without a delayed transaction side effect, and restarting it restored a cross-node confirmed transaction %s", hash)
 	return nil
 }
 

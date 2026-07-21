@@ -18,6 +18,7 @@ package external
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"math/big"
@@ -192,6 +193,12 @@ type signTransactionResult struct {
 // by the external signer. The chain ID of the transaction overrides the
 // chainID parameter.
 func (api *ExternalSigner) SignTx(account accounts.Account, tx *types.Transaction, chainID *big.Int) (*types.Transaction, error) {
+	return api.SignTxContext(context.Background(), account, tx, chainID)
+}
+
+// SignTxContext sends the transaction to the external signer and bounds the
+// external RPC call with ctx.
+func (api *ExternalSigner) SignTxContext(ctx context.Context, account accounts.Account, tx *types.Transaction, chainID *big.Int) (*types.Transaction, error) {
 	data := hexutil.Bytes(tx.Data())
 	var to *common.MixedcaseAddress
 	if tx.To() != nil {
@@ -226,7 +233,7 @@ func (api *ExternalSigner) SignTx(account accounts.Account, tx *types.Transactio
 	accessList := tx.AccessList()
 	args.AccessList = &accessList
 	var res signTransactionResult
-	if err := api.client.Call(&res, "account_signTransaction", args); err != nil {
+	if err := api.client.CallContext(ctx, &res, "account_signTransaction", args); err != nil {
 		return nil, err
 	}
 	if res.Tx == nil {

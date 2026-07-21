@@ -535,6 +535,14 @@ func (*testSignerOutageExecutionAPI) BlockNumber() hexutil.Uint64 {
 	return 42
 }
 
+func (*testSignerOutageExecutionAPI) GetTransactionCount(context.Context, common.Address, rpc.BlockNumberOrHash) hexutil.Uint64 {
+	return 4
+}
+
+func (*testSignerOutageExecutionAPI) GetBalance(context.Context, common.Address, rpc.BlockNumberOrHash) *hexutil.Big {
+	return (*hexutil.Big)(big.NewInt(10))
+}
+
 func (*testSignerOutageExecutionAPI) SendTransaction(context.Context, map[string]any) (common.Hash, error) {
 	return common.Hash{}, testRPCError{code: -32000, message: "external signer Clef is unavailable"}
 }
@@ -578,7 +586,7 @@ func TestRestartSignerDoesNotDoubleStartAfterReadinessFailure(t *testing.T) {
 	check := &systemCheck{
 		cfg:     cfg,
 		k:       kurtosis{enclave: cfg.enclave, runner: runner},
-		clients: [2]*qrlclient.Client{executionClient, nil},
+		clients: [2]*qrlclient.Client{executionClient, executionClient},
 	}
 
 	err := check.restartSigner(t.Context())
@@ -590,6 +598,161 @@ func TestRestartSignerDoesNotDoubleStartAfterReadinessFailure(t *testing.T) {
 	}
 	if runner.calls[portKey] < 2 {
 		t.Fatalf("port discovery calls = %d, want bounded retries", runner.calls[portKey])
+	}
+}
+
+func TestValidateManagedAccountBaseline(t *testing.T) {
+	baseline := [2]managedAccountState{
+		{head: 10, nonce: 4, pendingNonce: 4, recipientBalance: big.NewInt(7)},
+		{head: 11, nonce: 4, pendingNonce: 4, recipientBalance: big.NewInt(7)},
+	}
+	if err := validateManagedAccountBaseline(baseline); err != nil {
+		t.Fatalf("valid baseline: %v", err)
+	}
+
+	tests := []struct {
+		name    string
+		mutate  func(*[2]managedAccountState)
+		wantErr string
+	}{
+		{
+			name: "pending transaction",
+			mutate: func(states *[2]managedAccountState) {
+				states[0].pendingNonce++
+			},
+			wantErr: "pending nonce",
+		},
+		{
+			name: "nonce disagreement",
+			mutate: func(states *[2]managedAccountState) {
+				states[1].nonce++
+				states[1].pendingNonce++
+			},
+			wantErr: "signer nonces differ",
+		},
+		{
+			name: "balance disagreement",
+			mutate: func(states *[2]managedAccountState) {
+				states[1].recipientBalance = big.NewInt(8)
+			},
+			wantErr: "recipient balances differ",
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			states := [2]managedAccountState{
+				{head: baseline[0].head, nonce: baseline[0].nonce, pendingNonce: baseline[0].pendingNonce, recipientBalance: new(big.Int).Set(baseline[0].recipientBalance)},
+				{head: baseline[1].head, nonce: baseline[1].nonce, pendingNonce: baseline[1].pendingNonce, recipientBalance: new(big.Int).Set(baseline[1].recipientBalance)},
+			}
+			test.mutate(&states)
+			err := validateManagedAccountBaseline(states)
+			if err == nil || !strings.Contains(err.Error(), test.wantErr) {
+				t.Fatalf("validateManagedAccountBaseline error = %v, want substring %q", err, test.wantErr)
+			}
+		})
+	}
+}
+
+func TestValidateManagedAccountUnchangedRejectsDelayedSideEffects(t *testing.T) {
+	baseline := [2]managedAccountState{
+		{head: 10, nonce: 4, pendingNonce: 4, recipientBalance: big.NewInt(7)},
+		{head: 10, nonce: 4, pendingNonce: 4, recipientBalance: big.NewInt(7)},
+	}
+	unchanged := [2]managedAccountState{
+		{head: 12, nonce: 4, pendingNonce: 4, recipientBalance: big.NewInt(7)},
+		{head: 13, nonce: 4, pendingNonce: 4, recipientBalance: big.NewInt(7)},
+	}
+	if err := validateManagedAccountUnchanged(baseline, unchanged); err != nil {
+		t.Fatalf("unchanged state: %v", err)
+	}
+
+	tests := []struct {
+		name    string
+		mutate  func(*[2]managedAccountState)
+		wantErr string
+	}{
+		{
+			name: "confirmed nonce",
+			mutate: func(states *[2]managedAccountState) {
+				states[0].nonce++
+			},
+			wantErr: "confirmed signer nonce changed",
+		},
+		{
+			name: "pending nonce",
+			mutate: func(states *[2]managedAccountState) {
+				states[0].pendingNonce++
+			},
+			wantErr: "pending signer nonce changed",
+		},
+		{
+			name: "recipient balance",
+			mutate: func(states *[2]managedAccountState) {
+				states[0].recipientBalance = big.NewInt(8)
+			},
+			wantErr: "recipient balance changed",
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			current := [2]managedAccountState{
+				{head: unchanged[0].head, nonce: unchanged[0].nonce, pendingNonce: unchanged[0].pendingNonce, recipientBalance: new(big.Int).Set(unchanged[0].recipientBalance)},
+				{head: unchanged[1].head, nonce: unchanged[1].nonce, pendingNonce: unchanged[1].pendingNonce, recipientBalance: new(big.Int).Set(unchanged[1].recipientBalance)},
+			}
+			test.mutate(&current)
+			err := validateManagedAccountUnchanged(baseline, current)
+			if err == nil || !strings.Contains(err.Error(), test.wantErr) {
+				t.Fatalf("validateManagedAccountUnchanged error = %v, want substring %q", err, test.wantErr)
+			}
+		})
+	}
+}
+
+type testSignerQuarantineExecutionAPI struct {
+	blockCalls atomic.Uint64
+}
+
+func (api *testSignerQuarantineExecutionAPI) BlockNumber() hexutil.Uint64 {
+	return hexutil.Uint64(19 + api.blockCalls.Add(1))
+}
+
+func (*testSignerQuarantineExecutionAPI) GetTransactionCount(context.Context, common.Address, rpc.BlockNumberOrHash) hexutil.Uint64 {
+	return 4
+}
+
+func (*testSignerQuarantineExecutionAPI) GetBalance(context.Context, common.Address, rpc.BlockNumberOrHash) *hexutil.Big {
+	return (*hexutil.Big)(big.NewInt(10))
+}
+
+func TestCanceledTransferQuarantineStartsAtPostRestartHeads(t *testing.T) {
+	api := new(testSignerQuarantineExecutionAPI)
+	server := rpc.NewServer()
+	if err := server.RegisterName("qrl", api); err != nil {
+		t.Fatal(err)
+	}
+	client := qrlclient.NewClient(rpc.DialInProc(server))
+	t.Cleanup(func() {
+		client.Close()
+		server.Stop()
+	})
+	check := &systemCheck{
+		cfg: config{
+			signerAddress: common.Address{common.AddressLength - 1: 0x11},
+			recipient:     common.Address{common.AddressLength - 1: 0x22},
+			pollInterval:  time.Millisecond,
+		},
+		clients: [2]*qrlclient.Client{client, client},
+	}
+	baseline := [2]managedAccountState{
+		{head: 10, nonce: 4, pendingNonce: 4, recipientBalance: big.NewInt(10)},
+		{head: 10, nonce: 4, pendingNonce: 4, recipientBalance: big.NewInt(10)},
+	}
+
+	if err := check.waitCanceledTransferQuiescence(t.Context(), baseline); err != nil {
+		t.Fatal(err)
+	}
+	if calls := api.blockCalls.Load(); calls < 4 {
+		t.Fatalf("block-number calls = %d, want at least 4 so outage-era blocks cannot satisfy the post-restart gate", calls)
 	}
 }
 

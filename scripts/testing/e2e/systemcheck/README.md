@@ -36,7 +36,10 @@ tests cannot cover. It targets the default two-participant topology in
   layout, five-second slots, and 128-slot epochs, and report zero sync distance;
 - while Clef is stopped, the execution RPC remains demonstrably healthy and
   the otherwise-valid managed transaction fails with a signing-specific error;
-  restarting Clef restores signing;
+  request cancellation is propagated through the external wallet, and after
+  Clef restarts both nodes must produce two more blocks without any delayed
+  nonce, pending-pool, or recipient-balance side effect before a fresh managed
+  transaction proves that signing recovered;
 - a transaction and additional blocks produced while participant two is
   offline are recovered after its EL, CL, and VC endpoints are all proved down
   and then restarted; each stopped service remains recovery-tracked until its
