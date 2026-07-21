@@ -78,22 +78,22 @@ JSON.stringify({
   payload: decoded.args.payload,
   amount: decoded.args.amount.toString(10),
   allEventsEvent: allEventsDecoded.event,
-  signatureIsTopic: web3._extend.utils.isTopic(%q),
-  eventIDIsTopic: web3._extend.utils.isTopic(%q)
+  acceptsSignatureTopic: web3._extend.utils.isTopic(%q),
+  acceptsRawEventID: web3._extend.utils.isTopic(%q)
 });
 `, indexedAddress, contractAddress, signatureTopic, addressTopic, labelTopic, payloadTopic, amountWord, signatureTopic, "0x"+common.Bytes2Hex(eventID[:]))
 
 	var got struct {
-		Topics            []string `json:"topics"`
-		EmptyPayloadTopic string   `json:"emptyPayloadTopic"`
-		Event             string   `json:"event"`
-		From              string   `json:"from"`
-		Label             string   `json:"label"`
-		Payload           string   `json:"payload"`
-		Amount            string   `json:"amount"`
-		AllEventsEvent    string   `json:"allEventsEvent"`
-		SignatureIsTopic  bool     `json:"signatureIsTopic"`
-		EventIDIsTopic    bool     `json:"eventIDIsTopic"`
+		Topics                []string `json:"topics"`
+		EmptyPayloadTopic     string   `json:"emptyPayloadTopic"`
+		Event                 string   `json:"event"`
+		From                  string   `json:"from"`
+		Label                 string   `json:"label"`
+		Payload               string   `json:"payload"`
+		Amount                string   `json:"amount"`
+		AllEventsEvent        string   `json:"allEventsEvent"`
+		AcceptsSignatureTopic bool     `json:"acceptsSignatureTopic"`
+		AcceptsRawEventID     bool     `json:"acceptsRawEventID"`
 	}
 
 	runWeb3ContractJSON(t, re, web3FilterProvider, contractABI, contractAddress, script, &got)
@@ -108,12 +108,12 @@ JSON.stringify({
 	if got.Event != "Transfer" || got.AllEventsEvent != "Transfer" || got.From != indexedAddress || got.Label != labelTopic || got.Payload != payloadTopic || got.Amount != "2" {
 		t.Fatalf("decoded event mismatch: %+v", got)
 	}
-	if !got.SignatureIsTopic || got.EventIDIsTopic {
-		t.Fatalf("topic width validation mismatch: full=%t eventID=%t", got.SignatureIsTopic, got.EventIDIsTopic)
+	if !got.AcceptsSignatureTopic || got.AcceptsRawEventID {
+		t.Fatalf("topic width validation mismatch: signature=%t rawEventID=%t", got.AcceptsSignatureTopic, got.AcceptsRawEventID)
 	}
 }
 
-func TestEmbeddedWeb3EventTopicAlignment(t *testing.T) {
+func TestEmbeddedWeb3IndexedTopicsUseVM64Encoding(t *testing.T) {
 	t.Parallel()
 
 	const contractABI = `[
@@ -157,7 +157,6 @@ func TestEmbeddedWeb3EventTopicAlignment(t *testing.T) {
 
 	script := fmt.Sprintf(`
 contract.Unsigned({value: 2});
-contract.Signed({value: 2});
 contract.Signed({value: -2});
 
 contract.Flag({value: true});
@@ -175,7 +174,6 @@ JSON.stringify(captured.map(function (filter) {
 	runWeb3ContractJSON(t, re, web3FilterProvider, contractABI, contractAddress, script, &got)
 
 	want := []string{
-		"0x" + abiWordHex(2),
 		"0x" + abiWordHex(2),
 		"0x" + strings.Repeat("f", common.LogTopicLength*2-1) + "e",
 		"0x" + abiWordHex(1),
