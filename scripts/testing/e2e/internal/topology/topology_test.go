@@ -84,6 +84,41 @@ func TestDiscoverCrossChecksPackageAndServices(t *testing.T) {
 	}
 }
 
+func TestDiscoverTreatsCompletedGenesisHelperAsOptionalAcrossCheckpointVersions(t *testing.T) {
+	baseSpec, output, baseServices := validFixture()
+	tests := []struct {
+		name     string
+		helper   HelperSpec
+		present  bool
+		wantSeen bool
+	}{
+		{name: "legacy checkpoint missing helper", helper: HelperSpec{Name: ephemeralGenesisHelperName}},
+		{name: "new checkpoint missing helper", helper: HelperSpec{Name: ephemeralGenesisHelperName, Optional: true}},
+		{name: "running helper is retained", helper: HelperSpec{Name: ephemeralGenesisHelperName, Optional: true}, present: true, wantSeen: true},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			spec := cloneSpec(baseSpec)
+			spec.Helpers = append(spec.Helpers, test.helper)
+			services := cloneServices(baseServices)
+			if test.present {
+				services = append(services, testService(ephemeralGenesisHelperName, 10, "10.0.0.10", nil, 0, false))
+			}
+			discovered, err := Discover(spec, &output, services)
+			if err != nil {
+				t.Fatal(err)
+			}
+			seen := false
+			for _, helper := range discovered.Helpers {
+				seen = seen || helper.Service.Name == ephemeralGenesisHelperName
+			}
+			if seen != test.wantSeen {
+				t.Fatalf("ephemeral genesis helper retained=%t, want %t", seen, test.wantSeen)
+			}
+		})
+	}
+}
+
 func TestParsePinnedPackageOutput(t *testing.T) {
 	_, output, _ := validFixture()
 	raw, err := json.Marshal(struct {
@@ -160,6 +195,8 @@ func TestSpecValidationRejectsMissingAndDuplicateRoles(t *testing.T) {
 		{"duplicate role port", func(spec *Spec) { spec.Execution[0].WSPortID = spec.Execution[0].RPCPortID }, "reuses port ID"},
 		{"missing signer port", func(spec *Spec) { spec.Signer.HTTPPortID = "" }, "HTTP port ID"},
 		{"relative metrics path", func(spec *Spec) { spec.Validators[0].MetricsPath = "metrics" }, "not absolute"},
+		{"persistent key helper optional", func(spec *Spec) { spec.Helpers[0].Optional = true }, "cannot be optional"},
+		{"persistent genesis helper optional", func(spec *Spec) { spec.Helpers[1].Optional = true }, "cannot be optional"},
 		{"bad revision", func(spec *Spec) { spec.SourceRevision = "abc" }, "40-character"},
 	}
 	for _, test := range tests {

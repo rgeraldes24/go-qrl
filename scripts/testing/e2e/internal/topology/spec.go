@@ -23,6 +23,7 @@ const (
 	ExpectedValidatorCount = 2
 
 	DefaultSourceRevisionLabel = "commit"
+	ephemeralGenesisHelperName = "run-generate-genesis"
 )
 
 var (
@@ -74,11 +75,20 @@ type SignerSpec struct {
 	HTTPPortID string `json:"http_port_id"`
 }
 
-// HelperSpec models a package service whose identity is required for the
-// lifecycle but which has no endpoint consumed by a protocol suite.
+// HelperSpec models a package service with no endpoint consumed by a protocol
+// suite. Persistent helpers are required; explicitly ephemeral helpers may be
+// absent after their successful one-shot package task completes.
 type HelperSpec struct {
-	Name string `json:"name"`
-	UUID string `json:"uuid,omitempty"`
+	Name     string `json:"name"`
+	UUID     string `json:"uuid,omitempty"`
+	Optional bool   `json:"optional,omitempty"`
+}
+
+func (helper HelperSpec) optional() bool {
+	// Checkpoints created before HelperSpec had an Optional field still contain
+	// this package-scoped helper. qrl-package removes it after genesis succeeds,
+	// so its exact historical name is also the compatibility marker.
+	return helper.Optional || helper.Name == ephemeralGenesisHelperName
 }
 
 // DefaultSpec returns the exact topology emitted by the pinned qrl-package
@@ -100,7 +110,7 @@ func DefaultSpec(sourceRevision string) Spec {
 		Signer: SignerSpec{Name: "signer-clef", Client: "clef", HTTPPortID: "http"},
 		Helpers: []HelperSpec{
 			{Name: "clef-keystore-generation-el-clef-keystore"},
-			{Name: "run-generate-genesis"},
+			{Name: ephemeralGenesisHelperName, Optional: true},
 			{Name: "validator-key-generation-cl-validator-keystore"},
 		},
 		SourceRevision:      sourceRevision,
@@ -200,6 +210,9 @@ func (spec Spec) Validate() error {
 		role := fmt.Sprintf("helper[%d]", i)
 		if err := validateSpecService(role, helper.Name, helper.UUID, "helper"); err != nil {
 			return err
+		}
+		if helper.Optional && helper.Name != ephemeralGenesisHelperName {
+			return fmt.Errorf("%s service %q cannot be optional; only %q is an allowlisted one-shot helper", role, helper.Name, ephemeralGenesisHelperName)
 		}
 		identities = append(identities, identity{role, helper.Name, helper.UUID})
 	}

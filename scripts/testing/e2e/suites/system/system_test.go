@@ -2203,19 +2203,29 @@ func TestWithdrawalEvidence(t *testing.T) {
 type testWithdrawalAPI struct {
 	blockNumber  rpc.BlockNumber
 	block        json.RawMessage
+	headerBlocks map[rpc.BlockNumber]json.RawMessage
 	balanceErr   error
 	balances     map[rpc.BlockNumber]*big.Int
+	blockCalls   atomic.Int64
 	balanceCalls atomic.Int64
 }
 
 func (api *testWithdrawalAPI) GetBlockByNumber(_ context.Context, number rpc.BlockNumber, fullTransactions bool) (json.RawMessage, error) {
+	if !fullTransactions {
+		if block, ok := api.headerBlocks[number]; ok {
+			return block, nil
+		}
+		return nil, fmt.Errorf("header block %d is not configured", number)
+	}
 	if number != api.blockNumber {
 		return nil, fmt.Errorf("requested block %d, want %d", number, api.blockNumber)
 	}
-	if !fullTransactions {
-		return nil, errors.New("full transactions flag is false")
-	}
+	api.blockCalls.Add(1)
 	return api.block, nil
+}
+
+func (api *testWithdrawalAPI) BlockNumber() hexutil.Uint64 {
+	return hexutil.Uint64(api.blockNumber)
 }
 
 func (api *testWithdrawalAPI) GetBalance(_ context.Context, _ common.Address, block rpc.BlockNumberOrHash) (*hexutil.Big, error) {
@@ -2362,7 +2372,7 @@ func TestFreshWithdrawalBalanceDeltaRequiresBothExecutionNodes(t *testing.T) {
 	for _, api := range apis {
 		api.balanceCalls.Store(0)
 	}
-	if err := check.verifyWithdrawalBalanceDeltaAt(t.Context(), evidence); err == nil || !strings.Contains(err.Error(), "EL2 withdrawal-recipient balance delta") {
+	if _, err := check.verifyWithdrawalBalanceDeltaAt(t.Context(), evidence); err == nil || !strings.Contains(err.Error(), "EL2 withdrawal-recipient balance delta") {
 		t.Fatalf("wrong EL2 withdrawal credit error = %v, want exact-delta failure", err)
 	}
 	for i, api := range apis {

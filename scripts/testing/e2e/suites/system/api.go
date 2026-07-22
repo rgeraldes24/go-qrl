@@ -111,7 +111,7 @@ type ManagedTransactionJournal interface {
 	RecordManagedTransactionResubmit(context.Context, string, time.Time) error
 }
 
-// SystemObservationRecorder persists immutable fault-cycle baselines and
+// SystemObservationRecorder persists immutable base/fault observations and
 // completed assertion milestones. The JSON value is typed and validated by
 // the system suite before it is trusted on resume.
 type SystemObservationRecorder interface {

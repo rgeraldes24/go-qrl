@@ -88,9 +88,18 @@ recorders internally.
 check, not a fresh budget for every polling phase. Individual eventual
 conditions retain their own timeout guards, but the whole-run deadline caps
 all of them. The 115-minute default accommodates 128-slot epochs at five
-seconds per slot: the check reaches initial finality, finalizes independently
-verified withdrawal evidence, then requires a further finalized checkpoint
-after participant fault and recovery.
+seconds per slot. The serialized `base` phase reaches initial finality and
+finalizes independently verified withdrawal evidence. The later
+`participant-restart` phase establishes its own current baseline and requires a
+further finalized checkpoint after fault and recovery.
+
+The canonical lifecycle gives the 115-minute inner phase budget explicit
+wrapper and recovery margin: 120 minutes for `system-base`, 120 minutes for
+`system-signer`, and 125 minutes for `system-participant`. Each wrapper's
+minimum runtime equals its timeout, so the global pre-cleanup deadline refuses
+to start a phase instead of silently shortening it. `vm64e2e resume` receives
+a new total budget and continues from the same checkpoint when more pre-cleanup
+time is required.
 
 Qrysm's failed-duty metrics are process-lifetime counters. Standalone runs
 baseline any value that predates the command and then fail on every increase,

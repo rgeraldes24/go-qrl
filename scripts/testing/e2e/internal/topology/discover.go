@@ -101,6 +101,9 @@ func Discover(spec Spec, output *PackageOutput, services []kurtosis.Service) (To
 		return Topology{}, err
 	}
 	for _, helperSpec := range sortedHelperSpecs(spec.Helpers) {
+		if _, present := serviceByName[helperSpec.Name]; !present && helperSpec.optional() {
+			continue
+		}
 		service, err := requireService(serviceByName, "helper", helperSpec.Name, helperSpec.UUID)
 		if err != nil {
 			return Topology{}, err

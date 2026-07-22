@@ -253,6 +253,30 @@ func TestSystemObservationRecorderPersistsStageScopedEvidence(t *testing.T) {
 	}
 }
 
+func TestSystemObservationRecorderPersistsAutomaticWithdrawalUnderExactBaseKey(t *testing.T) {
+	runtime, environment, _ := newSystemHarnessFixture(t, []string{"system-base"})
+	recorder := systemEvidenceRecorder{
+		runtime: runtime, environment: environment, phase: systemSuite.PhaseBase, stageName: "system-base",
+	}
+	const label = "base/automatic-withdrawal-fresh-balance-verified/0000000000000000000000000000000000000000000000000000000000000042"
+	value := `{"version":1,"block_number":42}`
+	if err := recorder.RecordSystemObservation(t.Context(), label, value, time.Now().UTC()); err != nil {
+		t.Fatal(err)
+	}
+	loaded, err := runtime.Store.Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	const wantKey = "system-base/base/automatic-withdrawal-fresh-balance-verified/0000000000000000000000000000000000000000000000000000000000000042"
+	if loaded.SystemObservations[wantKey] != value {
+		t.Fatalf("durable automatic-withdrawal observation = %v", loaded.SystemObservations)
+	}
+	filtered := systemObservations(loaded.SystemObservations, "system-base")
+	if filtered[label] != value || len(filtered) != 1 {
+		t.Fatalf("filtered base observations = %v", filtered)
+	}
+}
+
 func TestSystemMutationReconcileUsesDurableExternalState(t *testing.T) {
 	for _, test := range []struct {
 		name       string

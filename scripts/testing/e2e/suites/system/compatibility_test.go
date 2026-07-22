@@ -173,6 +173,29 @@ func TestCompatibilityRejectsPhaseAllWithoutCheckpointMutation(t *testing.T) {
 	}
 }
 
+func TestCompatibilityCheckpointRoundTripsAutomaticWithdrawalObservation(t *testing.T) {
+	t.Parallel()
+	runtime, cfg, fake, _, now := newCompatibilityFixture(t, PhaseBase)
+	label := automaticWithdrawalObservationLabel(common.HexToHash("0x42"))
+	value := `{"version":1,"block_number":42}`
+	if err := runtime.Options.ObservationRecorder.RecordSystemObservation(
+		t.Context(), label, value, now.Add(time.Minute),
+	); err != nil {
+		t.Fatal(err)
+	}
+	reopened, err := OpenCompatibilityCheckpoint(t.Context(), cfg.Checkpoint, cfg, fake)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if reopened.Options.RecordedObservations[label] != value {
+		t.Fatalf("reopened automatic-withdrawal observations = %+v", reopened.Options.RecordedObservations)
+	}
+	wantKey := "system-base/" + label
+	if reopened.State.SystemObservations[wantKey] != value {
+		t.Fatalf("checkpoint automatic-withdrawal observations = %+v", reopened.State.SystemObservations)
+	}
+}
+
 func newCompatibilityFixture(t *testing.T, phase Phase) (*CompatibilityRuntime, Config, *kurtosisapi.FakeClient, map[string]string, time.Time) {
 	t.Helper()
 	now := time.Date(2026, 7, 21, 9, 0, 0, 0, time.UTC)

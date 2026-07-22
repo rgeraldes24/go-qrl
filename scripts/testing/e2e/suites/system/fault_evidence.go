@@ -316,6 +316,19 @@ func validateSystemObservationResumeState(cfg config, resume *resumeState) error
 		}
 	}
 	for label, raw := range resume.observations {
+		if isAutomaticWithdrawalObservationLabel(label) {
+			if cfg.phase != string(PhaseBase) && cfg.phase != string(PhaseAll) {
+				return fmt.Errorf("system observation %q is not valid for phase %q", label, cfg.phase)
+			}
+			observed, err := decodeAutomaticWithdrawalObservation(raw, cfg.withdrawalRecipient)
+			if err != nil {
+				return fmt.Errorf("system observation %q is invalid: %w", label, err)
+			}
+			if want := automaticWithdrawalObservationLabel(observed.blockHash); label != want {
+				return fmt.Errorf("system observation %q is invalid: block hash requires label %q", label, want)
+			}
+			continue
+		}
 		if !allowed[label] {
 			return fmt.Errorf("system observation %q is not valid for phase %q", label, cfg.phase)
 		}

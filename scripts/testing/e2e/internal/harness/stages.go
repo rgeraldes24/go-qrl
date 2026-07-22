@@ -35,6 +35,12 @@ import (
 	systemSuite "github.com/theQRL/go-qrl/scripts/testing/e2e/suites/system"
 )
 
+const (
+	systemBaseTimeout        = 120 * time.Minute
+	systemSignerTimeout      = 120 * time.Minute
+	systemParticipantTimeout = 125 * time.Minute
+)
+
 func ownedStages(runtime *Runtime) []lifecycle.Stage {
 	return []lifecycle.Stage{
 		stage("validate", 10*time.Minute, time.Minute, lifecycle.RetrySafe, false, runtime.validateStage, nil),
@@ -47,9 +53,9 @@ func ownedStages(runtime *Runtime) []lifecycle.Stage {
 		stage("el1", 60*time.Minute, 15*time.Minute, lifecycle.InspectBeforeRetry, true, runtime.elStage(0), runtime.transactionalStageReconcile("el1", "el1/")),
 		stage("el2", 60*time.Minute, 15*time.Minute, lifecycle.InspectBeforeRetry, true, runtime.elStage(1), runtime.transactionalStageReconcile("el2", "el2/")),
 		stage("deposit", 60*time.Minute, 15*time.Minute, lifecycle.InspectBeforeRetry, true, runtime.depositStage, runtime.transactionalStageReconcile("deposit", "deposit-")),
-		stage("system-base", 60*time.Minute, 15*time.Minute, lifecycle.InspectBeforeRetry, true, runtime.systemStage("base"), runtime.systemMutationReconcile("system-base", systemSuite.PhaseBase)),
-		stage("system-signer", 60*time.Minute, 15*time.Minute, lifecycle.InspectBeforeRetry, true, runtime.systemStage("signer-restart"), runtime.systemMutationReconcile("system-signer", systemSuite.PhaseSignerRestart)),
-		stage("system-participant", 105*time.Minute, 30*time.Minute, lifecycle.InspectBeforeRetry, true, runtime.systemStage("participant-restart"), runtime.systemMutationReconcile("system-participant", systemSuite.PhaseParticipantRestart)),
+		stage("system-base", systemBaseTimeout, systemBaseTimeout, lifecycle.InspectBeforeRetry, true, runtime.systemStage("base"), runtime.systemMutationReconcile("system-base", systemSuite.PhaseBase)),
+		stage("system-signer", systemSignerTimeout, systemSignerTimeout, lifecycle.InspectBeforeRetry, true, runtime.systemStage("signer-restart"), runtime.systemMutationReconcile("system-signer", systemSuite.PhaseSignerRestart)),
+		stage("system-participant", systemParticipantTimeout, systemParticipantTimeout, lifecycle.InspectBeforeRetry, true, runtime.systemStage("participant-restart"), runtime.systemMutationReconcile("system-participant", systemSuite.PhaseParticipantRestart)),
 		stage("fresh-snap", 75*time.Minute, 20*time.Minute, lifecycle.InspectBeforeRetry, true, runtime.freshSyncStage("snap"), runtime.freshSyncReconcile("snap")),
 		stage("fresh-full", 75*time.Minute, 20*time.Minute, lifecycle.InspectBeforeRetry, true, runtime.freshSyncStage("full"), runtime.freshSyncReconcile("full")),
 	}
@@ -71,9 +77,9 @@ func borrowedStages(runtime *Runtime, allowDisruptive bool) []lifecycle.Stage {
 		stage("el1", 60*time.Minute, 15*time.Minute, lifecycle.InspectBeforeRetry, true, runtime.elStage(0), runtime.transactionalStageReconcile("el1", "el1/")),
 		stage("el2", 60*time.Minute, 15*time.Minute, lifecycle.InspectBeforeRetry, true, runtime.elStage(1), runtime.transactionalStageReconcile("el2", "el2/")),
 		stage("deposit", 60*time.Minute, 15*time.Minute, lifecycle.InspectBeforeRetry, true, runtime.depositStage, runtime.transactionalStageReconcile("deposit", "deposit-")),
-		stage("system-base", 60*time.Minute, 15*time.Minute, lifecycle.InspectBeforeRetry, true, runtime.systemStage("base"), runtime.systemMutationReconcile("system-base", systemSuite.PhaseBase)),
-		stage("system-signer", 60*time.Minute, 15*time.Minute, lifecycle.InspectBeforeRetry, true, runtime.systemStage("signer-restart"), runtime.systemMutationReconcile("system-signer", systemSuite.PhaseSignerRestart)),
-		stage("system-participant", 105*time.Minute, 30*time.Minute, lifecycle.InspectBeforeRetry, true, runtime.systemStage("participant-restart"), runtime.systemMutationReconcile("system-participant", systemSuite.PhaseParticipantRestart)),
+		stage("system-base", systemBaseTimeout, systemBaseTimeout, lifecycle.InspectBeforeRetry, true, runtime.systemStage("base"), runtime.systemMutationReconcile("system-base", systemSuite.PhaseBase)),
+		stage("system-signer", systemSignerTimeout, systemSignerTimeout, lifecycle.InspectBeforeRetry, true, runtime.systemStage("signer-restart"), runtime.systemMutationReconcile("system-signer", systemSuite.PhaseSignerRestart)),
+		stage("system-participant", systemParticipantTimeout, systemParticipantTimeout, lifecycle.InspectBeforeRetry, true, runtime.systemStage("participant-restart"), runtime.systemMutationReconcile("system-participant", systemSuite.PhaseParticipantRestart)),
 		stage("fresh-snap", 75*time.Minute, 20*time.Minute, lifecycle.InspectBeforeRetry, true, runtime.freshSyncStage("snap"), runtime.freshSyncReconcile("snap")),
 		stage("fresh-full", 75*time.Minute, 20*time.Minute, lifecycle.InspectBeforeRetry, true, runtime.freshSyncStage("full"), runtime.freshSyncReconcile("full")),
 	)
