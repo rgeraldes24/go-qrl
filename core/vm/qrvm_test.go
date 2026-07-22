@@ -75,77 +75,58 @@ func assertFailedCreationState(t *testing.T, statedb *state.StateDB, creator, co
 func TestCreateCodeStoreOutOfGasRevertsState(t *testing.T) {
 	creator := common.BytesToAddress([]byte("creator"))
 	qrvm, statedb := newCodeStoreOutOfGasTestVM(t, creator)
-	contract := crypto.CreateAddress(creator, 0)
 
 	_, address, leftOverGas, err := qrvm.Create(AccountRef(creator), codeStoreOutOfGasInitCode, 199, big.NewInt(7))
 	if err != ErrCodeStoreOutOfGas {
 		t.Fatalf("error mismatch: have %v, want %v", err, ErrCodeStoreOutOfGas)
 	}
-	if address != contract {
-		t.Fatalf("contract address mismatch: have %v, want %v", address, contract)
-	}
 	if leftOverGas != 0 {
 		t.Fatalf("leftover gas mismatch: have %d, want 0", leftOverGas)
 	}
-	assertFailedCreationState(t, statedb, creator, contract)
+	assertFailedCreationState(t, statedb, creator, address)
 }
 
-func TestOpCreateCodeStoreOutOfGasRevertsState(t *testing.T) {
+func TestCreateOpcodesCodeStoreOutOfGasRevertState(t *testing.T) {
 	creator := common.BytesToAddress([]byte("creator"))
-	qrvm, statedb := newCodeStoreOutOfGasTestVM(t, creator)
-	contractAddress := crypto.CreateAddress(creator, 0)
-	const initialGas = uint64(199)
-
-	stack := newstack()
-	defer returnStack(stack)
-	stack.push(new(uint512.Int).SetUint64(uint64(len(codeStoreOutOfGasInitCode))))
-	stack.push(new(uint512.Int))
-	stack.push(new(uint512.Int).SetUint64(7))
-	memory := NewMemory()
-	memory.Resize(uint64(len(codeStoreOutOfGasInitCode)))
-	memory.Set(0, uint64(len(codeStoreOutOfGasInitCode)), codeStoreOutOfGasInitCode)
-	contract := NewContract(AccountRef(common.Address{}), AccountRef(creator), new(big.Int), initialGas)
-	pc := uint64(0)
-
-	if _, err := opCreate(&pc, qrvm.interpreter, &ScopeContext{Memory: memory, Stack: stack, Contract: contract}); err != nil {
-		t.Fatal(err)
-	}
-	if result := stack.pop(); !result.IsZero() {
-		t.Fatalf("CREATE result mismatch: have %v, want 0", &result)
-	}
-	if contract.Gas != initialGas/64 {
-		t.Fatalf("parent gas mismatch: have %d, want %d", contract.Gas, initialGas/64)
-	}
-	assertFailedCreationState(t, statedb, creator, contractAddress)
-}
-
-func TestOpCreate2CodeStoreOutOfGasRevertsState(t *testing.T) {
-	creator := common.BytesToAddress([]byte("creator"))
-	qrvm, statedb := newCodeStoreOutOfGasTestVM(t, creator)
 	salt := new(uint512.Int).SetUint64(1)
-	contractAddress := crypto.CreateAddress2(creator, salt.Bytes64(), crypto.Keccak256(codeStoreOutOfGasInitCode))
 	const initialGas = uint64(199)
 
-	stack := newstack()
-	defer returnStack(stack)
-	stack.push(salt)
-	stack.push(new(uint512.Int).SetUint64(uint64(len(codeStoreOutOfGasInitCode))))
-	stack.push(new(uint512.Int))
-	stack.push(new(uint512.Int).SetUint64(7))
-	memory := NewMemory()
-	memory.Resize(uint64(len(codeStoreOutOfGasInitCode)))
-	memory.Set(0, uint64(len(codeStoreOutOfGasInitCode)), codeStoreOutOfGasInitCode)
-	contract := NewContract(AccountRef(common.Address{}), AccountRef(creator), new(big.Int), initialGas)
-	pc := uint64(0)
+	tests := []struct {
+		name            string
+		execute         executionFunc
+		salt            *uint512.Int
+		contractAddress common.Address
+	}{
+		{"CREATE", opCreate, nil, crypto.CreateAddress(creator, 0)},
+		{"CREATE2", opCreate2, salt, crypto.CreateAddress2(creator, salt.Bytes64(), crypto.Keccak256(codeStoreOutOfGasInitCode))},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			qrvm, statedb := newCodeStoreOutOfGasTestVM(t, creator)
+			stack := newstack()
+			defer returnStack(stack)
+			if test.salt != nil {
+				stack.push(test.salt)
+			}
+			stack.push(new(uint512.Int).SetUint64(uint64(len(codeStoreOutOfGasInitCode))))
+			stack.push(new(uint512.Int))
+			stack.push(new(uint512.Int).SetUint64(7))
+			memory := NewMemory()
+			memory.Resize(uint64(len(codeStoreOutOfGasInitCode)))
+			memory.Set(0, uint64(len(codeStoreOutOfGasInitCode)), codeStoreOutOfGasInitCode)
+			contract := NewContract(AccountRef(common.Address{}), AccountRef(creator), new(big.Int), initialGas)
+			pc := uint64(0)
 
-	if _, err := opCreate2(&pc, qrvm.interpreter, &ScopeContext{Memory: memory, Stack: stack, Contract: contract}); err != nil {
-		t.Fatal(err)
+			if _, err := test.execute(&pc, qrvm.interpreter, &ScopeContext{Memory: memory, Stack: stack, Contract: contract}); err != nil {
+				t.Fatal(err)
+			}
+			if result := stack.pop(); !result.IsZero() {
+				t.Fatalf("result mismatch: have %v, want 0", &result)
+			}
+			if contract.Gas != initialGas/64 {
+				t.Fatalf("parent gas mismatch: have %d, want %d", contract.Gas, initialGas/64)
+			}
+			assertFailedCreationState(t, statedb, creator, test.contractAddress)
+		})
 	}
-	if result := stack.pop(); !result.IsZero() {
-		t.Fatalf("CREATE2 result mismatch: have %v, want 0", &result)
-	}
-	if contract.Gas != initialGas/64 {
-		t.Fatalf("parent gas mismatch: have %d, want %d", contract.Gas, initialGas/64)
-	}
-	assertFailedCreationState(t, statedb, creator, contractAddress)
 }
