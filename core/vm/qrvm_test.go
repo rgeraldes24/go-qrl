@@ -72,7 +72,7 @@ func assertFailedCreationState(t *testing.T, statedb *state.StateDB, creator, co
 	}
 }
 
-func TestCreateCodeStoreOutOfGasRevertsState(t *testing.T) {
+func TestCreateCodeStoreOutOfGas(t *testing.T) {
 	creator := common.BytesToAddress([]byte("creator"))
 	qrvm, statedb := newCodeStoreOutOfGasTestVM(t, creator)
 
@@ -86,7 +86,7 @@ func TestCreateCodeStoreOutOfGasRevertsState(t *testing.T) {
 	assertFailedCreationState(t, statedb, creator, address)
 }
 
-func TestCreateOpcodesCodeStoreOutOfGasRevertState(t *testing.T) {
+func TestCreateOpcodesCodeStoreOutOfGas(t *testing.T) {
 	creator := common.BytesToAddress([]byte("creator"))
 	salt := new(uint512.Int).SetUint64(1)
 	const initialGas = uint64(199)
