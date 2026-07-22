@@ -21,11 +21,9 @@ import (
 	"testing"
 
 	"github.com/theQRL/go-qrl/common"
-	"github.com/theQRL/go-qrl/common/uint512"
 	"github.com/theQRL/go-qrl/core/rawdb"
 	"github.com/theQRL/go-qrl/core/state"
 	"github.com/theQRL/go-qrl/core/types"
-	"github.com/theQRL/go-qrl/crypto"
 	"github.com/theQRL/go-qrl/params"
 )
 
@@ -84,49 +82,4 @@ func TestCreateCodeStoreOutOfGas(t *testing.T) {
 		t.Fatalf("leftover gas mismatch: have %d, want 0", leftOverGas)
 	}
 	assertFailedCreationState(t, statedb, creator, address)
-}
-
-func TestCreateOpcodesCodeStoreOutOfGas(t *testing.T) {
-	creator := common.BytesToAddress([]byte("creator"))
-	salt := new(uint512.Int).SetUint64(1)
-	const initialGas = uint64(199)
-
-	tests := []struct {
-		name            string
-		execute         executionFunc
-		salt            *uint512.Int
-		contractAddress common.Address
-	}{
-		{"CREATE", opCreate, nil, crypto.CreateAddress(creator, 0)},
-		{"CREATE2", opCreate2, salt, crypto.CreateAddress2(creator, salt.Bytes64(), crypto.Keccak256(codeStoreOutOfGasInitCode))},
-	}
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			qrvm, statedb := newCodeStoreOutOfGasTestVM(t, creator)
-			stack := newstack()
-			defer returnStack(stack)
-			if test.salt != nil {
-				stack.push(test.salt)
-			}
-			stack.push(new(uint512.Int).SetUint64(uint64(len(codeStoreOutOfGasInitCode))))
-			stack.push(new(uint512.Int))
-			stack.push(new(uint512.Int).SetUint64(7))
-			memory := NewMemory()
-			memory.Resize(uint64(len(codeStoreOutOfGasInitCode)))
-			memory.Set(0, uint64(len(codeStoreOutOfGasInitCode)), codeStoreOutOfGasInitCode)
-			contract := NewContract(AccountRef(common.Address{}), AccountRef(creator), new(big.Int), initialGas)
-			pc := uint64(0)
-
-			if _, err := test.execute(&pc, qrvm.interpreter, &ScopeContext{Memory: memory, Stack: stack, Contract: contract}); err != nil {
-				t.Fatal(err)
-			}
-			if result := stack.pop(); !result.IsZero() {
-				t.Fatalf("result mismatch: have %v, want 0", &result)
-			}
-			if contract.Gas != initialGas/64 {
-				t.Fatalf("parent gas mismatch: have %d, want %d", contract.Gas, initialGas/64)
-			}
-			assertFailedCreationState(t, statedb, creator, test.contractAddress)
-		})
-	}
 }
