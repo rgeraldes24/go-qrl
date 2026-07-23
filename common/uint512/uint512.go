@@ -9,9 +9,11 @@
 package uint512
 
 import (
+	"errors"
 	"fmt"
 	"math/big"
 	"math/bits"
+	"strconv"
 )
 
 const (
@@ -19,6 +21,15 @@ const (
 	WordBits = 512
 	// WordBytes is the width of Int in bytes.
 	WordBytes = WordBits / 8
+)
+
+var (
+	ErrEmptyString   = errors.New("empty hex string")
+	ErrSyntax        = errors.New("invalid hex string")
+	ErrMissingPrefix = errors.New("hex string without 0x prefix")
+	ErrEmptyNumber   = errors.New("hex string \"0x\"")
+	ErrLeadingZero   = errors.New("hex number with leading zero digits")
+	ErrBig512Range   = errors.New("hex number > 512 bits")
 )
 
 // Int is a 512-bit unsigned integer stored as 8 little-endian 64-bit limbs.
@@ -50,6 +61,47 @@ func MustFromBig(b *big.Int) *Int {
 		panic("uint512: value overflows 512 bits")
 	}
 	return z
+}
+
+// SetFromHex sets z from the given string, interpreted as a hexadecimal number.
+// The string must be 0x-prefixed, unsigned, and no larger than 512 bits.
+func (z *Int) SetFromHex(input string) error {
+	if err := checkNumberS(input); err != nil {
+		return err
+	}
+	if len(input) > 2+WordBytes*2 {
+		return ErrBig512Range
+	}
+	z.Clear()
+	for i, end := 0, len(input); end > 2; i++ {
+		start := end - 16
+		if start < 2 {
+			start = 2
+		}
+		limb, err := strconv.ParseUint(input[start:end], 16, 64)
+		if err != nil {
+			return ErrSyntax
+		}
+		z[i] = limb
+		end = start
+	}
+	return nil
+}
+
+func checkNumberS(input string) error {
+	if len(input) == 0 {
+		return ErrEmptyString
+	}
+	if len(input) < 2 || input[0] != '0' || (input[1] != 'x' && input[1] != 'X') {
+		return ErrMissingPrefix
+	}
+	if len(input) == 2 {
+		return ErrEmptyNumber
+	}
+	if len(input) > 3 && input[2] == '0' {
+		return ErrLeadingZero
+	}
+	return nil
 }
 
 // --- basic accessors --------------------------------------------------------

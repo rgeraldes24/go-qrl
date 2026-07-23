@@ -32,7 +32,7 @@ var (
 	bytesqT  = reflect.TypeFor[BytesQ]()
 	bigT     = reflect.TypeFor[*Big]()
 	u512T    = reflect.TypeFor[*U512]()
-	uint512T = reflect.TypeFor[*Uint512]()
+	uint512T = reflect.TypeFor[*uint512.Int]()
 	uintT    = reflect.TypeFor[Uint]()
 	uint64T  = reflect.TypeFor[Uint64]()
 )
@@ -349,17 +349,20 @@ func (u *Uint512) UnmarshalJSON(input []byte) error {
 	if !isString(input) {
 		return errNonString(uint512T)
 	}
-	return wrapTypeError(u.UnmarshalText(input[1:len(input)-1]), uint512T)
+	if len(input) == 2 {
+		(*uint512.Int)(u).Clear()
+		return nil
+	}
+	err := (*uint512.Int)(u).SetFromHex(string(input[1 : len(input)-1]))
+	if err != nil {
+		return &json.UnmarshalTypeError{Value: err.Error(), Type: uint512T}
+	}
+	return nil
 }
 
 // UnmarshalText implements encoding.TextUnmarshaler.
 func (u *Uint512) UnmarshalText(input []byte) error {
-	var value U512
-	if err := value.UnmarshalText(input); err != nil {
-		return err
-	}
-	(*uint512.Int)(u).SetFromBig(value.ToInt())
-	return nil
+	return (*uint512.Int)(u).SetFromHex(string(input))
 }
 
 // String returns the hex encoding of u.

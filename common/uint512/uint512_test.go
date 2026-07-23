@@ -2,6 +2,7 @@ package uint512
 
 import (
 	"math/big"
+	"strings"
 	"testing"
 )
 
@@ -39,6 +40,37 @@ func TestFromBigOverflow(t *testing.T) {
 	_, overflow := FromBig(b)
 	if !overflow {
 		t.Fatal("expected overflow for 2^513")
+	}
+}
+
+func TestSetFromHex(t *testing.T) {
+	tests := []struct {
+		input   string
+		want    string
+		wantErr error
+	}{
+		{input: "", wantErr: ErrEmptyString},
+		{input: "0", wantErr: ErrMissingPrefix},
+		{input: "0x", wantErr: ErrEmptyNumber},
+		{input: "0x01", wantErr: ErrLeadingZero},
+		{input: "0xx", wantErr: ErrSyntax},
+		{input: "0x1zz01", wantErr: ErrSyntax},
+		{input: "0x" + strings.Repeat("f", WordBytes*2+1), wantErr: ErrBig512Range},
+		{input: "0x0", want: "0x0"},
+		{input: "0x2F2", want: "0x2f2"},
+		{input: "0X1122aaff", want: "0x1122aaff"},
+		{input: "0x" + strings.Repeat("f", WordBytes*2), want: "0x" + strings.Repeat("f", WordBytes*2)},
+	}
+	for _, test := range tests {
+		value := new(Int)
+		err := value.SetFromHex(test.input)
+		if err != test.wantErr {
+			t.Errorf("input %q: got error %v, want %v", test.input, err, test.wantErr)
+			continue
+		}
+		if err == nil && value.Hex() != test.want {
+			t.Errorf("input %q: got %s, want %s", test.input, value.Hex(), test.want)
+		}
 	}
 }
 
