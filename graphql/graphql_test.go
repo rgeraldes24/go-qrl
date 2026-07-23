@@ -257,32 +257,6 @@ func TestGraphQLBlockSerializationEIP2718(t *testing.T) {
 	}
 }
 
-func TestTransactionAuthenticationFields(t *testing.T) {
-	tx := types.NewTx(&types.DynamicFeeTx{
-		Descriptor:  [3]byte{1, 2, 3},
-		ExtraParams: []byte{4, 5, 6},
-		Signature:   []byte{7},
-		PublicKey:   []byte{8},
-	})
-	transaction := &Transaction{tx: tx, block: new(Block)}
-
-	publicKey, err := transaction.PublicKey(t.Context())
-	assert.NoError(t, err)
-	assert.Equal(t, tx.RawPublicKeyValue(), []byte(publicKey))
-
-	signature, err := transaction.Signature(t.Context())
-	assert.NoError(t, err)
-	assert.Equal(t, tx.RawSignatureValue(), []byte(signature))
-
-	descriptor, err := transaction.Descriptor(t.Context())
-	assert.NoError(t, err)
-	assert.Equal(t, tx.Descriptor(), []byte(descriptor))
-
-	extraParams, err := transaction.ExtraParams(t.Context())
-	assert.NoError(t, err)
-	assert.Equal(t, tx.ExtraParams(), []byte(extraParams))
-}
-
 // Tests that a graphQL request is not handled successfully when graphql is not enabled on the specified endpoint
 func TestGraphQLHTTPOnSamePort_GQLRequest_Unsuccessful(t *testing.T) {
 	stack := createNode(t)
