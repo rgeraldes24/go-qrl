@@ -24,6 +24,8 @@ import (
 	"math/big"
 	"math/bits"
 	"testing"
+
+	"github.com/theQRL/go-qrl/common/uint512"
 )
 
 func checkError(t *testing.T, input string, got, want error) bool {
@@ -261,6 +263,63 @@ func TestMarshalU512(t *testing.T) {
 		if out := (*U512)(in).String(); out != test.want {
 			t.Errorf("%x: String mismatch: got %q, want %q", in, out, test.want)
 			continue
+		}
+	}
+}
+
+var unmarshalUint512Tests = []unmarshalTest{
+	// invalid encoding
+	{input: "", wantErr: errJSONEOF},
+	{input: "null", wantErr: errNonString(uint512T)},
+	{input: "10", wantErr: errNonString(uint512T)},
+	{input: `"0"`, wantErr: wrapTypeError(ErrMissingPrefix, uint512T)},
+	{input: `"0x"`, wantErr: wrapTypeError(ErrEmptyNumber, uint512T)},
+	{input: `"0x01"`, wantErr: wrapTypeError(ErrLeadingZero, uint512T)},
+	{input: `"0x` + string(bytes.Repeat([]byte{'f'}, 129)) + `"`, wantErr: wrapTypeError(ErrBig512Range, uint512T)},
+	{input: `"0xx"`, wantErr: wrapTypeError(ErrSyntax, uint512T)},
+	{input: `"0x1zz01"`, wantErr: wrapTypeError(ErrSyntax, uint512T)},
+
+	// valid encoding
+	{input: `""`, want: big.NewInt(0)},
+	{input: `"0x0"`, want: big.NewInt(0)},
+	{input: `"0x2"`, want: big.NewInt(0x2)},
+	{input: `"0x2F2"`, want: big.NewInt(0x2f2)},
+	{input: `"0X2F2"`, want: big.NewInt(0x2f2)},
+	{input: `"0x1122aaff"`, want: big.NewInt(0x1122aaff)},
+	{input: `"0xbBb"`, want: big.NewInt(0xbbb)},
+	{input: `"0xfffffffff"`, want: big.NewInt(0xfffffffff)},
+	{
+		input: `"0x112233445566778899aabbccddeeff"`,
+		want:  referenceBig("112233445566778899aabbccddeeff"),
+	},
+	{
+		input: `"0xffffffffffffffffffffffffffffffffffff"`,
+		want:  referenceBig("ffffffffffffffffffffffffffffffffffff"),
+	},
+	{
+		input: `"0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"`,
+		want:  referenceBig("ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"),
+	},
+	{input: `"0x` + string(bytes.Repeat([]byte{'f'}, 128)) + `"`, want: referenceBig(string(bytes.Repeat([]byte{'f'}, 128)))},
+}
+
+func TestUnmarshalUint512(t *testing.T) {
+	for _, test := range unmarshalUint512Tests {
+		var v Uint512
+		err := json.Unmarshal([]byte(test.input), &v)
+		if !checkError(t, test.input, err, test.wantErr) {
+			continue
+		}
+		if test.want == nil {
+			continue
+		}
+		want, overflow := uint512.FromBig(test.want.(*big.Int))
+		if overflow {
+			t.Fatalf("test value overflows uint512: %x", test.want)
+		}
+		have := (*uint512.Int)(&v)
+		if !want.Eq(have) {
+			t.Errorf("input %s: value mismatch: got %x, want %x", test.input, have, want)
 		}
 	}
 }

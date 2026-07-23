@@ -23,15 +23,18 @@ import (
 	"math/big"
 	"reflect"
 	"strconv"
+
+	"github.com/theQRL/go-qrl/common/uint512"
 )
 
 var (
-	bytesT  = reflect.TypeFor[Bytes]()
-	bytesqT = reflect.TypeFor[BytesQ]()
-	bigT    = reflect.TypeFor[*Big]()
-	u512T   = reflect.TypeFor[*U512]()
-	uintT   = reflect.TypeFor[Uint]()
-	uint64T = reflect.TypeFor[Uint64]()
+	bytesT   = reflect.TypeFor[Bytes]()
+	bytesqT  = reflect.TypeFor[BytesQ]()
+	bigT     = reflect.TypeFor[*Big]()
+	u512T    = reflect.TypeFor[*U512]()
+	uint512T = reflect.TypeFor[*Uint512]()
+	uintT    = reflect.TypeFor[Uint]()
+	uint64T  = reflect.TypeFor[Uint64]()
 )
 
 // Bytes marshals/unmarshals as a JSON string with 0x prefix.
@@ -330,6 +333,38 @@ func (u *U512) UnmarshalGraphQL(input any) error {
 	default:
 		return fmt.Errorf("unexpected type %T for U512", input)
 	}
+}
+
+// Uint512 marshals/unmarshals a uint512.Int as a JSON string with 0x prefix.
+// The zero value marshals as "0x0".
+type Uint512 uint512.Int
+
+// MarshalText implements encoding.TextMarshaler.
+func (u Uint512) MarshalText() ([]byte, error) {
+	return []byte((*uint512.Int)(&u).Hex()), nil
+}
+
+// UnmarshalJSON implements json.Unmarshaler.
+func (u *Uint512) UnmarshalJSON(input []byte) error {
+	if !isString(input) {
+		return errNonString(uint512T)
+	}
+	return wrapTypeError(u.UnmarshalText(input[1:len(input)-1]), uint512T)
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (u *Uint512) UnmarshalText(input []byte) error {
+	var value U512
+	if err := value.UnmarshalText(input); err != nil {
+		return err
+	}
+	(*uint512.Int)(u).SetFromBig(value.ToInt())
+	return nil
+}
+
+// String returns the hex encoding of u.
+func (u Uint512) String() string {
+	return (*uint512.Int)(&u).Hex()
 }
 
 // Uint64 marshals/unmarshals as a JSON string with 0x prefix.
