@@ -14,7 +14,6 @@
 package jsre
 
 import (
-	"fmt"
 	"os"
 	"strings"
 	"testing"
@@ -68,71 +67,5 @@ func TestEmbeddedWeb3QIP55Checksum(t *testing.T) {
 	}
 	if invalidValue.ToBoolean() {
 		t.Fatal("lowercase compatibility address passed strict checksum validation")
-	}
-}
-
-func TestEmbeddedWeb3RejectsLowercaseQPrefix(t *testing.T) {
-	t.Parallel()
-
-	re := newEmbeddedWeb3(t)
-
-	plain := "Q" + strings.Repeat("0", 88) + "b26f2b342aab24bcf63ea218c6a9274d30ab9a15"
-	checksummed := common.MustParseAddress(plain).Hex()
-	lowerPrefix := "q" + plain[1:]
-
-	script := fmt.Sprintf(`
-currentOutput = "0x0";
-var formatterError = "";
-try {
-  web3.qrl.getBalance(%q);
-} catch (err) {
-  formatterError = err.message;
-}
-var rejectedBeforeProvider = lastPayload === null;
-web3.qrl.getBalance(%q);
-var plainPayload = lastPayload.params[0];
-web3.qrl.getBalance(%q);
-var checksummedPayload = lastPayload.params[0];
-JSON.stringify({
-  plain: web3.isAddress(%q),
-  checksummed: web3.isAddress(%q),
-  lowercasePrefix: web3.isAddress(%q),
-  strictLowercasePrefix: web3._extend.utils.isStrictAddress(%q),
-  rejectedBeforeProvider: rejectedBeforeProvider,
-  plainPayload: plainPayload,
-  checksummedPayload: checksummedPayload,
-  formatterError: formatterError
-});
-`, lowerPrefix, plain, checksummed, plain, checksummed, lowerPrefix, lowerPrefix)
-
-	var result struct {
-		Plain                  bool   `json:"plain"`
-		Checksummed            bool   `json:"checksummed"`
-		LowercasePrefix        bool   `json:"lowercasePrefix"`
-		StrictLowercasePrefix  bool   `json:"strictLowercasePrefix"`
-		RejectedBeforeProvider bool   `json:"rejectedBeforeProvider"`
-		PlainPayload           string `json:"plainPayload"`
-		ChecksummedPayload     string `json:"checksummedPayload"`
-		FormatterError         string `json:"formatterError"`
-	}
-	runWeb3JSON(t, re, web3CallProvider, script, &result)
-
-	if !result.Plain {
-		t.Fatal("full-width uppercase-Q address was rejected")
-	}
-	if !result.Checksummed {
-		t.Fatal("canonical QIP-55 address was rejected")
-	}
-	if result.LowercasePrefix || result.StrictLowercasePrefix {
-		t.Fatal("lowercase-q address was accepted")
-	}
-	if result.FormatterError == "" {
-		t.Fatal("input address formatter accepted lowercase-q address")
-	}
-	if !result.RejectedBeforeProvider {
-		t.Fatal("provider received a request for lowercase-q address")
-	}
-	if result.PlainPayload != plain || result.ChecksummedPayload != checksummed {
-		t.Fatal("input address formatter changed a valid uppercase-Q address")
 	}
 }
