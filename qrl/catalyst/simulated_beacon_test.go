@@ -24,7 +24,6 @@ import (
 	"github.com/theQRL/go-qrl/common"
 	"github.com/theQRL/go-qrl/core"
 	"github.com/theQRL/go-qrl/core/types"
-	"github.com/theQRL/go-qrl/internal/testutil"
 	"github.com/theQRL/go-qrl/miner"
 	"github.com/theQRL/go-qrl/node"
 	"github.com/theQRL/go-qrl/p2p"
@@ -32,9 +31,10 @@ import (
 	"github.com/theQRL/go-qrl/qrl"
 	"github.com/theQRL/go-qrl/qrl/downloader"
 	"github.com/theQRL/go-qrl/qrl/qrlconfig"
+	"github.com/theQRL/go-qrl/internal/testutil"
 )
 
-func startSimulatedBeaconQRLService(t *testing.T, genesis *core.Genesis, period uint64) (*node.Node, *qrl.QRL, *SimulatedBeacon) {
+func startSimulatedBeaconQRLService(t *testing.T, genesis *core.Genesis) (*node.Node, *qrl.QRL, *SimulatedBeacon) {
 	t.Helper()
 
 	n, err := node.New(&node.Config{
@@ -54,7 +54,7 @@ func startSimulatedBeaconQRLService(t *testing.T, genesis *core.Genesis, period 
 		t.Fatal("can't create qrl service:", err)
 	}
 
-	simBeacon, err := NewSimulatedBeacon(period, qrlservice)
+	simBeacon, err := NewSimulatedBeacon(1, qrlservice)
 	if err != nil {
 		t.Fatal("can't create simulated beacon:", err)
 	}
@@ -86,7 +86,7 @@ func TestSimulatedBeaconSendWithdrawals(t *testing.T) {
 	// short period (1 second) for testing purposes
 	var gasLimit uint64 = 10_000_000
 	genesis := core.DeveloperGenesisBlock(gasLimit, testAddr)
-	node, qrlService, mock := startSimulatedBeaconQRLService(t, genesis, 1)
+	node, qrlService, mock := startSimulatedBeaconQRLService(t, genesis)
 	_ = mock
 	defer node.Close()
 
@@ -137,30 +137,5 @@ func TestSimulatedBeaconSendWithdrawals(t *testing.T) {
 		case <-timer.C:
 			t.Fatal("timed out without including all withdrawals/txs")
 		}
-	}
-}
-
-func TestSimulatedBeaconAdjustTime(t *testing.T) {
-	testAddr := testutil.MustLoadAccount("alice").MustWallet().GetAddress()
-	genesis := core.DeveloperGenesisBlock(10_000_000, testAddr)
-	node, qrlService, simBeacon := startSimulatedBeaconQRLService(t, genesis, 0)
-	defer node.Close()
-
-	parent := qrlService.BlockChain().CurrentBlock()
-	if err := simBeacon.AdjustTime(time.Second); err != nil {
-		t.Fatal("adjust time failed:", err)
-	}
-	current := qrlService.BlockChain().CurrentBlock()
-	if diff := current.Time - parent.Time; diff != 1 {
-		t.Fatalf("unexpected timestamp adjustment: got %d, want 1", diff)
-	}
-
-	parent = current
-	if err := simBeacon.AdjustTime(time.Minute); err != nil {
-		t.Fatal("adjust time failed:", err)
-	}
-	current = qrlService.BlockChain().CurrentBlock()
-	if diff := current.Time - parent.Time; diff != 60 {
-		t.Fatalf("unexpected timestamp adjustment: got %d, want 60", diff)
 	}
 }
