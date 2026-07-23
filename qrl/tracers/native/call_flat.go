@@ -93,7 +93,6 @@ type flatCallTracer struct {
 	tracer            *callTracer
 	config            flatCallTracerConfig
 	ctx               *tracers.Context // Holds tracer context data
-	reason            error            // Textual reason for the interruption
 	activePrecompiles []common.Address // Updated on CaptureStart based on given rules
 }
 
@@ -205,7 +204,7 @@ func (t *flatCallTracer) GetResult() (json.RawMessage, error) {
 	if err != nil {
 		return nil, err
 	}
-	return res, t.reason
+	return res, t.tracer.reason
 }
 
 // Stop terminates execution of the tracer at the first opportune moment.
