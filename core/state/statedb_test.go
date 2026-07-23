@@ -224,6 +224,48 @@ func TestCopy(t *testing.T) {
 	}
 }
 
+func TestCopyOrigins(t *testing.T) {
+	state, err := New(types.EmptyRootHash, NewDatabase(rawdb.NewMemoryDatabase()), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	addr := common.MustParseAddress("Q00000000000000000000000000000000000000000000000000000000affeaffeaffeaffeaffeaffeaffeaffeaffeaffe99aabbccddeeff001122334455667788")
+	slot := common.HexToHash("0x1234")
+	accountOrigin := []byte{0x01, 0x02}
+	storageOrigin := []byte{0x03, 0x04}
+
+	state.accountsOrigin[addr] = common.CopyBytes(accountOrigin)
+	state.storagesOrigin[addr] = map[common.Hash][]byte{
+		slot: common.CopyBytes(storageOrigin),
+	}
+	copied := state.Copy()
+
+	if got := copied.accountsOrigin[addr]; !bytes.Equal(got, accountOrigin) {
+		t.Fatalf("account origin mismatch: got %x, want %x", got, accountOrigin)
+	}
+	if got := copied.storagesOrigin[addr][slot]; !bytes.Equal(got, storageOrigin) {
+		t.Fatalf("storage origin mismatch: got %x, want %x", got, storageOrigin)
+	}
+
+	state.accountsOrigin[addr][0] = 0xff
+	state.storagesOrigin[addr][slot][0] = 0xff
+	if got := copied.accountsOrigin[addr]; !bytes.Equal(got, accountOrigin) {
+		t.Fatalf("copied account origin changed with source: got %x, want %x", got, accountOrigin)
+	}
+	if got := copied.storagesOrigin[addr][slot]; !bytes.Equal(got, storageOrigin) {
+		t.Fatalf("copied storage origin changed with source: got %x, want %x", got, storageOrigin)
+	}
+
+	copied.accountsOrigin[addr][1] = 0xee
+	copied.storagesOrigin[addr][slot][1] = 0xee
+	if state.accountsOrigin[addr][1] == copied.accountsOrigin[addr][1] {
+		t.Fatal("account origin aliases copied state")
+	}
+	if state.storagesOrigin[addr][slot][1] == copied.storagesOrigin[addr][slot][1] {
+		t.Fatal("storage origin aliases copied state")
+	}
+}
+
 func TestSnapshotRandom(t *testing.T) {
 	config := &quick.Config{MaxCount: 1000}
 	err := quick.Check((*snapshotTest).run, config)
