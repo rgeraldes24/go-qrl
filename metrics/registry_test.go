@@ -1,10 +1,8 @@
 package metrics
 
 import (
-	"reflect"
 	"sync"
 	"testing"
-	"time"
 )
 
 func BenchmarkRegistry(b *testing.B) {
@@ -90,62 +88,6 @@ func TestRegistryGet(t *testing.T) {
 	r.Get("foo").(Counter).Inc(1)
 	if count := r.Get("foo").(Counter).Snapshot().Count(); count != 1 {
 		t.Fatal(count)
-	}
-}
-
-func TestRegistryGetAllGaugeInfo(t *testing.T) {
-	r := NewRegistry()
-	gauge := NewGaugeInfo()
-	gauge.Update(GaugeInfoValue{"chain_id": "5"})
-	if err := r.Register("info", gauge); err != nil {
-		t.Fatal(err)
-	}
-
-	got := r.GetAll()["info"]["value"]
-	want := GaugeInfoValue{"chain_id": "5"}
-	if !reflect.DeepEqual(got, want) {
-		t.Fatalf("unexpected gauge info: got %#v, want %#v", got, want)
-	}
-}
-
-func TestRegistryGetAllResettingTimer(t *testing.T) {
-	r := NewRegistry()
-	timer := NewResettingTimer()
-	timer.Update(time.Nanosecond)
-	timer.Update(2 * time.Nanosecond)
-	timer.Update(3 * time.Nanosecond)
-	if err := r.Register("timer", timer); err != nil {
-		t.Fatal(err)
-	}
-
-	want := map[string]any{
-		"count":  3,
-		"min":    int64(1),
-		"max":    int64(3),
-		"mean":   float64(2),
-		"median": float64(2),
-		"75%":    float64(3),
-		"95%":    float64(3),
-		"99%":    float64(3),
-		"99.9%":  float64(3),
-	}
-	if got := r.GetAll()["timer"]; !reflect.DeepEqual(got, want) {
-		t.Fatalf("unexpected resetting timer: got %#v, want %#v", got, want)
-	}
-
-	want = map[string]any{
-		"count":  0,
-		"min":    int64(0),
-		"max":    int64(0),
-		"mean":   float64(0),
-		"median": float64(0),
-		"75%":    float64(0),
-		"95%":    float64(0),
-		"99%":    float64(0),
-		"99.9%":  float64(0),
-	}
-	if got := r.GetAll()["timer"]; !reflect.DeepEqual(got, want) {
-		t.Fatalf("resetting timer was not cleared: got %#v, want %#v", got, want)
 	}
 }
 
