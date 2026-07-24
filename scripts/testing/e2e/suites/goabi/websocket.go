@@ -42,7 +42,7 @@ func checkWebSocketSubscriptions(ctx context.Context, wsURL string, httpClient *
 		return err
 	}
 	parsed := &artifact.ABI
-	expectedTopic := hashTopic(parsed.Events["Deployed"].ID)
+	expectedTopic := common.HashToLogTopic(parsed.Events["Deployed"].ID)
 	events := make(chan types.Log, 4)
 	logSub, err := wsClient.SubscribeFilterLogs(ctx, qrl.FilterQuery{
 		Topics: [][]common.LogTopic{{expectedTopic}},

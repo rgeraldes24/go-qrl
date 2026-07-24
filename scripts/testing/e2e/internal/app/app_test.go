@@ -13,7 +13,6 @@ import (
 	"time"
 
 	"github.com/theQRL/go-qrl/scripts/testing/e2e/internal/network"
-	"github.com/urfave/cli/v2"
 )
 
 type recordingNetworks struct {
@@ -103,13 +102,15 @@ func TestNetworkStartResolvesGenericInputs(t *testing.T) {
 		request.DockerBin != "/opt/bin/docker" {
 		t.Fatalf("environment-backed request fields = %+v", request)
 	}
-	if !strings.Contains(output.String(), `"state"`) {
+	if !strings.Contains(output.String(), `"ready"`) ||
+		strings.Contains(output.String(), `"state"`) {
 		t.Fatalf("network result was not emitted as JSON:\n%s", output.String())
 	}
 }
 
 func TestNetworkStatusAndStopUseExactDirectory(t *testing.T) {
 	root := t.TempDir()
+	t.Setenv("E2E_NETWORK_DIR", root)
 	networks := &recordingNetworks{
 		result: network.Result{
 			Ready: true,
@@ -123,9 +124,7 @@ func TestNetworkStatusAndStopUseExactDirectory(t *testing.T) {
 			Stderr:   new(bytes.Buffer),
 			Networks: networks,
 		}
-		if err := command.Execute(t.Context(), []string{
-			"network", operation, "--network-dir", root,
-		}); err != nil {
+		if err := command.Execute(t.Context(), []string{"network", operation}); err != nil {
 			t.Fatalf("network %s: %v", operation, err)
 		}
 		if !strings.Contains(output.String(), `"ready": true`) {
@@ -143,8 +142,8 @@ func TestNetworkStatusAndStopUseExactDirectory(t *testing.T) {
 func TestFrameworkRejectsInvalidInputs(t *testing.T) {
 	t.Run("removed suite command", func(t *testing.T) {
 		err := New().Execute(t.Context(), []string{"test"})
-		if ExitCode(err) == 0 {
-			t.Fatalf("error = %v, want non-zero exit", err)
+		if got := ExitCode(err); got != 2 {
+			t.Fatalf("ExitCode(%v) = %d, want 2", err, got)
 		}
 	})
 
@@ -163,6 +162,21 @@ func TestFrameworkRejectsInvalidInputs(t *testing.T) {
 		}
 	})
 
+	t.Run("unknown flag", func(t *testing.T) {
+		command := &App{
+			Stdout:   new(bytes.Buffer),
+			Stderr:   new(bytes.Buffer),
+			Networks: new(recordingNetworks),
+		}
+		err := command.Execute(
+			t.Context(),
+			[]string{"network", "status", "--unknown"},
+		)
+		if got := ExitCode(err); got != 2 {
+			t.Fatalf("ExitCode(%v) = %d, want 2", err, got)
+		}
+	})
+
 	t.Run("invalid timeout environment", func(t *testing.T) {
 		t.Setenv("E2E_NETWORK_START_TIMEOUT", "eventually")
 		command := &App{
@@ -171,8 +185,8 @@ func TestFrameworkRejectsInvalidInputs(t *testing.T) {
 			Networks: new(recordingNetworks),
 		}
 		err := command.Execute(t.Context(), []string{"network", "start"})
-		if err == nil {
-			t.Fatal("expected duration parsing error")
+		if got := ExitCode(err); got != 2 {
+			t.Fatalf("ExitCode(%v) = %d, want 2", err, got)
 		}
 	})
 }
@@ -181,7 +195,7 @@ func TestExitCode(t *testing.T) {
 	if got := ExitCode(nil); got != 0 {
 		t.Fatalf("ExitCode(nil) = %d", got)
 	}
-	if got := ExitCode(cli.Exit("bad arguments", 2)); got != 2 {
+	if got := ExitCode(newUsageError("bad arguments")); got != 2 {
 		t.Fatalf("ExitCode(usage) = %d", got)
 	}
 	if got := ExitCode(context.Canceled); got != 130 {

@@ -9,6 +9,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/theQRL/go-qrl/scripts/testing/e2e/internal/kurtosis"
 )
 
 func TestOwnershipStoreRejectsUntrustedFiles(t *testing.T) {
@@ -137,12 +139,14 @@ func TestNetworkDirectoryRejectsSymlinks(t *testing.T) {
 
 func fixtureOwnership(t *testing.T, networkDir string) OwnershipRecord {
 	t.Helper()
-	state := fixtureState(t, networkDir)
+	if err := os.MkdirAll(privatePath(networkDir), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	enclave := kurtosis.EnclaveRef{Name: "e2e", UUID: strings.Repeat("a", 32), Owned: true}
 	record := OwnershipRecord{
-		SchemaVersion: OwnershipSchemaVersion,
 		NetworkDir:    networkDir,
-		RequestedName: state.Enclave.Name,
-		Enclave:       &state.Enclave,
+		RequestedName: enclave.Name,
+		Enclave:       &enclave,
 	}
 	if err := record.Validate(); err != nil {
 		t.Fatal(err)

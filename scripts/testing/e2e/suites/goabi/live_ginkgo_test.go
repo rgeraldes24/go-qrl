@@ -16,7 +16,6 @@ import (
 
 	ginkgo "github.com/onsi/ginkgo/v2"
 	gomega "github.com/onsi/gomega"
-	"github.com/theQRL/go-qrl/scripts/testing/e2e/internal/network"
 	"github.com/theQRL/go-qrl/scripts/testing/e2e/internal/suitekit"
 )
 
@@ -34,10 +33,7 @@ var _ = ginkgo.It(
 	ginkgo.Serial,
 	ginkgo.Label("e2e", "live", "goabi", "mutates-chain"),
 	func(ctx ginkgo.SpecContext) {
-		environment, networkLease, err := suitekit.PrepareLiveEnvironment(
-			ctx,
-			network.FullRequirements(),
-		)
+		environment, networkLease, err := suitekit.PrepareLiveEnvironment(ctx)
 		gomega.Expect(err).NotTo(gomega.HaveOccurred())
 		ginkgo.DeferCleanup(networkLease.Close)
 

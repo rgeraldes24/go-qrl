@@ -12,10 +12,12 @@ import (
 	"bytes"
 	"fmt"
 	"math/big"
+	"slices"
 	"strings"
 
 	"github.com/theQRL/go-qrl/accounts/abi"
 	"github.com/theQRL/go-qrl/common"
+	"github.com/theQRL/go-qrl/crypto"
 )
 
 const vm64ABI = `[
@@ -45,14 +47,14 @@ func checkGoABILayout(addr common.Address) error {
 	if err != nil {
 		return fmt.Errorf("pack VM64 calldata: %w", err)
 	}
-	expected := concat(
-		methodID("store(uint512,bytes4,address,bytes)"),
-		word("539"),
-		fixedBytes("01020304"),
+	expected := slices.Concat(
+		crypto.Keccak256([]byte("store(uint512,bytes4,address,bytes)"))[:4],
+		common.LeftPadBytes(common.FromHex("539"), common.LogTopicLength),
+		common.RightPadBytes(common.FromHex("01020304"), common.LogTopicLength),
 		addr[:],
-		word("100"),
-		word("2"),
-		fixedBytes("abcd"),
+		common.LeftPadBytes(common.FromHex("100"), common.LogTopicLength),
+		common.LeftPadBytes(common.FromHex("2"), common.LogTopicLength),
+		common.RightPadBytes(common.FromHex("abcd"), common.LogTopicLength),
 	)
 	if !bytes.Equal(packed, expected) {
 		return fmt.Errorf("Go ABI calldata mismatch:\nhave %x\nwant %x", packed, expected)
@@ -66,18 +68,18 @@ func checkGoABILayout(addr common.Address) error {
 	if err != nil {
 		return fmt.Errorf("pack bytes64: %w", err)
 	}
-	expected = append(methodID("acceptBytes64(bytes64)"), b64[:]...)
+	expected = append(crypto.Keccak256([]byte("acceptBytes64(bytes64)"))[:4], b64[:]...)
 	if !bytes.Equal(packed, expected) {
 		return fmt.Errorf("Go ABI bytes64 mismatch:\nhave %x\nwant %x", packed, expected)
 	}
 
-	output := concat(
-		word("539"),
-		fixedBytes("01020304"),
+	output := slices.Concat(
+		common.LeftPadBytes(common.FromHex("539"), common.LogTopicLength),
+		common.RightPadBytes(common.FromHex("01020304"), common.LogTopicLength),
 		addr[:],
-		word("100"),
-		word("2"),
-		fixedBytes("abcd"),
+		common.LeftPadBytes(common.FromHex("100"), common.LogTopicLength),
+		common.LeftPadBytes(common.FromHex("2"), common.LogTopicLength),
+		common.RightPadBytes(common.FromHex("abcd"), common.LogTopicLength),
 	)
 	values, err := parsed.Unpack("read", output)
 	if err != nil {

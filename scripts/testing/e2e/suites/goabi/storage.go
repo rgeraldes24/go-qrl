@@ -17,6 +17,7 @@ import (
 	qrl "github.com/theQRL/go-qrl"
 	"github.com/theQRL/go-qrl/common"
 	"github.com/theQRL/go-qrl/common/hexutil"
+	qrlmath "github.com/theQRL/go-qrl/common/math"
 	"github.com/theQRL/go-qrl/core/types"
 	"github.com/theQRL/go-qrl/core/vm"
 	"github.com/theQRL/go-qrl/crypto"
@@ -28,8 +29,8 @@ import (
 
 func checkVM64StorageSlots(ctx context.Context, client *qrlclient.Client, contract common.Address, block *big.Int, amount, delta *big.Int, tag [64]byte, recipient common.Address) error {
 	want := []common.StorageValue64{
-		common.BytesToStorageValue64(unsignedWord(amount)),
-		common.BytesToStorageValue64(signedWord(delta)),
+		common.BytesToStorageValue64(qrlmath.U512Bytes(new(big.Int).Set(amount))),
+		common.BytesToStorageValue64(qrlmath.U512Bytes(new(big.Int).Set(delta))),
 		common.StorageValue64(tag),
 		common.StorageValue64(recipient),
 	}

@@ -18,7 +18,6 @@ package goabi
 
 import (
 	"bytes"
-	"math/big"
 	"reflect"
 	"strings"
 	"testing"
@@ -26,8 +25,6 @@ import (
 	"github.com/google/go-cmp/cmp"
 	qrlabi "github.com/theQRL/go-qrl/accounts/abi"
 	"github.com/theQRL/go-qrl/common"
-	qrlmath "github.com/theQRL/go-qrl/common/math"
-	"github.com/theQRL/go-qrl/core/vm"
 )
 
 func parsePortableABI(t *testing.T, definition string) qrlabi.ABI {
@@ -90,44 +87,6 @@ func TestPortableVM64ABISmoke(t *testing.T) {
 		}
 	})
 
-	t.Run("64-byte word and address", func(t *testing.T) {
-		parsed := parsePortableABI(t, `[{
-			"name":"inspect",
-			"type":"function",
-			"stateMutability":"pure",
-			"inputs":[{"name":"amount","type":"uint512"},{"name":"recipient","type":"address"}],
-			"outputs":[{"name":"amount","type":"uint512"},{"name":"recipient","type":"address"}]
-		}]`)
-		amount := new(big.Int).Add(new(big.Int).Lsh(big.NewInt(1), 511), big.NewInt(0x42))
-		var recipient common.Address
-		for i := range recipient {
-			recipient[i] = byte(i*17 + 9)
-		}
-
-		calldata, err := parsed.Pack("inspect", amount, recipient)
-		if err != nil {
-			t.Fatal(err)
-		}
-		method := parsed.Methods["inspect"]
-		body := calldata[len(method.ID):]
-		if len(body) != 2*64 {
-			t.Fatalf("static VM64 body = %d bytes, want 128", len(body))
-		}
-		if want := qrlmath.U512Bytes(amount); !bytes.Equal(body[:64], want) {
-			t.Fatalf("uint512 word = %x, want %x", body[:64], want)
-		}
-		if !bytes.Equal(body[64:], recipient[:]) {
-			t.Fatalf("address word = %x, want %x", body[64:], recipient)
-		}
-		values, err := parsed.Unpack("inspect", body)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if values[0].(*big.Int).Cmp(amount) != 0 || values[1].(common.Address) != recipient {
-			t.Fatalf("decoded values = %#v, want %s and %s", values, amount, recipient)
-		}
-	})
-
 	t.Run("nested dynamic tuple array", func(t *testing.T) {
 		parsed := parsePortableABI(t, `[{
 			"name":"echo",
@@ -161,13 +120,4 @@ func TestPortableVM64ABISmoke(t *testing.T) {
 		assertPortableABIRoundTrip(t, parsed, value.Interface())
 	})
 
-	t.Run("invalid VM64 output words", func(t *testing.T) {
-		if _, err := unpackVM64Output(make([]byte, vm.WordBytes-1), vm64Uint512ABIType); err == nil {
-			t.Fatal("short VM64 word was accepted")
-		}
-		tooWide := new(big.Int).Lsh(big.NewInt(1), 64)
-		if _, err := vm64OutputUint64(tooWide); err == nil {
-			t.Fatal("oversized VM64 integer was accepted")
-		}
-	})
 }

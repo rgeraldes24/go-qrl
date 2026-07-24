@@ -3,7 +3,7 @@
 // Copyright 2026 The go-qrl Authors
 // This file is part of the go-qrl library.
 
-package process
+package network
 
 import (
 	"errors"
@@ -11,12 +11,9 @@ import (
 	"os/exec"
 )
 
-// Windows does not expose Unix process groups through os/exec. This fallback
-// terminates the direct process; Windows CI should run helpers in a Job Object
-// before relying on descendant-process guarantees.
-func configureProcessGroup(_ *exec.Cmd) {}
+func configureNetworkCommandGroup(_ *exec.Cmd) {}
 
-func killProcessGroup(pid int) error {
+func killNetworkCommandGroup(pid int) error {
 	if pid <= 0 {
 		return os.ErrProcessDone
 	}

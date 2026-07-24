@@ -146,11 +146,11 @@ bootstrap and label every live spec `e2e`, `live`, and `<suite>`. Then run:
 make live-test E2E_SUITES=<suite>
 ```
 
-Pass typed `network.Requirements` to
-`suitekit.PrepareLiveEnvironment`. Use one Ginkgo `Serial` spec with
+Call `suitekit.PrepareLiveEnvironment(ctx)` to authenticate the shared RPC,
+signer, GraphQL, and WebSocket endpoints. Use one Ginkgo `Serial` spec with
 `SpecContext`, `By`, `DeferCleanup`, and a timeout instead of adding another
-runner. A suite may request signer, GraphQL, and WebSocket surfaces; additional
-nodes or APIs belong in the shared network topology.
+runner. A suite can ignore endpoints it does not use; additional nodes or APIs
+belong in the shared network topology.
 
 Keep state-changing scenarios rerunnable through fresh contracts and current
 nonces. Do not start or stop the network from a suite hook.

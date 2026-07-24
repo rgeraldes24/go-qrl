@@ -14,7 +14,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/gorilla/websocket"
+	"github.com/theQRL/go-qrl/rpc"
 )
 
 const (
@@ -77,7 +77,6 @@ func TestProbeNetworkAuthenticatesEveryEndpointAndAdvancingFundedChain(t *testin
 	result, err := probeNetwork(context.Background(), probeRequest{
 		RPCURL: server.URL, GraphQLURL: server.URL + "/graphql", WebSocketURL: "ws" + strings.TrimPrefix(server.URL, "http") + "/ws",
 		Address: address, ExpectedChainID: probeChainID,
-		Requirements: FullRequirements(),
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -127,7 +126,6 @@ func TestProbeNetworkRejectsIdentityMismatch(t *testing.T) {
 			request.GraphQLURL = server.URL + "/graphql"
 			request.WebSocketURL = "ws" + strings.TrimPrefix(server.URL, "http") + "/ws"
 			request.Address = "Q" + strings.Repeat("d", 128)
-			request.Requirements = FullRequirements()
 			if request.ExpectedChainID == "" {
 				request.ExpectedChainID = probeChainID
 			}
@@ -148,7 +146,6 @@ func TestProbeNetworkNonAdvancingChainHonorsCallerDeadline(t *testing.T) {
 	_, err := probeNetwork(ctx, probeRequest{
 		RPCURL: server.URL, GraphQLURL: server.URL + "/graphql", WebSocketURL: "ws" + strings.TrimPrefix(server.URL, "http") + "/ws",
 		Address: "Q" + strings.Repeat("e", 128), ExpectedChainID: probeChainID,
-		Requirements: FullRequirements(),
 	})
 	if !errors.Is(err, context.DeadlineExceeded) {
 		t.Fatalf("non-advancing probe error = %v; want caller deadline", err)
@@ -167,25 +164,52 @@ func TestChainAdvancementWindowCoversSeveralBlockSlots(t *testing.T) {
 	}
 }
 
-func TestProbeNetworkBaseRequirementsDoNotTouchOptionalCapabilities(t *testing.T) {
-	server, observations := newProbeServer(t, probeScenario{})
-	defer server.Close()
-	result, err := probeNetwork(context.Background(), probeRequest{
-		RPCURL: server.URL, ExpectedChainID: probeChainID,
-	})
-	if err != nil {
-		t.Fatal(err)
+type probeWeb3Service struct {
+	version      string
+	observations *probeObservations
+	webSocket    bool
+}
+
+func (service *probeWeb3Service) ClientVersion() string {
+	if service.webSocket {
+		service.observations.mu.Lock()
+		service.observations.webSocketMethod = "web3_clientVersion"
+		service.observations.mu.Unlock()
+	} else {
+		service.observations.recordMethod("web3_clientVersion")
 	}
-	if result.ChainID != probeChainID || result.GenesisHash != probeGenesis {
-		t.Fatalf("base probe result = %+v", result)
+	return service.version
+}
+
+type probeQRLService struct {
+	scenario     probeScenario
+	observations *probeObservations
+}
+
+func (service *probeQRLService) ChainId() string {
+	service.observations.recordMethod("qrl_chainId")
+	return service.scenario.chainID
+}
+
+func (service *probeQRLService) BlockNumber() string {
+	blockCalls := service.observations.recordMethod("qrl_blockNumber")
+	if blockCalls == 1 || service.scenario.freezeBlocks {
+		return "0x1"
 	}
-	got := observations.snapshot()
-	if containsString(got.methods, "qrl_getBalance") ||
-		got.balanceAddress != "" ||
-		got.graphQLQuery != "" ||
-		got.webSocketMethod != "" {
-		t.Fatalf("base probe touched optional capabilities: %+v", got)
-	}
+	return "0x2"
+}
+
+func (service *probeQRLService) GetBalance(address, _ string) string {
+	service.observations.recordMethod("qrl_getBalance")
+	service.observations.mu.Lock()
+	service.observations.balanceAddress = address
+	service.observations.mu.Unlock()
+	return service.scenario.balance
+}
+
+func (service *probeQRLService) GetBlockByNumber(_ string, _ bool) map[string]string {
+	service.observations.recordMethod("qrl_getBlockByNumber")
+	return map[string]string{"hash": service.scenario.genesis}
 }
 
 func newProbeServer(t *testing.T, scenario probeScenario) (*httptest.Server, *probeObservations) {
@@ -209,79 +233,43 @@ func newProbeServer(t *testing.T, scenario probeScenario) (*httptest.Server, *pr
 		scenario.balance = "0x1"
 	}
 	observations := new(probeObservations)
-	upgrader := websocket.Upgrader{CheckOrigin: func(*http.Request) bool { return true }}
-	handler := http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
-		switch request.URL.Path {
-		case "/graphql":
-			var body struct {
-				Query string `json:"query"`
-			}
-			if err := json.NewDecoder(request.Body).Decode(&body); err != nil {
-				http.Error(writer, err.Error(), http.StatusBadRequest)
-				return
-			}
-			observations.mu.Lock()
-			observations.graphQLQuery = body.Query
-			observations.mu.Unlock()
-			writeProbeJSON(writer, map[string]any{"data": map[string]any{"chainID": scenario.graphQLChainID}})
-		case "/ws":
-			connection, err := upgrader.Upgrade(writer, request, nil)
-			if err != nil {
-				return
-			}
-			defer connection.Close()
-			var body struct {
-				Method string `json:"method"`
-			}
-			if err := connection.ReadJSON(&body); err != nil {
-				return
-			}
-			observations.mu.Lock()
-			observations.webSocketMethod = body.Method
-			observations.mu.Unlock()
-			_ = connection.WriteJSON(map[string]any{"jsonrpc": "2.0", "id": 1, "result": scenario.webSocketVersion})
-		default:
-			var body struct {
-				Method string            `json:"method"`
-				Params []json.RawMessage `json:"params"`
-			}
-			if err := json.NewDecoder(request.Body).Decode(&body); err != nil {
-				http.Error(writer, err.Error(), http.StatusBadRequest)
-				return
-			}
-			blockCalls := observations.recordMethod(body.Method)
-			var result any
-			switch body.Method {
-			case "web3_clientVersion":
-				result = scenario.httpVersion
-			case "qrl_chainId":
-				result = scenario.chainID
-			case "qrl_blockNumber":
-				if blockCalls == 1 || scenario.freezeBlocks {
-					result = "0x1"
-				} else {
-					result = "0x2"
-				}
-			case "qrl_getBalance":
-				var address string
-				if len(body.Params) != 2 || json.Unmarshal(body.Params[0], &address) != nil {
-					writeProbeJSON(writer, map[string]any{"jsonrpc": "2.0", "id": 1, "error": map[string]any{"code": -32602, "message": "bad balance parameters"}})
-					return
-				}
-				observations.mu.Lock()
-				observations.balanceAddress = address
-				observations.mu.Unlock()
-				result = scenario.balance
-			case "qrl_getBlockByNumber":
-				result = map[string]any{"hash": scenario.genesis}
-			default:
-				writeProbeJSON(writer, map[string]any{"jsonrpc": "2.0", "id": 1, "error": map[string]any{"code": -32601, "message": "unknown method"}})
-				return
-			}
-			writeProbeJSON(writer, map[string]any{"jsonrpc": "2.0", "id": 1, "result": result})
+	httpRPC := rpc.NewServer()
+	if err := httpRPC.RegisterName("web3", &probeWeb3Service{
+		version: scenario.httpVersion, observations: observations,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := httpRPC.RegisterName("qrl", &probeQRLService{
+		scenario: scenario, observations: observations,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	webSocketRPC := rpc.NewServer()
+	if err := webSocketRPC.RegisterName("web3", &probeWeb3Service{
+		version: scenario.webSocketVersion, observations: observations, webSocket: true,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(httpRPC.Stop)
+	t.Cleanup(webSocketRPC.Stop)
+
+	mux := http.NewServeMux()
+	mux.Handle("/graphql", http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		var body struct {
+			Query string `json:"query"`
 		}
-	})
-	return httptest.NewServer(handler), observations
+		if err := json.NewDecoder(request.Body).Decode(&body); err != nil {
+			http.Error(writer, err.Error(), http.StatusBadRequest)
+			return
+		}
+		observations.mu.Lock()
+		observations.graphQLQuery = body.Query
+		observations.mu.Unlock()
+		writeProbeJSON(writer, map[string]any{"data": map[string]any{"chainID": scenario.graphQLChainID}})
+	}))
+	mux.Handle("/ws", webSocketRPC.WebsocketHandler([]string{"http://localhost"}))
+	mux.Handle("/", httpRPC)
+	return httptest.NewServer(mux), observations
 }
 
 func writeProbeJSON(writer http.ResponseWriter, value any) {

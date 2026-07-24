@@ -9,7 +9,6 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/theQRL/go-qrl/scripts/testing/e2e/internal/kurtosis"
 	"github.com/theQRL/go-qrl/scripts/testing/e2e/internal/topology"
@@ -21,12 +20,9 @@ func fixtureState(t *testing.T, networkDir string) State {
 		t.Fatal(err)
 	}
 	state := State{
-		SchemaVersion: StateSchemaVersion, Backend: BackendKurtosis,
-		NetworkDir: networkDir,
-		Enclave:    kurtosis.EnclaveRef{Name: "e2e", UUID: strings.Repeat("a", 32), Owned: true},
-		Package:    PackageIdentity{Locator: "example/package@" + strings.Repeat("a", 40), ID: "example/package", ParamsSHA256: strings.Repeat("2", 64)},
-		Source:     SourceIdentity{Commit: strings.Repeat("b", 40)},
-		Wallet:     WalletIdentity{Address: "Q" + strings.Repeat("c", 128)},
+		ParamsSHA256:  strings.Repeat("2", 64),
+		SourceCommit:  strings.Repeat("b", 40),
+		WalletAddress: "Q" + strings.Repeat("c", 128),
 		Topology: topology.Snapshot{
 			Execution: topology.ServiceIdentity{Role: "execution", Name: "el", UUID: strings.Repeat("d", 32), Image: "local/el:network"},
 			Required: []topology.ServiceIdentity{
@@ -42,53 +38,13 @@ func fixtureState(t *testing.T, networkDir string) State {
 			{Role: "genesis", Ref: "local/genesis:pinned", ID: "sha256:" + strings.Repeat("3", 64), Labels: map[string]string{"revision": "genesis"}},
 			{Role: "validator", Ref: "local/vc:pinned", ID: "sha256:" + strings.Repeat("4", 64), Labels: map[string]string{"revision": "vc"}},
 		},
-		Execution: ExecutionIdentity{BinaryPath: "/usr/local/bin/gqrl", BinarySHA256: strings.Repeat("5", 64)},
-		Chain:     ChainIdentity{ChainID: "0x539", GenesisHash: "0x" + strings.Repeat("6", 64)}, CreatedAt: time.Unix(10, 0).UTC(),
-	}
-	var err error
-	state.Fingerprint, err = state.IdentityFingerprint()
-	if err != nil {
-		t.Fatal(err)
+		BinarySHA256: strings.Repeat("5", 64),
+		GenesisHash:  "0x" + strings.Repeat("6", 64),
 	}
 	return state
 }
 
-func TestIdentityFingerprintBindsImmutableFieldsAndIgnoresCreationTime(t *testing.T) {
-	state := fixtureState(t, t.TempDir())
-	first := state.Fingerprint
-	createdLater := state
-	createdLater.CreatedAt = time.Unix(100, 0).UTC()
-	second, err := createdLater.IdentityFingerprint()
-	if err != nil || second != first {
-		t.Fatalf("creation-time-only fingerprint = %q, %v; want %q", second, err, first)
-	}
-
-	mutations := map[string]func(*State){
-		"enclave UUID":    func(value *State) { value.Enclave.UUID = strings.Repeat("9", 32) },
-		"service UUID":    func(value *State) { value.Topology.Execution.UUID = strings.Repeat("8", 32) },
-		"image ID":        func(value *State) { value.Images[1].ID = "sha256:" + strings.Repeat("7", 64) },
-		"package locator": func(value *State) { value.Package.Locator = "example/other@" + strings.Repeat("a", 40) },
-		"package ID":      func(value *State) { value.Package.ID = "example/other" },
-		"package params":  func(value *State) { value.Package.ParamsSHA256 = strings.Repeat("8", 64) },
-		"source commit":   func(value *State) { value.Source.Commit = strings.Repeat("9", 40) },
-		"genesis":         func(value *State) { value.Chain.GenesisHash = "0x" + strings.Repeat("a", 64) },
-		"wallet":          func(value *State) { value.Wallet.Address = "Q" + strings.Repeat("d", 128) },
-	}
-	for name, mutate := range mutations {
-		t.Run(name, func(t *testing.T) {
-			copy := state
-			copy.Images = append([]ImageIdentity(nil), state.Images...)
-			copy.Topology.Required = append([]topology.ServiceIdentity(nil), state.Topology.Required...)
-			mutate(&copy)
-			fingerprint, err := copy.IdentityFingerprint()
-			if err != nil || fingerprint == first {
-				t.Fatalf("fingerprint = %q, %v", fingerprint, err)
-			}
-		})
-	}
-}
-
-func TestStatePersistsOnlyEssentialIdentityFields(t *testing.T) {
+func TestStatePersistsOnlyAuthenticationBaseline(t *testing.T) {
 	state := fixtureState(t, t.TempDir())
 	payload, err := json.Marshal(state)
 	if err != nil {
@@ -98,22 +54,18 @@ func TestStatePersistsOnlyEssentialIdentityFields(t *testing.T) {
 	if err := json.Unmarshal(payload, &persisted); err != nil {
 		t.Fatal(err)
 	}
-	for section, wantKeys := range map[string][]string{
-		"wallet":    {"address"},
-		"execution": {"binary_path", "binary_sha256"},
-		"source":    {"commit"},
-	} {
-		var fields map[string]json.RawMessage
-		if err := json.Unmarshal(persisted[section], &fields); err != nil {
-			t.Fatal(err)
+	for _, omitted := range []string{"schema_version", "backend", "network_dir", "enclave", "package", "fingerprint", "created_at"} {
+		if _, exists := persisted[omitted]; exists {
+			t.Fatalf("ready state unexpectedly persists %q", omitted)
 		}
-		if len(fields) != len(wantKeys) {
-			t.Fatalf("%s persisted fields = %v, want %v", section, fields, wantKeys)
-		}
-		for _, key := range wantKeys {
-			if _, exists := fields[key]; !exists {
-				t.Fatalf("%s is missing persisted field %q", section, key)
-			}
+	}
+	var images []map[string]json.RawMessage
+	if err := json.Unmarshal(persisted["images"], &images); err != nil {
+		t.Fatal(err)
+	}
+	for _, image := range images {
+		if _, exists := image["labels"]; exists {
+			t.Fatal("ready state unexpectedly persists image labels")
 		}
 	}
 }
@@ -121,7 +73,6 @@ func TestStatePersistsOnlyEssentialIdentityFields(t *testing.T) {
 func TestStateDerivesExecutionImageIdentityFromImages(t *testing.T) {
 	state := fixtureState(t, t.TempDir())
 	state.Topology.Execution.Image = "local/el:different"
-	state.Fingerprint, _ = state.IdentityFingerprint()
 	if err := state.Validate(); err == nil || !strings.Contains(err.Error(), "execution image") {
 		t.Fatalf("execution image mismatch error = %v", err)
 	}
@@ -130,7 +81,7 @@ func TestStateDerivesExecutionImageIdentityFromImages(t *testing.T) {
 func TestStateStoreRejectsUnknownFieldsAndSymlinks(t *testing.T) {
 	dir := t.TempDir()
 	state := fixtureState(t, dir)
-	if err := writeState(state); err != nil {
+	if err := writeState(dir, state); err != nil {
 		t.Fatal(err)
 	}
 	data, err := os.ReadFile(statePath(dir))
@@ -165,32 +116,6 @@ func TestStateStoreRejectsUnknownFieldsAndSymlinks(t *testing.T) {
 	}
 }
 
-func TestStateRejectsUnknownBackend(t *testing.T) {
-	state := fixtureState(t, t.TempDir())
-	state.Backend = "unknown"
-	state.Fingerprint, _ = state.IdentityFingerprint()
-	if err := state.Validate(); err == nil || !strings.Contains(err.Error(), "backend") {
-		t.Fatalf("backend error = %v", err)
-	}
-}
-
-func TestStateRequiresBothPackageLocatorAndRetainedID(t *testing.T) {
-	base := fixtureState(t, t.TempDir())
-	for name, mutate := range map[string]func(*State){
-		"locator": func(state *State) { state.Package.Locator = "" },
-		"ID":      func(state *State) { state.Package.ID = "" },
-	} {
-		t.Run(name, func(t *testing.T) {
-			state := base
-			mutate(&state)
-			state.Fingerprint, _ = state.IdentityFingerprint()
-			if err := state.Validate(); err == nil || !strings.Contains(err.Error(), "package identity") {
-				t.Fatalf("missing package %s error = %v", name, err)
-			}
-		})
-	}
-}
-
 func TestStateRequiresExactImageRoleSet(t *testing.T) {
 	base := fixtureState(t, t.TempDir())
 	for name, mutate := range map[string]func([]ImageIdentity) []ImageIdentity{
@@ -207,7 +132,6 @@ func TestStateRequiresExactImageRoleSet(t *testing.T) {
 			images := mutate(append([]ImageIdentity(nil), base.Images...))
 			state := base
 			state.Images = images
-			state.Fingerprint, _ = state.IdentityFingerprint()
 			if err := state.Validate(); err == nil || !strings.Contains(err.Error(), "image") {
 				t.Fatalf("State.Validate error = %v", err)
 			}
@@ -216,11 +140,11 @@ func TestStateRequiresExactImageRoleSet(t *testing.T) {
 }
 
 func TestOwnershipRecordSeparatesCreationIntentFromExactOwnership(t *testing.T) {
-	state := fixtureState(t, t.TempDir())
+	networkDir := t.TempDir()
+	enclave := kurtosis.EnclaveRef{Name: "e2e", UUID: strings.Repeat("a", 32), Owned: true}
 	record := OwnershipRecord{
-		SchemaVersion: OwnershipSchemaVersion,
-		NetworkDir:    state.NetworkDir,
-		RequestedName: state.Enclave.Name,
+		NetworkDir:    networkDir,
+		RequestedName: enclave.Name,
 	}
 	if err := record.Validate(); err != nil {
 		t.Fatal(err)
@@ -228,7 +152,7 @@ func TestOwnershipRecordSeparatesCreationIntentFromExactOwnership(t *testing.T) 
 	if _, err := record.OwnedEnclave(); err == nil || !strings.Contains(err.Error(), "exact UUID") {
 		t.Fatalf("creation intent exact-ownership error = %v", err)
 	}
-	record.Enclave = &state.Enclave
+	record.Enclave = &enclave
 	if err := record.Validate(); err != nil {
 		t.Fatal(err)
 	}

@@ -16,52 +16,7 @@ import (
 	"regexp"
 	"sort"
 	"strings"
-
-	e2eprocess "github.com/theQRL/go-qrl/scripts/testing/e2e/internal/process"
 )
-
-const networkCommandOutputLimit = e2eprocess.DefaultMaxOutputBytes
-
-type command struct {
-	Path, Dir string
-	Args      []string
-	Env       []string
-	Stdout    io.Writer
-	Stderr    io.Writer
-}
-
-type commandRunner interface {
-	Run(context.Context, command) error
-	CombinedOutput(context.Context, command) ([]byte, error)
-}
-
-type execRunner struct{}
-
-func (execRunner) Run(ctx context.Context, specification command) error {
-	_, err := runNetworkCommand(ctx, specification)
-	return err
-}
-
-func (execRunner) CombinedOutput(ctx context.Context, specification command) ([]byte, error) {
-	result, err := runNetworkCommand(ctx, specification)
-	output := make([]byte, 0, len(result.Stdout)+len(result.Stderr))
-	output = append(output, result.Stdout...)
-	output = append(output, result.Stderr...)
-	return output, err
-}
-
-func runNetworkCommand(ctx context.Context, specification command) (e2eprocess.Result, error) {
-	return e2eprocess.Run(ctx, e2eprocess.Command{
-		Path:              specification.Path,
-		Args:              specification.Args,
-		Dir:               specification.Dir,
-		Env:               specification.Env,
-		EnvRemovePrefixes: []string{"E2E_"},
-		Stdout:            specification.Stdout,
-		Stderr:            specification.Stderr,
-		MaxOutputBytes:    networkCommandOutputLimit,
-	})
-}
 
 type preparedNetwork struct {
 	Params       string

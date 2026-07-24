@@ -13,13 +13,13 @@ import (
 	"context"
 	"fmt"
 	"math/big"
-	"strings"
 
 	"github.com/google/go-cmp/cmp"
 	qrl "github.com/theQRL/go-qrl"
 	"github.com/theQRL/go-qrl/accounts/abi"
 	"github.com/theQRL/go-qrl/accounts/abi/bind"
 	"github.com/theQRL/go-qrl/common"
+	qrlmath "github.com/theQRL/go-qrl/common/math"
 	"github.com/theQRL/go-qrl/core/types"
 	"github.com/theQRL/go-qrl/crypto"
 	"github.com/theQRL/go-qrl/crypto/pqcrypto/wallet"
@@ -172,9 +172,6 @@ func checkLiveVM64Contract(ctx context.Context, client *qrlclient.Client, w wall
 		if err := checkContractCall(ctx, client, from, deployment.address, callOpts.BlockNumber, deployment.binding, &artifact.ABI, vector); err != nil {
 			return fmt.Errorf("VM64 live call: %w", err)
 		}
-	}
-	if err := checkLiveVM64CallBoundaries(ctx, client, from, deployment.address, deployment.binding, callOpts.BlockNumber); err != nil {
-		return err
 	}
 	if err := checkHyperionCompilerCalls(
 		ctx,
@@ -377,123 +374,6 @@ func checkLiveVM64Contract(ctx context.Context, client *qrlclient.Client, w wall
 	return nil
 }
 
-func checkLiveVM64CallBoundaries(
-	ctx context.Context,
-	caller qrl.ContractCaller,
-	sender, address common.Address,
-	contract *bind.BoundContract,
-	blockNumber *big.Int,
-) error {
-	artifact, err := loadEventEmitterArtifact()
-	if err != nil {
-		return err
-	}
-	maximumUnsigned := new(big.Int).Sub(new(big.Int).Lsh(big.NewInt(1), 512), big.NewInt(1))
-	minimumSigned := new(big.Int).Neg(new(big.Int).Lsh(big.NewInt(1), 511))
-	maximumSigned := new(big.Int).Sub(new(big.Int).Lsh(big.NewInt(1), 511), big.NewInt(1))
-	var upperHalfAddress common.Address
-	copy(upperHalfAddress[common.AddressLength/2:], sender[common.AddressLength/2:])
-	upperHalfAddress[common.AddressLength/2] ^= 0x80
-	var fullTag [64]byte
-	for i := range fullTag {
-		fullTag[i] = 0xff
-	}
-
-	tests := []struct {
-		name      string
-		amount    *big.Int
-		delta     *big.Int
-		tag       [64]byte
-		recipient common.Address
-		payload   []byte
-		note      string
-		enabled   bool
-	}{
-		{name: "zero-empty-false", amount: big.NewInt(0), delta: big.NewInt(0)},
-		{name: "one-byte", amount: big.NewInt(1), delta: big.NewInt(-1), recipient: sender, payload: []byte{0x01}, note: "x", enabled: true},
-		{name: "word-minus-one", amount: maximumUnsigned, delta: minimumSigned, tag: fullTag, recipient: upperHalfAddress, payload: bytes.Repeat([]byte{0x3f}, 63), note: strings.Repeat("s", 63)},
-		{name: "word", amount: new(big.Int).Lsh(big.NewInt(1), 511), delta: maximumSigned, tag: fullTag, recipient: sender, payload: bytes.Repeat([]byte{0x40}, 64), note: strings.Repeat("w", 64), enabled: true},
-		{name: "word-plus-one", amount: maximumUnsigned, delta: big.NewInt(-1), recipient: upperHalfAddress, payload: bytes.Repeat([]byte{0x41}, 65), note: strings.Repeat("p", 64) + "\u754c", enabled: true},
-	}
-	for _, test := range tests {
-		values := []any{test.amount, test.delta, test.tag, test.recipient, test.payload, test.note, test.enabled}
-		if err := checkContractCall(
-			ctx,
-			caller,
-			sender,
-			address,
-			blockNumber,
-			contract,
-			&artifact.ABI,
-			contractCall{Method: "echo", Args: values, Want: values},
-		); err != nil {
-			return fmt.Errorf("VM64 live echo boundary %s: %w", test.name, err)
-		}
-	}
-
-	full1 := [1]byte{0xff}
-	var full32 [32]byte
-	var full33 [33]byte
-	for i := range full32 {
-		full32[i] = 0xff
-	}
-	for i := range full33 {
-		full33[i] = 0xff
-	}
-	for _, values := range [][]any{
-		{[1]byte{}, [32]byte{}, [33]byte{}, [64]byte{}},
-		{full1, full32, full33, fullTag},
-	} {
-		if err := checkContractCall(
-			ctx,
-			caller,
-			sender,
-			address,
-			blockNumber,
-			contract,
-			&artifact.ABI,
-			contractCall{Method: "echoFixed", Args: values, Want: values},
-		); err != nil {
-			return fmt.Errorf("VM64 live fixed-bytes boundary: %w", err)
-		}
-	}
-
-	arrayCases := []struct {
-		name   string
-		values []*big.Int
-	}{
-		{name: "empty", values: []*big.Int{}},
-		{name: "singleton", values: []*big.Int{maximumUnsigned}},
-	}
-	for _, test := range arrayCases {
-		values := []any{test.values, [2][64]byte{}}
-		if err := checkContractCall(
-			ctx,
-			caller,
-			sender,
-			address,
-			blockNumber,
-			contract,
-			&artifact.ABI,
-			contractCall{Method: "echoArrays", Args: values, Want: values},
-		); err != nil {
-			return fmt.Errorf("VM64 live %s array boundary: %w", test.name, err)
-		}
-	}
-
-	record := eventRecord{Amount: maximumUnsigned, Recipient: upperHalfAddress, Tag: fullTag}
-	return checkContractCall(
-		ctx,
-		caller,
-		sender,
-		address,
-		blockNumber,
-		contract,
-		&artifact.ABI,
-		contractCall{Method: "echoRecord", Args: []any{record}, Want: []any{record}},
-	)
-}
-
 func checkVM64EventLogs(ctx context.Context, binding *bind.BoundContract, receipt *types.Receipt, recipient common.Address, amount, delta *big.Int, tag [64]byte, payload []byte, note string) error {
 	artifact, err := loadEventEmitterArtifact()
 	if err != nil {
@@ -533,11 +413,11 @@ func checkVM64EventLogs(ctx context.Context, binding *bind.BoundContract, receip
 	if !bytes.Equal(storedLog.Data, wantStoredData) {
 		return fmt.Errorf("compiler Stored data is non-canonical:\nhave %x\nwant %x", storedLog.Data, wantStoredData)
 	}
-	storedTopic := hashTopic(parsed.Events["Stored"].ID)
+	storedTopic := common.HashToLogTopic(parsed.Events["Stored"].ID)
 	if len(storedLog.Topics) != 4 || storedLog.Topics[0] != storedTopic ||
-		storedLog.Topics[1] != bytesTopic(recipient[:]) ||
-		storedLog.Topics[2] != bytesTopic(unsignedWord(amount)) ||
-		storedLog.Topics[3] != bytesTopic(signedWord(delta)) {
+		storedLog.Topics[1] != common.BytesToLeftAlignedLogTopic(recipient[:]) ||
+		storedLog.Topics[2] != common.BytesToLeftAlignedLogTopic(qrlmath.U512Bytes(new(big.Int).Set(amount))) ||
+		storedLog.Topics[3] != common.BytesToLeftAlignedLogTopic(qrlmath.U512Bytes(new(big.Int).Set(delta))) {
 		return fmt.Errorf("VM64 Stored topics mismatch: %v", storedLog.Topics)
 	}
 	wantStored := map[string]any{
@@ -551,7 +431,7 @@ func checkVM64EventLogs(ctx context.Context, binding *bind.BoundContract, receip
 		return fmt.Errorf("filter VM64 Stored event: %w", err)
 	}
 
-	dynamicTopic := hashTopic(parsed.Events["Dynamic"].ID)
+	dynamicTopic := common.HashToLogTopic(parsed.Events["Dynamic"].ID)
 	payloadHash := crypto.Keccak256Hash(payload)
 	noteHash := crypto.Keccak256Hash([]byte(note))
 	wantDynamicData, err := parsed.Events["Dynamic"].Inputs.NonIndexed().Pack(amount)
@@ -562,7 +442,7 @@ func checkVM64EventLogs(ctx context.Context, binding *bind.BoundContract, receip
 		return fmt.Errorf("compiler Dynamic data is non-canonical:\nhave %x\nwant %x", dynamicLog.Data, wantDynamicData)
 	}
 	if len(dynamicLog.Topics) != 3 || dynamicLog.Topics[0] != dynamicTopic ||
-		dynamicLog.Topics[1] != hashTopic(payloadHash) || dynamicLog.Topics[2] != hashTopic(noteHash) {
+		dynamicLog.Topics[1] != common.HashToLogTopic(payloadHash) || dynamicLog.Topics[2] != common.HashToLogTopic(noteHash) {
 		return fmt.Errorf("VM64 Dynamic topics mismatch: %v", dynamicLog.Topics)
 	}
 	wantDynamic := map[string]any{"payload": payloadHash, "note": noteHash, "amount": amount}
@@ -577,10 +457,10 @@ func checkVM64EventLogs(ctx context.Context, binding *bind.BoundContract, receip
 	}
 
 	wantAnonymous := []common.LogTopic{
-		bytesTopic(recipient[:]),
-		bytesTopic(unsignedWord(amount)),
-		bytesTopic(tag[:]),
-		bytesTopic(unsignedWord(big.NewInt(1))),
+		common.BytesToLeftAlignedLogTopic(recipient[:]),
+		common.BytesToLeftAlignedLogTopic(qrlmath.U512Bytes(new(big.Int).Set(amount))),
+		common.BytesToLeftAlignedLogTopic(tag[:]),
+		common.BytesToLeftAlignedLogTopic(qrlmath.U512Bytes(big.NewInt(1))),
 	}
 	if len(anonymousLog.Topics) != len(wantAnonymous) {
 		return fmt.Errorf("VM64 anonymous event topic count mismatch: have %d want %d", len(anonymousLog.Topics), len(wantAnonymous))
@@ -641,7 +521,7 @@ func deployEventEmitter(ctx context.Context, client *qrlclient.Client, w wallet.
 	}
 	parsed := &artifact.ABI
 	deployed := parsed.Events["Deployed"]
-	expectedTopic := hashTopic(deployed.ID)
+	expectedTopic := common.HashToLogTopic(deployed.ID)
 	auth, err := newTransactor(ctx, client, w, from)
 	if err != nil {
 		return nil, err

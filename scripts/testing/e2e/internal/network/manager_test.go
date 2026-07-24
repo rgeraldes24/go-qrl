@@ -89,7 +89,6 @@ func newManagerFixture(t *testing.T) managerFixture {
 	manager := &Manager{
 		NewClient: func() (kurtosis.Client, error) { return client, nil },
 		Commands:  commands,
-		Now:       func() time.Time { return time.Unix(100, 0).UTC() },
 		Getenv:    func(string) string { return "docker" },
 		Stdout:    io.Discard,
 		Stderr:    io.Discard,
@@ -115,15 +114,15 @@ func TestStartPublishesReadyStateAndReusesNetwork(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !first.Ready || first.State.Enclave != fixture.client.Enclave {
+	if !first.Ready {
 		t.Fatalf("first start = %+v", first)
 	}
 	ownership, err := loadOwnership(fixture.networkDir)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if ownership.Enclave == nil || *ownership.Enclave != first.State.Enclave {
-		t.Fatalf("ownership = %+v, state enclave = %+v", ownership, first.State.Enclave)
+	if ownership.Enclave == nil || *ownership.Enclave != fixture.client.Enclave {
+		t.Fatalf("ownership = %+v, client enclave = %+v", ownership, fixture.client.Enclave)
 	}
 	for _, path := range []string{ownershipPath(fixture.networkDir), statePath(fixture.networkDir)} {
 		info, err := os.Lstat(path)
@@ -136,7 +135,7 @@ func TestStartPublishesReadyStateAndReusesNetwork(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !second.Ready || second.State.Fingerprint != first.State.Fingerprint {
+	if !second.Ready || second.state.SourceCommit != first.state.SourceCommit {
 		t.Fatalf("reused start = %+v, first = %+v", second, first)
 	}
 	if got := countCalls(fixture.client.Calls, "create:"); got != 1 {
@@ -275,16 +274,19 @@ func TestCaptureAndCleanupFailureRetainsExactRecoveryOwnership(t *testing.T) {
 	}
 }
 
-func TestStopDestroysOnlyExactOwnedEnclaveAndRemovesState(t *testing.T) {
+func TestStopUsesExactOwnershipEvenWhenReadyStateIsUnreadable(t *testing.T) {
 	fixture := newManagerFixture(t)
-	running, err := fixture.manager.Start(context.Background(), fixture.request)
+	_, err := fixture.manager.Start(context.Background(), fixture.request)
 	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(statePath(fixture.networkDir), []byte("{not-json"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := fixture.manager.Stop(context.Background(), fixture.networkDir); err != nil {
 		t.Fatal(err)
 	}
-	if got := countCalls(fixture.client.Calls, "destroy:"+running.State.Enclave.UUID); got != 1 {
+	if got := countCalls(fixture.client.Calls, "destroy:"+fixture.client.Enclave.UUID); got != 1 {
 		t.Fatalf("exact destroy calls = %d, calls=%v", got, fixture.client.Calls)
 	}
 	for _, path := range []string{statePath(fixture.networkDir), ownershipPath(fixture.networkDir)} {

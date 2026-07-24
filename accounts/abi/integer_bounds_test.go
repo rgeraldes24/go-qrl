@@ -124,11 +124,7 @@ var bigIntPointerType = reflect.TypeFor[*big.Int]()
 
 func mustIntegerType(t *testing.T, name string) Type {
 	t.Helper()
-	typ, err := NewType(name, "", nil)
-	if err != nil {
-		t.Fatalf("NewType(%q): %v", name, err)
-	}
-	return typ
+	return mustABIType(t, name, nil)
 }
 
 func assertIntegerRoundTrip(t *testing.T, args Arguments, typ Type, want *big.Int) {

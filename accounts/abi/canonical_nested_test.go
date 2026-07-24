@@ -10,6 +10,7 @@ package abi
 
 import (
 	"bytes"
+	"encoding/binary"
 	"reflect"
 	"strings"
 	"testing"
@@ -329,17 +330,10 @@ func alignedWordIndex(data, word []byte) int {
 }
 
 func wordInt(data []byte, index int) int {
-	value := 0
-	for _, b := range data[index : index+64] {
-		value = value<<8 | int(b)
-	}
-	return value
+	return int(binary.BigEndian.Uint64(data[index+56 : index+64]))
 }
 
 func putWordInt(data []byte, index, value int) {
 	clear(data[index : index+64])
-	for position := index + 63; value > 0; position-- {
-		data[position] = byte(value)
-		value >>= 8
-	}
+	binary.BigEndian.PutUint64(data[index+56:index+64], uint64(value))
 }

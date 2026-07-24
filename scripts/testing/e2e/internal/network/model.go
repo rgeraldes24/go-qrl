@@ -7,25 +7,15 @@ package network
 
 import (
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"path/filepath"
 	"regexp"
-	"slices"
 	"strings"
 	"time"
 
 	"github.com/theQRL/go-qrl/scripts/testing/e2e/internal/kurtosis"
 	"github.com/theQRL/go-qrl/scripts/testing/e2e/internal/topology"
-)
-
-const (
-	StateSchemaVersion     = 1
-	OwnershipSchemaVersion = 1
-	BackendKurtosis        = "kurtosis"
 )
 
 var (
@@ -41,74 +31,41 @@ var requiredImageRoles = map[string]struct{}{
 	"genesis":   {},
 }
 
-type PackageIdentity struct {
-	// Locator is the revision-pinned remote reference passed to Kurtosis.
-	Locator string `json:"locator"`
-	// ID is the package name retained from the package's kurtosis.yml manifest.
-	ID           string `json:"id"`
-	ParamsSHA256 string `json:"params_sha256"`
-}
-
 type SourceIdentity struct {
-	Commit string `json:"commit"`
+	Commit string
 }
 
 type WalletIdentity struct {
-	Address string `json:"address"`
-}
-
-type ExecutionIdentity struct {
-	BinaryPath   string `json:"binary_path"`
-	BinarySHA256 string `json:"binary_sha256"`
+	Address string
 }
 
 type ImageIdentity struct {
 	Role   string            `json:"role"`
 	Ref    string            `json:"ref"`
 	ID     string            `json:"id"`
-	Labels map[string]string `json:"labels"`
+	Labels map[string]string `json:"-"`
 }
 
-type ChainIdentity struct {
-	ChainID     string `json:"chain_id"`
-	GenesisHash string `json:"genesis_hash"`
-}
-
-// State is sanitized and safe to upload. It never contains wallet secret
-// paths, package output, or serialized package parameters.
+// State is the small public authentication baseline for a ready network. It
+// deliberately omits fixed configuration, package parameters, and secrets.
 type State struct {
-	SchemaVersion int                 `json:"schema_version"`
-	Backend       string              `json:"backend"`
-	NetworkDir    string              `json:"network_dir"`
-	Enclave       kurtosis.EnclaveRef `json:"enclave"`
-	Package       PackageIdentity     `json:"package"`
-	Source        SourceIdentity      `json:"source"`
-	Wallet        WalletIdentity      `json:"wallet"`
-	Topology      topology.Snapshot   `json:"topology"`
-	Images        []ImageIdentity     `json:"images"`
-	Execution     ExecutionIdentity   `json:"execution"`
-	Chain         ChainIdentity       `json:"chain"`
-	Fingerprint   string              `json:"fingerprint"`
-	CreatedAt     time.Time           `json:"created_at"`
+	ParamsSHA256  string            `json:"params_sha256"`
+	SourceCommit  string            `json:"source_commit"`
+	WalletAddress string            `json:"wallet_address"`
+	Topology      topology.Snapshot `json:"topology"`
+	Images        []ImageIdentity   `json:"images"`
+	BinarySHA256  string            `json:"binary_sha256"`
+	GenesisHash   string            `json:"genesis_hash"`
 }
 
 func (state State) Validate() error {
-	if state.SchemaVersion != StateSchemaVersion || state.Backend != BackendKurtosis {
-		return fmt.Errorf("unsupported network schema %d or backend %q", state.SchemaVersion, state.Backend)
+	if !digestPattern.MatchString(state.ParamsSHA256) {
+		return errors.New("network parameter digest is invalid")
 	}
-	if !filepath.IsAbs(state.NetworkDir) || filepath.Clean(state.NetworkDir) != state.NetworkDir {
-		return errors.New("network directory must be absolute and canonical")
-	}
-	if err := state.Enclave.Validate(); err != nil || !state.Enclave.Owned {
-		return errors.New("network enclave identity is invalid or not owned")
-	}
-	if state.Package.Locator == "" || state.Package.ID == "" || !digestPattern.MatchString(state.Package.ParamsSHA256) {
-		return errors.New("network package identity is incomplete")
-	}
-	if !commitPattern.MatchString(state.Source.Commit) {
+	if !commitPattern.MatchString(state.SourceCommit) {
 		return errors.New("network source identity is invalid")
 	}
-	if !addressPattern.MatchString(state.Wallet.Address) {
+	if !addressPattern.MatchString(state.WalletAddress) {
 		return errors.New("network wallet identity is invalid")
 	}
 	if err := state.Topology.Validate(); err != nil {
@@ -120,54 +77,17 @@ func (state State) Validate() error {
 	if executionImage := imageByRole(state.Images, "execution"); executionImage.ID == "" || executionImage.Ref != state.Topology.Execution.Image {
 		return errors.New("network execution image differs from the image identity set")
 	}
-	if !strings.HasPrefix(state.Execution.BinaryPath, "/") || !digestPattern.MatchString(state.Execution.BinarySHA256) {
+	if !digestPattern.MatchString(state.BinarySHA256) {
 		return errors.New("network execution identity is incomplete")
 	}
-	if state.Chain.ChainID == "" || state.Chain.GenesisHash == "" {
+	if state.GenesisHash == "" {
 		return errors.New("network chain identity is incomplete")
-	}
-	if state.CreatedAt.IsZero() {
-		return errors.New("network creation time is missing")
-	}
-	fingerprint, err := state.IdentityFingerprint()
-	if err != nil {
-		return err
-	}
-	if state.Fingerprint != fingerprint {
-		return errors.New("network fingerprint does not match immutable identity")
 	}
 	return nil
 }
 
-// IdentityFingerprint binds every backend/source/topology field. CreatedAt is
-// informational and excluded.
-func (state State) IdentityFingerprint() (string, error) {
-	type identity struct {
-		Backend, NetworkDir string
-		Enclave             kurtosis.EnclaveRef
-		Package             PackageIdentity
-		Source              SourceIdentity
-		Wallet              WalletIdentity
-		Topology            topology.Snapshot
-		Images              []ImageIdentity
-		Execution           ExecutionIdentity
-		Chain               ChainIdentity
-	}
-	immutable := identity{
-		Backend: state.Backend, NetworkDir: state.NetworkDir,
-		Enclave: state.Enclave, Package: state.Package, Source: state.Source, Wallet: state.Wallet,
-		Topology: state.Topology, Images: slices.Clone(state.Images), Execution: state.Execution, Chain: state.Chain,
-	}
-	payload, err := json.Marshal(immutable)
-	if err != nil {
-		return "", err
-	}
-	digest := sha256.Sum256(payload)
-	return hex.EncodeToString(digest[:]), nil
-}
-
 type Result struct {
-	State   State  `json:"state,omitempty"`
+	state   State
 	Ready   bool   `json:"ready"`
 	Message string `json:"message,omitempty"`
 }
@@ -178,18 +98,6 @@ type Environment struct {
 	GraphQLURL   string
 	WebSocketURL string
 	SeedFile     string
-}
-
-// Requirements is the least-privilege network surface needed by an ordered
-// suite plan. RPC identity and chain advancement are always authenticated.
-type Requirements struct {
-	Signer    bool
-	GraphQL   bool
-	WebSocket bool
-}
-
-func FullRequirements() Requirements {
-	return Requirements{Signer: true, GraphQL: true, WebSocket: true}
 }
 
 type StartRequest struct {
@@ -206,16 +114,12 @@ type StartRequest struct {
 // is captured as soon as creation returns and retained until destruction is
 // confirmed.
 type OwnershipRecord struct {
-	SchemaVersion int                  `json:"schema_version"`
 	NetworkDir    string               `json:"network_dir"`
 	RequestedName string               `json:"requested_name"`
 	Enclave       *kurtosis.EnclaveRef `json:"enclave,omitempty"`
 }
 
 func (record OwnershipRecord) Validate() error {
-	if record.SchemaVersion != OwnershipSchemaVersion {
-		return errors.New("invalid ownership schema")
-	}
 	if !filepath.IsAbs(record.NetworkDir) || filepath.Clean(record.NetworkDir) != record.NetworkDir {
 		return errors.New("invalid ownership directory")
 	}
@@ -247,7 +151,7 @@ func (record OwnershipRecord) OwnedEnclave() (kurtosis.EnclaveRef, error) {
 }
 
 type Authenticator interface {
-	Authenticate(context.Context, string, string, Requirements) (Environment, error)
+	Authenticate(context.Context, string, string) (Environment, error)
 }
 
 type Controller interface {

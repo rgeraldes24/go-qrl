@@ -8,7 +8,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"maps"
 	"os"
 	"path/filepath"
 	"slices"
@@ -24,7 +23,6 @@ import (
 type Manager struct {
 	NewClient func() (kurtosis.Client, error)
 	Commands  commandRunner
-	Now       func() time.Time
 	Getenv    func(string) string
 	Stdout    io.Writer
 	Stderr    io.Writer
@@ -42,9 +40,6 @@ func (manager *Manager) normalize() {
 	}
 	if manager.Commands == nil {
 		manager.Commands = execRunner{}
-	}
-	if manager.Now == nil {
-		manager.Now = time.Now
 	}
 	if manager.Getenv == nil {
 		manager.Getenv = os.Getenv
@@ -118,18 +113,7 @@ func (manager *Manager) Start(ctx context.Context, request StartRequest) (Result
 		}
 		return Result{}, errors.New("network provisioning is incomplete; run network-stop before starting again")
 	case readyExists:
-		state, err := loadState(networkDir)
-		if err != nil {
-			return Result{}, err
-		}
-		ownership, err := loadOwnership(networkDir)
-		if err != nil {
-			return Result{}, err
-		}
-		if err := verifyOwnershipState(ownership, state); err != nil {
-			return Result{}, err
-		}
-		status, err := manager.status(startCtx, networkDir, FullRequirements())
+		status, err := manager.status(startCtx, networkDir)
 		if err != nil {
 			return Result{}, fmt.Errorf("authenticate existing network before reuse: %w", err)
 		}
@@ -137,7 +121,7 @@ func (manager *Manager) Start(ctx context.Context, request StartRequest) (Result
 		if err != nil {
 			return Result{}, err
 		}
-		if state.Source.Commit != commit {
+		if status.state.SourceCommit != commit {
 			return Result{}, errors.New("a different authenticated network already occupies the requested directory")
 		}
 		return status, nil
@@ -165,7 +149,6 @@ func (manager *Manager) Start(ctx context.Context, request StartRequest) (Result
 		name = defaultEnclaveName(networkDir, commit)
 	}
 	intent := OwnershipRecord{
-		SchemaVersion: OwnershipSchemaVersion,
 		NetworkDir:    networkDir,
 		RequestedName: name,
 	}
@@ -213,18 +196,13 @@ func (manager *Manager) Start(ctx context.Context, request StartRequest) (Result
 		)
 	}
 
-	packageIdentity := PackageIdentity{
-		Locator:      packageLocator,
-		ID:           packageID,
-		ParamsSHA256: prepared.ParamsDigest,
-	}
 	if err := client.RunRemotePackage(startCtx, enclave, kurtosis.PackageRun{
-		Locator:          packageIdentity.Locator,
+		Locator:          packageLocator,
 		SerializedParams: prepared.Params,
 	}); err != nil {
 		return Result{}, fmt.Errorf("run pinned qrl-package; network ownership was retained for network-stop: %w", err)
 	}
-	if err := authenticateInvocation(startCtx, client, enclave, packageIdentity.ID, packageIdentity.ParamsSHA256); err != nil {
+	if err := authenticateInvocation(startCtx, client, enclave, packageID, prepared.ParamsDigest); err != nil {
 		return Result{}, fmt.Errorf("authenticate qrl-package invocation; network ownership was retained for network-stop: %w", err)
 	}
 
@@ -255,7 +233,6 @@ func (manager *Manager) Start(ctx context.Context, request StartRequest) (Result
 		observed, err := manager.Probe(attempt, probeRequest{
 			RPCURL: snapshot.RPC.URL, GraphQLURL: snapshot.GraphQL, WebSocketURL: snapshot.WebSocket.URL,
 			Address: wallet.Address, ExpectedChainID: expectedChainID,
-			Requirements: FullRequirements(),
 		})
 		if err == nil {
 			readiness = observed
@@ -265,44 +242,25 @@ func (manager *Manager) Start(ctx context.Context, request StartRequest) (Result
 		return Result{}, fmt.Errorf("wait for network readiness; network ownership was retained for network-stop: %w", err)
 	}
 	state := State{
-		SchemaVersion: StateSchemaVersion,
-		Backend:       BackendKurtosis,
-		NetworkDir:    networkDir,
-		Enclave:       enclave,
-		Package:       packageIdentity,
-		Source:        sourceIdentity,
-		Wallet:        wallet,
+		ParamsSHA256:  prepared.ParamsDigest,
+		SourceCommit:  sourceIdentity.Commit,
+		WalletAddress: wallet.Address,
 		Topology:      snapshot,
 		Images:        slices.Clone(prepared.Images),
-		Execution: ExecutionIdentity{
-			BinaryPath:   executionBinaryPath,
-			BinarySHA256: binaryDigest,
-		},
-		Chain: ChainIdentity{
-			ChainID:     readiness.ChainID,
-			GenesisHash: readiness.GenesisHash,
-		},
-		CreatedAt: manager.Now().UTC(),
+		BinarySHA256:  binaryDigest,
+		GenesisHash:   readiness.GenesisHash,
 	}
-	state.Fingerprint, err = state.IdentityFingerprint()
-	if err != nil {
-		return Result{}, err
-	}
-	if err := writeState(state); err != nil {
+	if err := writeState(networkDir, state); err != nil {
 		return Result{}, fmt.Errorf("publish ready network state; exact ownership was retained for network-stop: %w", err)
 	}
-	return Result{State: state, Ready: true}, nil
+	return Result{state: state, Ready: true}, nil
 }
 
 func (manager *Manager) Status(ctx context.Context, requestedDir string) (Result, error) {
-	return manager.status(ctx, requestedDir, FullRequirements())
+	return manager.status(ctx, requestedDir)
 }
 
-func (manager *Manager) status(
-	ctx context.Context,
-	requestedDir string,
-	requirements Requirements,
-) (Result, error) {
+func (manager *Manager) status(ctx context.Context, requestedDir string) (Result, error) {
 	manager.normalize()
 	networkDir, err := canonicalExistingDirectory(requestedDir, "network directory")
 	if err != nil {
@@ -344,13 +302,10 @@ func (manager *Manager) status(
 	if err != nil {
 		return Result{}, err
 	}
-	if err := verifyOwnershipState(ownership, state); err != nil {
+	if err := authenticateInvocation(ctx, client, enclave, packageID, state.ParamsSHA256); err != nil {
 		return Result{}, err
 	}
-	if err := authenticateInvocation(ctx, client, state.Enclave, state.Package.ID, state.Package.ParamsSHA256); err != nil {
-		return Result{}, err
-	}
-	services, err := client.Services(ctx, state.Enclave)
+	services, err := client.Services(ctx, enclave)
 	if err != nil {
 		return Result{}, err
 	}
@@ -363,37 +318,37 @@ func (manager *Manager) status(
 	if err := verifySnapshotImages(state.Topology, state.Images); err != nil {
 		return Result{}, err
 	}
-	if requirements.Signer {
-		wallet, err := validateWalletSeed(walletSeedPath(state.NetworkDir))
-		if err != nil || wallet != state.Wallet {
-			return Result{}, errors.New("private wallet no longer matches persisted address identity")
-		}
+	wallet, err := validateWalletSeed(walletSeedPath(networkDir))
+	if err != nil || wallet.Address != state.WalletAddress {
+		return Result{}, errors.New("private wallet no longer matches persisted address identity")
 	}
-	if _, err = authenticateBinary(ctx, client, state.Enclave, state.Topology.Execution.UUID, state.Execution.BinaryPath, state.Source.Commit, state.Execution.BinarySHA256); err != nil {
+	if _, err = authenticateBinary(ctx, client, enclave, state.Topology.Execution.UUID, executionBinaryPath, state.SourceCommit, state.BinarySHA256); err != nil {
 		return Result{}, err
 	}
 	if _, err = manager.Probe(ctx, probeRequest{
 		RPCURL: state.Topology.RPC.URL, GraphQLURL: state.Topology.GraphQL, WebSocketURL: state.Topology.WebSocket.URL,
-		Address: state.Wallet.Address, ExpectedChainID: state.Chain.ChainID, ExpectedGenesis: state.Chain.GenesisHash,
-		Requirements: requirements,
+		Address: state.WalletAddress, ExpectedChainID: expectedChainID, ExpectedGenesis: state.GenesisHash,
 	}); err != nil {
 		return Result{}, err
 	}
-	return Result{State: state, Ready: true}, nil
+	return Result{state: state, Ready: true}, nil
 }
 
 func (manager *Manager) Authenticate(
 	ctx context.Context,
 	repoRoot,
 	networkDir string,
-	requirements Requirements,
 ) (Environment, error) {
 	manager.normalize()
 	root, err := canonicalExistingDirectory(repoRoot, "repository root")
 	if err != nil {
 		return Environment{}, err
 	}
-	result, err := manager.status(ctx, networkDir, requirements)
+	canonicalNetworkDir, err := canonicalExistingDirectory(networkDir, "network directory")
+	if err != nil {
+		return Environment{}, err
+	}
+	result, err := manager.status(ctx, canonicalNetworkDir)
 	if err != nil {
 		return Environment{}, err
 	}
@@ -404,25 +359,19 @@ func (manager *Manager) Authenticate(
 	if err != nil {
 		return Environment{}, err
 	}
-	if result.State.Source.Commit != commit {
+	if result.state.SourceCommit != commit {
 		return Environment{}, errors.New("network source commit differs from the requested checkout")
 	}
 	if err := source.ValidateE2EOnlyTreeDrift(ctx, nil, root); err != nil {
 		return Environment{}, fmt.Errorf("checkout contains runtime-affecting same-commit changes: %w", err)
 	}
-	state := result.State
+	state := result.state
 	environment := Environment{
-		NetworkDir: state.NetworkDir,
-		RPCURL:     state.Topology.RPC.URL,
-	}
-	if requirements.Signer {
-		environment.SeedFile = walletSeedPath(state.NetworkDir)
-	}
-	if requirements.GraphQL {
-		environment.GraphQLURL = state.Topology.GraphQL
-	}
-	if requirements.WebSocket {
-		environment.WebSocketURL = state.Topology.WebSocket.URL
+		NetworkDir:   canonicalNetworkDir,
+		RPCURL:       state.Topology.RPC.URL,
+		GraphQLURL:   state.Topology.GraphQL,
+		WebSocketURL: state.Topology.WebSocket.URL,
+		SeedFile:     walletSeedPath(canonicalNetworkDir),
 	}
 	return environment, nil
 }
@@ -457,16 +406,6 @@ func (manager *Manager) Stop(ctx context.Context, requestedDir string) (Result, 
 	if err != nil {
 		return Result{}, err
 	}
-	var state State
-	if readyExists {
-		state, err = loadState(networkDir)
-		if err != nil {
-			return Result{}, err
-		}
-		if err := verifyOwnershipState(ownership, state); err != nil {
-			return Result{}, err
-		}
-	}
 	client, err := manager.NewClient()
 	if err != nil {
 		return Result{}, err
@@ -481,14 +420,14 @@ func (manager *Manager) Stop(ctx context.Context, requestedDir string) (Result, 
 	// Remove the public ready state first. If either removal is interrupted,
 	// the private exact-UUID record remains available for an idempotent stop.
 	if readyExists {
-		if err := removeState(state); err != nil {
+		if err := removeState(networkDir); err != nil {
 			return Result{}, err
 		}
 	}
 	if err := removeOwnership(ownership); err != nil {
 		return Result{}, err
 	}
-	return Result{State: state, Message: "network stopped"}, nil
+	return Result{Message: "network stopped"}, nil
 }
 
 func destroyExactEnclave(ctx context.Context, client kurtosis.Client, enclave kurtosis.EnclaveRef) error {
@@ -550,21 +489,9 @@ func (manager *Manager) authenticateImages(ctx context.Context, expected []Image
 		if err != nil {
 			return err
 		}
-		if actual.ID != identity.ID || !maps.Equal(actual.Labels, identity.Labels) {
-			return fmt.Errorf("%s image ID or labels changed", identity.Role)
+		if actual.ID != identity.ID {
+			return fmt.Errorf("%s image ID changed", identity.Role)
 		}
-	}
-	return nil
-}
-
-func verifyOwnershipState(ownership OwnershipRecord, state State) error {
-	enclave, err := ownership.OwnedEnclave()
-	if err != nil {
-		return fmt.Errorf("network state has no exact captured ownership: %w", err)
-	}
-	if enclave.Name != state.Enclave.Name || enclave.UUID != state.Enclave.UUID ||
-		ownership.NetworkDir != state.NetworkDir {
-		return errors.New("private ownership and public network state identify different networks")
 	}
 	return nil
 }

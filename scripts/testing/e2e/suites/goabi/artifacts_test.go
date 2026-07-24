@@ -18,6 +18,7 @@ package goabi
 
 import (
 	"bytes"
+	"encoding/hex"
 	"encoding/json"
 	"go/format"
 	"os"
@@ -41,7 +42,7 @@ func TestGeneratedBindingProjectionAndFullABIs(t *testing.T) {
 		t.Fatal("generated smoke binding differs from EventEmitterBindingSmoke.abi; run go -C scripts/testing/e2e generate ./suites/goabi")
 	}
 	emitterBytecode := strings.TrimSpace(string(readArtifactFile(t, fixtureDir, "EventEmitter.bin")))
-	if normalizeHex(EventEmitterBindingSmokeMetaData.Bin) != normalizeHex(emitterBytecode) {
+	if !bytes.Equal(decodeArtifactHex(t, EventEmitterBindingSmokeMetaData.Bin), decodeArtifactHex(t, emitterBytecode)) {
 		t.Fatal("generated smoke binding bytecode differs from EventEmitter.bin; run go -C scripts/testing/e2e generate ./suites/goabi")
 	}
 	requireABIProjection(t, projection, fullEmitter)
@@ -67,6 +68,16 @@ func TestGeneratedBindingProjectionAndFullABIs(t *testing.T) {
 			}
 		})
 	}
+}
+
+func decodeArtifactHex(t *testing.T, value string) []byte {
+	t.Helper()
+	value = strings.TrimPrefix(strings.TrimSpace(value), "0x")
+	decoded, err := hex.DecodeString(value)
+	if err != nil {
+		t.Fatalf("decode artifact bytecode: %v", err)
+	}
+	return decoded
 }
 
 func readArtifactFile(t *testing.T, directory, name string) []byte {

@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	qrl "github.com/theQRL/go-qrl"
@@ -153,7 +154,7 @@ func legacyDepositRootInput() []byte {
 	withdrawalRecipientOffset := pqcrypto.MLDSA87PublicKeyLength
 	amountOffset := withdrawalRecipientOffset + common.AddressLength
 	signatureOffset := amountOffset + amountLength
-	return concat(
+	return slices.Concat(
 		valid[:withdrawalRecipientOffset],
 		valid[withdrawalRecipientOffset+common.AddressLength-legacyWithdrawalRecipientLength:amountOffset],
 		valid[amountOffset:signatureOffset],
@@ -253,7 +254,7 @@ func checkLivePrecompiles(ctx context.Context, client *qrlclient.Client, from co
 		return fmt.Errorf("live ML-DSA-87 invalid context returned %x, want empty output", got)
 	}
 
-	modExpInput := concat(
+	modExpInput := slices.Concat(
 		common.LeftPadBytes([]byte{1}, 32),
 		common.LeftPadBytes([]byte{1}, 32),
 		common.LeftPadBytes([]byte{1}, 32),

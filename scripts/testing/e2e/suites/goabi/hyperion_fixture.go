@@ -436,7 +436,7 @@ func checkHyperionCompositeEvent(
 		return fmt.Errorf("make indexed dynamic-struct topic: %w", err)
 	}
 	wantTopics := []common.LogTopic{
-		hashTopic(eventDef.ID),
+		common.HashToLogTopic(eventDef.ID),
 		valuesTopic,
 		recordTopic,
 		dynamicTopic,

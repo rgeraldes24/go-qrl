@@ -3,7 +3,7 @@
 // Copyright 2026 The go-qrl Authors
 // This file is part of the go-qrl library.
 
-package process
+package network
 
 import (
 	"errors"
@@ -12,11 +12,11 @@ import (
 	"syscall"
 )
 
-func configureProcessGroup(cmd *exec.Cmd) {
+func configureNetworkCommandGroup(cmd *exec.Cmd) {
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 }
 
-func killProcessGroup(pid int) error {
+func killNetworkCommandGroup(pid int) error {
 	if pid <= 0 {
 		return os.ErrProcessDone
 	}

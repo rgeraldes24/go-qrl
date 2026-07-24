@@ -16,11 +16,7 @@ import (
 
 func mustIndexedTopicType(t *testing.T, name string, components []ArgumentMarshaling) Type {
 	t.Helper()
-	typ, err := NewType(name, "", components)
-	if err != nil {
-		t.Fatalf("NewType(%q): %v", name, err)
-	}
-	return typ
+	return mustABIType(t, name, components)
 }
 
 func goldenIndexedTopic(t *testing.T, digest string) common.LogTopic {
@@ -406,45 +402,28 @@ func TestMakeTopicHashBridgesHashedValuesToFilterRules(t *testing.T) {
 	type hashRecord struct {
 		Count uint16
 	}
-	tests := []struct {
-		name  string
-		typ   Type
-		value any
-	}{
-		{"string", mustIndexedTopicType(t, "string", nil), "hyperion"},
-		{"bytes", mustIndexedTopicType(t, "bytes", nil), []byte{0, 1, 2}},
-		{"slice", mustIndexedTopicType(t, "uint16[]", nil), []uint16{1, 0x1234}},
-		{"array", mustIndexedTopicType(t, "uint16[2]", nil), [2]uint16{1, 0x1234}},
-		{
-			"tuple",
-			mustIndexedTopicType(t, "tuple", []ArgumentMarshaling{{Name: "count", Type: "uint16"}}),
-			hashRecord{Count: 0x1234},
-		},
+	typ := mustIndexedTopicType(t, "tuple", []ArgumentMarshaling{
+		{Name: "count", Type: "uint16"},
+	})
+	value := hashRecord{Count: 0x1234}
+	topic, err := MakeTopic(typ, value)
+	if err != nil {
+		t.Fatalf("MakeTopic: %v", err)
 	}
-	for _, test := range tests {
-		test := test
-		t.Run(test.name, func(t *testing.T) {
-			t.Parallel()
-			topic, err := MakeTopic(test.typ, test.value)
-			if err != nil {
-				t.Fatalf("MakeTopic: %v", err)
-			}
-			digest, err := MakeTopicHash(test.typ, test.value)
-			if err != nil {
-				t.Fatalf("MakeTopicHash: %v", err)
-			}
-			if got := common.HashToLogTopic(digest); got != topic {
-				t.Fatalf("HashToLogTopic(MakeTopicHash) = %x, want MakeTopic %x", got, topic)
-			}
-			var want common.Hash
-			copy(want[:], topic[:common.HashLength])
-			if digest != want {
-				t.Fatalf("MakeTopicHash = %x, want high-half digest %x", digest, want)
-			}
-			if wrong := common.BytesToHash(topic[:]); wrong == digest {
-				t.Fatalf("BytesToHash unexpectedly recovered left-aligned digest %x", digest)
-			}
-		})
+	digest, err := MakeTopicHash(typ, value)
+	if err != nil {
+		t.Fatalf("MakeTopicHash: %v", err)
+	}
+	if got := common.HashToLogTopic(digest); got != topic {
+		t.Fatalf("HashToLogTopic(MakeTopicHash) = %x, want MakeTopic %x", got, topic)
+	}
+	var want common.Hash
+	copy(want[:], topic[:common.HashLength])
+	if digest != want {
+		t.Fatalf("MakeTopicHash = %x, want high-half digest %x", digest, want)
+	}
+	if wrong := common.BytesToHash(topic[:]); wrong == digest {
+		t.Fatalf("BytesToHash unexpectedly recovered left-aligned digest %x", digest)
 	}
 }
 

@@ -21,31 +21,12 @@ func ownershipPath(networkDir string) string {
 }
 
 func loadOwnership(networkDir string) (OwnershipRecord, error) {
-	privateInfo, err := os.Lstat(privatePath(networkDir))
-	if err != nil || privateInfo.Mode()&os.ModeSymlink != 0 || !privateInfo.IsDir() {
-		return OwnershipRecord{}, errors.New("private network state must be a non-symlink directory")
-	}
-	path := ownershipPath(networkDir)
-	info, err := os.Lstat(path)
-	if err != nil {
+	if err := validatePrivateDirectory(networkDir); err != nil {
 		return OwnershipRecord{}, err
 	}
-	if info.Mode()&os.ModeSymlink != 0 || !info.Mode().IsRegular() || info.Size() > maxStateSize {
-		return OwnershipRecord{}, errors.New("ownership must be a bounded non-symlink regular file")
-	}
-	file, err := os.Open(path)
+	record, err := loadJSON[OwnershipRecord](ownershipPath(networkDir), "ownership")
 	if err != nil {
 		return OwnershipRecord{}, err
-	}
-	defer file.Close()
-	decoder := json.NewDecoder(io.LimitReader(file, maxStateSize+1))
-	decoder.DisallowUnknownFields()
-	var record OwnershipRecord
-	if err := decoder.Decode(&record); err != nil {
-		return OwnershipRecord{}, fmt.Errorf("decode ownership: %w", err)
-	}
-	if err := decoder.Decode(new(any)); !errors.Is(err, io.EOF) {
-		return OwnershipRecord{}, errors.New("ownership contains trailing data")
 	}
 	if record.NetworkDir != networkDir {
 		return OwnershipRecord{}, errors.New("ownership belongs to another network directory")
@@ -87,37 +68,16 @@ func removeOwnership(record OwnershipRecord) error {
 }
 
 func loadState(networkDir string) (State, error) {
-	privateInfo, err := os.Lstat(privatePath(networkDir))
-	if err != nil || privateInfo.Mode()&os.ModeSymlink != 0 || !privateInfo.IsDir() {
-		return State{}, errors.New("private network state must be a non-symlink directory")
+	if err := validatePrivateDirectory(networkDir); err != nil {
+		return State{}, err
 	}
 	path := statePath(networkDir)
-	info, err := os.Lstat(path)
+	state, err := loadJSON[State](path, "network state")
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			return State{}, fmt.Errorf("start the independent E2E network first: %s is missing", path)
 		}
 		return State{}, err
-	}
-	if info.Mode()&os.ModeSymlink != 0 || !info.Mode().IsRegular() || info.Size() > maxStateSize {
-		return State{}, errors.New("network state must be a bounded non-symlink regular file")
-	}
-	file, err := os.Open(path)
-	if err != nil {
-		return State{}, err
-	}
-	defer file.Close()
-	decoder := json.NewDecoder(io.LimitReader(file, maxStateSize+1))
-	decoder.DisallowUnknownFields()
-	var state State
-	if err := decoder.Decode(&state); err != nil {
-		return State{}, fmt.Errorf("decode network state: %w", err)
-	}
-	if err := decoder.Decode(new(any)); !errors.Is(err, io.EOF) {
-		return State{}, errors.New("network state contains trailing data")
-	}
-	if state.NetworkDir != networkDir {
-		return State{}, fmt.Errorf("network state belongs to %s, not %s", state.NetworkDir, networkDir)
 	}
 	if err := state.Validate(); err != nil {
 		return State{}, err
@@ -125,21 +85,51 @@ func loadState(networkDir string) (State, error) {
 	return state, nil
 }
 
-func writeState(state State) error {
+func writeState(networkDir string, state State) error {
 	if err := state.Validate(); err != nil {
 		return err
 	}
-	return writeJSONAtomic(statePath(state.NetworkDir), state)
+	return writeJSONAtomic(statePath(networkDir), state)
 }
 
-func removeState(state State) error {
-	if err := state.Validate(); err != nil {
+func removeState(networkDir string) error {
+	if err := os.Remove(statePath(networkDir)); err != nil {
 		return err
 	}
-	if err := os.Remove(statePath(state.NetworkDir)); err != nil {
-		return err
+	return syncDirectory(networkDir)
+}
+
+func validatePrivateDirectory(networkDir string) error {
+	info, err := os.Lstat(privatePath(networkDir))
+	if err != nil || info.Mode()&os.ModeSymlink != 0 || !info.IsDir() {
+		return errors.New("private network state must be a non-symlink directory")
 	}
-	return syncDirectory(state.NetworkDir)
+	return nil
+}
+
+func loadJSON[T any](path, description string) (T, error) {
+	var value T
+	info, err := os.Lstat(path)
+	if err != nil {
+		return value, err
+	}
+	if info.Mode()&os.ModeSymlink != 0 || !info.Mode().IsRegular() || info.Size() > maxStateSize {
+		return value, fmt.Errorf("%s must be a bounded non-symlink regular file", description)
+	}
+	file, err := os.Open(path)
+	if err != nil {
+		return value, err
+	}
+	defer file.Close()
+	decoder := json.NewDecoder(io.LimitReader(file, maxStateSize+1))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&value); err != nil {
+		return value, fmt.Errorf("decode %s: %w", description, err)
+	}
+	if err := decoder.Decode(new(any)); !errors.Is(err, io.EOF) {
+		return value, fmt.Errorf("%s contains trailing data", description)
+	}
+	return value, nil
 }
 
 func writeJSONAtomic(path string, value any) error {

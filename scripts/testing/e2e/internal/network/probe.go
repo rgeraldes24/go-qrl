@@ -15,16 +15,18 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gorilla/websocket"
+	"github.com/theQRL/go-qrl/rpc"
 )
 
-const chainAdvancementWindow = 30 * time.Second
+const (
+	chainAdvancementWindow = 30 * time.Second
+	probeRequestTimeout    = 5 * time.Second
+)
 
 type probeRequest struct {
 	RPCURL, GraphQLURL, WebSocketURL string
 	Address, ExpectedChainID         string
 	ExpectedGenesis                  string
-	Requirements                     Requirements
 }
 
 type probeResult struct {
@@ -32,20 +34,25 @@ type probeResult struct {
 }
 
 func probeNetwork(ctx context.Context, request probeRequest) (probeResult, error) {
-	client := &http.Client{Timeout: 5 * time.Second}
+	httpClient := &http.Client{Timeout: probeRequestTimeout}
+	client, err := rpc.DialOptions(ctx, request.RPCURL, rpc.WithHTTPClient(httpClient))
+	if err != nil {
+		return probeResult{}, fmt.Errorf("dial HTTP RPC: %w", err)
+	}
+	defer client.Close()
 	var version string
-	if err := callRPC(ctx, client, request.RPCURL, "web3_clientVersion", nil, &version); err != nil {
+	if err := callRPC(ctx, client, "web3_clientVersion", &version); err != nil {
 		return probeResult{}, err
 	}
 	var chainID string
-	if err := callRPC(ctx, client, request.RPCURL, "qrl_chainId", nil, &chainID); err != nil {
+	if err := callRPC(ctx, client, "qrl_chainId", &chainID); err != nil {
 		return probeResult{}, err
 	}
 	if !equalQuantity(chainID, request.ExpectedChainID) {
 		return probeResult{}, fmt.Errorf("chain ID %q differs from expected %q", chainID, request.ExpectedChainID)
 	}
 	var blockNumber string
-	if err := callRPC(ctx, client, request.RPCURL, "qrl_blockNumber", nil, &blockNumber); err != nil {
+	if err := callRPC(ctx, client, "qrl_blockNumber", &blockNumber); err != nil {
 		return probeResult{}, err
 	}
 	if quantity(blockNumber).Sign() < 1 {
@@ -64,28 +71,26 @@ func probeNetwork(ctx context.Context, request probeRequest) (probeResult, error
 		case <-advancementDeadline.C:
 			return probeResult{}, fmt.Errorf("chain did not advance beyond block %s within %s", firstBlock.String(), chainAdvancementWindow)
 		case <-ticker.C:
-			if err := callRPC(ctx, client, request.RPCURL, "qrl_blockNumber", nil, &blockNumber); err != nil {
+			if err := callRPC(ctx, client, "qrl_blockNumber", &blockNumber); err != nil {
 				return probeResult{}, err
 			}
 			advanced = quantity(blockNumber).Cmp(firstBlock) > 0
 		}
 	}
-	if request.Requirements.Signer {
-		if strings.TrimSpace(request.Address) == "" {
-			return probeResult{}, errors.New("signer readiness requires a wallet address")
-		}
-		var balance string
-		if err := callRPC(ctx, client, request.RPCURL, "qrl_getBalance", []any{request.Address, "latest"}, &balance); err != nil {
-			return probeResult{}, err
-		}
-		if quantity(balance).Sign() <= 0 {
-			return probeResult{}, fmt.Errorf("E2E wallet %s has no balance", request.Address)
-		}
+	if strings.TrimSpace(request.Address) == "" {
+		return probeResult{}, errors.New("signer readiness requires a wallet address")
+	}
+	var balance string
+	if err := callRPC(ctx, client, "qrl_getBalance", &balance, request.Address, "latest"); err != nil {
+		return probeResult{}, err
+	}
+	if quantity(balance).Sign() <= 0 {
+		return probeResult{}, fmt.Errorf("E2E wallet %s has no balance", request.Address)
 	}
 	var genesis struct {
 		Hash string `json:"hash"`
 	}
-	if err := callRPC(ctx, client, request.RPCURL, "qrl_getBlockByNumber", []any{"0x0", false}, &genesis); err != nil {
+	if err := callRPC(ctx, client, "qrl_getBlockByNumber", &genesis, "0x0", false); err != nil {
 		return probeResult{}, err
 	}
 	if genesis.Hash == "" {
@@ -94,52 +99,27 @@ func probeNetwork(ctx context.Context, request probeRequest) (probeResult, error
 	if request.ExpectedGenesis != "" && genesis.Hash != request.ExpectedGenesis {
 		return probeResult{}, fmt.Errorf("genesis hash changed: got %q, want %q", genesis.Hash, request.ExpectedGenesis)
 	}
-	if request.Requirements.GraphQL {
-		var graphQL struct {
-			Data struct {
-				ChainID string `json:"chainID"`
-			} `json:"data"`
-			Errors []any `json:"errors"`
-		}
-		if err := postJSON(ctx, client, request.GraphQLURL, map[string]any{"query": "{ chainID }"}, &graphQL); err != nil {
-			return probeResult{}, fmt.Errorf("GraphQL readiness: %w", err)
-		}
-		if len(graphQL.Errors) != 0 || !equalQuantity(graphQL.Data.ChainID, request.ExpectedChainID) {
-			return probeResult{}, fmt.Errorf("GraphQL chain ID %q differs from expected %q", graphQL.Data.ChainID, request.ExpectedChainID)
-		}
+	var graphQL struct {
+		Data struct {
+			ChainID string `json:"chainID"`
+		} `json:"data"`
+		Errors []any `json:"errors"`
 	}
-	if request.Requirements.WebSocket {
-		if err := probeWebSocket(ctx, request.WebSocketURL, version); err != nil {
-			return probeResult{}, err
-		}
+	if err := postJSON(ctx, httpClient, request.GraphQLURL, map[string]any{"query": "{ chainID }"}, &graphQL); err != nil {
+		return probeResult{}, fmt.Errorf("GraphQL readiness: %w", err)
+	}
+	if len(graphQL.Errors) != 0 || !equalQuantity(graphQL.Data.ChainID, request.ExpectedChainID) {
+		return probeResult{}, fmt.Errorf("GraphQL chain ID %q differs from expected %q", graphQL.Data.ChainID, request.ExpectedChainID)
+	}
+	if err := probeWebSocket(ctx, request.WebSocketURL, version); err != nil {
+		return probeResult{}, err
 	}
 	return probeResult{ChainID: canonicalQuantity(chainID), GenesisHash: genesis.Hash}, nil
 }
 
-type rpcResponse struct {
-	Result json.RawMessage `json:"result"`
-	Error  *struct {
-		Code    int    `json:"code"`
-		Message string `json:"message"`
-	} `json:"error"`
-}
-
-func callRPC(ctx context.Context, client *http.Client, url, method string, params []any, destination any) error {
-	var response rpcResponse
-	if params == nil {
-		params = []any{}
-	}
-	if err := postJSON(ctx, client, url, map[string]any{"jsonrpc": "2.0", "id": 1, "method": method, "params": params}, &response); err != nil {
+func callRPC(ctx context.Context, client *rpc.Client, method string, destination any, arguments ...any) error {
+	if err := client.CallContext(ctx, destination, method, arguments...); err != nil {
 		return fmt.Errorf("%s: %w", method, err)
-	}
-	if response.Error != nil {
-		return fmt.Errorf("%s returned RPC error %d: %s", method, response.Error.Code, response.Error.Message)
-	}
-	if len(response.Result) == 0 {
-		return fmt.Errorf("%s returned no result", method)
-	}
-	if err := json.Unmarshal(response.Result, destination); err != nil {
-		return fmt.Errorf("decode %s result: %w", method, err)
 	}
 	return nil
 }
@@ -168,28 +148,22 @@ func postJSON(ctx context.Context, client *http.Client, url string, value, desti
 }
 
 func probeWebSocket(ctx context.Context, url, expectedVersion string) error {
-	dialer := *websocket.DefaultDialer
-	dialer.HandshakeTimeout = 5 * time.Second
-	connection, response, err := dialer.DialContext(ctx, url, http.Header{"Origin": []string{"http://localhost"}})
+	probeCtx, cancel := context.WithTimeout(ctx, probeRequestTimeout)
+	defer cancel()
+	client, err := rpc.DialOptions(
+		probeCtx,
+		url,
+		rpc.WithHeader("Origin", "http://localhost"),
+	)
 	if err != nil {
-		if response != nil {
-			return fmt.Errorf("WebSocket handshake failed with %s: %w", response.Status, err)
-		}
 		return fmt.Errorf("WebSocket handshake: %w", err)
 	}
-	defer connection.Close()
-	deadline := time.Now().Add(5 * time.Second)
-	_ = connection.SetReadDeadline(deadline)
-	_ = connection.SetWriteDeadline(deadline)
-	if err := connection.WriteJSON(map[string]any{"jsonrpc": "2.0", "id": 1, "method": "web3_clientVersion", "params": []any{}}); err != nil {
-		return err
-	}
-	var responseBody rpcResponse
-	if err := connection.ReadJSON(&responseBody); err != nil {
-		return err
-	}
+	defer client.Close()
 	var version string
-	if responseBody.Error != nil || json.Unmarshal(responseBody.Result, &version) != nil || version != expectedVersion {
+	if err := callRPC(probeCtx, client, "web3_clientVersion", &version); err != nil {
+		return fmt.Errorf("WebSocket client identity: %w", err)
+	}
+	if version != expectedVersion {
 		return errors.New("WebSocket client identity differs from HTTP RPC")
 	}
 	return nil

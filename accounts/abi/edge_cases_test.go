@@ -17,7 +17,7 @@ import (
 	"github.com/theQRL/go-qrl/common"
 )
 
-func mustNewEdgeType(t *testing.T, name string, components []ArgumentMarshaling) Type {
+func mustABIType(t *testing.T, name string, components []ArgumentMarshaling) Type {
 	t.Helper()
 	typ, err := NewType(name, "", components)
 	if err != nil {
@@ -64,11 +64,11 @@ func TestNewTypeStrictGrammarAndIntegerWidths(t *testing.T) {
 func TestZeroSizedStaticValuesRoundTripAndAdjacency(t *testing.T) {
 	t.Parallel()
 
-	zeroArray := mustNewEdgeType(t, "uint16[0]", nil)
-	nestedZeroArray := mustNewEdgeType(t, "uint16[0][2]", nil)
-	emptyTuple := mustNewEdgeType(t, "tuple", nil)
-	uint16Type := mustNewEdgeType(t, "uint16", nil)
-	stringType := mustNewEdgeType(t, "string", nil)
+	zeroArray := mustABIType(t, "uint16[0]", nil)
+	nestedZeroArray := mustABIType(t, "uint16[0][2]", nil)
+	emptyTuple := mustABIType(t, "tuple", nil)
+	uint16Type := mustABIType(t, "uint16", nil)
+	stringType := mustABIType(t, "string", nil)
 
 	emptyTupleValue := reflect.New(emptyTuple.GetType()).Elem().Interface()
 	arguments := Arguments{
@@ -125,9 +125,9 @@ func TestZeroSizedStaticValuesRoundTripAndAdjacency(t *testing.T) {
 func TestDynamicCollectionsOfZeroSizedValues(t *testing.T) {
 	t.Parallel()
 
-	zeroArraySlice := mustNewEdgeType(t, "uint16[0][]", nil)
-	emptyTupleSlice := mustNewEdgeType(t, "tuple[]", nil)
-	uint16Type := mustNewEdgeType(t, "uint16", nil)
+	zeroArraySlice := mustABIType(t, "uint16[0][]", nil)
+	emptyTupleSlice := mustABIType(t, "tuple[]", nil)
+	uint16Type := mustABIType(t, "uint16", nil)
 	arguments := Arguments{
 		{Name: "arrays", Type: zeroArraySlice},
 		{Name: "tuples", Type: emptyTupleSlice},
@@ -165,7 +165,7 @@ func TestDynamicCollectionsOfZeroSizedValues(t *testing.T) {
 func TestDynamicFixedArrayRejectsFullWidthHighOffset(t *testing.T) {
 	t.Parallel()
 
-	arrayType := mustNewEdgeType(t, "string[1]", nil)
+	arrayType := mustABIType(t, "string[1]", nil)
 	// The low 64 bits point to a valid array head at byte 64. The high byte
 	// makes the actual 512-bit offset enormous. A truncated uint64 decoder
 	// would incorrectly accept this as [1]string{""}.
@@ -182,10 +182,10 @@ func TestDynamicFixedArrayRejectsFullWidthHighOffset(t *testing.T) {
 func TestPackAndCopyNilInputsReturnErrors(t *testing.T) {
 	t.Parallel()
 
-	uint256Type := mustNewEdgeType(t, "uint256", nil)
-	uint16Type := mustNewEdgeType(t, "uint16", nil)
-	uintArrayType := mustNewEdgeType(t, "uint256[1]", nil)
-	tupleType := mustNewEdgeType(t, "tuple", []ArgumentMarshaling{{Name: "amount", Type: "uint256"}})
+	uint256Type := mustABIType(t, "uint256", nil)
+	uint16Type := mustABIType(t, "uint16", nil)
+	uintArrayType := mustABIType(t, "uint256[1]", nil)
+	tupleType := mustABIType(t, "tuple", []ArgumentMarshaling{{Name: "amount", Type: "uint256"}})
 
 	var nilBig *big.Int
 	var nilUint16 *uint16
@@ -204,11 +204,11 @@ func TestPackAndCopyNilInputsReturnErrors(t *testing.T) {
 		{name: "nil tuple field", args: Arguments{{Type: tupleType}}, value: tupleWithNil},
 		{name: "unrelated pointer", args: Arguments{{Type: uint256Type}}, value: &wrongPointer},
 	}
-	addressType := mustNewEdgeType(t, "address", nil)
+	addressType := mustABIType(t, "address", nil)
 	if _, err := (Arguments{{Type: addressType}}).Pack([common.AddressLength]int{}); err == nil {
 		t.Fatal("Pack accepted a non-byte address array")
 	}
-	bytes64Type := mustNewEdgeType(t, "bytes64", nil)
+	bytes64Type := mustABIType(t, "bytes64", nil)
 	if _, err := (Arguments{{Type: bytes64Type}}).Pack([64]int{}); err == nil {
 		t.Fatal("Pack accepted a non-byte fixed array")
 	}
@@ -240,8 +240,8 @@ func TestPackAndCopyNilInputsReturnErrors(t *testing.T) {
 func TestPublicReadersRejectMalformedWords(t *testing.T) {
 	t.Parallel()
 
-	uint512Type := mustNewEdgeType(t, "uint512", nil)
-	bytes3Type := mustNewEdgeType(t, "bytes3", nil)
+	uint512Type := mustABIType(t, "uint512", nil)
+	bytes3Type := mustABIType(t, "bytes3", nil)
 	word := make([]byte, 64)
 	word[63] = 1
 	if value, err := ReadInteger(uint512Type, word); err != nil || value.(*big.Int).Cmp(big.NewInt(1)) != 0 {
@@ -302,7 +302,7 @@ func TestMakeTopicsRejectsInvalidBigIntegers(t *testing.T) {
 func TestParseTopicsUsesOriginalNamesAndTags(t *testing.T) {
 	t.Parallel()
 
-	uint16Type := mustNewEdgeType(t, "uint16", nil)
+	uint16Type := mustABIType(t, "uint16", nil)
 	fields := Arguments{
 		{Name: "range", Type: uint16Type, Indexed: true},
 		{Name: "_msg", Type: uint16Type, Indexed: true},
@@ -341,7 +341,7 @@ func TestParseTopicsUsesOriginalNamesAndTags(t *testing.T) {
 func TestParseTopicsRejectsConflictingFallbackTag(t *testing.T) {
 	t.Parallel()
 
-	uint16Type := mustNewEdgeType(t, "uint16", nil)
+	uint16Type := mustABIType(t, "uint16", nil)
 	fields := Arguments{{Name: "value", Type: uint16Type, Indexed: true}}
 	topics, err := MakeTopics([]any{uint16(7)})
 	if err != nil {
@@ -361,7 +361,7 @@ func TestParseTopicsRejectsConflictingFallbackTag(t *testing.T) {
 func TestFunctionTypeCannotFitVM64Word(t *testing.T) {
 	t.Parallel()
 
-	functionType := mustNewEdgeType(t, "function", nil)
+	functionType := mustABIType(t, "function", nil)
 	value := [common.AddressLength + 4]byte{}
 	if _, err := (Arguments{{Type: functionType}}).Pack(value); err == nil || !strings.Contains(err.Error(), "does not fit") {
 		t.Fatalf("function Pack error = %v, want VM64 width error", err)
@@ -405,7 +405,7 @@ func TestParseSelectorMalformedInputsReturnErrors(t *testing.T) {
 func TestUnpackRejectsUnalignedBodies(t *testing.T) {
 	t.Parallel()
 
-	bytesType := mustNewEdgeType(t, "bytes", nil)
+	bytesType := mustABIType(t, "bytes", nil)
 	arguments := Arguments{{Name: "payload", Type: bytesType}}
 	encoded, err := arguments.Pack([]byte{1, 2, 3})
 	if err != nil {

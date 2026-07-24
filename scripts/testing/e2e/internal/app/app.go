@@ -9,6 +9,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"flag"
 	"fmt"
 	"io"
 	"os"
@@ -17,10 +18,24 @@ import (
 
 	"github.com/theQRL/go-qrl/scripts/testing/e2e/internal/network"
 	"github.com/theQRL/go-qrl/scripts/testing/e2e/internal/source"
-	"github.com/urfave/cli/v2"
 )
 
-const DefaultNetworkDir = "/tmp/go-qrl-e2e-network"
+const (
+	DefaultNetworkDir   = "/tmp/go-qrl-e2e-network"
+	defaultStartTimeout = 150 * time.Minute
+	rootUsage           = `Usage:
+  e2e network <start|status|stop> [options]
+
+Manage the separately running E2E network. Suite execution is provided by the
+pinned Ginkgo tool through make live-test. Network commands never execute
+tests, and tests never start or stop the network.
+
+Commands:
+  start   Start or authenticate the test network.
+  status  Authenticate and inspect the test network.
+  stop    Stop the exact owned test network.
+`
+)
 
 type App struct {
 	Stdout   io.Writer
@@ -39,99 +54,51 @@ func New() *App {
 
 func (app *App) Execute(ctx context.Context, arguments []string) error {
 	app.normalize()
-	command := &cli.App{
-		Name:      "e2e",
-		Usage:     "manage the separately running E2E network",
-		UsageText: "e2e network <start|status|stop> [options]",
-		Description: "Suite execution is provided by the pinned Ginkgo tool " +
-			"through make live-test. Network commands never execute tests, " +
-			"and tests never start or stop the network.",
-		Writer:         app.Stdout,
-		ErrWriter:      app.Stderr,
-		ExitErrHandler: func(*cli.Context, error) {},
-		Commands: []*cli.Command{
-			app.networkCommand(),
-		},
+	if len(arguments) == 0 || isHelp(arguments[0]) {
+		fmt.Fprint(app.Stdout, rootUsage)
+		return nil
 	}
-	return command.RunContext(ctx, append([]string{command.Name}, arguments...))
-}
-
-func (app *App) networkCommand() *cli.Command {
-	return &cli.Command{
-		Name:      "network",
-		Usage:     "start, inspect, or stop a separately managed network",
-		UsageText: "e2e network <start|status|stop> [options]",
-		Subcommands: []*cli.Command{
-			{
-				Name:   "start",
-				Usage:  "start or authenticate the test network",
-				Flags:  startFlags(),
-				Action: app.networkStart,
-			},
-			{
-				Name:   "status",
-				Usage:  "authenticate and inspect the test network",
-				Flags:  []cli.Flag{networkDirFlag()},
-				Action: app.networkStatus,
-			},
-			{
-				Name:   "stop",
-				Usage:  "stop the owned test network",
-				Flags:  []cli.Flag{networkDirFlag()},
-				Action: app.networkStop,
-			},
-		},
+	if arguments[0] != "network" {
+		return newUsageError("unknown command %q", arguments[0])
+	}
+	if len(arguments) == 1 || isHelp(arguments[1]) {
+		fmt.Fprint(app.Stdout, rootUsage)
+		return nil
+	}
+	switch arguments[1] {
+	case "start":
+		return app.networkStart(ctx, arguments[2:])
+	case "status", "stop":
+		return app.networkOperation(ctx, arguments[1], arguments[2:])
+	default:
+		return newUsageError("unknown network command %q", arguments[1])
 	}
 }
 
-func startFlags() []cli.Flag {
-	return []cli.Flag{
-		networkDirFlag(),
-		&cli.PathFlag{
-			Name:  "repo-root",
-			Usage: "go-qrl checkout root; discovered when omitted",
-		},
-		&cli.PathFlag{
-			Name:    "build-tool",
-			EnvVars: []string{"E2E_NETWORK_BUILD_TOOL"},
-			Usage:   "pinned network-image build tool",
-		},
-		&cli.StringFlag{
-			Name:    "enclave",
-			EnvVars: []string{"E2E_ENCLAVE_NAME"},
-			Usage:   "optional enclave name",
-		},
-		&cli.PathFlag{
-			Name:    "docker-bin",
-			Value:   "docker",
-			EnvVars: []string{"E2E_DOCKER_BIN"},
-			Usage:   "Docker command path",
-		},
-		&cli.DurationFlag{
-			Name:    "start-timeout",
-			Value:   150 * time.Minute,
-			EnvVars: []string{"E2E_NETWORK_START_TIMEOUT"},
-			Usage:   "network provisioning and readiness budget",
-		},
+func (app *App) networkStart(ctx context.Context, arguments []string) error {
+	timeout, err := durationFromEnvironment("E2E_NETWORK_START_TIMEOUT", defaultStartTimeout)
+	if err != nil {
+		return newUsageError("%v", err)
 	}
-}
-
-func networkDirFlag() cli.Flag {
-	return &cli.PathFlag{
-		Name:    "network-dir",
-		Value:   DefaultNetworkDir,
-		EnvVars: []string{"E2E_NETWORK_DIR"},
-		Usage:   "durable E2E network directory",
-	}
-}
-
-func (app *App) networkStart(ctx *cli.Context) error {
-	if err := rejectArguments(ctx); err != nil {
+	var (
+		networkDir  = environmentValue("E2E_NETWORK_DIR", DefaultNetworkDir)
+		root        string
+		buildTool   = environmentValue("E2E_NETWORK_BUILD_TOOL", "")
+		enclaveName = environmentValue("E2E_ENCLAVE_NAME", "")
+		dockerBin   = environmentValue("E2E_DOCKER_BIN", "docker")
+	)
+	flags := app.newFlagSet("e2e network start")
+	flags.StringVar(&networkDir, "network-dir", networkDir, "durable E2E network directory")
+	flags.StringVar(&root, "repo-root", "", "go-qrl checkout root; discovered when omitted")
+	flags.StringVar(&buildTool, "build-tool", buildTool, "pinned network-image build tool")
+	flags.StringVar(&enclaveName, "enclave", enclaveName, "optional enclave name")
+	flags.StringVar(&dockerBin, "docker-bin", dockerBin, "Docker command path")
+	flags.DurationVar(&timeout, "start-timeout", timeout, "network provisioning and readiness budget")
+	help, err := parseFlags(flags, arguments)
+	if err != nil || help {
 		return err
 	}
 
-	root := ctx.Path("repo-root")
-	var err error
 	if root == "" {
 		root, err = app.Getwd()
 		if err != nil {
@@ -146,12 +113,10 @@ func (app *App) networkStart(ctx *cli.Context) error {
 	if err != nil {
 		return err
 	}
-
-	buildTool := ctx.Path("build-tool")
 	if buildTool == "" {
 		buildTool = filepath.Join(root, "scripts", "local_testnet", "build_network_images.sh")
 	}
-	networkDir, err := absolutePath(ctx.Path("network-dir"))
+	networkDir, err = absolutePath(networkDir)
 	if err != nil {
 		return err
 	}
@@ -160,49 +125,84 @@ func (app *App) networkStart(ctx *cli.Context) error {
 		return err
 	}
 
-	result, runErr := app.Networks.Start(ctx.Context, network.StartRequest{
+	result, runErr := app.Networks.Start(ctx, network.StartRequest{
 		RepoRoot:     root,
 		NetworkDir:   networkDir,
-		EnclaveName:  ctx.String("enclave"),
+		EnclaveName:  enclaveName,
 		BuildTool:    buildTool,
-		DockerBin:    ctx.Path("docker-bin"),
-		StartTimeout: ctx.Duration("start-timeout"),
+		DockerBin:    dockerBin,
+		StartTimeout: timeout,
 	})
 	return errors.Join(runErr, writeJSON(app.Stdout, result))
 }
 
-func (app *App) networkStatus(ctx *cli.Context) error {
-	if err := rejectArguments(ctx); err != nil {
+func (app *App) networkOperation(ctx context.Context, operation string, arguments []string) error {
+	networkDir := environmentValue("E2E_NETWORK_DIR", DefaultNetworkDir)
+	flags := app.newFlagSet("e2e network " + operation)
+	flags.StringVar(&networkDir, "network-dir", networkDir, "durable E2E network directory")
+	help, err := parseFlags(flags, arguments)
+	if err != nil || help {
 		return err
 	}
-	networkDir, err := absolutePath(ctx.Path("network-dir"))
+	networkDir, err = absolutePath(networkDir)
 	if err != nil {
 		return err
 	}
-	result, statusErr := app.Networks.Status(ctx.Context, networkDir)
-	return errors.Join(statusErr, writeJSON(app.Stdout, result))
+	var result network.Result
+	if operation == "status" {
+		result, err = app.Networks.Status(ctx, networkDir)
+	} else {
+		result, err = app.Networks.Stop(ctx, networkDir)
+	}
+	return errors.Join(err, writeJSON(app.Stdout, result))
 }
 
-func (app *App) networkStop(ctx *cli.Context) error {
-	if err := rejectArguments(ctx); err != nil {
-		return err
+func (app *App) newFlagSet(name string) *flag.FlagSet {
+	flags := flag.NewFlagSet(name, flag.ContinueOnError)
+	flags.SetOutput(app.Stderr)
+	flags.Usage = func() {
+		fmt.Fprintf(app.Stdout, "Usage:\n  %s [options]\n\nOptions:\n", name)
+		flags.SetOutput(app.Stdout)
+		flags.PrintDefaults()
+		flags.SetOutput(app.Stderr)
 	}
-	networkDir, err := absolutePath(ctx.Path("network-dir"))
+	return flags
+}
+
+func parseFlags(flags *flag.FlagSet, arguments []string) (bool, error) {
+	if err := flags.Parse(arguments); err != nil {
+		if errors.Is(err, flag.ErrHelp) {
+			return true, nil
+		}
+		return false, &exitError{code: 2, err: err}
+	}
+	if flags.NArg() != 0 {
+		return false, newUsageError("unexpected positional arguments: %v", flags.Args())
+	}
+	return false, nil
+}
+
+func isHelp(argument string) bool {
+	return argument == "-h" || argument == "--help" || argument == "help"
+}
+
+func environmentValue(name, fallback string) string {
+	if value := os.Getenv(name); value != "" {
+		return value
+	}
+	return fallback
+}
+
+func durationFromEnvironment(name string, fallback time.Duration) (time.Duration, error) {
+	value := os.Getenv(name)
+	if value == "" {
+		return fallback, nil
+	}
+	duration, err := time.ParseDuration(value)
 	if err != nil {
-		return err
+		return 0, fmt.Errorf("%s=%q is not a duration: %w", name, value, err)
 	}
-	result, stopErr := app.Networks.Stop(ctx.Context, networkDir)
-	return errors.Join(stopErr, writeJSON(app.Stdout, result))
-}
-
-func rejectArguments(ctx *cli.Context) error {
-	if ctx.Args().Len() == 0 {
-		return nil
-	}
-	return cli.Exit(
-		fmt.Sprintf("unexpected positional arguments: %v", ctx.Args().Slice()),
-		2,
-	)
+	return duration, nil
 }
 
 func absolutePath(path string) (string, error) {
@@ -237,11 +237,24 @@ func writeJSON(destination io.Writer, value any) error {
 	return encoder.Encode(value)
 }
 
+type exitError struct {
+	code int
+	err  error
+}
+
+func (err *exitError) Error() string { return err.err.Error() }
+func (err *exitError) Unwrap() error { return err.err }
+func (err *exitError) ExitCode() int { return err.code }
+
+func newUsageError(format string, arguments ...any) error {
+	return &exitError{code: 2, err: fmt.Errorf(format, arguments...)}
+}
+
 func ExitCode(err error) int {
 	if err == nil {
 		return 0
 	}
-	var exited cli.ExitCoder
+	var exited interface{ ExitCode() int }
 	if errors.As(err, &exited) {
 		if code := exited.ExitCode(); code > 0 && code < 256 {
 			return code
