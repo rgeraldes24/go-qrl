@@ -7,6 +7,7 @@ tool github.com/onsi/ginkgo/v2/ginkgo
 require (
 	github.com/gofrs/flock v0.13.0
 	github.com/google/go-cmp v0.7.0
+	github.com/google/renameio v0.1.0
 	github.com/kurtosis-tech/kurtosis/api/golang v1.20.0
 	github.com/onsi/ginkgo/v2 v2.32.0
 	github.com/onsi/gomega v1.42.1

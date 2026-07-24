@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"sync"
 
 	"github.com/gofrs/flock"
 )
@@ -19,8 +18,6 @@ import (
 type MutationLease struct {
 	networkDir string
 	lock       *flock.Flock
-	closeOnce  sync.Once
-	closeErr   error
 }
 
 // AcquireMutationLease takes the network's non-blocking exclusive mutation
@@ -46,7 +43,7 @@ func acquireMutationLease(networkDir string) (*MutationLease, error) {
 	if err := validateMutationLockPath(path, true); err != nil {
 		return nil, err
 	}
-	fileLock := flock.New(path, flock.SetFlag(os.O_CREATE|os.O_RDWR), flock.SetPermissions(0o600))
+	fileLock := flock.New(path)
 	locked, err := fileLock.TryLock()
 	if err != nil {
 		return nil, fmt.Errorf("acquire network mutation lease: %w", err)
@@ -61,24 +58,6 @@ func acquireMutationLease(networkDir string) (*MutationLease, error) {
 	if err := validateMutationLockPath(path, false); err != nil {
 		return closeOnError(err)
 	}
-	file, err := os.OpenFile(path, os.O_RDWR, 0)
-	if err != nil {
-		return closeOnError(err)
-	}
-	if err := file.Chmod(0o600); err != nil {
-		file.Close()
-		return closeOnError(err)
-	}
-	if err := file.Sync(); err != nil {
-		file.Close()
-		return closeOnError(err)
-	}
-	if err := file.Close(); err != nil {
-		return closeOnError(err)
-	}
-	if err := syncDirectory(privateDir); err != nil {
-		return closeOnError(err)
-	}
 	return &MutationLease{networkDir: networkDir, lock: fileLock}, nil
 }
 
@@ -90,18 +69,15 @@ func (lease *MutationLease) NetworkDir() string {
 	return lease.networkDir
 }
 
-// Close releases the lease. Repeated and concurrent calls return the result of
-// the first release.
+// Close releases the lease. Repeated and concurrent calls are safe.
 func (lease *MutationLease) Close() error {
 	if lease == nil {
 		return nil
 	}
-	lease.closeOnce.Do(func() {
-		if lease.lock != nil {
-			lease.closeErr = lease.lock.Close()
-		}
-	})
-	return lease.closeErr
+	if lease.lock == nil {
+		return nil
+	}
+	return lease.lock.Close()
 }
 
 func validateMutationLockPath(path string, allowMissing bool) error {

@@ -31,14 +31,6 @@ var requiredImageRoles = map[string]struct{}{
 	"genesis":   {},
 }
 
-type SourceIdentity struct {
-	Commit string
-}
-
-type WalletIdentity struct {
-	Address string
-}
-
 type ImageIdentity struct {
 	Role   string            `json:"role"`
 	Ref    string            `json:"ref"`
@@ -114,25 +106,24 @@ type StartRequest struct {
 // is captured as soon as creation returns and retained until destruction is
 // confirmed.
 type OwnershipRecord struct {
-	NetworkDir    string               `json:"network_dir"`
-	RequestedName string               `json:"requested_name"`
-	Enclave       *kurtosis.EnclaveRef `json:"enclave,omitempty"`
+	NetworkDir string `json:"network_dir"`
+	Name       string `json:"name"`
+	UUID       string `json:"uuid,omitempty"`
 }
 
 func (record OwnershipRecord) Validate() error {
 	if !filepath.IsAbs(record.NetworkDir) || filepath.Clean(record.NetworkDir) != record.NetworkDir {
 		return errors.New("invalid ownership directory")
 	}
-	if strings.TrimSpace(record.RequestedName) == "" {
-		return errors.New("ownership requested name is empty")
+	if strings.TrimSpace(record.Name) == "" {
+		return errors.New("ownership enclave name is empty")
 	}
-	if record.Enclave == nil {
+	if record.UUID == "" {
 		return nil
 	}
-	if record.Enclave.Name != record.RequestedName ||
-		record.Enclave.Validate() != nil ||
-		!record.Enclave.Owned {
-		return errors.New("ownership enclave identity is invalid or not owned")
+	enclave := kurtosis.EnclaveRef{Name: record.Name, UUID: record.UUID, Owned: true}
+	if enclave.Validate() != nil {
+		return errors.New("ownership enclave identity is invalid")
 	}
 	return nil
 }
@@ -141,13 +132,13 @@ func (record OwnershipRecord) OwnedEnclave() (kurtosis.EnclaveRef, error) {
 	if err := record.Validate(); err != nil {
 		return kurtosis.EnclaveRef{}, err
 	}
-	if record.Enclave == nil {
+	if record.UUID == "" {
 		return kurtosis.EnclaveRef{}, fmt.Errorf(
 			"enclave creation outcome for %q is ambiguous: exact UUID was not captured",
-			record.RequestedName,
+			record.Name,
 		)
 	}
-	return *record.Enclave, nil
+	return kurtosis.EnclaveRef{Name: record.Name, UUID: record.UUID, Owned: true}, nil
 }
 
 type Authenticator interface {

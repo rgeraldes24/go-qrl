@@ -17,16 +17,10 @@ import (
 	"github.com/kurtosis-tech/kurtosis/api/golang/core/lib/starlark_run_config"
 	"github.com/kurtosis-tech/kurtosis/api/golang/engine/lib/kurtosis_context"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials/insecure"
-	"google.golang.org/grpc/status"
 )
 
-const (
-	maxAPIContainerResponseBytes     = 100 * 1024 * 1024
-	pristineScriptPackageID          = "DEFAULT_PACKAGE_ID_FOR_SCRIPT"
-	pristineScriptDefaultParallelism = int32(4)
-)
+const maxAPIContainerResponseBytes = 100 * 1024 * 1024
 
 type SDKClient struct {
 	context *kurtosis_context.KurtosisContext
@@ -100,9 +94,6 @@ func (client *SDKClient) LastPackageInvocation(ctx context.Context, ref EnclaveR
 	}
 	last, err := enclave.GetStarlarkRun(ctx)
 	if err != nil {
-		if status.Code(err) == codes.NotFound {
-			return PackageInvocation{}, ErrPackageInvocationNotFound
-		}
 		return PackageInvocation{}, err
 	}
 	return packageInvocationFromStarlarkRun(last)
@@ -111,9 +102,6 @@ func (client *SDKClient) LastPackageInvocation(ctx context.Context, ref EnclaveR
 func packageInvocationFromStarlarkRun(last *kurtosis_core_rpc_api_bindings.GetStarlarkRunResponse) (PackageInvocation, error) {
 	if last == nil {
 		return PackageInvocation{}, errors.New("Kurtosis returned no package invocation metadata")
-	}
-	if isPristineScriptRun(last) {
-		return PackageInvocation{}, ErrPackageInvocationNotFound
 	}
 	params := last.GetInitialSerializedParams()
 	if params == "" {
@@ -124,20 +112,6 @@ func packageInvocationFromStarlarkRun(last *kurtosis_core_rpc_api_bindings.GetSt
 		return PackageInvocation{}, errors.New("Kurtosis did not retain a complete package invocation")
 	}
 	return invocation, nil
-}
-
-func isPristineScriptRun(last *kurtosis_core_rpc_api_bindings.GetStarlarkRunResponse) bool {
-	return last.GetPackageId() == pristineScriptPackageID &&
-		last.GetSerializedScript() == "" &&
-		last.GetSerializedParams() == "" &&
-		last.InitialSerializedParams != nil &&
-		last.GetInitialSerializedParams() == "" &&
-		last.GetParallelism() == pristineScriptDefaultParallelism &&
-		last.GetRelativePathToMainFile() == "" &&
-		last.GetMainFunctionName() == "" &&
-		len(last.GetExperimentalFeatures()) == 0 &&
-		last.GetRestartPolicy() == kurtosis_core_rpc_api_bindings.RestartPolicy_NEVER &&
-		len(last.ProtoReflect().GetUnknown()) == 0
 }
 
 func (client *SDKClient) Services(ctx context.Context, ref EnclaveRef) ([]Service, error) {

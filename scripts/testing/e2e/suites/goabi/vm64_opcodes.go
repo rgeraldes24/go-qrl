@@ -17,14 +17,12 @@ import (
 
 	qrl "github.com/theQRL/go-qrl"
 	qrlabi "github.com/theQRL/go-qrl/accounts/abi"
-	"github.com/theQRL/go-qrl/accounts/abi/bind"
 	"github.com/theQRL/go-qrl/common"
 	"github.com/theQRL/go-qrl/core/types"
 	"github.com/theQRL/go-qrl/core/vm"
 	"github.com/theQRL/go-qrl/crypto"
 	"github.com/theQRL/go-qrl/crypto/pqcrypto/wallet"
 	"github.com/theQRL/go-qrl/qrlclient"
-	"github.com/theQRL/go-qrl/rpc"
 )
 
 const (
@@ -580,21 +578,7 @@ func deployVM64Contract(ctx context.Context, client *qrlclient.Client, w wallet.
 }
 
 func sendVM64Transaction(ctx context.Context, client *qrlclient.Client, w wallet.Wallet, from, to common.Address, data []byte, gasLimit uint64, expectedStatus uint64) (*types.Receipt, error) {
-	var (
-		tx  *types.Transaction
-		err error
-	)
-	if gasLimit == 0 {
-		tx, err = signDynamicFeeTx(ctx, client, w, from, &to, new(big.Int), data)
-	} else {
-		auth, authErr := newTransactor(ctx, client, w, from)
-		if authErr != nil {
-			return nil, authErr
-		}
-		auth.GasLimit = gasLimit
-		auth.NoSend = true
-		tx, err = bind.NewBoundContract(to, qrlabi.ABI{}, client, client, client).RawTransact(auth, data)
-	}
+	tx, err := signDynamicFeeTx(ctx, client, w, from, &to, new(big.Int), data, gasLimit)
 	if err != nil {
 		return nil, fmt.Errorf("sign VM64 transaction: %w", err)
 	}
@@ -829,15 +813,7 @@ func liveRevertData(ctx context.Context, client *qrlclient.Client, from, reverte
 	if err == nil {
 		return nil, errors.New("live VM64 revert call unexpectedly succeeded")
 	}
-	var dataError rpc.DataError
-	if !errors.As(err, &dataError) {
-		return nil, fmt.Errorf("live VM64 revert call returned %T, want rpc.DataError: %w", err, err)
-	}
-	hexData, ok := dataError.ErrorData().(string)
-	if !ok {
-		return nil, fmt.Errorf("live VM64 revert data has type %T, want string", dataError.ErrorData())
-	}
-	return common.FromHex(hexData), nil
+	return rpcRevertData(err)
 }
 
 func verifyLiveStandardReverts(ctx context.Context, client *qrlclient.Client, from, reverter common.Address) error {

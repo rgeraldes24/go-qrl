@@ -37,18 +37,18 @@ var localImageSpecs = [...]localImageSpec{
 
 var imageLockValuePattern = regexp.MustCompile(`^[A-Za-z0-9./:@_-]+$`)
 
-func prepareNetwork(ctx context.Context, runner commandRunner, request StartRequest, source SourceIdentity, wallet WalletIdentity, stdout, stderr io.Writer) (preparedNetwork, error) {
+func prepareNetwork(ctx context.Context, runner commandRunner, request StartRequest, sourceCommit, walletAddress string, stdout, stderr io.Writer) (preparedNetwork, error) {
 	if request.BuildTool == "" {
 		return preparedNetwork{}, errors.New("network image build tool is required")
 	}
 	if request.DockerBin == "" {
 		request.DockerBin = "docker"
 	}
-	isolatedRefs, err := isolatedLocalImageRefs(localImageTemplates, source, request.NetworkDir)
+	isolatedRefs, err := isolatedLocalImageRefs(localImageTemplates, sourceCommit, request.NetworkDir)
 	if err != nil {
 		return preparedNetwork{}, err
 	}
-	params, err := effectiveParameters(wallet.Address, isolatedRefs)
+	params, err := effectiveParameters(walletAddress, isolatedRefs)
 	if err != nil {
 		return preparedNetwork{}, err
 	}
@@ -82,8 +82,8 @@ func prepareNetwork(ctx context.Context, runner commandRunner, request StartRequ
 		images = append(images, image)
 	}
 	sort.Slice(images, func(i, j int) bool { return images[i].Role < images[j].Role })
-	if revision := imageByRole(images, "execution").Labels["org.opencontainers.image.revision"]; revision != source.Commit {
-		return preparedNetwork{}, fmt.Errorf("execution image revision %q differs from source %q", revision, source.Commit)
+	if revision := imageByRole(images, "execution").Labels["org.opencontainers.image.revision"]; revision != sourceCommit {
+		return preparedNetwork{}, fmt.Errorf("execution image revision %q differs from source %q", revision, sourceCommit)
 	}
 	for _, role := range []string{"consensus", "validator"} {
 		if revision := imageByRole(images, role).Labels["org.opencontainers.image.revision"]; revision != qrysmCommit {
@@ -100,15 +100,15 @@ func prepareNetwork(ctx context.Context, runner commandRunner, request StartRequ
 // configuration into network-private refs. The complete clean source
 // commit and canonical network directory are included so separate checkouts
 // and network directories cannot retag images used by another live network.
-func isolatedLocalImageRefs(templates map[string]string, source SourceIdentity, networkDir string) (map[string]string, error) {
-	if !commitPattern.MatchString(source.Commit) {
+func isolatedLocalImageRefs(templates map[string]string, sourceCommit, networkDir string) (map[string]string, error) {
+	if !commitPattern.MatchString(sourceCommit) {
 		return nil, errors.New("source identity is invalid for isolated image refs")
 	}
 	canonicalNetworkDir, err := canonicalExistingDirectory(networkDir, "network directory")
 	if err != nil {
 		return nil, err
 	}
-	tag := "e2e-" + networkInstanceID(source.Commit, canonicalNetworkDir)
+	tag := "e2e-" + networkInstanceID(sourceCommit, canonicalNetworkDir)
 	refs := make(map[string]string, len(localImageSpecs))
 	for _, specification := range localImageSpecs {
 		base := templates[specification.role]

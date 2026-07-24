@@ -110,7 +110,7 @@ func checkGraphQLStorage(ctx context.Context, graphqlURL string, contract common
 }
 
 func checkGraphQLSendRawTransaction(ctx context.Context, graphqlURL string, client *qrlclient.Client, w wallet.Wallet, from common.Address) error {
-	signed, err := signDynamicFeeTx(ctx, client, w, from, &from, big.NewInt(0), nil)
+	signed, err := signDynamicFeeTx(ctx, client, w, from, &from, big.NewInt(0), nil, 0)
 	if err != nil {
 		return fmt.Errorf("sign graphql raw transaction: %w", err)
 	}

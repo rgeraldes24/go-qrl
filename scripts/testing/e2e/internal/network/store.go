@@ -10,6 +10,8 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+
+	"github.com/google/renameio"
 )
 
 const maxStateSize = 1 << 20
@@ -41,7 +43,7 @@ func createOwnership(record OwnershipRecord) error {
 	if err := record.Validate(); err != nil {
 		return err
 	}
-	if record.Enclave != nil {
+	if record.UUID != "" {
 		return errors.New("ownership must begin as a creation intent")
 	}
 	return writeJSONExclusive(ownershipPath(record.NetworkDir), record)
@@ -51,7 +53,7 @@ func captureOwnership(record OwnershipRecord) error {
 	if err := record.Validate(); err != nil {
 		return err
 	}
-	if record.Enclave == nil {
+	if record.UUID == "" {
 		return errors.New("captured ownership has no exact enclave UUID")
 	}
 	return writeJSONAtomic(ownershipPath(record.NetworkDir), record)
@@ -133,82 +135,31 @@ func loadJSON[T any](path, description string) (T, error) {
 }
 
 func writeJSONAtomic(path string, value any) error {
-	payload, err := json.MarshalIndent(value, "", "  ")
+	payload, err := jsonPayload(value)
 	if err != nil {
 		return err
 	}
-	payload = append(payload, '\n')
-	directory := filepath.Dir(path)
-	file, err := os.CreateTemp(directory, "."+filepath.Base(path)+"-*")
-	if err != nil {
+	if err := renameio.WriteFile(path, payload, 0o600); err != nil {
 		return err
 	}
-	temporary := file.Name()
-	remove := true
-	defer func() {
-		if remove {
-			_ = os.Remove(temporary)
-		}
-	}()
-	if err := file.Chmod(0o600); err != nil {
-		file.Close()
-		return err
-	}
-	if _, err := file.Write(payload); err != nil {
-		file.Close()
-		return err
-	}
-	if err := file.Sync(); err != nil {
-		file.Close()
-		return err
-	}
-	if err := file.Close(); err != nil {
-		return err
-	}
-	if err := os.Rename(temporary, path); err != nil {
-		return err
-	}
-	remove = false
-	if err := os.Chmod(path, 0o600); err != nil {
-		return err
-	}
-	return syncDirectory(directory)
+	return syncDirectory(filepath.Dir(path))
 }
 
-// writeJSONExclusive publishes a fully synced file through a hard link. The
-// destination is never overwritten, which makes ownership capture durable.
 func writeJSONExclusive(path string, value any) error {
+	payload, err := jsonPayload(value)
+	if err != nil {
+		return err
+	}
+	return writeExclusive(path, payload)
+}
+
+func jsonPayload(value any) ([]byte, error) {
 	payload, err := json.MarshalIndent(value, "", "  ")
 	if err != nil {
-		return err
+		return nil, err
 	}
 	payload = append(payload, '\n')
-	directory := filepath.Dir(path)
-	file, err := os.CreateTemp(directory, "."+filepath.Base(path)+"-*")
-	if err != nil {
-		return err
-	}
-	temporary := file.Name()
-	defer os.Remove(temporary)
-	if err := file.Chmod(0o600); err != nil {
-		file.Close()
-		return err
-	}
-	if _, err := file.Write(payload); err != nil {
-		file.Close()
-		return err
-	}
-	if err := file.Sync(); err != nil {
-		file.Close()
-		return err
-	}
-	if err := file.Close(); err != nil {
-		return err
-	}
-	if err := os.Link(temporary, path); err != nil {
-		return err
-	}
-	return syncDirectory(directory)
+	return payload, nil
 }
 
 func syncDirectory(path string) error {

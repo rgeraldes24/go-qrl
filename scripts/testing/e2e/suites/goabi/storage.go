@@ -18,7 +18,6 @@ import (
 	"github.com/theQRL/go-qrl/common"
 	"github.com/theQRL/go-qrl/common/hexutil"
 	qrlmath "github.com/theQRL/go-qrl/common/math"
-	"github.com/theQRL/go-qrl/core/types"
 	"github.com/theQRL/go-qrl/core/vm"
 	"github.com/theQRL/go-qrl/crypto"
 	"github.com/theQRL/go-qrl/crypto/pqcrypto/wallet"
@@ -55,9 +54,6 @@ func checkStorageAPIs(ctx context.Context, client *qrlclient.Client, w wallet.Wa
 	receipt, err := deployRaw(ctx, client, w, from, storageContractCode(value))
 	if err != nil {
 		return fmt.Errorf("deploy storage contract: %w", err)
-	}
-	if receipt.Status != types.ReceiptStatusSuccessful {
-		return fmt.Errorf("storage contract deployment failed with status %d", receipt.Status)
 	}
 	slot := common.Hash{}
 	storage, err := client.StorageAt(ctx, receipt.ContractAddress, slot, receipt.BlockNumber)
@@ -100,20 +96,8 @@ func checkStorageAPIs(ctx context.Context, client *qrlclient.Client, w wallet.Wa
 	if err != nil {
 		return fmt.Errorf("header for proof block: %w", err)
 	}
-	accountLeaf, err := verifyProofNodes(header.Root, crypto.Keccak256(receipt.ContractAddress.Bytes()), proof.AccountProof)
-	if err != nil {
+	if err := verifyAccountProof(header.Root, receipt.ContractAddress, proof, proof.Balance, true); err != nil {
 		return fmt.Errorf("verify account proof: %w", err)
-	}
-	if accountLeaf == nil {
-		return fmt.Errorf("verified account proof returned an absent contract")
-	}
-	var account types.StateAccount
-	if err := rlp.DecodeBytes(accountLeaf, &account); err != nil {
-		return fmt.Errorf("decode account proof leaf: %w", err)
-	}
-	if account.Nonce != proof.Nonce || account.Balance.Cmp(proof.Balance) != 0 || account.Root != proof.StorageHash ||
-		!bytes.Equal(account.CodeHash, proof.CodeHash[:]) {
-		return fmt.Errorf("verified account leaf differs from RPC result: account=%+v proof=%+v", account, proof)
 	}
 
 	storageLeaf, err := verifyProofNodes(proof.StorageHash, crypto.Keccak256(slot.Bytes()), proof.StorageProof[0].Proof)

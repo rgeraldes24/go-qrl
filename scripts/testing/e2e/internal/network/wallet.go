@@ -21,56 +21,56 @@ func walletSeedPath(networkDir string) string {
 	return filepath.Join(privatePath(networkDir), seedName)
 }
 
-func ensureWallet(dir string) (WalletIdentity, error) {
+func ensureWallet(dir string) (string, error) {
 	if err := os.MkdirAll(dir, 0o700); err != nil {
-		return WalletIdentity{}, err
+		return "", err
 	}
 	if err := os.Chmod(dir, 0o700); err != nil {
-		return WalletIdentity{}, err
+		return "", err
 	}
 	seedPath := filepath.Join(dir, seedName)
 	if _, err := os.Lstat(seedPath); err == nil {
 		return validateWalletSeed(seedPath)
 	} else if !errors.Is(err, os.ErrNotExist) {
-		return WalletIdentity{}, err
+		return "", err
 	}
 
 	wallet, err := qrlwallet.Generate(qrlwallet.ML_DSA_87)
 	if err != nil {
-		return WalletIdentity{}, fmt.Errorf("generate ML-DSA wallet: %w", err)
+		return "", fmt.Errorf("generate ML-DSA wallet: %w", err)
 	}
 	seed, err := wallet.GetSeed()
 	if err != nil {
-		return WalletIdentity{}, fmt.Errorf("read wallet seed: %w", err)
+		return "", fmt.Errorf("read wallet seed: %w", err)
 	}
 	address := common.Address(wallet.GetAddress()).Hex()
 	if err := writeExclusive(seedPath, []byte(hex.EncodeToString(seed.ToBytes())+"\n")); err != nil {
 		if errors.Is(err, os.ErrExist) {
 			return validateWalletSeed(seedPath)
 		}
-		return WalletIdentity{}, err
+		return "", err
 	}
-	return WalletIdentity{Address: address}, nil
+	return address, nil
 }
 
-func validateWalletSeed(path string) (WalletIdentity, error) {
+func validateWalletSeed(path string) (string, error) {
 	info, err := os.Lstat(path)
 	if err != nil {
-		return WalletIdentity{}, err
+		return "", err
 	}
 	if info.Mode()&os.ModeSymlink != 0 || !info.Mode().IsRegular() || info.Mode().Perm() != 0o600 {
-		return WalletIdentity{}, fmt.Errorf("%s must be a non-symlink 0600 regular file", path)
+		return "", fmt.Errorf("%s must be a non-symlink 0600 regular file", path)
 	}
 	seed, err := os.ReadFile(path)
 	if err != nil {
-		return WalletIdentity{}, err
+		return "", err
 	}
 	wallet, err := qrlwallet.RestoreFromSeedHex(strings.TrimSpace(string(seed)))
 	if err != nil {
-		return WalletIdentity{}, fmt.Errorf("restore existing wallet: %w", err)
+		return "", fmt.Errorf("restore existing wallet: %w", err)
 	}
 	address := common.Address(wallet.GetAddress()).Hex()
-	return WalletIdentity{Address: address}, nil
+	return address, nil
 }
 
 func writeExclusive(path string, data []byte) error {

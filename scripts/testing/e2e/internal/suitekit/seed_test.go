@@ -14,14 +14,9 @@ import (
 const testSeed = "010000f29f58aff0b00de2844f7e20bd9eeaacc379150043beeb328335817512b29fbb7184da84a092f842b2a06d72a24a5d28"
 
 func TestReadWalletRestoresSupportedSeedFiles(t *testing.T) {
-	path := writeSeedFile(t, "0x"+testSeed+"\n", 0o600)
+	path := writeSeedFile(t, testSeed+"\n", 0o600)
 	if _, err := readWallet(path); err != nil {
-		t.Fatalf("prefixed seed: %v", err)
-	}
-
-	readOnly := writeSeedFile(t, testSeed, 0o400)
-	if _, err := readWallet(readOnly); err != nil {
-		t.Fatalf("owner-read-only seed: %v", err)
+		t.Fatal(err)
 	}
 }
 
@@ -61,26 +56,21 @@ func TestReadWalletRejectsUnsafePermissions(t *testing.T) {
 	}
 }
 
-func TestReadWalletRejectsOversizedAndInvalidContents(t *testing.T) {
-	oversized := writeSeedFile(t, strings.Repeat("a", maxSeedFileSize+1), 0o600)
-	if _, err := readWallet(oversized); err == nil || !strings.Contains(err.Error(), "exceeds") {
-		t.Fatalf("oversized error = %v", err)
-	}
-
+func TestReadWalletRejectsInvalidContents(t *testing.T) {
 	tests := []struct {
-		name, contents, want string
+		name, contents string
 	}{
-		{name: "empty", contents: "\n", want: "non-empty hexadecimal"},
-		{name: "nonhex", contents: "not-a-seed", want: "non-empty hexadecimal"},
-		{name: "multiple lines", contents: testSeed + "\n" + testSeed, want: "non-empty hexadecimal"},
-		{name: "wrong length", contents: "00", want: "restorable wallet seed"},
+		{name: "empty", contents: "\n"},
+		{name: "nonhex", contents: "not-a-seed"},
+		{name: "multiple lines", contents: testSeed + "\n" + testSeed},
+		{name: "wrong length", contents: "00"},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			path := writeSeedFile(t, test.contents, 0o600)
 			_, err := readWallet(path)
-			if err == nil || !strings.Contains(err.Error(), test.want) {
-				t.Fatalf("readWallet error = %v, want %q", err, test.want)
+			if err == nil || !strings.Contains(err.Error(), "restorable wallet seed") {
+				t.Fatalf("readWallet error = %v", err)
 			}
 		})
 	}

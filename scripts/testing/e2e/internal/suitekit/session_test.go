@@ -16,31 +16,6 @@ import (
 	"github.com/theQRL/go-qrl/crypto/pqcrypto/wallet"
 )
 
-func TestOpenSessionOpensOneClientWithoutOptionalCapabilities(t *testing.T) {
-	server := httptest.NewServer(http.NotFoundHandler())
-	defer server.Close()
-	environment := sessionEnvironment(t, server.URL)
-	environment.SeedFile = ""
-	environment.GraphQLURL = ""
-	environment.WebSocketURL = ""
-
-	session, err := OpenSession(context.Background(), environment)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if session.Environment != environment {
-		t.Fatalf("session environment = %+v, want %+v", session.Environment, environment)
-	}
-	if session.Client == nil {
-		t.Fatal("session did not retain its RPC client")
-	}
-
-	session.Close()
-	session.Close()
-	var nilSession *Session
-	nilSession.Close()
-}
-
 func TestOpenSigningSessionComposesOneRPCSessionAndWallet(t *testing.T) {
 	server := httptest.NewServer(http.NotFoundHandler())
 	defer server.Close()
@@ -50,8 +25,11 @@ func TestOpenSigningSessionComposesOneRPCSessionAndWallet(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if session.Session == nil || session.Client == nil || session.Wallet == nil {
+	if session.Client == nil || session.Wallet == nil {
 		t.Fatal("signing session did not retain exactly one RPC session and wallet")
+	}
+	if session.Environment != environment {
+		t.Fatalf("session environment = %+v, want %+v", session.Environment, environment)
 	}
 	expectedWallet, err := wallet.RestoreFromSeedHex(testSeed)
 	if err != nil {
@@ -78,13 +56,10 @@ func TestOpenSigningSessionRequiresSignerBeforeConnecting(t *testing.T) {
 	}
 }
 
-func TestOpenSessionRequiresRPCBeforeConnecting(t *testing.T) {
+func TestOpenSigningSessionRequiresRPCBeforeConnecting(t *testing.T) {
 	environment := sessionEnvironment(t, "")
-	if _, err := OpenSession(context.Background(), environment); err == nil || !strings.Contains(err.Error(), rpcURLVariable) {
+	if _, err := OpenSigningSession(context.Background(), environment); err == nil || !strings.Contains(err.Error(), rpcURLVariable) {
 		t.Fatalf("missing RPC URL error = %v", err)
-	}
-	if _, err := OpenSession(nil, environment); err == nil || !strings.Contains(err.Error(), "context is nil") {
-		t.Fatalf("nil context error = %v", err)
 	}
 }
 

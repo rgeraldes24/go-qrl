@@ -10,6 +10,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"reflect"
 	"slices"
 	"strings"
 	"time"
@@ -26,9 +27,9 @@ type Manager struct {
 	Getenv    func(string) string
 	Stdout    io.Writer
 	Stderr    io.Writer
-	Prepare   func(context.Context, commandRunner, StartRequest, SourceIdentity, WalletIdentity, io.Writer, io.Writer) (preparedNetwork, error)
+	Prepare   func(context.Context, commandRunner, StartRequest, string, string, io.Writer, io.Writer) (preparedNetwork, error)
 	Probe     func(context.Context, probeRequest) (probeResult, error)
-	Wallet    func(string) (WalletIdentity, error)
+	Wallet    func(string) (string, error)
 	Capture   func(OwnershipRecord) error
 }
 
@@ -131,8 +132,7 @@ func (manager *Manager) Start(ctx context.Context, request StartRequest) (Result
 	if err != nil {
 		return Result{}, err
 	}
-	sourceIdentity := SourceIdentity{Commit: commit}
-	wallet, err := manager.Wallet(privatePath(networkDir))
+	walletAddress, err := manager.Wallet(privatePath(networkDir))
 	if err != nil {
 		return Result{}, fmt.Errorf("prepare private E2E wallet: %w", err)
 	}
@@ -140,7 +140,7 @@ func (manager *Manager) Start(ctx context.Context, request StartRequest) (Result
 	if err != nil {
 		return Result{}, fmt.Errorf("connect to Kurtosis engine: %w", err)
 	}
-	prepared, err := manager.Prepare(startCtx, manager.Commands, request, sourceIdentity, wallet, manager.Stdout, manager.Stderr)
+	prepared, err := manager.Prepare(startCtx, manager.Commands, request, commit, walletAddress, manager.Stdout, manager.Stderr)
 	if err != nil {
 		return Result{}, err
 	}
@@ -149,8 +149,8 @@ func (manager *Manager) Start(ctx context.Context, request StartRequest) (Result
 		name = defaultEnclaveName(networkDir, commit)
 	}
 	intent := OwnershipRecord{
-		NetworkDir:    networkDir,
-		RequestedName: name,
+		NetworkDir: networkDir,
+		Name:       name,
 	}
 	if err := createOwnership(intent); err != nil {
 		return Result{}, fmt.Errorf("persist enclave creation intent: %w", err)
@@ -174,7 +174,7 @@ func (manager *Manager) Start(ctx context.Context, request StartRequest) (Result
 		)
 	}
 	ownership := intent
-	ownership.Enclave = &enclave
+	ownership.UUID = enclave.UUID
 	if err := manager.Capture(ownership); err != nil {
 		cleanupErr := cleanupCreatedEnclave(client, enclave)
 		if cleanupErr == nil {
@@ -224,7 +224,7 @@ func (manager *Manager) Start(ctx context.Context, request StartRequest) (Result
 	if err := verifySnapshotImages(snapshot, prepared.Images); err != nil {
 		return Result{}, err
 	}
-	binaryDigest, err := authenticateBinary(startCtx, client, enclave, snapshot.Execution.UUID, executionBinaryPath, sourceIdentity.Commit, "")
+	binaryDigest, err := authenticateBinary(startCtx, client, enclave, snapshot.Execution.UUID, executionBinaryPath, commit, "")
 	if err != nil {
 		return Result{}, err
 	}
@@ -232,7 +232,7 @@ func (manager *Manager) Start(ctx context.Context, request StartRequest) (Result
 	if err := poll.Until(startCtx, 2*time.Second, func(attempt context.Context) error {
 		observed, err := manager.Probe(attempt, probeRequest{
 			RPCURL: snapshot.RPC.URL, GraphQLURL: snapshot.GraphQL, WebSocketURL: snapshot.WebSocket.URL,
-			Address: wallet.Address, ExpectedChainID: expectedChainID,
+			Address: walletAddress, ExpectedChainID: expectedChainID,
 		})
 		if err == nil {
 			readiness = observed
@@ -243,8 +243,8 @@ func (manager *Manager) Start(ctx context.Context, request StartRequest) (Result
 	}
 	state := State{
 		ParamsSHA256:  prepared.ParamsDigest,
-		SourceCommit:  sourceIdentity.Commit,
-		WalletAddress: wallet.Address,
+		SourceCommit:  commit,
+		WalletAddress: walletAddress,
 		Topology:      snapshot,
 		Images:        slices.Clone(prepared.Images),
 		BinarySHA256:  binaryDigest,
@@ -309,8 +309,12 @@ func (manager *Manager) status(ctx context.Context, requestedDir string) (Result
 	if err != nil {
 		return Result{}, err
 	}
-	if err := topology.VerifySnapshot(state.Topology, services); err != nil {
+	currentTopology, err := topology.Discover(networkTopology, services)
+	if err != nil {
 		return Result{}, err
+	}
+	if !reflect.DeepEqual(currentTopology, state.Topology) {
+		return Result{}, errors.New("network service identity or endpoint changed")
 	}
 	if err := manager.authenticateImages(ctx, state.Images); err != nil {
 		return Result{}, err
@@ -318,8 +322,8 @@ func (manager *Manager) status(ctx context.Context, requestedDir string) (Result
 	if err := verifySnapshotImages(state.Topology, state.Images); err != nil {
 		return Result{}, err
 	}
-	wallet, err := validateWalletSeed(walletSeedPath(networkDir))
-	if err != nil || wallet.Address != state.WalletAddress {
+	walletAddress, err := validateWalletSeed(walletSeedPath(networkDir))
+	if err != nil || walletAddress != state.WalletAddress {
 		return Result{}, errors.New("private wallet no longer matches persisted address identity")
 	}
 	if _, err = authenticateBinary(ctx, client, enclave, state.Topology.Execution.UUID, executionBinaryPath, state.SourceCommit, state.BinarySHA256); err != nil {

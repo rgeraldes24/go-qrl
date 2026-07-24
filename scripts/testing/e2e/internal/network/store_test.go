@@ -144,9 +144,9 @@ func fixtureOwnership(t *testing.T, networkDir string) OwnershipRecord {
 	}
 	enclave := kurtosis.EnclaveRef{Name: "e2e", UUID: strings.Repeat("a", 32), Owned: true}
 	record := OwnershipRecord{
-		NetworkDir:    networkDir,
-		RequestedName: enclave.Name,
-		Enclave:       &enclave,
+		NetworkDir: networkDir,
+		Name:       enclave.Name,
+		UUID:       enclave.UUID,
 	}
 	if err := record.Validate(); err != nil {
 		t.Fatal(err)

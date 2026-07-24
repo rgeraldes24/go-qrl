@@ -96,8 +96,8 @@ func newManagerFixture(t *testing.T) managerFixture {
 			return probeResult{ChainID: "0x539", GenesisHash: "0x" + strings.Repeat("6", 64)}, nil
 		},
 	}
-	manager.Prepare = func(_ context.Context, _ commandRunner, request StartRequest, _ SourceIdentity, wallet WalletIdentity, _, _ io.Writer) (preparedNetwork, error) {
-		value := fmt.Sprintf(`{"address":%q}`, wallet.Address)
+	manager.Prepare = func(_ context.Context, _ commandRunner, request StartRequest, _, walletAddress string, _, _ io.Writer) (preparedNetwork, error) {
+		value := fmt.Sprintf(`{"address":%q}`, walletAddress)
 		prepared.Params, prepared.ParamsDigest = value, digestCanonicalJSON(value)
 		return prepared, nil
 	}
@@ -121,7 +121,7 @@ func TestStartPublishesReadyStateAndReusesNetwork(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if ownership.Enclave == nil || *ownership.Enclave != fixture.client.Enclave {
+	if ownership.Name != fixture.client.Enclave.Name || ownership.UUID != fixture.client.Enclave.UUID {
 		t.Fatalf("ownership = %+v, client enclave = %+v", ownership, fixture.client.Enclave)
 	}
 	for _, path := range []string{ownershipPath(fixture.networkDir), statePath(fixture.networkDir)} {
@@ -156,7 +156,7 @@ func TestFailedProvisioningRetainsOwnershipAndRequiresStop(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if ownership.Enclave.UUID != fixture.client.Enclave.UUID {
+	if ownership.UUID != fixture.client.Enclave.UUID {
 		t.Fatalf("ownership = %+v", ownership)
 	}
 	if _, err := os.Lstat(statePath(fixture.networkDir)); !errors.Is(err, os.ErrNotExist) {
@@ -188,7 +188,7 @@ func TestAmbiguousCreateRetainsIntentAndCannotReplayOrNameClean(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if ownership.Enclave != nil || ownership.RequestedName != fixture.client.Enclave.Name {
+	if ownership.UUID != "" || ownership.Name != fixture.client.Enclave.Name {
 		t.Fatalf("ambiguous ownership = %+v", ownership)
 	}
 	fixture.client.CreateError = nil
@@ -265,7 +265,7 @@ func TestCaptureAndCleanupFailureRetainsExactRecoveryOwnership(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if ownership.Enclave == nil || ownership.Enclave.UUID != fixture.client.Enclave.UUID {
+	if ownership.UUID != fixture.client.Enclave.UUID {
 		t.Fatalf("recovery ownership = %+v", ownership)
 	}
 	fixture.client.DestroyError = nil

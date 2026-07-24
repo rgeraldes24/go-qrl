@@ -36,7 +36,7 @@ func newTransactor(ctx context.Context, client *qrlclient.Client, w wallet.Walle
 }
 
 func sendValue(ctx context.Context, client *qrlclient.Client, w wallet.Wallet, from, to common.Address, value *big.Int) (*types.Receipt, error) {
-	signed, err := signDynamicFeeTx(ctx, client, w, from, &to, value, nil)
+	signed, err := signDynamicFeeTx(ctx, client, w, from, &to, value, nil, 0)
 	if err != nil {
 		return nil, err
 	}
@@ -44,14 +44,23 @@ func sendValue(ctx context.Context, client *qrlclient.Client, w wallet.Wallet, f
 }
 
 func deployRaw(ctx context.Context, client *qrlclient.Client, w wallet.Wallet, from common.Address, payload []byte) (*types.Receipt, error) {
-	signed, err := signDynamicFeeTx(ctx, client, w, from, nil, big.NewInt(0), payload)
+	signed, err := signDynamicFeeTx(ctx, client, w, from, nil, big.NewInt(0), payload, 0)
 	if err != nil {
 		return nil, err
 	}
 	return submitTransaction(ctx, client, signed, types.ReceiptStatusSuccessful)
 }
 
-func signDynamicFeeTx(ctx context.Context, client *qrlclient.Client, w wallet.Wallet, from common.Address, to *common.Address, value *big.Int, payload []byte) (*types.Transaction, error) {
+func signDynamicFeeTx(
+	ctx context.Context,
+	client *qrlclient.Client,
+	w wallet.Wallet,
+	from common.Address,
+	to *common.Address,
+	value *big.Int,
+	payload []byte,
+	gasLimit uint64,
+) (*types.Transaction, error) {
 	chainID, err := client.ChainID(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("chain id: %w", err)
@@ -72,23 +81,25 @@ func signDynamicFeeTx(ctx context.Context, client *qrlclient.Client, w wallet.Wa
 	if gasFeeCap.Cmp(gasTipCap) < 0 {
 		gasFeeCap = gasTipCap
 	}
-	gas, err := client.EstimateGas(ctx, qrl.CallMsg{
-		From:  from,
-		To:    to,
-		Value: value,
-		Data:  payload,
-	})
-	if err != nil {
-		return nil, fmt.Errorf("estimate gas: %w", err)
+	if gasLimit == 0 {
+		gasLimit, err = client.EstimateGas(ctx, qrl.CallMsg{
+			From:  from,
+			To:    to,
+			Value: value,
+			Data:  payload,
+		})
+		if err != nil {
+			return nil, fmt.Errorf("estimate gas: %w", err)
+		}
+		gasLimit += gasLimit / 5
 	}
-	gas += gas / 5
 
 	tx := types.NewTx(&types.DynamicFeeTx{
 		ChainID:   chainID,
 		Nonce:     nonce,
 		GasTipCap: gasTipCap,
 		GasFeeCap: gasFeeCap,
-		Gas:       gas,
+		Gas:       gasLimit,
 		To:        to,
 		Value:     value,
 		Data:      payload,

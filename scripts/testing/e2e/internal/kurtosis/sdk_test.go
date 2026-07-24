@@ -4,7 +4,6 @@
 package kurtosis
 
 import (
-	"errors"
 	"strings"
 	"testing"
 	"time"
@@ -30,31 +29,12 @@ func TestConvertServiceInfoPreservesLifecycleStatus(t *testing.T) {
 }
 
 func TestPackageInvocationFromStarlarkRun(t *testing.T) {
-	emptyParams := ""
 	initialParams := `{"source":"initial"}`
-	pristineWithUnknown := &kurtosis_core_rpc_api_bindings.GetStarlarkRunResponse{
-		PackageId:               pristineScriptPackageID,
-		Parallelism:             pristineScriptDefaultParallelism,
-		InitialSerializedParams: &emptyParams,
-	}
-	pristineWithUnknown.ProtoReflect().SetUnknown([]byte{0xa0, 0x06, 0x01})
 	tests := []struct {
-		name    string
-		run     *kurtosis_core_rpc_api_bindings.GetStarlarkRunResponse
-		want    PackageInvocation
-		wantErr error
-		errText string
+		name, errText string
+		run           *kurtosis_core_rpc_api_bindings.GetStarlarkRunResponse
+		want          PackageInvocation
 	}{
-		{
-			name: "pristine enclave has no prior invocation",
-			run: &kurtosis_core_rpc_api_bindings.GetStarlarkRunResponse{
-				PackageId:               pristineScriptPackageID,
-				Parallelism:             pristineScriptDefaultParallelism,
-				RestartPolicy:           kurtosis_core_rpc_api_bindings.RestartPolicy_NEVER,
-				InitialSerializedParams: &emptyParams,
-			},
-			wantErr: ErrPackageInvocationNotFound,
-		},
 		{
 			name: "initial parameters are authoritative",
 			run: &kurtosis_core_rpc_api_bindings.GetStarlarkRunResponse{
@@ -87,103 +67,11 @@ func TestPackageInvocationFromStarlarkRun(t *testing.T) {
 			run:     &kurtosis_core_rpc_api_bindings.GetStarlarkRunResponse{},
 			errText: "complete package invocation",
 		},
-		{
-			name: "real package without parameters is incomplete",
-			run: &kurtosis_core_rpc_api_bindings.GetStarlarkRunResponse{
-				PackageId: "github.com/theqrl/qrl-package",
-			},
-			errText: "complete package invocation",
-		},
-		{
-			name: "default record without explicit initial parameters is incomplete",
-			run: &kurtosis_core_rpc_api_bindings.GetStarlarkRunResponse{
-				PackageId:   pristineScriptPackageID,
-				Parallelism: pristineScriptDefaultParallelism,
-			},
-			errText: "complete package invocation",
-		},
-		{
-			name: "default identifier with a script is incomplete",
-			run: &kurtosis_core_rpc_api_bindings.GetStarlarkRunResponse{
-				PackageId:               pristineScriptPackageID,
-				SerializedScript:        "main()",
-				Parallelism:             pristineScriptDefaultParallelism,
-				InitialSerializedParams: &emptyParams,
-			},
-			errText: "complete package invocation",
-		},
-		{
-			name: "default identifier with a relative main is incomplete",
-			run: &kurtosis_core_rpc_api_bindings.GetStarlarkRunResponse{
-				PackageId:               pristineScriptPackageID,
-				Parallelism:             pristineScriptDefaultParallelism,
-				RelativePathToMainFile:  "main.star",
-				InitialSerializedParams: &emptyParams,
-			},
-			errText: "complete package invocation",
-		},
-		{
-			name: "default identifier with a main function is incomplete",
-			run: &kurtosis_core_rpc_api_bindings.GetStarlarkRunResponse{
-				PackageId:               pristineScriptPackageID,
-				Parallelism:             pristineScriptDefaultParallelism,
-				MainFunctionName:        "run",
-				InitialSerializedParams: &emptyParams,
-			},
-			errText: "complete package invocation",
-		},
-		{
-			name: "default identifier with an experimental feature is incomplete",
-			run: &kurtosis_core_rpc_api_bindings.GetStarlarkRunResponse{
-				PackageId:               pristineScriptPackageID,
-				Parallelism:             pristineScriptDefaultParallelism,
-				ExperimentalFeatures:    []kurtosis_core_rpc_api_bindings.KurtosisFeatureFlag{kurtosis_core_rpc_api_bindings.KurtosisFeatureFlag_NO_INSTRUCTIONS_CACHING},
-				InitialSerializedParams: &emptyParams,
-			},
-			errText: "complete package invocation",
-		},
-		{
-			name: "default identifier with a restart policy is incomplete",
-			run: &kurtosis_core_rpc_api_bindings.GetStarlarkRunResponse{
-				PackageId:               pristineScriptPackageID,
-				Parallelism:             pristineScriptDefaultParallelism,
-				RestartPolicy:           kurtosis_core_rpc_api_bindings.RestartPolicy_ALWAYS,
-				InitialSerializedParams: &emptyParams,
-			},
-			errText: "complete package invocation",
-		},
-		{
-			name:    "default identifier with unknown metadata is incomplete",
-			run:     pristineWithUnknown,
-			errText: "complete package invocation",
-		},
-		{
-			name: "parameters without an identifier are incomplete",
-			run: &kurtosis_core_rpc_api_bindings.GetStarlarkRunResponse{
-				SerializedParams: `{"source":"serialized"}`,
-			},
-			errText: "complete package invocation",
-		},
-		{
-			name: "unexpected pristine defaults fail closed",
-			run: &kurtosis_core_rpc_api_bindings.GetStarlarkRunResponse{
-				PackageId:               pristineScriptPackageID,
-				Parallelism:             pristineScriptDefaultParallelism + 1,
-				InitialSerializedParams: &emptyParams,
-			},
-			errText: "complete package invocation",
-		},
 	}
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			got, err := packageInvocationFromStarlarkRun(test.run)
-			if test.wantErr != nil {
-				if !errors.Is(err, test.wantErr) {
-					t.Fatalf("error = %v, want %v", err, test.wantErr)
-				}
-				return
-			}
 			if test.errText != "" {
 				if err == nil || !strings.Contains(err.Error(), test.errText) {
 					t.Fatalf("error = %v, want text %q", err, test.errText)

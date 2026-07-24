@@ -90,7 +90,7 @@ func (fake *Fake) EnclaveExists(_ context.Context, uuid string) (bool, error) {
 func (fake *Fake) LastPackageInvocation(_ context.Context, ref EnclaveRef) (PackageInvocation, error) {
 	fake.Calls = append(fake.Calls, "invocation:"+ref.UUID)
 	if fake.Invocation.ID == "" {
-		return PackageInvocation{}, ErrPackageInvocationNotFound
+		return PackageInvocation{}, errors.New("fake package invocation is unset")
 	}
 	return fake.Invocation, nil
 }

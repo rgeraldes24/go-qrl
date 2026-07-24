@@ -14,10 +14,7 @@ import (
 	"strconv"
 )
 
-var (
-	ErrPackageInvocationNotFound = errors.New("Kurtosis package invocation not found")
-	uuidPattern                  = regexp.MustCompile(`^[0-9a-f]{32}$`)
-)
+var uuidPattern = regexp.MustCompile(`^[0-9a-f]{32}$`)
 
 type EnclaveRef struct {
 	Name  string `json:"name"`

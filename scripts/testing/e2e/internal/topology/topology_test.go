@@ -4,6 +4,7 @@
 package topology
 
 import (
+	"reflect"
 	"strings"
 	"testing"
 
@@ -26,7 +27,7 @@ func fixtureServices() []kurtosis.Service {
 	}
 }
 
-func TestDiscoverAndVerifySnapshotBindFullServiceIdentity(t *testing.T) {
+func TestDiscoverBindsFullServiceIdentity(t *testing.T) {
 	services := fixtureServices()
 	snapshot, err := Discover(fixtureSpec(), services)
 	if err != nil {
@@ -34,9 +35,6 @@ func TestDiscoverAndVerifySnapshotBindFullServiceIdentity(t *testing.T) {
 	}
 	if snapshot.Execution.UUID != strings.Repeat("a", 32) || snapshot.RPC.URL != "http://127.0.0.1:18545" || snapshot.WebSocket.URL != "ws://127.0.0.1:18546" {
 		t.Fatalf("snapshot = %+v", snapshot)
-	}
-	if err := VerifySnapshot(snapshot, services); err != nil {
-		t.Fatal(err)
 	}
 	for name, mutate := range map[string]func([]kurtosis.Service){
 		"same name different UUID": func(values []kurtosis.Service) { values[0].UUID = strings.Repeat("d", 32) },
@@ -50,8 +48,9 @@ func TestDiscoverAndVerifySnapshotBindFullServiceIdentity(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			copy := fixtureServices()
 			mutate(copy)
-			if err := VerifySnapshot(snapshot, copy); err == nil {
-				t.Fatal("topology drift unexpectedly accepted")
+			current, err := Discover(fixtureSpec(), copy)
+			if err == nil && reflect.DeepEqual(current, snapshot) {
+				t.Fatal("topology drift unexpectedly matched the persisted snapshot")
 			}
 		})
 	}
@@ -63,10 +62,10 @@ func TestDiscoverAndVerifySnapshotBindFullServiceIdentity(t *testing.T) {
 	}
 }
 
-func TestDiscoverAndVerifyRejectUndeclaredPersistentParticipantServices(t *testing.T) {
+func TestDiscoverRejectsUndeclaredPersistentParticipantServices(t *testing.T) {
 	services := fixtureServices()
 	services = append(services, kurtosis.Service{Name: "genesis-generator", UUID: strings.Repeat("d", 32), Status: kurtosis.ServiceStatusStopped, Image: "helper:image"})
-	snapshot, err := Discover(fixtureSpec(), services)
+	_, err := Discover(fixtureSpec(), services)
 	if err != nil {
 		t.Fatalf("declared topology with helper service: %v", err)
 	}
@@ -74,8 +73,5 @@ func TestDiscoverAndVerifyRejectUndeclaredPersistentParticipantServices(t *testi
 	services = append(services, extra)
 	if _, err := Discover(fixtureSpec(), services); err == nil || !strings.Contains(err.Error(), "undeclared persistent participant") {
 		t.Fatalf("Discover extra participant error = %v", err)
-	}
-	if err := VerifySnapshot(snapshot, services); err == nil || !strings.Contains(err.Error(), "undeclared persistent participant") {
-		t.Fatalf("VerifySnapshot extra participant error = %v", err)
 	}
 }

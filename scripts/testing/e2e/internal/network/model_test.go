@@ -143,8 +143,8 @@ func TestOwnershipRecordSeparatesCreationIntentFromExactOwnership(t *testing.T) 
 	networkDir := t.TempDir()
 	enclave := kurtosis.EnclaveRef{Name: "e2e", UUID: strings.Repeat("a", 32), Owned: true}
 	record := OwnershipRecord{
-		NetworkDir:    networkDir,
-		RequestedName: enclave.Name,
+		NetworkDir: networkDir,
+		Name:       enclave.Name,
 	}
 	if err := record.Validate(); err != nil {
 		t.Fatal(err)
@@ -152,13 +152,13 @@ func TestOwnershipRecordSeparatesCreationIntentFromExactOwnership(t *testing.T) 
 	if _, err := record.OwnedEnclave(); err == nil || !strings.Contains(err.Error(), "exact UUID") {
 		t.Fatalf("creation intent exact-ownership error = %v", err)
 	}
-	record.Enclave = &enclave
+	record.UUID = enclave.UUID
 	if err := record.Validate(); err != nil {
 		t.Fatal(err)
 	}
-	record.Enclave.Owned = false
-	if err := record.Validate(); err == nil || !strings.Contains(err.Error(), "not owned") {
-		t.Fatalf("unowned enclave error = %v", err)
+	record.UUID = "not-a-uuid"
+	if err := record.Validate(); err == nil || !strings.Contains(err.Error(), "invalid") {
+		t.Fatalf("invalid enclave error = %v", err)
 	}
 }
 

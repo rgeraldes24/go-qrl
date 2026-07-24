@@ -57,23 +57,18 @@ func advancedABIInitcode(artifact *contracts.Artifact, initial dynamicRecord) ([
 
 // checkAdvancedABIReadOnlyCreation proves that the compiler constructor
 // decoder accepts the canonical dynamic tuple and rejects the same initcode
-// after its nested-array tail has been truncated. Some external RPC servers
-// disable creation-form qrl_call; supported reports that capability without
-// weakening the portable simulated-backend assertion.
+// after its nested-array tail has been truncated.
 func checkAdvancedABIReadOnlyCreation(
 	ctx context.Context,
 	caller qrl.ContractCaller,
 	from common.Address,
 	blockNumber *big.Int,
+	artifact *contracts.Artifact,
 	initial dynamicRecord,
-) (supported bool, err error) {
-	artifact, err := loadAdvancedABIArtifact()
-	if err != nil {
-		return false, err
-	}
+) error {
 	initcode, err := advancedABIInitcode(artifact, initial)
 	if err != nil {
-		return false, err
+		return err
 	}
 	output, err := caller.CallContract(ctx, qrl.CallMsg{From: from, Data: initcode}, blockNumber)
 	if err != nil {
@@ -81,26 +76,26 @@ func checkAdvancedABIReadOnlyCreation(
 		if (strings.Contains(message, "contract creation") && strings.Contains(message, "not supported")) ||
 			strings.Contains(message, "missing required field \"to\"") ||
 			strings.Contains(message, "missing required field 'to'") {
-			return false, nil
+			return errors.New("live RPC does not support creation-form qrl_call required by the AdvancedABI constructor decoder check")
 		}
-		return false, fmt.Errorf("canonical AdvancedABI creation qrl_call: %w", err)
+		return fmt.Errorf("canonical AdvancedABI creation qrl_call: %w", err)
 	}
 	if len(output) == 0 {
-		return true, errors.New("canonical AdvancedABI creation qrl_call returned empty runtime bytecode")
+		return errors.New("canonical AdvancedABI creation qrl_call returned empty runtime bytecode")
 	}
 	if len(initcode) <= common.LogTopicLength {
-		return true, fmt.Errorf("AdvancedABI initcode has only %d bytes", len(initcode))
+		return fmt.Errorf("AdvancedABI initcode has only %d bytes", len(initcode))
 	}
 	truncated := append([]byte{}, initcode[:len(initcode)-common.LogTopicLength]...)
 	output, err = caller.CallContract(ctx, qrl.CallMsg{From: from, Data: truncated}, blockNumber)
 	if err == nil {
-		return true, fmt.Errorf("truncated AdvancedABI creation qrl_call unexpectedly returned %x", output)
+		return fmt.Errorf("truncated AdvancedABI creation qrl_call unexpectedly returned %x", output)
 	}
 	var dataError rpc.DataError
 	if errors.As(err, &dataError) || errors.Is(err, vm.ErrExecutionReverted) {
-		return true, nil
+		return nil
 	}
-	return true, fmt.Errorf("truncated AdvancedABI creation returned %T instead of an execution revert: %w", err, err)
+	return fmt.Errorf("truncated AdvancedABI creation returned %T instead of an execution revert: %w", err, err)
 }
 
 func checkAdvancedABIContract(
@@ -110,12 +105,9 @@ func checkAdvancedABIContract(
 	contract *bind.BoundContract,
 	blockNumber *big.Int,
 	receipt *types.Receipt,
+	artifact *contracts.Artifact,
 	initial dynamicRecord,
 ) error {
-	artifact, err := loadAdvancedABIArtifact()
-	if err != nil {
-		return err
-	}
 	for _, vector := range []contractCall{
 		{Method: "read", Want: []any{initial}},
 		{Method: "echo", Args: []any{initial}, Want: []any{initial}},
@@ -249,7 +241,7 @@ func checkLiveAdvancedABI(
 	if err != nil {
 		return err
 	}
-	_, tx, _, err := bind.DeployContract(auth, artifact.ABI, artifact.Bytecode, client, initial)
+	contractAddress, tx, contract, err := bind.DeployContract(auth, artifact.ABI, artifact.Bytecode, client, initial)
 	if err != nil {
 		return fmt.Errorf("deploy AdvancedABI: %w", err)
 	}
@@ -257,13 +249,11 @@ func checkLiveAdvancedABI(
 	if err != nil {
 		return err
 	}
-	contract := bindArtifact(artifact, receipt.ContractAddress, client)
-	supported, err := checkAdvancedABIReadOnlyCreation(ctx, client, from, receipt.BlockNumber, initial)
-	if err != nil {
+	if receipt.ContractAddress != contractAddress {
+		return fmt.Errorf("AdvancedABI contract address mismatch: receipt %s binding %s", receipt.ContractAddress, contractAddress)
+	}
+	if err := checkAdvancedABIReadOnlyCreation(ctx, client, from, receipt.BlockNumber, artifact, initial); err != nil {
 		return fmt.Errorf("live AdvancedABI constructor decoder: %w", err)
 	}
-	if !supported {
-		return errors.New("live RPC does not support creation-form qrl_call required by the AdvancedABI constructor decoder check")
-	}
-	return checkAdvancedABIContract(ctx, client, from, receipt.ContractAddress, contract, receipt.BlockNumber, receipt, initial)
+	return checkAdvancedABIContract(ctx, client, from, receipt.ContractAddress, contract, receipt.BlockNumber, receipt, artifact, initial)
 }

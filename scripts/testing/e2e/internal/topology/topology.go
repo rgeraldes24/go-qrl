@@ -149,63 +149,9 @@ func Discover(spec Spec, services []kurtosis.Service) (Snapshot, error) {
 	return snapshot, nil
 }
 
-// VerifySnapshot re-authenticates every persisted service name/UUID/image,
-// port ID, and resolved public endpoint.
-func VerifySnapshot(expected Snapshot, services []kurtosis.Service) error {
-	if err := expected.Validate(); err != nil {
-		return err
-	}
-	byName := make(map[string]kurtosis.Service, len(services))
-	for _, service := range services {
-		if _, exists := byName[service.Name]; exists {
-			return fmt.Errorf("Kurtosis returned duplicate service name %q", service.Name)
-		}
-		byName[service.Name] = service
-	}
-	if err := rejectUndeclaredParticipants(snapshotServiceNames(expected), services); err != nil {
-		return err
-	}
-	verify := func(identity ServiceIdentity) error {
-		service, exists := byName[identity.Name]
-		if !exists {
-			return fmt.Errorf("required %s service %q is missing", identity.Role, identity.Name)
-		}
-		if service.UUID != identity.UUID || service.Image != identity.Image || service.Status != kurtosis.ServiceStatusRunning {
-			return fmt.Errorf("required %s service identity changed: got %q/%q/%q/%s, want %q/%q/%q/RUNNING", identity.Role, service.Name, service.UUID, service.Image, service.Status, identity.Name, identity.UUID, identity.Image)
-		}
-		return nil
-	}
-	if err := verify(expected.Execution); err != nil {
-		return err
-	}
-	for _, identity := range expected.Required {
-		if err := verify(identity); err != nil {
-			return err
-		}
-	}
-	execution := byName[expected.Execution.Name]
-	rpc, ok := execution.PublicEndpoint(expected.RPC.PortID, "http")
-	if !ok || rpc != expected.RPC.URL {
-		return fmt.Errorf("execution RPC endpoint changed: got %q, want %q", rpc, expected.RPC.URL)
-	}
-	ws, ok := execution.PublicEndpoint(expected.WebSocket.PortID, "ws")
-	if !ok || ws != expected.WebSocket.URL {
-		return fmt.Errorf("execution WebSocket endpoint changed: got %q, want %q", ws, expected.WebSocket.URL)
-	}
-	return nil
-}
-
 func specServiceNames(spec Spec) map[string]struct{} {
 	names := map[string]struct{}{spec.Execution.Name: {}}
 	for _, service := range spec.Required {
-		names[service.Name] = struct{}{}
-	}
-	return names
-}
-
-func snapshotServiceNames(snapshot Snapshot) map[string]struct{} {
-	names := map[string]struct{}{snapshot.Execution.Name: {}}
-	for _, service := range snapshot.Required {
 		names[service.Name] = struct{}{}
 	}
 	return names

@@ -66,8 +66,8 @@ func TestPrepareNetworkRejectsWalletSeedInParameters(t *testing.T) {
 		context.Background(),
 		nil,
 		StartRequest{NetworkDir: networkDir, BuildTool: "unused"},
-		SourceIdentity{Commit: strings.Repeat("b", 40)},
-		WalletIdentity{Address: address},
+		strings.Repeat("b", 40),
+		address,
 		nil,
 		nil,
 	)
@@ -77,7 +77,7 @@ func TestPrepareNetworkRejectsWalletSeedInParameters(t *testing.T) {
 }
 
 func TestIsolatedLocalImageRefsBindCommitAndNetworkDirectory(t *testing.T) {
-	source := SourceIdentity{Commit: strings.Repeat("a", 40)}
+	source := strings.Repeat("a", 40)
 	firstDir, secondDir := t.TempDir(), t.TempDir()
 	first, err := isolatedLocalImageRefs(localImageTemplates, source, firstDir)
 	if err != nil {
@@ -93,7 +93,7 @@ func TestIsolatedLocalImageRefsBindCommitAndNetworkDirectory(t *testing.T) {
 	}
 	otherCommit, err := isolatedLocalImageRefs(
 		localImageTemplates,
-		SourceIdentity{Commit: strings.Repeat("b", 40)},
+		strings.Repeat("b", 40),
 		firstDir,
 	)
 	if err != nil {
