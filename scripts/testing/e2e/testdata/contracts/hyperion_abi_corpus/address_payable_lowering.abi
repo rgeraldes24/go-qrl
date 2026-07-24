@@ -1,0 +1,4 @@
+[
+  {"inputs":[{"internalType":"address","name":"","type":"address"}],"name":"m","outputs":[{"internalType":"address payable","name":"","type":"address"}],"stateMutability":"view","type":"function"},
+  {"inputs":[{"internalType":"address payable","name":"arg","type":"address"}],"name":"f","outputs":[{"internalType":"address payable","name":"r","type":"address"}],"stateMutability":"nonpayable","type":"function"}
+]

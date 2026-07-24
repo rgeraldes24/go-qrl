@@ -1,0 +1,12 @@
+[
+  {"inputs":[],"name":"myAddress","outputs":[{"internalType":"C.MyAddress","name":"","type":"address"}],"stateMutability":"view","type":"function"},
+  {"inputs":[],"name":"myByte1","outputs":[{"internalType":"MyByte1","name":"","type":"bytes1"}],"stateMutability":"view","type":"function"},
+  {"inputs":[],"name":"myBytes32","outputs":[{"internalType":"C.MyBytes32","name":"","type":"bytes32"}],"stateMutability":"view","type":"function"},
+  {"inputs":[],"name":"myInt","outputs":[{"internalType":"MyInt","name":"","type":"int256"}],"stateMutability":"view","type":"function"},
+  {"inputs":[],"name":"myUInt8","outputs":[{"internalType":"C.MyUInt8","name":"","type":"uint8"}],"stateMutability":"view","type":"function"},
+  {"inputs":[{"internalType":"C.MyAddress","name":"a","type":"address"}],"name":"setMyAddress","outputs":[],"stateMutability":"nonpayable","type":"function"},
+  {"inputs":[{"internalType":"MyByte1","name":"a","type":"bytes1"}],"name":"setMyByte1","outputs":[],"stateMutability":"nonpayable","type":"function"},
+  {"inputs":[{"internalType":"C.MyBytes32","name":"a","type":"bytes32"}],"name":"setMyBytes32","outputs":[],"stateMutability":"nonpayable","type":"function"},
+  {"inputs":[{"internalType":"MyInt","name":"a","type":"int256"}],"name":"setMyInt","outputs":[],"stateMutability":"nonpayable","type":"function"},
+  {"inputs":[{"internalType":"C.MyUInt8","name":"a","type":"uint8"}],"name":"setMyUInt8","outputs":[],"stateMutability":"nonpayable","type":"function"}
+]

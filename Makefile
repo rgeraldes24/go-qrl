@@ -3,7 +3,7 @@
 # don't need to bother with make.
 
 .PHONY: gqrl qrvm all test lint fmt clean devtools \
-	network-start live-test network-stop help
+	fuzz-test network-start live-test network-stop help
 
 GOBIN = ./build/bin
 GO ?= latest
@@ -11,7 +11,7 @@ GORUN = go run
 E2E_DIR = scripts/testing/e2e
 E2E_RUNNER = go -C $(E2E_DIR) run ./cmd/e2e
 E2E_GINKGO = go -C $(E2E_DIR) tool ginkgo
-E2E_SUITES ?=
+E2E_SUITES ?= goabi
 E2E_NETWORK_DIR ?= /tmp/go-qrl-e2e-network
 E2E_NETWORK_DIR_ABS = $(abspath $(E2E_NETWORK_DIR))
 E2E_TIMEOUT ?= 25m
@@ -22,6 +22,11 @@ E2E_SUITE_LIST = $(strip $(subst $(comma),$(space),$(E2E_SUITES)))
 E2E_SUITE_PACKAGES = $(addprefix ./suites/,$(E2E_SUITE_LIST))
 E2E_SUITE_LABELS = $(subst $(space), || ,$(E2E_SUITE_LIST))
 E2E_DOCKER_BIN ?= docker
+FUZZ_DIR ?= .
+FUZZ_PACKAGE ?= ./accounts/abi
+FUZZ_TARGET ?= FuzzABIStructuredRecursive
+FUZZ_TIME ?= 30s
+FUZZ_MINIMIZE_TIME ?= 1s
 
 #? gqrl: Build gqrl.
 gqrl:
@@ -68,6 +73,14 @@ devtools:
 	@type "hypc" 2> /dev/null || echo 'Please install hypc'
 	@type "protoc" 2> /dev/null || echo 'Please install protoc'
 
+#? fuzz-test: Run one bounded Go fuzz target; override FUZZ_DIR, FUZZ_PACKAGE, FUZZ_TARGET, or FUZZ_TIME.
+fuzz-test:
+	go -C "$(FUZZ_DIR)" test -run '^$$' \
+		-fuzz "^$(FUZZ_TARGET)$$" \
+		-fuzztime "$(FUZZ_TIME)" \
+		-fuzzminimizetime "$(FUZZ_MINIMIZE_TIME)" \
+		"$(FUZZ_PACKAGE)"
+
 #? network-start: Start or resume the standalone E2E test network without running suites.
 network-start:
 	E2E_NETWORK_DIR="$(E2E_NETWORK_DIR_ABS)" \
@@ -76,7 +89,6 @@ network-start:
 
 #? live-test: Run selected Ginkgo E2E suites against the already-running network.
 live-test:
-	@test -n "$(E2E_SUITE_LIST)" || { echo "E2E_SUITES is required"; exit 2; }
 	E2E_SUITES="$(E2E_SUITES)" \
 	E2E_NETWORK_DIR="$(E2E_NETWORK_DIR_ABS)" \
 	E2E_REPO_ROOT="$(CURDIR)" \

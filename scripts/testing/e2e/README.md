@@ -1,19 +1,47 @@
 # End-to-end tests
 
-This module contains the reusable live-network boundary for independently
-selectable Ginkgo v2 suites. Kurtosis owns the real test network; Ginkgo owns
-suite discovery, ordering, timeouts, progress, cleanup, and pass/fail.
+This module contains independently selectable Ginkgo v2 suites and the small
+QRL-specific libraries they share. Kurtosis owns the real test network; Ginkgo
+owns suite discovery, ordering, timeouts, progress, cleanup, and the pass/fail
+exit status.
 
 Network lifecycle and tests are separate:
 
 ```bash
 make network-start
-make live-test E2E_SUITES=<suite>
+make live-test
 make network-stop
 ```
 
 Starting a network never runs tests. Running tests never creates or destroys a
 network.
+
+## GoABI
+
+Run the portable tests without Docker:
+
+```bash
+go -C scripts/testing/e2e test -count=1 ./suites/goabi
+go test -count=1 ./accounts/abi/... ./signer/fourbyte
+```
+
+The package tests hold exhaustive ABI parser, type, packing, topic, malformed
+input, collision, and generated-binding matrices. The external-package GoABI
+tests keep representative VM64 smoke coverage and VM-backed contract behavior.
+Regenerate the checked-in representative binding with:
+
+```bash
+go -C scripts/testing/e2e generate ./suites/goabi
+```
+
+The generated projection covers deploy, new, call, transact, session, raw,
+filter, watch, parse, fallback, and receive APIs. Full EventEmitter and
+AdvancedABI behavior uses their embedded ABI and bytecode with
+`bind.BoundContract`.
+
+The external ABI `function` value remains dependent on
+[cyyber/go-qrl#87](https://github.com/cyyber/go-qrl/pull/87), which defines its
+68-byte VM64 encoding. `fixed`, `ufixed`, and packed encoding are not supported.
 
 ## Live network
 
@@ -33,7 +61,7 @@ Use one private directory for the lifecycle:
 ```bash
 E2E_NETWORK_DIR=/tmp/my-go-qrl-network make network-start
 E2E_NETWORK_DIR=/tmp/my-go-qrl-network \
-  make live-test E2E_SUITES=<suite>
+  make live-test E2E_SUITES=goabi
 E2E_NETWORK_DIR=/tmp/my-go-qrl-network make network-stop
 ```
 
@@ -58,25 +86,53 @@ lifecycle state, not a test report.
 
 ## Live runner
 
-`E2E_SUITES` accepts comma-separated suite directory names and maps them to
-`./suites/<name>` plus matching Ginkgo labels. The Make target uses the module's
-pinned Ginkgo tool with:
+`make live-test` defaults to GoABI. `E2E_SUITES` accepts comma-separated suite
+directory names and maps them to `./suites/<name>` plus matching Ginkgo labels.
+The target runs the equivalent of:
 
-- build tag `e2e`;
-- one process;
-- required, non-empty, non-pending suite selection;
-- a matching `e2e && live && <suite>` label filter;
-- a bounded timeout and periodic progress; and
-- the generic `TestE2E` bootstrap.
+```bash
+E2E_REPO_ROOT="$PWD" \
+E2E_NETWORK_DIR=/tmp/my-go-qrl-network \
+go -C scripts/testing/e2e tool ginkgo \
+  --tags=e2e \
+  --ldflags='-s -w' \
+  --procs=1 \
+  --require-suite \
+  --fail-on-empty \
+  --fail-on-pending \
+  --label-filter='e2e && live && goabi' \
+  --timeout=25m \
+  --poll-progress-after=30s \
+  --poll-progress-interval=30s \
+  ./suites/goabi \
+  -- -test.run='^TestE2E$'
+```
+
+GoABI has eight ordered live stages:
+
+1. canonical VM64 ABI layout;
+2. deployment, generated bindings, calls, errors, events, logs, filters, and
+   compiler-produced ABI shapes;
+3. 64-byte storage through RPC, calls, GraphQL, and verified inclusion and
+   absence proofs;
+4. upper-half 64-byte address isolation;
+5. VM64 account, context, call, create, CREATE2, and rollback opcodes;
+6. active precompiles, including valid and invalid ML-DSA-87 vectors;
+7. exact raw-transaction submission through GraphQL; and
+8. new-head, raw-log, and generated-binding subscriptions over WebSocket.
+
+Every ordinary transaction must mine successfully. The explicit top-level
+revert is the only transaction expected to fail.
 
 The runner creates no JSON, JUnit, checkpoint, transaction journal, or custom
-manifest. The result is Ginkgo's process exit status. Automatic retry is
-intentionally disabled for chain-mutating tests.
+manifest. The result is Ginkgo's process exit status. A failed rerun starts at
+the first stage and uses current nonces plus fresh contracts; automatic retry
+is intentionally disabled for chain-mutating tests.
 
-Before the first spec, a suite acquires the network mutation lease and
+Before the first spec, the suite acquires the network mutation lease and
 authenticates the enclave, package inputs, images, execution binary, source,
-endpoints, chain, genesis, and any requested funded wallet. The lease prevents
-concurrent suite mutation and prevents network stop during a run.
+endpoints, chain, genesis, and funded wallet. The lease prevents concurrent
+suite mutation and prevents network stop during a run.
 
 ## Adding a suite
 

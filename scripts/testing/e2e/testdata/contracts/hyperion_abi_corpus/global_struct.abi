@@ -1,0 +1,4 @@
+[
+  {"inputs":[{"components":[{"internalType":"uint256","name":"a","type":"uint256"}],"internalType":"struct S","name":"s","type":"tuple"}],"name":"f","outputs":[],"stateMutability":"view","type":"function"},
+  {"inputs":[{"components":[{"internalType":"uint256","name":"a","type":"uint256"}],"internalType":"struct S","name":"s","type":"tuple"}],"name":"g","outputs":[],"stateMutability":"view","type":"function"}
+]

@@ -1,0 +1,6 @@
+[
+  {"inputs":[],"stateMutability":"nonpayable","type":"constructor"},
+  {"anonymous":false,"inputs":[],"name":"e","type":"event"},
+  {"anonymous":false,"inputs":[],"name":"e","type":"event"},
+  {"inputs":[],"name":"f","outputs":[],"stateMutability":"nonpayable","type":"function"}
+]
