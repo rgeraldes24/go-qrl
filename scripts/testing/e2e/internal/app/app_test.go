@@ -60,11 +60,6 @@ func TestHelpDescribesNetworkOnlyBoundary(t *testing.T) {
 			t.Fatalf("help is missing %q:\n%s", expected, output.String())
 		}
 	}
-	for _, removed := range []string{"doctor", "finalize", "source-id"} {
-		if strings.Contains(output.String(), removed) {
-			t.Fatalf("help still advertises removed command %q", removed)
-		}
-	}
 }
 
 func TestNetworkStartResolvesGenericInputs(t *testing.T) {

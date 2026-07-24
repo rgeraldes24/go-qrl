@@ -23,16 +23,9 @@ import (
 )
 
 const (
-	StateSchemaVersion       = 1
-	BackendKurtosis          = "kurtosis"
-	PhaseRunning             = "running"
-	PhaseStopped             = "stopped"
-	LifecycleCreateIntent    = "create_intent"
-	LifecyclePackageIntent   = "package_intent"
-	LifecyclePackageAccepted = "package_accepted"
-	LifecycleReady           = "ready"
-	LifecycleDestroyIntent   = "destroy_intent"
-	LifecycleStopped         = "stopped"
+	StateSchemaVersion     = 1
+	OwnershipSchemaVersion = 1
+	BackendKurtosis        = "kurtosis"
 )
 
 var (
@@ -86,7 +79,6 @@ type ChainIdentity struct {
 type State struct {
 	SchemaVersion int                 `json:"schema_version"`
 	Backend       string              `json:"backend"`
-	Phase         string              `json:"phase"`
 	NetworkDir    string              `json:"network_dir"`
 	Enclave       kurtosis.EnclaveRef `json:"enclave"`
 	Package       PackageIdentity     `json:"package"`
@@ -98,15 +90,11 @@ type State struct {
 	Chain         ChainIdentity       `json:"chain"`
 	Fingerprint   string              `json:"fingerprint"`
 	CreatedAt     time.Time           `json:"created_at"`
-	StoppedAt     *time.Time          `json:"stopped_at,omitempty"`
 }
 
 func (state State) Validate() error {
 	if state.SchemaVersion != StateSchemaVersion || state.Backend != BackendKurtosis {
 		return fmt.Errorf("unsupported network schema %d or backend %q", state.SchemaVersion, state.Backend)
-	}
-	if state.Phase != PhaseRunning && state.Phase != PhaseStopped {
-		return fmt.Errorf("unsupported network phase %q", state.Phase)
 	}
 	if !filepath.IsAbs(state.NetworkDir) || filepath.Clean(state.NetworkDir) != state.NetworkDir {
 		return errors.New("network directory must be absolute and canonical")
@@ -141,9 +129,6 @@ func (state State) Validate() error {
 	if state.CreatedAt.IsZero() {
 		return errors.New("network creation time is missing")
 	}
-	if state.Phase == PhaseRunning && state.StoppedAt != nil || state.Phase == PhaseStopped && state.StoppedAt == nil {
-		return errors.New("network phase and stop time disagree")
-	}
 	fingerprint, err := state.IdentityFingerprint()
 	if err != nil {
 		return err
@@ -154,9 +139,8 @@ func (state State) Validate() error {
 	return nil
 }
 
-// IdentityFingerprint excludes phase and timestamps so stopping a network
-// does not change its immutable identity. Every backend/source/topology field
-// is included.
+// IdentityFingerprint binds every backend/source/topology field. CreatedAt is
+// informational and excluded.
 func (state State) IdentityFingerprint() (string, error) {
 	type identity struct {
 		Backend, NetworkDir string
@@ -183,10 +167,9 @@ func (state State) IdentityFingerprint() (string, error) {
 }
 
 type Result struct {
-	State     State            `json:"state"`
-	Ready     bool             `json:"ready"`
-	Message   string           `json:"message,omitempty"`
-	Lifecycle *LifecycleRecord `json:"lifecycle,omitempty"`
+	State   State  `json:"state,omitempty"`
+	Ready   bool   `json:"ready"`
+	Message string `json:"message,omitempty"`
 }
 
 type Environment struct {
@@ -218,115 +201,49 @@ type StartRequest struct {
 	StartTimeout time.Duration
 }
 
-// LifecycleRecord is the single private write-ahead record for every external
-// network mutation. Create intent is published exclusively before Kurtosis is
-// contacted; later phases are replaced atomically. An exact enclave UUID is
-// mandatory after create_intent and is never inferred from a name.
-type LifecycleRecord struct {
-	SchemaVersion      int                  `json:"schema_version"`
-	Phase              string               `json:"phase"`
-	NetworkDir         string               `json:"network_dir"`
-	RequestedName      string               `json:"requested_name"`
-	Enclave            *kurtosis.EnclaveRef `json:"enclave,omitempty"`
-	Package            PackageIdentity      `json:"package"`
-	Source             SourceIdentity       `json:"source"`
-	Images             []ImageIdentity      `json:"images"`
-	CreatedAt          time.Time            `json:"created_at"`
-	EnclaveCapturedAt  *time.Time           `json:"enclave_captured_at,omitempty"`
-	PackageAcceptedAt  *time.Time           `json:"package_accepted_at,omitempty"`
-	NetworkFingerprint string               `json:"network_fingerprint,omitempty"`
-	DestroyRequestedAt *time.Time           `json:"destroy_requested_at,omitempty"`
-	DestroyedAt        *time.Time           `json:"destroyed_at,omitempty"`
+// OwnershipRecord is the sole private lifecycle record. A name-only creation
+// intent prevents replay if Kurtosis loses the create response; the exact UUID
+// is captured as soon as creation returns and retained until destruction is
+// confirmed.
+type OwnershipRecord struct {
+	SchemaVersion int                  `json:"schema_version"`
+	NetworkDir    string               `json:"network_dir"`
+	RequestedName string               `json:"requested_name"`
+	Enclave       *kurtosis.EnclaveRef `json:"enclave,omitempty"`
 }
 
-func (record LifecycleRecord) Validate() error {
-	validPhase := record.Phase == LifecycleCreateIntent || record.Phase == LifecyclePackageIntent ||
-		record.Phase == LifecyclePackageAccepted || record.Phase == LifecycleReady ||
-		record.Phase == LifecycleDestroyIntent || record.Phase == LifecycleStopped
-	if record.SchemaVersion != 1 || !validPhase {
-		return errors.New("invalid lifecycle schema or phase")
+func (record OwnershipRecord) Validate() error {
+	if record.SchemaVersion != OwnershipSchemaVersion {
+		return errors.New("invalid ownership schema")
 	}
-	if !filepath.IsAbs(record.NetworkDir) || filepath.Clean(record.NetworkDir) != record.NetworkDir ||
-		strings.TrimSpace(record.RequestedName) == "" {
-		return errors.New("invalid lifecycle directory or requested name")
+	if !filepath.IsAbs(record.NetworkDir) || filepath.Clean(record.NetworkDir) != record.NetworkDir {
+		return errors.New("invalid ownership directory")
 	}
-	if record.Package.Locator == "" || record.Package.ID == "" ||
-		!digestPattern.MatchString(record.Package.ParamsSHA256) ||
-		!commitPattern.MatchString(record.Source.Commit) {
-		return errors.New("lifecycle identity is incomplete")
+	if strings.TrimSpace(record.RequestedName) == "" {
+		return errors.New("ownership requested name is empty")
 	}
-	if err := validateImageIdentities(record.Images); err != nil {
-		return fmt.Errorf("lifecycle: %w", err)
-	}
-	if record.CreatedAt.IsZero() || !isUTC(record.CreatedAt) {
-		return errors.New("lifecycle creation time is missing or not UTC")
-	}
-	if record.Phase == LifecycleCreateIntent {
-		if record.Enclave != nil || record.EnclaveCapturedAt != nil || record.PackageAcceptedAt != nil ||
-			record.NetworkFingerprint != "" || record.DestroyRequestedAt != nil || record.DestroyedAt != nil {
-			return errors.New("create intent contains outcome state")
-		}
+	if record.Enclave == nil {
 		return nil
 	}
-	if record.Enclave == nil || record.Enclave.Name != record.RequestedName ||
-		record.Enclave.Validate() != nil || !record.Enclave.Owned ||
-		record.EnclaveCapturedAt == nil || record.EnclaveCapturedAt.Before(record.CreatedAt) ||
-		!isUTC(*record.EnclaveCapturedAt) {
-		return errors.New("lifecycle exact enclave ownership is invalid")
-	}
-	accepted := record.Phase == LifecyclePackageAccepted || record.Phase == LifecycleReady
-	if accepted && record.PackageAcceptedAt == nil {
-		return errors.New("lifecycle package acceptance and phase disagree")
-	}
-	if record.Phase == LifecyclePackageIntent && record.PackageAcceptedAt != nil {
-		return errors.New("package intent already contains an acceptance outcome")
-	}
-	if record.PackageAcceptedAt != nil &&
-		(record.PackageAcceptedAt.Before(*record.EnclaveCapturedAt) || !isUTC(*record.PackageAcceptedAt)) {
-		return errors.New("lifecycle package acceptance time is invalid")
-	}
-	if (record.Phase == LifecyclePackageIntent || record.Phase == LifecyclePackageAccepted) &&
-		record.NetworkFingerprint != "" {
-		return errors.New("pre-ready lifecycle contains a network fingerprint")
-	}
-	ready := record.Phase == LifecycleReady || record.Phase == LifecycleDestroyIntent || record.Phase == LifecycleStopped
-	if ready && record.NetworkFingerprint != "" && !digestPattern.MatchString(record.NetworkFingerprint) {
-		return errors.New("lifecycle network fingerprint is invalid")
-	}
-	if record.Phase == LifecycleReady && record.NetworkFingerprint == "" {
-		return errors.New("ready lifecycle has no network fingerprint")
-	}
-	destroying := record.Phase == LifecycleDestroyIntent || record.Phase == LifecycleStopped
-	if destroying != (record.DestroyRequestedAt != nil) {
-		return errors.New("lifecycle destroy intent and phase disagree")
-	}
-	if record.DestroyRequestedAt != nil &&
-		(record.DestroyRequestedAt.Before(*record.EnclaveCapturedAt) || !isUTC(*record.DestroyRequestedAt)) {
-		return errors.New("lifecycle destroy request time is invalid")
-	}
-	if (record.Phase == LifecycleStopped) != (record.DestroyedAt != nil) {
-		return errors.New("lifecycle destroy completion and phase disagree")
-	}
-	if record.DestroyedAt != nil &&
-		(record.DestroyedAt.Before(*record.DestroyRequestedAt) || !isUTC(*record.DestroyedAt)) {
-		return errors.New("lifecycle destroy completion time is invalid")
+	if record.Enclave.Name != record.RequestedName ||
+		record.Enclave.Validate() != nil ||
+		!record.Enclave.Owned {
+		return errors.New("ownership enclave identity is invalid or not owned")
 	}
 	return nil
 }
 
-func (record LifecycleRecord) OwnedEnclave() (kurtosis.EnclaveRef, error) {
+func (record OwnershipRecord) OwnedEnclave() (kurtosis.EnclaveRef, error) {
 	if err := record.Validate(); err != nil {
 		return kurtosis.EnclaveRef{}, err
 	}
 	if record.Enclave == nil {
-		return kurtosis.EnclaveRef{}, errors.New("lifecycle has no durably captured enclave UUID")
+		return kurtosis.EnclaveRef{}, fmt.Errorf(
+			"enclave creation outcome for %q is ambiguous: exact UUID was not captured",
+			record.RequestedName,
+		)
 	}
 	return *record.Enclave, nil
-}
-
-func isUTC(value time.Time) bool {
-	_, offset := value.Zone()
-	return offset == 0
 }
 
 type Authenticator interface {

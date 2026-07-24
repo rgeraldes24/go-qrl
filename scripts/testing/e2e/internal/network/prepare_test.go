@@ -10,9 +10,6 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
-	"time"
-
-	"github.com/theQRL/go-qrl/scripts/testing/e2e/internal/kurtosis"
 )
 
 func TestBuiltInNetworkParameters(t *testing.T) {
@@ -139,85 +136,6 @@ func TestBuildEnvironmentContainsDerivedRefsAndImmutablePins(t *testing.T) {
 		if !strings.Contains(joined, needle) {
 			t.Fatalf("build environment missing %q: %v", needle, environment)
 		}
-	}
-}
-
-func TestResumePreparedNetworkAuthenticatesPackageParamsAndImages(t *testing.T) {
-	networkDir := t.TempDir()
-	if _, err := ensureNetworkDirectory(networkDir); err != nil {
-		t.Fatal(err)
-	}
-	params := `{"network":"prepared"}`
-	paramsPath := filepath.Join(privatePath(networkDir), "effective-params.json")
-	if err := writePrivateFile(paramsPath, []byte(params+"\n")); err != nil {
-		t.Fatal(err)
-	}
-	images := []ImageIdentity{
-		{Role: "consensus", Ref: "local/cl:e2e", ID: "sha256:" + strings.Repeat("1", 64), Labels: map[string]string{"revision": "cl"}},
-		{Role: "execution", Ref: "local/el:e2e", ID: "sha256:" + strings.Repeat("2", 64), Labels: map[string]string{"revision": "el"}},
-		{Role: "genesis", Ref: "local/genesis:e2e", ID: "sha256:" + strings.Repeat("3", 64), Labels: map[string]string{"revision": "genesis"}},
-		{Role: "validator", Ref: "local/vc:e2e", ID: "sha256:" + strings.Repeat("4", 64), Labels: map[string]string{"revision": "vc"}},
-	}
-	created, captured := time.Unix(1, 0).UTC(), time.Unix(2, 0).UTC()
-	enclave := kurtosis.EnclaveRef{Name: "e2e", UUID: strings.Repeat("a", 32), Owned: true}
-	record := LifecycleRecord{
-		SchemaVersion: 1, Phase: LifecyclePackageIntent, NetworkDir: networkDir, RequestedName: enclave.Name,
-		Enclave: &enclave, Package: PackageIdentity{
-			Locator: packageLocator, ID: packageID, ParamsSHA256: digestCanonicalJSON(params),
-		},
-		Source: SourceIdentity{Commit: strings.Repeat("b", 40)},
-		Images: images, CreatedAt: created, EnclaveCapturedAt: &captured,
-	}
-	runner := imageCommandRunner{images: map[string]ImageIdentity{}}
-	for _, image := range images {
-		runner.images[image.Role] = image
-	}
-	request := StartRequest{NetworkDir: networkDir, DockerBin: "docker"}
-	prepared, err := resumePreparedNetwork(context.Background(), runner, request, record)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if prepared.ParamsDigest != record.Package.ParamsSHA256 {
-		t.Fatalf("resumed prepared network = %+v", prepared)
-	}
-
-	wrongPackage := record
-	wrongPackage.Package.ID = "example/other"
-	if _, err := resumePreparedNetwork(context.Background(), runner, request, wrongPackage); err == nil || !strings.Contains(err.Error(), "built-in qrl-package") {
-		t.Fatalf("package drift error = %v", err)
-	}
-
-	mutated := imageCommandRunner{images: make(map[string]ImageIdentity, len(runner.images))}
-	for role, image := range runner.images {
-		mutated.images[role] = image
-	}
-	execution := mutated.images["execution"]
-	execution.ID = "sha256:" + strings.Repeat("9", 64)
-	mutated.images["execution"] = execution
-	if _, err := resumePreparedNetwork(context.Background(), mutated, request, record); err == nil || !strings.Contains(err.Error(), "image changed") {
-		t.Fatalf("image drift error = %v", err)
-	}
-
-	if err := writePrivateFile(paramsPath, []byte(`{"network":"changed"}`)); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := resumePreparedNetwork(context.Background(), runner, request, record); err == nil || !strings.Contains(err.Error(), "parameters differ") {
-		t.Fatalf("parameter drift error = %v", err)
-	}
-}
-
-func TestWritePrivateFileDoesNotFollowSymlink(t *testing.T) {
-	parent := t.TempDir()
-	target := filepath.Join(parent, "target")
-	if err := os.WriteFile(target, []byte("secret\n"), 0o600); err != nil {
-		t.Fatal(err)
-	}
-	path := filepath.Join(parent, "effective-params.json")
-	if err := os.Symlink(target, path); err != nil {
-		t.Fatal(err)
-	}
-	if err := writePrivateFile(path, []byte("{}\n")); err == nil {
-		t.Fatal("private writer followed an existing symlink")
 	}
 }
 

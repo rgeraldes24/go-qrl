@@ -11,24 +11,23 @@ import (
 )
 
 // Fake is a deterministic in-memory client used by network-controller tests.
-// Calls makes it possible to prove that authentication never mutates lifecycle
+// Calls makes it possible to prove that authentication never mutates network
 // state.
 type Fake struct {
-	Enclave                    EnclaveRef
-	Invocation                 PackageInvocation
-	RetainedPackageID          string
-	Runs                       []PackageRun
-	ServiceList                []Service
-	ExecResults                map[string]ExecResult
-	Calls                      []string
-	CreateError                error
-	CreateAfterError           bool
-	GetError                   error
-	RunError                   error
-	DestroyError               error
-	DestroyAfterError          bool
-	RetainInvocationOnRunError bool
-	Destroyed                  bool
+	Enclave           EnclaveRef
+	Invocation        PackageInvocation
+	RetainedPackageID string
+	Runs              []PackageRun
+	ServiceList       []Service
+	ExecResults       map[string]ExecResult
+	Calls             []string
+	CreateError       error
+	CreateAfterError  bool
+	GetError          error
+	RunError          error
+	DestroyError      error
+	DestroyAfterError bool
+	Destroyed         bool
 }
 
 type ExecResult struct {
@@ -74,12 +73,6 @@ func (fake *Fake) RunRemotePackage(_ context.Context, ref EnclaveRef, run Packag
 	fake.Calls = append(fake.Calls, "run:"+ref.UUID)
 	fake.Runs = append(fake.Runs, run)
 	if fake.RunError != nil {
-		if fake.RetainInvocationOnRunError {
-			if fake.RetainedPackageID == "" {
-				return errors.New("fake retained package ID is unset")
-			}
-			fake.Invocation = PackageInvocation{ID: fake.RetainedPackageID, SerializedParams: run.SerializedParams}
-		}
 		return fake.RunError
 	}
 	if fake.RetainedPackageID == "" {

@@ -21,8 +21,7 @@ import (
 )
 
 const (
-	liveSetupTimeout = 5 * time.Minute
-	liveSpecTimeout  = 25 * time.Minute
+	liveSpecTimeout = 25 * time.Minute
 )
 
 func TestE2E(t *testing.T) {
@@ -30,33 +29,80 @@ func TestE2E(t *testing.T) {
 	ginkgo.RunSpecs(t, "GoABI live E2E suite")
 }
 
-var _ = ginkgo.Describe(
-	"GoABI against a live qrl-package network",
-	ginkgo.Ordered,
+var _ = ginkgo.It(
+	"exercises Go ABI against a live qrl-package network",
 	ginkgo.Serial,
 	ginkgo.Label("e2e", "live", "goabi", "mutates-chain"),
-	func() {
-		var session *suitekit.SigningSession
+	func(ctx ginkgo.SpecContext) {
+		environment, networkLease, err := suitekit.PrepareLiveEnvironment(
+			ctx,
+			network.FullRequirements(),
+		)
+		gomega.Expect(err).NotTo(gomega.HaveOccurred())
+		ginkgo.DeferCleanup(networkLease.Close)
 
-		ginkgo.BeforeAll(func(ctx ginkgo.SpecContext) {
-			environment, networkLease, err := suitekit.PrepareLiveEnvironment(
-				ctx,
-				network.FullRequirements(),
-			)
-			gomega.Expect(err).NotTo(gomega.HaveOccurred())
-			ginkgo.DeferCleanup(networkLease.Close)
+		session, err := suitekit.OpenSigningSession(ctx, environment)
+		gomega.Expect(err).NotTo(gomega.HaveOccurred())
+		ginkgo.DeferCleanup(session.Close)
 
-			session, err = suitekit.OpenSigningSession(ctx, environment)
-			gomega.Expect(err).NotTo(gomega.HaveOccurred())
-			ginkgo.DeferCleanup(session.Close)
-		}, ginkgo.NodeTimeout(liveSetupTimeout))
+		ginkgo.By("round-tripping generated bindings and every live event shape")
+		gomega.Expect(checkLiveEventRoundTrip(
+			ctx,
+			session.Client,
+			session.Wallet,
+			session.Sender,
+			session.Environment.GraphQLURL,
+		)).To(gomega.Succeed())
 
-		for _, definition := range liveStagePlan {
-			definition := definition
-			ginkgo.It(definition.description, func(ctx ginkgo.SpecContext) {
-				ginkgo.By("running " + definition.name)
-				gomega.Expect(definition.run(ctx, session)).To(gomega.Succeed())
-			}, ginkgo.SpecTimeout(liveSpecTimeout))
-		}
+		ginkgo.By("reading VM64 storage through every supported API")
+		gomega.Expect(checkStorageAPIs(
+			ctx,
+			session.Client,
+			session.Wallet,
+			session.Sender,
+			session.Environment.GraphQLURL,
+		)).To(gomega.Succeed())
+
+		ginkgo.By("keeping addresses with distinct upper halves isolated")
+		gomega.Expect(checkAddressUpperHalfIsolation(
+			ctx,
+			session.Client,
+			session.Wallet,
+			session.Sender,
+		)).To(gomega.Succeed())
+
+		ginkgo.By("executing the VM64 account, call, create, and rollback opcodes")
+		gomega.Expect(checkLiveVM64Opcodes(
+			ctx,
+			session.Client,
+			session.Wallet,
+			session.Sender,
+		)).To(gomega.Succeed())
+
+		ginkgo.By("executing the VM64 precompile vectors")
+		gomega.Expect(checkLivePrecompiles(
+			ctx,
+			session.Client,
+			session.Sender,
+		)).To(gomega.Succeed())
+
+		ginkgo.By("submitting and verifying an exact transaction through GraphQL")
+		gomega.Expect(checkGraphQLSendRawTransaction(
+			ctx,
+			session.Environment.GraphQLURL,
+			session.Client,
+			session.Wallet,
+			session.Sender,
+		)).To(gomega.Succeed())
+
+		ginkgo.By("observing exact transaction and log events over WebSocket")
+		gomega.Expect(checkWebSocketSubscriptions(
+			ctx,
+			session.Environment.WebSocketURL,
+			session.Client,
+			session.Wallet,
+			session.Sender,
+		)).To(gomega.Succeed())
 	},
+	ginkgo.SpecTimeout(liveSpecTimeout),
 )

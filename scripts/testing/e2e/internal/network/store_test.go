@@ -11,10 +11,10 @@ import (
 	"testing"
 )
 
-func TestLifecycleStoreRejectsUntrustedFiles(t *testing.T) {
+func TestOwnershipStoreRejectsUntrustedFiles(t *testing.T) {
 	tests := map[string]func(*testing.T, string, []byte){
 		"symlink": func(t *testing.T, path string, valid []byte) {
-			target := filepath.Join(t.TempDir(), "lifecycle-target.json")
+			target := filepath.Join(t.TempDir(), "ownership-target.json")
 			if err := os.WriteFile(target, valid, 0o600); err != nil {
 				t.Fatal(err)
 			}
@@ -49,14 +49,14 @@ func TestLifecycleStoreRejectsUntrustedFiles(t *testing.T) {
 	for name, arrange := range tests {
 		t.Run(name, func(t *testing.T) {
 			dir := t.TempDir()
-			record := fixtureLifecycle(t, dir)
+			record := fixtureOwnership(t, dir)
 			valid, err := json.Marshal(record)
 			if err != nil {
 				t.Fatal(err)
 			}
-			arrange(t, lifecyclePath(dir), valid)
-			if loaded, err := loadLifecycle(dir); err == nil {
-				t.Fatalf("untrusted lifecycle loaded: %+v", loaded)
+			arrange(t, ownershipPath(dir), valid)
+			if loaded, err := loadOwnership(dir); err == nil {
+				t.Fatalf("untrusted ownership loaded: %+v", loaded)
 			}
 		})
 	}
@@ -135,13 +135,14 @@ func TestNetworkDirectoryRejectsSymlinks(t *testing.T) {
 	}
 }
 
-func fixtureLifecycle(t *testing.T, networkDir string) LifecycleRecord {
+func fixtureOwnership(t *testing.T, networkDir string) OwnershipRecord {
 	t.Helper()
 	state := fixtureState(t, networkDir)
-	record := LifecycleRecord{
-		SchemaVersion: 1, Phase: LifecycleCreateIntent, NetworkDir: networkDir, RequestedName: state.Enclave.Name,
-		Package: state.Package, Source: state.Source,
-		Images: state.Images, CreatedAt: state.CreatedAt,
+	record := OwnershipRecord{
+		SchemaVersion: OwnershipSchemaVersion,
+		NetworkDir:    networkDir,
+		RequestedName: state.Enclave.Name,
+		Enclave:       &state.Enclave,
 	}
 	if err := record.Validate(); err != nil {
 		t.Fatal(err)

@@ -81,7 +81,7 @@ fuzz-test:
 		-fuzzminimizetime "$(FUZZ_MINIMIZE_TIME)" \
 		"$(FUZZ_PACKAGE)"
 
-#? network-start: Start or resume the standalone E2E test network without running suites.
+#? network-start: Start or authenticate the standalone E2E test network without running suites.
 network-start:
 	E2E_NETWORK_DIR="$(E2E_NETWORK_DIR_ABS)" \
 	E2E_DOCKER_BIN="$(E2E_DOCKER_BIN)" \

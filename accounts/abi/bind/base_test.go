@@ -282,8 +282,6 @@ func TestUnpackIndexedArrayTyLogIntoMap(t *testing.T) {
 }
 
 func TestUnpackIndexedFuncTyLogIntoMap(t *testing.T) {
-	// TODO: Enable this test once ABI function values have a double-word representation.
-	t.Skip("ABI function values are not supported yet")
 	addrBytes := mockSender.Bytes()
 	hash := crypto.Keccak256Hash([]byte("mockFunction(address,uint)"))
 	functionSelector := hash[:4]

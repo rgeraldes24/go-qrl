@@ -16,95 +16,71 @@ const maxStateSize = 1 << 20
 
 func statePath(networkDir string) string   { return filepath.Join(networkDir, "network.json") }
 func privatePath(networkDir string) string { return filepath.Join(networkDir, "private") }
-func lifecyclePath(networkDir string) string {
-	return filepath.Join(privatePath(networkDir), "lifecycle.json")
+func ownershipPath(networkDir string) string {
+	return filepath.Join(privatePath(networkDir), "ownership.json")
 }
 
-func loadLifecycle(networkDir string) (LifecycleRecord, error) {
+func loadOwnership(networkDir string) (OwnershipRecord, error) {
 	privateInfo, err := os.Lstat(privatePath(networkDir))
 	if err != nil || privateInfo.Mode()&os.ModeSymlink != 0 || !privateInfo.IsDir() {
-		return LifecycleRecord{}, errors.New("private network state must be a non-symlink directory")
+		return OwnershipRecord{}, errors.New("private network state must be a non-symlink directory")
 	}
-	path := lifecyclePath(networkDir)
+	path := ownershipPath(networkDir)
 	info, err := os.Lstat(path)
 	if err != nil {
-		return LifecycleRecord{}, err
+		return OwnershipRecord{}, err
 	}
 	if info.Mode()&os.ModeSymlink != 0 || !info.Mode().IsRegular() || info.Size() > maxStateSize {
-		return LifecycleRecord{}, errors.New("lifecycle must be a bounded non-symlink regular file")
+		return OwnershipRecord{}, errors.New("ownership must be a bounded non-symlink regular file")
 	}
 	file, err := os.Open(path)
 	if err != nil {
-		return LifecycleRecord{}, err
+		return OwnershipRecord{}, err
 	}
 	defer file.Close()
 	decoder := json.NewDecoder(io.LimitReader(file, maxStateSize+1))
 	decoder.DisallowUnknownFields()
-	var record LifecycleRecord
+	var record OwnershipRecord
 	if err := decoder.Decode(&record); err != nil {
-		return LifecycleRecord{}, fmt.Errorf("decode lifecycle: %w", err)
+		return OwnershipRecord{}, fmt.Errorf("decode ownership: %w", err)
 	}
 	if err := decoder.Decode(new(any)); !errors.Is(err, io.EOF) {
-		return LifecycleRecord{}, errors.New("lifecycle contains trailing data")
+		return OwnershipRecord{}, errors.New("ownership contains trailing data")
 	}
 	if record.NetworkDir != networkDir {
-		return LifecycleRecord{}, errors.New("lifecycle belongs to another network directory")
+		return OwnershipRecord{}, errors.New("ownership belongs to another network directory")
 	}
 	if err := record.Validate(); err != nil {
-		return LifecycleRecord{}, err
+		return OwnershipRecord{}, err
 	}
 	return record, nil
 }
 
-func createLifecycle(record LifecycleRecord) error {
+func createOwnership(record OwnershipRecord) error {
 	if err := record.Validate(); err != nil {
 		return err
 	}
-	if record.Phase != LifecycleCreateIntent {
-		return errors.New("a lifecycle must be created at create_intent")
+	if record.Enclave != nil {
+		return errors.New("ownership must begin as a creation intent")
 	}
-	return writeJSONExclusive(lifecyclePath(record.NetworkDir), record)
+	return writeJSONExclusive(ownershipPath(record.NetworkDir), record)
 }
 
-func writeLifecycle(record LifecycleRecord) error {
+func captureOwnership(record OwnershipRecord) error {
 	if err := record.Validate(); err != nil {
 		return err
 	}
-	return writeJSONAtomic(lifecyclePath(record.NetworkDir), record)
+	if record.Enclave == nil {
+		return errors.New("captured ownership has no exact enclave UUID")
+	}
+	return writeJSONAtomic(ownershipPath(record.NetworkDir), record)
 }
 
-func retireLifecycle(record LifecycleRecord) error {
+func removeOwnership(record OwnershipRecord) error {
 	if err := record.Validate(); err != nil {
 		return err
 	}
-	if record.Phase != LifecycleStopped || record.Enclave == nil {
-		return errors.New("only a stopped exact-UUID lifecycle can be retired")
-	}
-	historyDir := filepath.Join(privatePath(record.NetworkDir), "history")
-	if info, err := os.Lstat(historyDir); err == nil {
-		if info.Mode()&os.ModeSymlink != 0 || !info.IsDir() {
-			return errors.New("private network history must be a non-symlink directory")
-		}
-	} else if !errors.Is(err, os.ErrNotExist) {
-		return err
-	} else if err := os.Mkdir(historyDir, 0o700); err != nil {
-		return err
-	} else if err := syncDirectory(privatePath(record.NetworkDir)); err != nil {
-		return err
-	}
-	archive := filepath.Join(historyDir, "lifecycle-"+record.Enclave.UUID+".json")
-	if _, err := os.Lstat(archive); err == nil {
-		return errors.New("completed lifecycle was already archived while still active")
-	} else if !errors.Is(err, os.ErrNotExist) {
-		return err
-	}
-	if err := os.Rename(lifecyclePath(record.NetworkDir), archive); err != nil {
-		return err
-	}
-	if err := os.Chmod(archive, 0o600); err != nil {
-		return err
-	}
-	if err := syncDirectory(historyDir); err != nil {
+	if err := os.Remove(ownershipPath(record.NetworkDir)); err != nil {
 		return err
 	}
 	return syncDirectory(privatePath(record.NetworkDir))
@@ -156,35 +132,11 @@ func writeState(state State) error {
 	return writeJSONAtomic(statePath(state.NetworkDir), state)
 }
 
-func retireStoppedState(state State) error {
-	if state.Phase != PhaseStopped {
-		return errors.New("only stopped network state can be retired")
-	}
-	historyDir := filepath.Join(privatePath(state.NetworkDir), "history")
-	if info, err := os.Lstat(historyDir); err == nil {
-		if info.Mode()&os.ModeSymlink != 0 || !info.IsDir() {
-			return errors.New("private network history must be a non-symlink directory")
-		}
-	} else if !errors.Is(err, os.ErrNotExist) {
-		return err
-	} else if err := os.Mkdir(historyDir, 0o700); err != nil {
-		return err
-	} else if err := syncDirectory(privatePath(state.NetworkDir)); err != nil {
+func removeState(state State) error {
+	if err := state.Validate(); err != nil {
 		return err
 	}
-	archive := filepath.Join(historyDir, "network-"+state.Fingerprint+".json")
-	if _, err := os.Lstat(archive); err == nil {
-		return errors.New("stopped network state was already archived while still active at the public path")
-	} else if !errors.Is(err, os.ErrNotExist) {
-		return err
-	}
-	if err := os.Rename(statePath(state.NetworkDir), archive); err != nil {
-		return err
-	}
-	if err := os.Chmod(archive, 0o600); err != nil {
-		return err
-	}
-	if err := syncDirectory(historyDir); err != nil {
+	if err := os.Remove(statePath(state.NetworkDir)); err != nil {
 		return err
 	}
 	return syncDirectory(state.NetworkDir)
@@ -234,8 +186,7 @@ func writeJSONAtomic(path string, value any) error {
 }
 
 // writeJSONExclusive publishes a fully synced file through a hard link. The
-// destination is never overwritten, which makes lifecycle creation both
-// durable and safe under concurrent creators.
+// destination is never overwritten, which makes ownership capture durable.
 func writeJSONExclusive(path string, value any) error {
 	payload, err := json.MarshalIndent(value, "", "  ")
 	if err != nil {

@@ -18,56 +18,25 @@ package goabi
 
 import (
 	"bytes"
-	"encoding/json"
 	"math/big"
 	"reflect"
+	"strings"
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
 	qrlabi "github.com/theQRL/go-qrl/accounts/abi"
 	"github.com/theQRL/go-qrl/common"
 	qrlmath "github.com/theQRL/go-qrl/common/math"
+	"github.com/theQRL/go-qrl/core/vm"
 )
 
-type portableABIArgument struct {
-	Name         string                `json:"name"`
-	Type         string                `json:"type"`
-	InternalType string                `json:"internalType,omitempty"`
-	Components   []portableABIArgument `json:"components,omitempty"`
-	Indexed      bool                  `json:"indexed,omitempty"`
-}
-
-type portableABIEntry struct {
-	Name            string                `json:"name,omitempty"`
-	Type            string                `json:"type"`
-	StateMutability string                `json:"stateMutability,omitempty"`
-	Inputs          []portableABIArgument `json:"inputs,omitempty"`
-	Outputs         []portableABIArgument `json:"outputs,omitempty"`
-	Anonymous       bool                  `json:"anonymous,omitempty"`
-}
-
-func parsePortableABI(t *testing.T, entries ...portableABIEntry) qrlabi.ABI {
+func parsePortableABI(t *testing.T, definition string) qrlabi.ABI {
 	t.Helper()
-	encoded, err := json.Marshal(entries)
+	parsed, err := qrlabi.JSON(strings.NewReader(definition))
 	if err != nil {
-		t.Fatalf("marshal portable ABI: %v", err)
-	}
-	parsed, err := qrlabi.JSON(bytes.NewReader(encoded))
-	if err != nil {
-		t.Fatalf("parse portable ABI %s: %v", encoded, err)
+		t.Fatalf("parse portable ABI: %v", err)
 	}
 	return parsed
-}
-
-func singleValuePortableABI(t *testing.T, argument portableABIArgument) qrlabi.ABI {
-	t.Helper()
-	argument.Name = "value"
-	return parsePortableABI(t, portableABIEntry{
-		Name:            "echo",
-		Type:            "function",
-		StateMutability: "pure",
-		Inputs:          []portableABIArgument{argument},
-		Outputs:         []portableABIArgument{argument},
-	})
 }
 
 func assertPortableABIRoundTrip(t *testing.T, parsed qrlabi.ABI, value any) any {
@@ -81,57 +50,13 @@ func assertPortableABIRoundTrip(t *testing.T, parsed qrlabi.ABI, value any) any 
 	if err != nil {
 		t.Fatalf("unpack %T: %v", value, err)
 	}
-	if len(decoded) != 1 || !portableABIValuesEqual(reflect.ValueOf(decoded[0]), reflect.ValueOf(value)) {
-		t.Fatalf("round trip mismatch\nhave %#v\nwant %#v", decoded, value)
+	if len(decoded) != 1 {
+		t.Fatalf("unpack returned %d values, want 1", len(decoded))
+	}
+	if diff := cmp.Diff(value, decoded[0], abiCompareOptions...); diff != "" {
+		t.Fatalf("round trip mismatch (-want +have):\n%s", diff)
 	}
 	return decoded[0]
-}
-
-// portableABIValuesEqual and makePortableTupleValue are also used by the
-// generated-binding smoke tests. They intentionally compare big.Int values by
-// value while retaining exact Go types for every other ABI value.
-func portableABIValuesEqual(have, want reflect.Value) bool {
-	if !have.IsValid() || !want.IsValid() {
-		return have.IsValid() == want.IsValid()
-	}
-	if have.Type() != want.Type() {
-		return false
-	}
-	if have.Kind() == reflect.Ptr && have.Type().Elem() == reflect.TypeFor[big.Int]() {
-		if have.IsNil() || want.IsNil() {
-			return have.IsNil() == want.IsNil()
-		}
-		return have.Interface().(*big.Int).Cmp(want.Interface().(*big.Int)) == 0
-	}
-	switch have.Kind() {
-	case reflect.Array, reflect.Slice:
-		if have.Kind() == reflect.Slice && (have.IsNil() != want.IsNil()) {
-			return false
-		}
-		if have.Len() != want.Len() {
-			return false
-		}
-		for i := range have.Len() {
-			if !portableABIValuesEqual(have.Index(i), want.Index(i)) {
-				return false
-			}
-		}
-		return true
-	case reflect.Struct:
-		for i := range have.NumField() {
-			if !portableABIValuesEqual(have.Field(i), want.Field(i)) {
-				return false
-			}
-		}
-		return true
-	case reflect.Interface, reflect.Ptr:
-		if have.IsNil() || want.IsNil() {
-			return have.IsNil() == want.IsNil()
-		}
-		return portableABIValuesEqual(have.Elem(), want.Elem())
-	default:
-		return reflect.DeepEqual(have.Interface(), want.Interface())
-	}
 }
 
 func makePortableTupleValue(t *testing.T, tupleType qrlabi.Type, fields ...any) any {
@@ -155,20 +80,24 @@ func makePortableTupleValue(t *testing.T, tupleType qrlabi.Type, fields ...any) 
 // input, integer-width, topic, and public-API matrices live beside accounts/abi.
 // This external consumer verifies the VM64 contract needed by the E2E suite.
 func TestPortableVM64ABISmoke(t *testing.T) {
+	t.Run("canonical calldata and output layout", func(t *testing.T) {
+		var recipient common.Address
+		for i := range recipient {
+			recipient[i] = byte(i*17 + 9)
+		}
+		if err := checkGoABILayout(recipient); err != nil {
+			t.Fatal(err)
+		}
+	})
+
 	t.Run("64-byte word and address", func(t *testing.T) {
-		parsed := parsePortableABI(t, portableABIEntry{
-			Name:            "inspect",
-			Type:            "function",
-			StateMutability: "pure",
-			Inputs: []portableABIArgument{
-				{Name: "amount", Type: "uint512"},
-				{Name: "recipient", Type: "address"},
-			},
-			Outputs: []portableABIArgument{
-				{Name: "amount", Type: "uint512"},
-				{Name: "recipient", Type: "address"},
-			},
-		})
+		parsed := parsePortableABI(t, `[{
+			"name":"inspect",
+			"type":"function",
+			"stateMutability":"pure",
+			"inputs":[{"name":"amount","type":"uint512"},{"name":"recipient","type":"address"}],
+			"outputs":[{"name":"amount","type":"uint512"},{"name":"recipient","type":"address"}]
+		}]`)
 		amount := new(big.Int).Add(new(big.Int).Lsh(big.NewInt(1), 511), big.NewInt(0x42))
 		var recipient common.Address
 		for i := range recipient {
@@ -200,15 +129,21 @@ func TestPortableVM64ABISmoke(t *testing.T) {
 	})
 
 	t.Run("nested dynamic tuple array", func(t *testing.T) {
-		parsed := singleValuePortableABI(t, portableABIArgument{
-			Type:         "tuple[]",
-			InternalType: "struct Portable.Record[]",
-			Components: []portableABIArgument{
-				{Name: "owner", Type: "address"},
-				{Name: "notes", Type: "string[]"},
-				{Name: "payload", Type: "bytes"},
-			},
-		})
+		parsed := parsePortableABI(t, `[{
+			"name":"echo",
+			"type":"function",
+			"stateMutability":"pure",
+			"inputs":[{"name":"value","type":"tuple[]","internalType":"struct Portable.Record[]","components":[
+				{"name":"owner","type":"address"},
+				{"name":"notes","type":"string[]"},
+				{"name":"payload","type":"bytes"}
+			]}],
+			"outputs":[{"name":"value","type":"tuple[]","internalType":"struct Portable.Record[]","components":[
+				{"name":"owner","type":"address"},
+				{"name":"notes","type":"string[]"},
+				{"name":"payload","type":"bytes"}
+			]}]
+		}]`)
 		sliceType := parsed.Methods["echo"].Inputs[0].Type
 		var owner common.Address
 		for i := range owner {
@@ -224,5 +159,15 @@ func TestPortableVM64ABISmoke(t *testing.T) {
 		value := reflect.MakeSlice(sliceType.GetType(), 1, 1)
 		value.Index(0).Set(reflect.ValueOf(record))
 		assertPortableABIRoundTrip(t, parsed, value.Interface())
+	})
+
+	t.Run("invalid VM64 output words", func(t *testing.T) {
+		if _, err := unpackVM64Output(make([]byte, vm.WordBytes-1), vm64Uint512ABIType); err == nil {
+			t.Fatal("short VM64 word was accepted")
+		}
+		tooWide := new(big.Int).Lsh(big.NewInt(1), 64)
+		if _, err := vm64OutputUint64(tooWide); err == nil {
+			t.Fatal("oversized VM64 integer was accepted")
+		}
 	})
 }

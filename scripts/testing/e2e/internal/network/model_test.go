@@ -21,7 +21,7 @@ func fixtureState(t *testing.T, networkDir string) State {
 		t.Fatal(err)
 	}
 	state := State{
-		SchemaVersion: StateSchemaVersion, Backend: BackendKurtosis, Phase: PhaseRunning,
+		SchemaVersion: StateSchemaVersion, Backend: BackendKurtosis,
 		NetworkDir: networkDir,
 		Enclave:    kurtosis.EnclaveRef{Name: "e2e", UUID: strings.Repeat("a", 32), Owned: true},
 		Package:    PackageIdentity{Locator: "example/package@" + strings.Repeat("a", 40), ID: "example/package", ParamsSHA256: strings.Repeat("2", 64)},
@@ -53,15 +53,14 @@ func fixtureState(t *testing.T, networkDir string) State {
 	return state
 }
 
-func TestIdentityFingerprintBindsImmutableFieldsAndIgnoresLifecycleTime(t *testing.T) {
+func TestIdentityFingerprintBindsImmutableFieldsAndIgnoresCreationTime(t *testing.T) {
 	state := fixtureState(t, t.TempDir())
 	first := state.Fingerprint
-	stopped := state
-	now := time.Unix(100, 0).UTC()
-	stopped.Phase, stopped.StoppedAt = PhaseStopped, &now
-	second, err := stopped.IdentityFingerprint()
+	createdLater := state
+	createdLater.CreatedAt = time.Unix(100, 0).UTC()
+	second, err := createdLater.IdentityFingerprint()
 	if err != nil || second != first {
-		t.Fatalf("lifecycle-only fingerprint = %q, %v; want %q", second, err, first)
+		t.Fatalf("creation-time-only fingerprint = %q, %v; want %q", second, err, first)
 	}
 
 	mutations := map[string]func(*State){
@@ -192,7 +191,7 @@ func TestStateRequiresBothPackageLocatorAndRetainedID(t *testing.T) {
 	}
 }
 
-func TestStateAndLifecycleRequireExactImageRoleSet(t *testing.T) {
+func TestStateRequiresExactImageRoleSet(t *testing.T) {
 	base := fixtureState(t, t.TempDir())
 	for name, mutate := range map[string]func([]ImageIdentity) []ImageIdentity{
 		"missing": func(images []ImageIdentity) []ImageIdentity { return images[:len(images)-1] },
@@ -212,68 +211,30 @@ func TestStateAndLifecycleRequireExactImageRoleSet(t *testing.T) {
 			if err := state.Validate(); err == nil || !strings.Contains(err.Error(), "image") {
 				t.Fatalf("State.Validate error = %v", err)
 			}
-			lifecycle := LifecycleRecord{
-				SchemaVersion: 1, Phase: LifecycleCreateIntent, NetworkDir: base.NetworkDir, RequestedName: base.Enclave.Name,
-				Package: base.Package, Source: base.Source,
-				Images: images, CreatedAt: base.CreatedAt,
-			}
-			if err := lifecycle.Validate(); err == nil || !strings.Contains(err.Error(), "image") {
-				t.Fatalf("LifecycleRecord.Validate error = %v", err)
-			}
 		})
 	}
 }
 
-func TestLifecyclePhaseRequirementsPreserveExternalMutationBoundaries(t *testing.T) {
+func TestOwnershipRecordSeparatesCreationIntentFromExactOwnership(t *testing.T) {
 	state := fixtureState(t, t.TempDir())
-	record := LifecycleRecord{
-		SchemaVersion: 1, Phase: LifecycleCreateIntent, NetworkDir: state.NetworkDir,
-		RequestedName: state.Enclave.Name, Package: state.Package, Source: state.Source,
-		Images: state.Images, CreatedAt: state.CreatedAt,
+	record := OwnershipRecord{
+		SchemaVersion: OwnershipSchemaVersion,
+		NetworkDir:    state.NetworkDir,
+		RequestedName: state.Enclave.Name,
 	}
 	if err := record.Validate(); err != nil {
 		t.Fatal(err)
 	}
-
-	capturedAt := record.CreatedAt.Add(time.Second)
-	record.Phase, record.Enclave, record.EnclaveCapturedAt = LifecyclePackageIntent, &state.Enclave, &capturedAt
+	if _, err := record.OwnedEnclave(); err == nil || !strings.Contains(err.Error(), "exact UUID") {
+		t.Fatalf("creation intent exact-ownership error = %v", err)
+	}
+	record.Enclave = &state.Enclave
 	if err := record.Validate(); err != nil {
 		t.Fatal(err)
 	}
-	record.Phase = LifecyclePackageAccepted
-	if err := record.Validate(); err == nil || !strings.Contains(err.Error(), "acceptance") {
-		t.Fatalf("missing package acceptance error = %v", err)
-	}
-	acceptedAt := capturedAt.Add(time.Second)
-	record.PackageAcceptedAt = &acceptedAt
-	if err := record.Validate(); err != nil {
-		t.Fatal(err)
-	}
-	record.Phase = LifecycleReady
-	if err := record.Validate(); err == nil || !strings.Contains(err.Error(), "fingerprint") {
-		t.Fatalf("missing ready fingerprint error = %v", err)
-	}
-	record.NetworkFingerprint = state.Fingerprint
-	if err := record.Validate(); err != nil {
-		t.Fatal(err)
-	}
-	record.Phase = LifecycleDestroyIntent
-	if err := record.Validate(); err == nil || !strings.Contains(err.Error(), "destroy intent") {
-		t.Fatalf("missing destroy intent error = %v", err)
-	}
-	destroyRequestedAt := acceptedAt.Add(time.Second)
-	record.DestroyRequestedAt = &destroyRequestedAt
-	if err := record.Validate(); err != nil {
-		t.Fatal(err)
-	}
-	record.Phase = LifecycleStopped
-	if err := record.Validate(); err == nil || !strings.Contains(err.Error(), "completion") {
-		t.Fatalf("missing destroy completion error = %v", err)
-	}
-	destroyedAt := destroyRequestedAt.Add(time.Second)
-	record.DestroyedAt = &destroyedAt
-	if err := record.Validate(); err != nil {
-		t.Fatal(err)
+	record.Enclave.Owned = false
+	if err := record.Validate(); err == nil || !strings.Contains(err.Error(), "not owned") {
+		t.Fatalf("unowned enclave error = %v", err)
 	}
 }
 

@@ -67,8 +67,11 @@ E2E_NETWORK_DIR=/tmp/my-go-qrl-network make network-stop
 
 `network-start` builds pinned images, creates one uniquely named enclave, runs
 the pinned qrl-package revision, discovers endpoints, and records the exact
-enclave and runtime identity. Repeating it with the same directory continues
-an interrupted network setup rather than creating another network.
+enclave and runtime identity. If provisioning is interrupted after enclave
+creation, exact ownership is retained for `network-stop`; stop that incomplete
+network before starting again. A lost create response leaves a name-only intent
+that blocks replay but cannot authorize destruction without manual inspection.
+Provisioning is never replayed automatically.
 
 Inspect the network without running tests:
 
@@ -81,8 +84,8 @@ go -C scripts/testing/e2e run ./cmd/e2e network status \
 stop the shared Kurtosis engine.
 
 The network directory is private runtime state. Never upload `private/`, raw
-qrl-package output, or raw enclave dumps. The root `network.json` is sanitized
-lifecycle state, not a test report.
+qrl-package output, or raw enclave dumps. The root `network.json` exists only
+for a ready network and contains sanitized runtime identity.
 
 ## Live runner
 
@@ -108,28 +111,28 @@ go -C scripts/testing/e2e tool ginkgo \
   -- -test.run='^TestE2E$'
 ```
 
-GoABI has eight ordered live stages:
+GoABI has one serial live spec with seven visible steps:
 
-1. canonical VM64 ABI layout;
-2. deployment, generated bindings, calls, errors, events, logs, filters, and
+1. deployment, generated bindings, calls, errors, events, logs, filters, and
    compiler-produced ABI shapes;
-3. 64-byte storage through RPC, calls, GraphQL, and verified inclusion and
+2. 64-byte storage through RPC, calls, GraphQL, and verified inclusion and
    absence proofs;
-4. upper-half 64-byte address isolation;
-5. VM64 account, context, call, create, CREATE2, and rollback opcodes;
-6. active precompiles, including valid and invalid ML-DSA-87 vectors;
-7. exact raw-transaction submission through GraphQL; and
-8. new-head, raw-log, and generated-binding subscriptions over WebSocket.
+3. upper-half 64-byte address isolation;
+4. VM64 account, context, call, create, CREATE2, and rollback opcodes;
+5. active precompiles, including valid and invalid ML-DSA-87 vectors;
+6. exact raw-transaction submission through GraphQL; and
+7. new-head, raw-log, and generated-binding subscriptions over WebSocket.
+
+The canonical 64-byte calldata and output layout remains in the portable smoke
+test because it does not require a network.
 
 Every ordinary transaction must mine successfully. The explicit top-level
 revert is the only transaction expected to fail.
 
-The runner creates no JSON, JUnit, checkpoint, transaction journal, or custom
-manifest. The result is Ginkgo's process exit status. A failed rerun starts at
-the first stage and uses current nonces plus fresh contracts; automatic retry
-is intentionally disabled for chain-mutating tests.
+The result is Ginkgo's process exit status. A failed rerun restarts the complete
+spec at its first step and uses current nonces plus fresh contracts.
 
-Before the first spec, the suite acquires the network mutation lease and
+At the start of the spec, the suite acquires the network mutation lease and
 authenticates the enclave, package inputs, images, execution binary, source,
 endpoints, chain, genesis, and funded wallet. The lease prevents concurrent
 suite mutation and prevents network stop during a run.
@@ -144,8 +147,8 @@ make live-test E2E_SUITES=<suite>
 ```
 
 Pass typed `network.Requirements` to
-`suitekit.PrepareLiveEnvironment`. Use Ginkgo `BeforeAll`, `DeferCleanup`,
-`Ordered`, `Serial`, `SpecContext`, and timeouts instead of adding another
+`suitekit.PrepareLiveEnvironment`. Use one Ginkgo `Serial` spec with
+`SpecContext`, `By`, `DeferCleanup`, and a timeout instead of adding another
 runner. A suite may request signer, GraphQL, and WebSocket surfaces; additional
 nodes or APIs belong in the shared network topology.
 

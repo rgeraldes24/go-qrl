@@ -31,6 +31,7 @@ type Manager struct {
 	Prepare   func(context.Context, commandRunner, StartRequest, SourceIdentity, WalletIdentity, io.Writer, io.Writer) (preparedNetwork, error)
 	Probe     func(context.Context, probeRequest) (probeResult, error)
 	Wallet    func(string) (WalletIdentity, error)
+	Capture   func(OwnershipRecord) error
 }
 
 func NewManager() *Manager { return &Manager{} }
@@ -63,6 +64,9 @@ func (manager *Manager) normalize() {
 	if manager.Wallet == nil {
 		manager.Wallet = ensureWallet
 	}
+	if manager.Capture == nil {
+		manager.Capture = captureOwnership
+	}
 }
 
 func (manager *Manager) Start(ctx context.Context, request StartRequest) (Result, error) {
@@ -93,59 +97,50 @@ func (manager *Manager) Start(ctx context.Context, request StartRequest) (Result
 	startCtx, cancel := context.WithTimeout(ctx, request.StartTimeout)
 	defer cancel()
 
-	if _, statErr := os.Lstat(statePath(networkDir)); statErr == nil {
-		existing, err := loadState(networkDir)
+	readyExists, err := pathExists(statePath(networkDir))
+	if err != nil {
+		return Result{}, err
+	}
+	ownershipExists, err := pathExists(ownershipPath(networkDir))
+	if err != nil {
+		return Result{}, err
+	}
+	switch {
+	case readyExists && !ownershipExists:
+		return Result{}, errors.New("ready network state has no exact-UUID ownership record")
+	case ownershipExists && !readyExists:
+		ownership, loadErr := loadOwnership(networkDir)
+		if loadErr != nil {
+			return Result{}, loadErr
+		}
+		if _, ownershipErr := ownership.OwnedEnclave(); ownershipErr != nil {
+			return Result{}, ownershipErr
+		}
+		return Result{}, errors.New("network provisioning is incomplete; run network-stop before starting again")
+	case readyExists:
+		state, err := loadState(networkDir)
 		if err != nil {
 			return Result{}, err
 		}
-		lifecycle, err := loadLifecycle(networkDir)
+		ownership, err := loadOwnership(networkDir)
 		if err != nil {
 			return Result{}, err
 		}
-		if err := verifyLifecycleState(lifecycle, existing); err != nil {
+		if err := verifyOwnershipState(ownership, state); err != nil {
 			return Result{}, err
 		}
-		switch {
-		case existing.Phase == PhaseRunning && lifecycle.Phase == LifecyclePackageAccepted:
-			lifecycle.Phase, lifecycle.NetworkFingerprint = LifecycleReady, existing.Fingerprint
-			if err := writeLifecycle(lifecycle); err != nil {
-				return Result{}, fmt.Errorf("reconcile ready lifecycle: %w", err)
-			}
-		case existing.Phase == PhaseRunning && lifecycle.Phase == LifecycleStopped:
-			when := *lifecycle.DestroyedAt
-			existing.Phase, existing.StoppedAt = PhaseStopped, &when
-			if err := writeState(existing); err != nil {
-				return Result{}, fmt.Errorf("reconcile stopped public state: %w", err)
-			}
+		status, err := manager.status(startCtx, networkDir, FullRequirements())
+		if err != nil {
+			return Result{}, fmt.Errorf("authenticate existing network before reuse: %w", err)
 		}
-		if existing.Phase == PhaseStopped && lifecycle.Phase != LifecycleStopped {
-			return Result{}, errors.New("stopped public state and private lifecycle disagree")
+		commit, err := source.Commit(startCtx, nil, repoRoot)
+		if err != nil {
+			return Result{}, err
 		}
-		if existing.Phase == PhaseRunning {
-			status, err := manager.Status(startCtx, networkDir)
-			if err != nil {
-				return Result{}, fmt.Errorf("authenticate existing network before reuse: %w", err)
-			}
-			if status.State.Phase == PhaseRunning {
-				if !status.Ready {
-					return Result{}, errors.New("existing network lifecycle is not reusable; inspect status or resume stop")
-				}
-				commit, err := source.Commit(startCtx, nil, repoRoot)
-				if err != nil {
-					return Result{}, err
-				}
-				if existing.Source.Commit != commit {
-					return Result{}, errors.New("a different authenticated network already occupies the requested directory")
-				}
-				return status, nil
-			}
-			existing = status.State
+		if state.Source.Commit != commit {
+			return Result{}, errors.New("a different authenticated network already occupies the requested directory")
 		}
-		if err := retireStoppedState(existing); err != nil {
-			return Result{}, fmt.Errorf("retire stopped network state: %w", err)
-		}
-	} else if !errors.Is(statErr, os.ErrNotExist) {
-		return Result{}, statErr
+		return status, nil
 	}
 
 	commit, err := source.Commit(startCtx, nil, repoRoot)
@@ -161,107 +156,78 @@ func (manager *Manager) Start(ctx context.Context, request StartRequest) (Result
 	if err != nil {
 		return Result{}, fmt.Errorf("connect to Kurtosis engine: %w", err)
 	}
-	var prepared preparedNetwork
-	var enclave kurtosis.EnclaveRef
-	lifecycle, lifecycleErr := loadLifecycle(networkDir)
-	if lifecycleErr == nil && lifecycle.Phase == LifecycleStopped {
-		if err := retireLifecycle(lifecycle); err != nil {
-			return Result{}, fmt.Errorf("retire stopped lifecycle: %w", err)
-		}
-		lifecycleErr = os.ErrNotExist
-	}
-	if lifecycleErr == nil {
-		switch lifecycle.Phase {
-		case LifecycleCreateIntent:
-			return Result{}, errors.New("enclave creation outcome is ambiguous because no exact UUID was captured; refusing to replay create")
-		case LifecyclePackageIntent, LifecyclePackageAccepted:
-			if lifecycle.Source != sourceIdentity {
-				return Result{}, errors.New("lifecycle cannot resume this source/network state")
-			}
-			prepared, err = resumePreparedNetwork(startCtx, manager.Commands, request, lifecycle)
-			if err != nil {
-				return Result{}, err
-			}
-			enclave, err = lifecycle.OwnedEnclave()
-			if err != nil {
-				return Result{}, err
-			}
-			current, err := client.GetEnclave(startCtx, enclave.UUID)
-			if err != nil {
-				return Result{}, fmt.Errorf("recover lifecycle enclave: %w", err)
-			}
-			if current.Name != enclave.Name || current.UUID != enclave.UUID {
-				return Result{}, errors.New("lifecycle enclave name/UUID changed")
-			}
-		case LifecycleReady:
-			return Result{}, errors.New("ready lifecycle has no public network state; refusing ambiguous reconstruction")
-		case LifecycleDestroyIntent:
-			return Result{}, errors.New("exact-UUID network destruction is pending; resume network stop")
-		default:
-			return Result{}, fmt.Errorf("unsupported lifecycle phase %q", lifecycle.Phase)
-		}
-	} else if !errors.Is(lifecycleErr, os.ErrNotExist) {
-		return Result{}, lifecycleErr
-	} else {
-		prepared, err = manager.Prepare(startCtx, manager.Commands, request, sourceIdentity, wallet, manager.Stdout, manager.Stderr)
-		if err != nil {
-			return Result{}, err
-		}
-		name := request.EnclaveName
-		if name == "" {
-			name = defaultEnclaveName(networkDir, commit)
-		}
-		lifecycle = lifecycleFromPrepared(networkDir, name, sourceIdentity, prepared, manager.Now().UTC())
-		if err := createLifecycle(lifecycle); err != nil {
-			if errors.Is(err, os.ErrExist) {
-				return Result{}, errors.New("private lifecycle already exists; refusing a concurrent or ambiguous create")
-			}
-			return Result{}, fmt.Errorf("publish pre-create lifecycle intent: %w", err)
-		}
-		enclave, err = client.CreateEnclave(startCtx, name)
-		if err != nil {
-			return Result{}, fmt.Errorf("create Kurtosis enclave %q returned an ambiguous result; exact UUID was not captured and creation must not be replayed: %w", name, err)
-		}
-		if enclave.Name != name || !enclave.Owned || enclave.Validate() != nil {
-			return Result{}, errors.New("Kurtosis returned an unexpected or unowned enclave identity")
-		}
-		capturedAt := manager.Now().UTC()
-		lifecycle.Phase, lifecycle.Enclave, lifecycle.EnclaveCapturedAt = LifecyclePackageIntent, &enclave, &capturedAt
-		if err := writeLifecycle(lifecycle); err != nil {
-			return Result{}, fmt.Errorf("capture exact enclave UUID and package intent: %w", err)
-		}
-	}
-
-	if lifecycle.Phase == LifecyclePackageIntent {
-		invocationAccepted := false
-		invocation, invocationErr := client.LastPackageInvocation(startCtx, enclave)
-		switch {
-		case invocationErr == nil && invocation.ID == lifecycle.Package.ID && digestCanonicalJSON(invocation.SerializedParams) == prepared.ParamsDigest:
-			invocationAccepted = true
-		case errors.Is(invocationErr, kurtosis.ErrPackageInvocationNotFound):
-			// The SDK proved the journaled call was not retained; replay is safe.
-		case invocationErr != nil:
-			return Result{}, fmt.Errorf("reconcile journaled package invocation: %w", invocationErr)
-		default:
-			return Result{}, errors.New("lifecycle package invocation differs from retained Kurtosis invocation")
-		}
-		if !invocationAccepted {
-			runErr := client.RunRemotePackage(startCtx, enclave, kurtosis.PackageRun{Locator: lifecycle.Package.Locator, SerializedParams: prepared.Params})
-			if authErr := authenticateInvocation(startCtx, client, enclave, lifecycle.Package.ID, prepared.ParamsDigest); authErr != nil {
-				if runErr != nil {
-					return Result{}, errors.Join(fmt.Errorf("run pinned qrl-package: %w", runErr), authErr)
-				}
-				return Result{}, authErr
-			}
-		}
-		acceptedAt := manager.Now().UTC()
-		lifecycle.Phase, lifecycle.PackageAcceptedAt = LifecyclePackageAccepted, &acceptedAt
-		if err := writeLifecycle(lifecycle); err != nil {
-			return Result{}, fmt.Errorf("record accepted package invocation: %w", err)
-		}
-	} else if err := authenticateInvocation(startCtx, client, enclave, lifecycle.Package.ID, prepared.ParamsDigest); err != nil {
+	prepared, err := manager.Prepare(startCtx, manager.Commands, request, sourceIdentity, wallet, manager.Stdout, manager.Stderr)
+	if err != nil {
 		return Result{}, err
 	}
+	name := request.EnclaveName
+	if name == "" {
+		name = defaultEnclaveName(networkDir, commit)
+	}
+	intent := OwnershipRecord{
+		SchemaVersion: OwnershipSchemaVersion,
+		NetworkDir:    networkDir,
+		RequestedName: name,
+	}
+	if err := createOwnership(intent); err != nil {
+		return Result{}, fmt.Errorf("persist enclave creation intent: %w", err)
+	}
+	enclave, err := client.CreateEnclave(startCtx, name)
+	if err != nil {
+		return Result{}, fmt.Errorf(
+			"create Kurtosis enclave %q returned an ambiguous result; creation intent was retained and create will not be replayed: %w",
+			name,
+			err,
+		)
+	}
+	if enclave.Name != name || !enclave.Owned || enclave.Validate() != nil {
+		cleanupErr := cleanupCreatedEnclave(client, enclave)
+		if cleanupErr == nil {
+			cleanupErr = removeOwnership(intent)
+		}
+		return Result{}, errors.Join(
+			errors.New("Kurtosis returned an unexpected or unowned enclave identity"),
+			wrapCleanupError(cleanupErr),
+		)
+	}
+	ownership := intent
+	ownership.Enclave = &enclave
+	if err := manager.Capture(ownership); err != nil {
+		cleanupErr := cleanupCreatedEnclave(client, enclave)
+		if cleanupErr == nil {
+			cleanupErr = removeOwnership(intent)
+		} else if recoveryErr := manager.Capture(ownership); recoveryErr != nil {
+			cleanupErr = errors.Join(
+				cleanupErr,
+				fmt.Errorf(
+					"persist recovery ownership for enclave %s/%s: %w",
+					enclave.Name,
+					enclave.UUID,
+					recoveryErr,
+				),
+			)
+		}
+		return Result{}, errors.Join(
+			fmt.Errorf("persist exact enclave ownership: %w", err),
+			wrapCleanupError(cleanupErr),
+		)
+	}
+
+	packageIdentity := PackageIdentity{
+		Locator:      packageLocator,
+		ID:           packageID,
+		ParamsSHA256: prepared.ParamsDigest,
+	}
+	if err := client.RunRemotePackage(startCtx, enclave, kurtosis.PackageRun{
+		Locator:          packageIdentity.Locator,
+		SerializedParams: prepared.Params,
+	}); err != nil {
+		return Result{}, fmt.Errorf("run pinned qrl-package; network ownership was retained for network-stop: %w", err)
+	}
+	if err := authenticateInvocation(startCtx, client, enclave, packageIdentity.ID, packageIdentity.ParamsSHA256); err != nil {
+		return Result{}, fmt.Errorf("authenticate qrl-package invocation; network ownership was retained for network-stop: %w", err)
+	}
+
 	var snapshot topology.Snapshot
 	if err := poll.Until(startCtx, 2*time.Second, func(attempt context.Context) error {
 		services, err := client.Services(attempt, enclave)
@@ -275,7 +241,7 @@ func (manager *Manager) Start(ctx context.Context, request StartRequest) (Result
 		snapshot = discovered
 		return nil
 	}); err != nil {
-		return Result{}, fmt.Errorf("discover qrl-package topology: %w", err)
+		return Result{}, fmt.Errorf("discover qrl-package topology; network ownership was retained for network-stop: %w", err)
 	}
 	if err := verifySnapshotImages(snapshot, prepared.Images); err != nil {
 		return Result{}, err
@@ -296,27 +262,36 @@ func (manager *Manager) Start(ctx context.Context, request StartRequest) (Result
 		}
 		return err
 	}); err != nil {
-		return Result{}, fmt.Errorf("wait for network readiness: %w", err)
+		return Result{}, fmt.Errorf("wait for network readiness; network ownership was retained for network-stop: %w", err)
 	}
 	state := State{
-		SchemaVersion: StateSchemaVersion, Backend: BackendKurtosis, Phase: PhaseRunning,
-		NetworkDir: networkDir, Enclave: enclave, Package: lifecycle.Package,
-		Source: sourceIdentity, Wallet: wallet, Topology: snapshot, Images: slices.Clone(prepared.Images),
-		Execution: ExecutionIdentity{BinaryPath: executionBinaryPath, BinarySHA256: binaryDigest},
-		Chain:     ChainIdentity{ChainID: readiness.ChainID, GenesisHash: readiness.GenesisHash}, CreatedAt: lifecycle.CreatedAt,
+		SchemaVersion: StateSchemaVersion,
+		Backend:       BackendKurtosis,
+		NetworkDir:    networkDir,
+		Enclave:       enclave,
+		Package:       packageIdentity,
+		Source:        sourceIdentity,
+		Wallet:        wallet,
+		Topology:      snapshot,
+		Images:        slices.Clone(prepared.Images),
+		Execution: ExecutionIdentity{
+			BinaryPath:   executionBinaryPath,
+			BinarySHA256: binaryDigest,
+		},
+		Chain: ChainIdentity{
+			ChainID:     readiness.ChainID,
+			GenesisHash: readiness.GenesisHash,
+		},
+		CreatedAt: manager.Now().UTC(),
 	}
 	state.Fingerprint, err = state.IdentityFingerprint()
 	if err != nil {
 		return Result{}, err
 	}
 	if err := writeState(state); err != nil {
-		return Result{}, err
+		return Result{}, fmt.Errorf("publish ready network state; exact ownership was retained for network-stop: %w", err)
 	}
-	lifecycle.Phase, lifecycle.NetworkFingerprint = LifecycleReady, state.Fingerprint
-	if err := writeLifecycle(lifecycle); err != nil {
-		return Result{}, fmt.Errorf("record ready lifecycle: %w", err)
-	}
-	return Result{State: state, Ready: true, Lifecycle: &lifecycle}, nil
+	return Result{State: state, Ready: true}, nil
 }
 
 func (manager *Manager) Status(ctx context.Context, requestedDir string) (Result, error) {
@@ -327,72 +302,50 @@ func (manager *Manager) status(
 	ctx context.Context,
 	requestedDir string,
 	requirements Requirements,
-) (result Result, returnErr error) {
+) (Result, error) {
 	manager.normalize()
 	networkDir, err := canonicalExistingDirectory(requestedDir, "network directory")
 	if err != nil {
 		return Result{}, err
 	}
-	var authenticatedState *State
-	defer func() {
-		if returnErr == nil {
-			return
-		}
-		result.Ready = false
-		result.Message = "network status authentication failed; no raw backend response was persisted"
-		if authenticatedState != nil {
-			result.State = *authenticatedState
-		}
-	}()
-	if _, statErr := os.Lstat(statePath(networkDir)); errors.Is(statErr, os.ErrNotExist) {
-		lifecycle, err := loadLifecycle(networkDir)
-		if err != nil {
-			return Result{}, err
-		}
-		return Result{Message: "network lifecycle is " + lifecycle.Phase, Lifecycle: &lifecycle}, nil
-	} else if statErr != nil {
-		return Result{}, statErr
-	}
-	state, err := loadState(networkDir)
+	readyExists, err := pathExists(statePath(networkDir))
 	if err != nil {
 		return Result{}, err
 	}
-	authenticatedState = &state
-	lifecycle, err := loadLifecycle(networkDir)
+	ownershipExists, err := pathExists(ownershipPath(networkDir))
 	if err != nil {
 		return Result{}, err
 	}
-	if err := verifyLifecycleState(lifecycle, state); err != nil {
+	if !ownershipExists {
+		if readyExists {
+			return Result{}, errors.New("ready network state has no exact-UUID ownership record")
+		}
+		return Result{Message: "network is not running"}, nil
+	}
+	ownership, err := loadOwnership(networkDir)
+	if err != nil {
 		return Result{}, err
 	}
-	if state.Phase == PhaseStopped {
-		if lifecycle.Phase != LifecycleStopped {
-			return Result{}, errors.New("stopped public state and private lifecycle disagree")
-		}
-		return Result{State: state, Message: "network is stopped", Lifecycle: &lifecycle}, nil
-	}
-	if lifecycle.Phase == LifecyclePackageAccepted {
-		return Result{State: state, Message: "public network state is published but lifecycle readiness is pending; resume network start", Lifecycle: &lifecycle}, nil
-	}
-	if lifecycle.Phase == LifecycleStopped {
-		return Result{State: state, Message: "enclave destruction completed but public stopped state is pending; resume network stop", Lifecycle: &lifecycle}, nil
-	}
-	if lifecycle.Phase == LifecycleDestroyIntent {
-		return Result{State: state, Message: "network destruction is pending; run network stop", Lifecycle: &lifecycle}, nil
-	}
-	if lifecycle.Phase != LifecycleReady || lifecycle.NetworkFingerprint != state.Fingerprint {
-		return Result{}, errors.New("running public state and private lifecycle disagree")
+	enclave, err := ownership.OwnedEnclave()
+	if err != nil {
+		return Result{Message: err.Error()}, nil
 	}
 	client, err := manager.NewClient()
 	if err != nil {
 		return Result{}, err
 	}
-	current, err := client.GetEnclave(ctx, state.Enclave.UUID)
+	if err := authenticateOwnedEnclave(ctx, client, enclave); err != nil {
+		return Result{}, err
+	}
+	if !readyExists {
+		return Result{Message: "network provisioning is incomplete; run network-stop before starting again"}, nil
+	}
+	state, err := loadState(networkDir)
 	if err != nil {
 		return Result{}, err
 	}
-	if current.Name != state.Enclave.Name || current.UUID != state.Enclave.UUID {
-		return Result{}, errors.New("Kurtosis enclave name/UUID differs from persisted identity")
+	if err := verifyOwnershipState(ownership, state); err != nil {
+		return Result{}, err
 	}
 	if err := authenticateInvocation(ctx, client, state.Enclave, state.Package.ID, state.Package.ParamsSHA256); err != nil {
 		return Result{}, err
@@ -416,19 +369,17 @@ func (manager *Manager) status(
 			return Result{}, errors.New("private wallet no longer matches persisted address identity")
 		}
 	}
-	_, err = authenticateBinary(ctx, client, state.Enclave, state.Topology.Execution.UUID, state.Execution.BinaryPath, state.Source.Commit, state.Execution.BinarySHA256)
-	if err != nil {
+	if _, err = authenticateBinary(ctx, client, state.Enclave, state.Topology.Execution.UUID, state.Execution.BinaryPath, state.Source.Commit, state.Execution.BinarySHA256); err != nil {
 		return Result{}, err
 	}
-	_, err = manager.Probe(ctx, probeRequest{
+	if _, err = manager.Probe(ctx, probeRequest{
 		RPCURL: state.Topology.RPC.URL, GraphQLURL: state.Topology.GraphQL, WebSocketURL: state.Topology.WebSocket.URL,
 		Address: state.Wallet.Address, ExpectedChainID: state.Chain.ChainID, ExpectedGenesis: state.Chain.GenesisHash,
 		Requirements: requirements,
-	})
-	if err != nil {
+	}); err != nil {
 		return Result{}, err
 	}
-	return Result{State: state, Ready: true, Lifecycle: &lifecycle}, nil
+	return Result{State: state, Ready: true}, nil
 }
 
 func (manager *Manager) Authenticate(
@@ -446,17 +397,13 @@ func (manager *Manager) Authenticate(
 	if err != nil {
 		return Environment{}, err
 	}
-	if result.State.Phase != PhaseRunning || !result.Ready {
-		return Environment{}, errors.New("E2E network lifecycle is not ready")
+	if !result.Ready {
+		return Environment{}, errors.New("E2E network is not ready")
 	}
 	commit, err := source.Commit(ctx, nil, root)
 	if err != nil {
 		return Environment{}, err
 	}
-	// Status above authenticates the immutable runtime image, binary, package,
-	// topology, and original source identity. Same-commit test and E2E
-	// changes may reuse that network, but runtime-affecting source drift must
-	// rebuild it.
 	if result.State.Source.Commit != commit {
 		return Environment{}, errors.New("network source commit differs from the requested checkout")
 	}
@@ -491,121 +438,106 @@ func (manager *Manager) Stop(ctx context.Context, requestedDir string) (Result, 
 		return Result{}, err
 	}
 	defer mutation.Close()
-	lifecycle, err := loadLifecycle(networkDir)
+
+	readyExists, err := pathExists(statePath(networkDir))
 	if err != nil {
 		return Result{}, err
 	}
-	if _, statErr := os.Lstat(statePath(networkDir)); errors.Is(statErr, os.ErrNotExist) {
-		if lifecycle.Phase == LifecycleCreateIntent {
-			return Result{}, errors.New("refusing name-only cleanup: lifecycle has no durably captured full enclave UUID")
-		}
-		if lifecycle.Phase != LifecycleStopped {
-			client, err := manager.NewClient()
-			if err != nil {
-				return Result{}, err
-			}
-			lifecycle, err = manager.destroyLifecycle(ctx, client, lifecycle, lifecycle.NetworkFingerprint)
-			if err != nil {
-				return Result{}, err
-			}
-		}
-		return Result{Message: "network lifecycle stopped before public readiness", Lifecycle: &lifecycle}, nil
-	} else if statErr != nil {
-		return Result{}, statErr
-	}
-	state, err := loadState(networkDir)
+	ownershipExists, err := pathExists(ownershipPath(networkDir))
 	if err != nil {
 		return Result{}, err
 	}
-	if state.Phase == PhaseStopped {
-		return manager.Status(ctx, networkDir)
+	if !ownershipExists {
+		if readyExists {
+			return Result{}, errors.New("refusing stop: ready network state has no exact-UUID ownership record")
+		}
+		return Result{Message: "network is not running"}, nil
 	}
-	if err := verifyLifecycleState(lifecycle, state); err != nil {
+	ownership, err := loadOwnership(networkDir)
+	if err != nil {
 		return Result{}, err
 	}
-	if lifecycle.Phase != LifecycleReady && lifecycle.Phase != LifecycleDestroyIntent && lifecycle.Phase != LifecycleStopped {
-		return Result{}, errors.New("refusing stop: lifecycle differs from running network identity")
+	var state State
+	if readyExists {
+		state, err = loadState(networkDir)
+		if err != nil {
+			return Result{}, err
+		}
+		if err := verifyOwnershipState(ownership, state); err != nil {
+			return Result{}, err
+		}
 	}
 	client, err := manager.NewClient()
 	if err != nil {
 		return Result{}, err
 	}
-	lifecycle, err = manager.destroyLifecycle(ctx, client, lifecycle, state.Fingerprint)
+	enclave, err := ownership.OwnedEnclave()
 	if err != nil {
 		return Result{}, err
 	}
-	now := *lifecycle.DestroyedAt
-	state.Phase, state.StoppedAt = PhaseStopped, &now
-	if err := writeState(state); err != nil {
+	if err := destroyExactEnclave(ctx, client, enclave); err != nil {
 		return Result{}, err
 	}
-	return Result{State: state, Message: "network stopped", Lifecycle: &lifecycle}, nil
-}
-
-func (manager *Manager) destroyLifecycle(ctx context.Context, client kurtosis.Client, record LifecycleRecord, fingerprint string) (LifecycleRecord, error) {
-	enclave, err := record.OwnedEnclave()
-	if err != nil {
-		return LifecycleRecord{}, err
-	}
-	if record.Phase != LifecycleDestroyIntent && record.Phase != LifecycleStopped {
-		requestedAt := manager.Now().UTC()
-		record.Phase, record.NetworkFingerprint, record.DestroyRequestedAt = LifecycleDestroyIntent, fingerprint, &requestedAt
-		if err := writeLifecycle(record); err != nil {
-			return LifecycleRecord{}, fmt.Errorf("journal enclave destruction before external mutation: %w", err)
+	// Remove the public ready state first. If either removal is interrupted,
+	// the private exact-UUID record remains available for an idempotent stop.
+	if readyExists {
+		if err := removeState(state); err != nil {
+			return Result{}, err
 		}
 	}
-	if record.NetworkFingerprint != fingerprint {
-		return LifecycleRecord{}, errors.New("destroy lifecycle belongs to a different network fingerprint")
+	if err := removeOwnership(ownership); err != nil {
+		return Result{}, err
 	}
-	if record.Phase == LifecycleStopped {
-		return record, nil
-	}
+	return Result{State: state, Message: "network stopped"}, nil
+}
 
+func destroyExactEnclave(ctx context.Context, client kurtosis.Client, enclave kurtosis.EnclaveRef) error {
 	exists, err := client.EnclaveExists(ctx, enclave.UUID)
 	if err != nil {
-		return LifecycleRecord{}, fmt.Errorf("inspect lifecycle enclave existence by exact UUID: %w", err)
+		return fmt.Errorf("inspect owned enclave existence by exact UUID: %w", err)
+	}
+	if !exists {
+		return nil
+	}
+	if err := authenticateOwnedEnclave(ctx, client, enclave); err != nil {
+		return err
+	}
+	destroyErr := client.DestroyEnclave(ctx, enclave)
+	exists, inspectErr := client.EnclaveExists(ctx, enclave.UUID)
+	if inspectErr != nil {
+		return errors.Join(destroyErr, fmt.Errorf("confirm owned enclave destruction: %w", inspectErr))
 	}
 	if exists {
-		current, getErr := client.GetEnclave(ctx, enclave.UUID)
-		if getErr != nil {
-			existsAfterError, inspectErr := client.EnclaveExists(ctx, enclave.UUID)
-			if inspectErr != nil || existsAfterError {
-				return LifecycleRecord{}, errors.Join(
-					fmt.Errorf("inspect lifecycle enclave by exact UUID: %w", getErr),
-					wrapExistenceReconciliationError(inspectErr, existsAfterError),
-				)
-			}
-		} else {
-			if current.Name != enclave.Name || current.UUID != enclave.UUID {
-				return LifecycleRecord{}, errors.New("refusing stop: lifecycle enclave name/UUID changed")
-			}
-			if destroyErr := client.DestroyEnclave(ctx, enclave); destroyErr != nil {
-				existsAfterError, inspectErr := client.EnclaveExists(ctx, enclave.UUID)
-				if inspectErr != nil || existsAfterError {
-					return LifecycleRecord{}, errors.Join(
-						fmt.Errorf("destroy lifecycle enclave by exact UUID: %w", destroyErr),
-						wrapExistenceReconciliationError(inspectErr, existsAfterError),
-					)
-				}
-			}
-		}
-	}
-	destroyedAt := manager.Now().UTC()
-	record.Phase, record.DestroyedAt = LifecycleStopped, &destroyedAt
-	if err := writeLifecycle(record); err != nil {
-		return LifecycleRecord{}, fmt.Errorf("record completed enclave destruction: %w", err)
-	}
-	return record, nil
-}
-
-func wrapExistenceReconciliationError(err error, exists bool) error {
-	if err != nil {
-		return fmt.Errorf("reconcile journaled enclave existence: %w", err)
-	}
-	if exists {
-		return errors.New("journaled enclave still exists after failed external operation")
+		return errors.Join(destroyErr, errors.New("owned enclave still exists after destruction"))
 	}
 	return nil
+}
+
+func cleanupCreatedEnclave(client kurtosis.Client, enclave kurtosis.EnclaveRef) error {
+	if err := enclave.Validate(); err != nil || !enclave.Owned {
+		return errors.New("cannot clean up an invalid or unowned returned enclave identity")
+	}
+	cleanupCtx, cancel := context.WithTimeout(context.Background(), time.Minute)
+	defer cancel()
+	return destroyExactEnclave(cleanupCtx, client, enclave)
+}
+
+func authenticateOwnedEnclave(ctx context.Context, client kurtosis.Client, enclave kurtosis.EnclaveRef) error {
+	current, err := client.GetEnclave(ctx, enclave.UUID)
+	if err != nil {
+		return fmt.Errorf("inspect owned enclave by exact UUID: %w", err)
+	}
+	if current.Name != enclave.Name || current.UUID != enclave.UUID {
+		return errors.New("refusing operation: owned enclave name/UUID changed")
+	}
+	return nil
+}
+
+func wrapCleanupError(err error) error {
+	if err == nil {
+		return nil
+	}
+	return fmt.Errorf("clean up returned enclave identity: %w", err)
 }
 
 func (manager *Manager) authenticateImages(ctx context.Context, expected []ImageIdentity) error {
@@ -625,34 +557,27 @@ func (manager *Manager) authenticateImages(ctx context.Context, expected []Image
 	return nil
 }
 
-func lifecycleFromPrepared(networkDir, requestedName string, source SourceIdentity, prepared preparedNetwork, createdAt time.Time) LifecycleRecord {
-	return LifecycleRecord{
-		SchemaVersion: 1, Phase: LifecycleCreateIntent, NetworkDir: networkDir, RequestedName: requestedName,
-		Package: PackageIdentity{Locator: packageLocator, ID: packageID, ParamsSHA256: prepared.ParamsDigest},
-		Source:  source, Images: slices.Clone(prepared.Images), CreatedAt: createdAt.UTC(),
-	}
-}
-
-func verifyLifecycleState(lifecycle LifecycleRecord, state State) error {
-	enclave, err := lifecycle.OwnedEnclave()
+func verifyOwnershipState(ownership OwnershipRecord, state State) error {
+	enclave, err := ownership.OwnedEnclave()
 	if err != nil {
-		return fmt.Errorf("network state has no exact captured lifecycle ownership: %w", err)
+		return fmt.Errorf("network state has no exact captured ownership: %w", err)
 	}
 	if enclave.Name != state.Enclave.Name || enclave.UUID != state.Enclave.UUID ||
-		lifecycle.NetworkDir != state.NetworkDir || lifecycle.Package != state.Package ||
-		lifecycle.Source != state.Source || !imageIdentitiesEqual(lifecycle.Images, state.Images) {
-		return errors.New("private lifecycle and public network state identify different networks")
-	}
-	if lifecycle.NetworkFingerprint != "" && lifecycle.NetworkFingerprint != state.Fingerprint {
-		return errors.New("private lifecycle and public network fingerprints differ")
+		ownership.NetworkDir != state.NetworkDir {
+		return errors.New("private ownership and public network state identify different networks")
 	}
 	return nil
 }
 
-func imageIdentitiesEqual(left, right []ImageIdentity) bool {
-	return slices.EqualFunc(left, right, func(a, b ImageIdentity) bool {
-		return a.Role == b.Role && a.Ref == b.Ref && a.ID == b.ID && maps.Equal(a.Labels, b.Labels)
-	})
+func pathExists(path string) (bool, error) {
+	_, err := os.Lstat(path)
+	if err == nil {
+		return true, nil
+	}
+	if errors.Is(err, os.ErrNotExist) {
+		return false, nil
+	}
+	return false, err
 }
 
 func authenticateInvocation(ctx context.Context, client kurtosis.Client, enclave kurtosis.EnclaveRef, packageID, paramsDigest string) error {

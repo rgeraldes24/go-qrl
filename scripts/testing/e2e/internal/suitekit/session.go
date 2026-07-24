@@ -58,7 +58,7 @@ func OpenSigningSession(ctx context.Context, environment Environment) (*SigningS
 	if strings.TrimSpace(environment.SeedFile) == "" {
 		return nil, fmt.Errorf("%s is empty", seedFileVariable)
 	}
-	_, restored, err := readSeedAndWallet(environment.SeedFile)
+	restored, err := readWallet(environment.SeedFile)
 	if err != nil {
 		return nil, err
 	}

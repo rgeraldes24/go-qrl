@@ -202,6 +202,40 @@ func checkLiveVM64Contract(ctx context.Context, client *qrlclient.Client, w wall
 	); diff != "" {
 		return fmt.Errorf("generated live echoNested mismatch (-want +have):\n%s", diff)
 	}
+	session := EventEmitterBindingSmokeSession{Contract: deployment.smoke, CallOpts: *callOpts}
+	sessionNested, sessionRecords, sessionCube, err := session.EchoNested(nested, nestedRecords, nestedCube)
+	if err != nil {
+		return fmt.Errorf("live echoNested through generated session: %w", err)
+	}
+	if diff := cmp.Diff(
+		[]any{nested, nestedRecords, nestedCube},
+		[]any{sessionNested, sessionRecords, sessionCube},
+		abiCompareOptions...,
+	); diff != "" {
+		return fmt.Errorf("generated live session mismatch (-want +have):\n%s", diff)
+	}
+	var rawOutput []any
+	if err := (&EventEmitterBindingSmokeRaw{Contract: deployment.smoke}).Call(
+		callOpts,
+		&rawOutput,
+		"echoNested",
+		nested,
+		nestedRecords,
+		nestedCube,
+	); err != nil {
+		return fmt.Errorf("live echoNested through generated raw binding: %w", err)
+	}
+	rawPacked, err := artifact.ABI.Methods["echoNested"].Outputs.Pack(rawOutput...)
+	if err != nil {
+		return fmt.Errorf("pack generated raw echoNested output: %w", err)
+	}
+	wantPacked, err := artifact.ABI.Methods["echoNested"].Outputs.Pack(nested, nestedRecords, nestedCube)
+	if err != nil {
+		return fmt.Errorf("pack expected raw echoNested output: %w", err)
+	}
+	if !bytes.Equal(rawPacked, wantPacked) {
+		return fmt.Errorf("generated raw echoNested output mismatch")
+	}
 
 	parsedABI := &artifact.ABI
 	auth, err := newTransactor(ctx, client, w, from)
@@ -283,7 +317,7 @@ func checkLiveVM64Contract(ctx context.Context, client *qrlclient.Client, w wall
 	if err != nil {
 		return err
 	}
-	return checkContractCall(
+	if err := checkContractCall(
 		ctx,
 		client,
 		from,
@@ -295,7 +329,52 @@ func checkLiveVM64Contract(ctx context.Context, client *qrlclient.Client, w wall
 			Method: "read",
 			Want:   []any{new(big.Int), new(big.Int), [64]byte{}, common.Address{}, []byte{}, "", false},
 		},
-	)
+	); err != nil {
+		return err
+	}
+	for _, entrypoint := range []struct {
+		name  string
+		value int64
+		data  []byte
+	}{
+		{name: "receive", value: 11},
+		{name: "fallback", value: 13, data: bytes.Repeat([]byte{0x5a}, 65)},
+	} {
+		auth, err := newTransactor(ctx, client, w, from)
+		if err != nil {
+			return err
+		}
+		auth.Value, auth.GasLimit = big.NewInt(entrypoint.value), 1_000_000
+		session := EventEmitterBindingSmokeSession{Contract: deployment.smoke, TransactOpts: *auth}
+		var tx *types.Transaction
+		if entrypoint.data == nil {
+			tx, err = session.Receive()
+		} else {
+			tx, err = session.Fallback(entrypoint.data)
+		}
+		if err != nil {
+			return fmt.Errorf("generated live %s: %w", entrypoint.name, err)
+		}
+		if !bytes.Equal(tx.Data(), entrypoint.data) || tx.Value().Cmp(big.NewInt(entrypoint.value)) != 0 {
+			return fmt.Errorf(
+				"generated live %s transaction data=%x value=%s",
+				entrypoint.name,
+				tx.Data(),
+				tx.Value(),
+			)
+		}
+		if _, err := waitTransaction(ctx, client, tx, types.ReceiptStatusSuccessful); err != nil {
+			return err
+		}
+	}
+	balance, err := client.BalanceAt(ctx, deployment.address, nil)
+	if err != nil {
+		return fmt.Errorf("read generated payable entrypoint balance: %w", err)
+	}
+	if balance.Cmp(big.NewInt(24)) != 0 {
+		return fmt.Errorf("generated payable entrypoint balance = %v, want 24", balance)
+	}
+	return nil
 }
 
 func checkLiveVM64CallBoundaries(

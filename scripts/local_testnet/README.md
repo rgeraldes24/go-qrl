@@ -26,8 +26,8 @@ The first and third commands can be used without running any tests.
 
 The controller has one built-in qrl-package revision and topology. Its compact
 configuration pins every source revision and builder/base image digest. At
-startup it derives one-participant parameters and injects one fresh ML-DSA-87
-prefund and withdrawal address into private runtime state.
+startup it derives one-participant parameters with one fresh ML-DSA-87 prefund
+and withdrawal address.
 
 ## Image preparation
 
@@ -65,12 +65,10 @@ Use a private runtime directory:
 E2E_NETWORK_DIR=/tmp/my-go-qrl-network make network-start
 ```
 
-Starting writes `private/lifecycle.json` before every external mutation. Its
-atomic phases are `create_intent`, `package_intent`, `package_accepted`,
-`ready`, `destroy_intent`, and `stopped`. Only phases after `create_intent`
-contain the exact owned enclave UUID. If a build or package stage fails,
-correct the cause and rerun the same command with the same directory; the
-controller authenticates and continues that lifecycle instead of replacing it.
+Starting writes one `private/ownership.json`. A name-only creation intent blocks
+replay if Kurtosis loses the create response; the full enclave UUID replaces it
+as soon as creation succeeds. If provisioning then fails, run `network-stop`
+before starting again. Provisioning is never resumed or replayed automatically.
 
 Inspect the exact recorded enclave and endpoints:
 
@@ -80,8 +78,8 @@ go -C scripts/testing/e2e run ./cmd/e2e network status \
 ```
 
 `network.json` contains sanitized network identity. Status readiness is emitted
-by the command and is not persisted. Secret wallet material and effective
-package inputs live below `private/` and must not be shared.
+by the command and is not persisted. Enclave ownership, the mutation lock, and
+secret wallet material live below `private/` and must not be shared.
 
 ## Stop
 

@@ -11,11 +11,9 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"maps"
 	"os"
 	"path/filepath"
 	"regexp"
-	"slices"
 	"sort"
 	"strings"
 
@@ -84,34 +82,6 @@ var localImageSpecs = [...]localImageSpec{
 
 var imageLockValuePattern = regexp.MustCompile(`^[A-Za-z0-9./:@_-]+$`)
 
-func resumePreparedNetwork(ctx context.Context, runner commandRunner, request StartRequest, record LifecycleRecord) (preparedNetwork, error) {
-	if record.Package.Locator != packageLocator || record.Package.ID != packageID {
-		return preparedNetwork{}, errors.New("lifecycle differs from the built-in qrl-package")
-	}
-	paramsData, err := os.ReadFile(filepath.Join(privatePath(record.NetworkDir), "effective-params.json"))
-	if err != nil {
-		return preparedNetwork{}, err
-	}
-	params := strings.TrimSpace(string(paramsData))
-	if digestCanonicalJSON(params) != record.Package.ParamsSHA256 {
-		return preparedNetwork{}, errors.New("effective parameters differ from lifecycle")
-	}
-	dockerBin := request.DockerBin
-	if dockerBin == "" {
-		dockerBin = "docker"
-	}
-	for _, expected := range record.Images {
-		actual, err := inspectImage(ctx, runner, dockerBin, expected.Role, expected.Ref)
-		if err != nil {
-			return preparedNetwork{}, err
-		}
-		if actual.ID != expected.ID || !maps.Equal(actual.Labels, expected.Labels) {
-			return preparedNetwork{}, fmt.Errorf("%s image changed since lifecycle intent", expected.Role)
-		}
-	}
-	return preparedNetwork{Params: params, ParamsDigest: record.Package.ParamsSHA256, Images: slices.Clone(record.Images)}, nil
-}
-
 func prepareNetwork(ctx context.Context, runner commandRunner, request StartRequest, source SourceIdentity, wallet WalletIdentity, stdout, stderr io.Writer) (preparedNetwork, error) {
 	if request.BuildTool == "" {
 		return preparedNetwork{}, errors.New("network image build tool is required")
@@ -148,11 +118,6 @@ func prepareNetwork(ctx context.Context, runner commandRunner, request StartRequ
 		return preparedNetwork{}, fmt.Errorf("build pinned network images: %w", err)
 	}
 
-	effectivePath := filepath.Join(privatePath(request.NetworkDir), "effective-params.json")
-	if err := writePrivateFile(effectivePath, []byte(params+"\n")); err != nil {
-		return preparedNetwork{}, err
-	}
-
 	images := make([]ImageIdentity, 0, len(isolatedRefs))
 	for role, ref := range isolatedRefs {
 		image, err := inspectImage(ctx, runner, request.DockerBin, role, ref)
@@ -177,7 +142,7 @@ func prepareNetwork(ctx context.Context, runner commandRunner, request StartRequ
 }
 
 // isolatedLocalImageRefs converts the human-readable refs kept in the tracked
-// configuration into lifecycle-private refs. The complete clean source
+// configuration into network-private refs. The complete clean source
 // commit and canonical network directory are included so separate checkouts
 // and network directories cannot retag images used by another live network.
 func isolatedLocalImageRefs(templates map[string]string, source SourceIdentity, networkDir string) (map[string]string, error) {
@@ -295,40 +260,6 @@ func imageByRole(images []ImageIdentity, role string) ImageIdentity {
 		}
 	}
 	return ImageIdentity{}
-}
-
-func writePrivateFile(path string, data []byte) error {
-	parent, err := os.Lstat(filepath.Dir(path))
-	if err != nil || parent.Mode()&os.ModeSymlink != 0 || !parent.IsDir() {
-		return errors.New("private file parent must be a non-symlink directory")
-	}
-	if info, err := os.Lstat(path); err == nil {
-		if info.Mode()&os.ModeSymlink != 0 || !info.Mode().IsRegular() {
-			return fmt.Errorf("private file %s has an unexpected type", path)
-		}
-	} else if !errors.Is(err, os.ErrNotExist) {
-		return err
-	}
-	file, err := os.OpenFile(path, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0o600)
-	if err != nil {
-		return err
-	}
-	if err := file.Chmod(0o600); err != nil {
-		file.Close()
-		return err
-	}
-	if _, err := file.Write(data); err != nil {
-		file.Close()
-		return err
-	}
-	if err := file.Sync(); err != nil {
-		file.Close()
-		return err
-	}
-	if err := file.Close(); err != nil {
-		return err
-	}
-	return syncDirectory(filepath.Dir(path))
 }
 
 func digestBytes(data []byte) string {

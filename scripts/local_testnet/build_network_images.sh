@@ -5,9 +5,9 @@ set -Eeuo pipefail
 SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 REPO_ROOT=$(cd -- "$SCRIPT_DIR/../.." && pwd)
 
-# The Go lifecycle controller derives these refs and immutable inputs from the
-# validated network manifest. The inherited E2E namespace is scrubbed before
-# these controller-owned values are passed to this script.
+# The Go network controller derives these refs and immutable inputs from its
+# pinned configuration. The inherited E2E namespace is scrubbed before these
+# controller-owned values are passed to this script.
 OUTPUT_EL_IMAGE=${E2E_LOCAL_EL_IMAGE:?E2E_LOCAL_EL_IMAGE is required}
 OUTPUT_CL_IMAGE=${E2E_LOCAL_CL_IMAGE:?E2E_LOCAL_CL_IMAGE is required}
 OUTPUT_VC_IMAGE=${E2E_LOCAL_VC_IMAGE:?E2E_LOCAL_VC_IMAGE is required}

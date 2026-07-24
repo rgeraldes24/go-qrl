@@ -1000,8 +1000,7 @@ func verifyTopLevelRollback(ctx context.Context, client *qrlclient.Client, w wal
 }
 
 // checkLiveVM64Opcodes exercises the address-sensitive VM opcodes on the live
-// chain. The harness invokes this suite independently against both execution
-// clients.
+// chain.
 func checkLiveVM64Opcodes(ctx context.Context, client *qrlclient.Client, w wallet.Wallet, from common.Address) error {
 	contextCode := contextRuntime()
 	contextAddress, _, err := deployVM64Contract(ctx, client, w, from, contextCode)
