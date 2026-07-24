@@ -1,0 +1,103 @@
+// Copyright 2026 The go-qrl Authors
+// This file is part of the go-qrl library.
+
+package network
+
+import (
+	"encoding/hex"
+	"errors"
+	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
+
+	"github.com/theQRL/go-qrl/common"
+	qrlwallet "github.com/theQRL/go-qrl/crypto/pqcrypto/wallet"
+)
+
+const seedName = "wallet.seed"
+
+func walletSeedPath(networkDir string) string {
+	return filepath.Join(privatePath(networkDir), seedName)
+}
+
+func ensureWallet(dir string) (WalletIdentity, error) {
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		return WalletIdentity{}, err
+	}
+	if err := os.Chmod(dir, 0o700); err != nil {
+		return WalletIdentity{}, err
+	}
+	seedPath := filepath.Join(dir, seedName)
+	if _, err := os.Lstat(seedPath); err == nil {
+		return validateWalletSeed(seedPath)
+	} else if !errors.Is(err, os.ErrNotExist) {
+		return WalletIdentity{}, err
+	}
+
+	wallet, err := qrlwallet.Generate(qrlwallet.ML_DSA_87)
+	if err != nil {
+		return WalletIdentity{}, fmt.Errorf("generate ML-DSA wallet: %w", err)
+	}
+	seed, err := wallet.GetSeed()
+	if err != nil {
+		return WalletIdentity{}, fmt.Errorf("read wallet seed: %w", err)
+	}
+	address := common.Address(wallet.GetAddress()).Hex()
+	if err := writeExclusive(seedPath, []byte(hex.EncodeToString(seed.ToBytes())+"\n")); err != nil {
+		if errors.Is(err, os.ErrExist) {
+			return validateWalletSeed(seedPath)
+		}
+		return WalletIdentity{}, err
+	}
+	return WalletIdentity{Address: address}, nil
+}
+
+func validateWalletSeed(path string) (WalletIdentity, error) {
+	info, err := os.Lstat(path)
+	if err != nil {
+		return WalletIdentity{}, err
+	}
+	if info.Mode()&os.ModeSymlink != 0 || !info.Mode().IsRegular() || info.Mode().Perm() != 0o600 {
+		return WalletIdentity{}, fmt.Errorf("%s must be a non-symlink 0600 regular file", path)
+	}
+	seed, err := os.ReadFile(path)
+	if err != nil {
+		return WalletIdentity{}, err
+	}
+	wallet, err := qrlwallet.RestoreFromSeedHex(strings.TrimSpace(string(seed)))
+	if err != nil {
+		return WalletIdentity{}, fmt.Errorf("restore existing wallet: %w", err)
+	}
+	address := common.Address(wallet.GetAddress()).Hex()
+	return WalletIdentity{Address: address}, nil
+}
+
+func writeExclusive(path string, data []byte) error {
+	directory := filepath.Dir(path)
+	file, err := os.CreateTemp(directory, "."+filepath.Base(path)+"-*")
+	if err != nil {
+		return err
+	}
+	temporary := file.Name()
+	defer os.Remove(temporary)
+	if err := file.Chmod(0o600); err != nil {
+		file.Close()
+		return err
+	}
+	if _, err := file.Write(data); err != nil {
+		file.Close()
+		return err
+	}
+	if err := file.Sync(); err != nil {
+		file.Close()
+		return err
+	}
+	if err := file.Close(); err != nil {
+		return err
+	}
+	if err := os.Link(temporary, path); err != nil {
+		return err
+	}
+	return syncDirectory(directory)
+}
