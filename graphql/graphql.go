@@ -511,6 +511,9 @@ func (t *Transaction) getLogs(ctx context.Context, hash common.Hash) (*[]*Log, e
 
 func (t *Transaction) Type(ctx context.Context) *hexutil.Uint64 {
 	tx, _ := t.resolve(ctx)
+	if tx == nil {
+		return nil
+	}
 	txType := hexutil.Uint64(tx.Type())
 	return &txType
 }
@@ -539,24 +542,24 @@ func (t *Transaction) PublicKey(ctx context.Context) (hexutil.Bytes, error) {
 }
 
 func (t *Transaction) Signature(ctx context.Context) (hexutil.Bytes, error) {
-	tx, err := t.resolve(ctx)
-	if err != nil || tx == nil {
+	tx, _ := t.resolve(ctx)
+	if tx == nil {
 		return hexutil.Bytes{}, nil
 	}
 	return tx.RawSignatureValue(), nil
 }
 
 func (t *Transaction) Descriptor(ctx context.Context) (hexutil.Bytes, error) {
-	tx, err := t.resolve(ctx)
-	if err != nil || tx == nil {
+	tx, _ := t.resolve(ctx)
+	if tx == nil {
 		return hexutil.Bytes{}, nil
 	}
 	return tx.Descriptor(), nil
 }
 
 func (t *Transaction) ExtraParams(ctx context.Context) (hexutil.Bytes, error) {
-	tx, err := t.resolve(ctx)
-	if err != nil || tx == nil {
+	tx, _ := t.resolve(ctx)
+	if tx == nil {
 		return hexutil.Bytes{}, nil
 	}
 	return tx.ExtraParams(), nil
@@ -633,6 +636,9 @@ func (b *Block) resolveHeader(ctx context.Context) (*types.Header, error) {
 	b.header, err = b.r.backend.HeaderByNumberOrHash(ctx, *b.numberOrHash)
 	if err != nil {
 		return nil, err
+	}
+	if b.header == nil {
+		return nil, nil
 	}
 	if b.hash == (common.Hash{}) {
 		b.hash = b.header.Hash()
@@ -796,7 +802,7 @@ func (b *Block) RawHeader(ctx context.Context) (hexutil.Bytes, error) {
 
 func (b *Block) Raw(ctx context.Context) (hexutil.Bytes, error) {
 	block, err := b.resolve(ctx)
-	if err != nil {
+	if err != nil || block == nil {
 		return hexutil.Bytes{}, err
 	}
 	return rlp.EncodeToBytes(block)
@@ -1149,6 +1155,9 @@ func (r *Resolver) Blocks(ctx context.Context, args struct {
 	From *Long
 	To   *Long
 }) ([]*Block, error) {
+	if args.From == nil {
+		return nil, errors.New("from block number must be specified")
+	}
 	from := rpc.BlockNumber(*args.From)
 
 	var to rpc.BlockNumber
@@ -1241,7 +1250,7 @@ func (r *Resolver) Logs(ctx context.Context, args struct{ Filter FilterCriteria 
 	if args.Filter.ToBlock != nil {
 		end = int64(*args.Filter.ToBlock)
 	}
-	if begin > 0 && end > 0 && begin > end {
+	if begin >= 0 && end >= 0 && begin > end {
 		return nil, errInvalidBlockRange
 	}
 	var addresses []common.Address

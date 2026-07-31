@@ -685,8 +685,8 @@ func (s *StateDB) Copy() *StateDB {
 	// along with their original values.
 	state.accounts = copySet(s.accounts)
 	state.storages = copy2DSet(s.storages)
-	state.accountsOrigin = copySet(state.accountsOrigin)
-	state.storagesOrigin = copy2DSet(state.storagesOrigin)
+	state.accountsOrigin = copySet(s.accountsOrigin)
+	state.storagesOrigin = copy2DSet(s.storagesOrigin)
 
 	// Deep copy the logs occurred in the scope of block
 	for hash, logs := range s.logs {
@@ -1095,6 +1095,10 @@ func (s *StateDB) Commit(block uint64, deleteEmptyObjects bool) (common.Hash, er
 	// Finalize any pending changes and merge everything into the tries
 	s.IntermediateRoot(deleteEmptyObjects)
 
+	// Short circuit if any error occurs within the IntermediateRoot.
+	if s.dbErr != nil {
+		return common.Hash{}, fmt.Errorf("commit aborted due to database error: %v", s.dbErr)
+	}
 	// Commit objects to the trie, measuring the elapsed time
 	var (
 		accountTrieNodesUpdated int
