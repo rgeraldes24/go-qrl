@@ -7,7 +7,7 @@ import (
 
 	"github.com/theQRL/go-qrl/common"
 	"github.com/theQRL/go-qrl/core"
-	"github.com/theQRL/go-qrl/core/txpool/legacypool"
+	"github.com/theQRL/go-qrl/core/txpool/dynamicfeepool"
 	"github.com/theQRL/go-qrl/miner"
 	"github.com/theQRL/go-qrl/qrl/downloader"
 	"github.com/theQRL/go-qrl/qrl/gasprice"
@@ -39,7 +39,7 @@ func (c Config) MarshalTOML() (any, error) {
 		Preimages               bool
 		FilterLogCacheSize      int
 		Miner                   miner.Config
-		TxPool                  legacypool.Config
+		TxPool                  dynamicfeepool.Config
 		GPO                     gasprice.Config
 		EnablePreimageRecording bool
 		DocRoot                 string `toml:"-"`
@@ -106,7 +106,7 @@ func (c *Config) UnmarshalTOML(unmarshal func(any) error) error {
 		Preimages               *bool
 		FilterLogCacheSize      *int
 		Miner                   *miner.Config
-		TxPool                  *legacypool.Config
+		TxPool                  *dynamicfeepool.Config
 		GPO                     *gasprice.Config
 		EnablePreimageRecording *bool
 		DocRoot                 *string `toml:"-"`

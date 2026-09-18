@@ -14,8 +14,9 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with the go-ethereum library. If not, see <http://www.gnu.org/licenses/>.
 
-// Package legacypool implements the normal QRVM execution transaction pool.
-package legacypool
+// Package dynamicfeepool implements the transaction pool for QRVM execution
+// transactions, all of which carry dynamic (EIP-1559 style) fees.
+package dynamicfeepool
 
 import (
 	"errors"
@@ -194,14 +195,14 @@ func (config *Config) sanitize() Config {
 	return conf
 }
 
-// LegacyPool contains all currently known transactions. Transactions
+// DynamicFeePool contains all currently known transactions. Transactions
 // enter the pool when they are received from the network or submitted
 // locally. They exit the pool when they are included in the blockchain.
 //
 // The pool separates processable transactions (which can be applied to the
 // current state) and future transactions. Transactions move between those
 // two states over time as they are received and processed.
-type LegacyPool struct {
+type DynamicFeePool struct {
 	config      Config
 	chainconfig *params.ChainConfig
 	chain       BlockChain
@@ -241,16 +242,16 @@ type txpoolResetRequest struct {
 
 // New creates a new transaction pool to gather, sort and filter inbound
 // transactions from the network.
-func New(config Config, chain BlockChain) *LegacyPool {
+func New(config Config, chain BlockChain) *DynamicFeePool {
 	// Sanitize the input to ensure no vulnerable gas prices are set
 	config = (&config).sanitize()
 
 	// Create the transaction pool with its initial settings
-	pool := &LegacyPool{
+	pool := &DynamicFeePool{
 		config:          config,
 		chain:           chain,
 		chainconfig:     chain.Config(),
-		signer:          types.LatestSigner(chain.Config()),
+		signer:          types.NewZondSigner(chain.Config().ChainID),
 		pending:         make(map[common.Address]*list),
 		queue:           make(map[common.Address]*list),
 		beats:           make(map[common.Address]time.Time),
@@ -275,9 +276,9 @@ func New(config Config, chain BlockChain) *LegacyPool {
 	return pool
 }
 
-// Filter returns whether the given transaction can be consumed by the legacy
+// Filter returns whether the given transaction can be consumed by the dynamic fee
 // pool.
-func (pool *LegacyPool) Filter(tx *types.Transaction) bool {
+func (pool *DynamicFeePool) Filter(tx *types.Transaction) bool {
 	switch tx.Type() {
 	case types.DynamicFeeTxType:
 		return true
@@ -290,7 +291,7 @@ func (pool *LegacyPool) Filter(tx *types.Transaction) bool {
 // head to allow balance / nonce checks. The transaction journal will be loaded
 // from disk and filtered based on the provided starting settings. The internal
 // goroutines will be spun up and the pool deemed operational afterwards.
-func (pool *LegacyPool) Init(gasTip *big.Int, head *types.Header, reserve txpool.AddressReserver) error {
+func (pool *DynamicFeePool) Init(gasTip *big.Int, head *types.Header, reserve txpool.AddressReserver) error {
 	// Set the address reserver to request exclusive access to pooled accounts
 	pool.reserve = reserve
 
@@ -333,7 +334,7 @@ func (pool *LegacyPool) Init(gasTip *big.Int, head *types.Header, reserve txpool
 // loop is the transaction pool's main event loop, waiting for and reacting to
 // outside blockchain events as well as for various reporting and transaction
 // eviction events.
-func (pool *LegacyPool) loop() {
+func (pool *DynamicFeePool) loop() {
 	defer pool.wg.Done()
 
 	var (
@@ -401,7 +402,7 @@ func (pool *LegacyPool) loop() {
 }
 
 // Close terminates the transaction pool.
-func (pool *LegacyPool) Close() error {
+func (pool *DynamicFeePool) Close() error {
 	// Terminate the pool reorger and return
 	close(pool.reorgShutdownCh)
 	pool.wg.Wait()
@@ -413,17 +414,17 @@ func (pool *LegacyPool) Close() error {
 	return nil
 }
 
-// Reset implements txpool.SubPool, allowing the legacy pool's internal state to be
+// Reset implements txpool.SubPool, allowing the dynamic fee pool's internal state to be
 // kept in sync with the main transaction pool's internal state.
-func (pool *LegacyPool) Reset(oldHead, newHead *types.Header) {
+func (pool *DynamicFeePool) Reset(oldHead, newHead *types.Header) {
 	wait := pool.requestReset(oldHead, newHead)
 	<-wait
 }
 
 // SubscribeTransactions registers a subscription for new transaction events,
 // supporting feeding only newly seen or also resurrected transactions.
-func (pool *LegacyPool) SubscribeTransactions(ch chan<- core.NewTxsEvent) event.Subscription {
-	// The legacy pool has a very messed up internal shuffling, so it's kind of
+func (pool *DynamicFeePool) SubscribeTransactions(ch chan<- core.NewTxsEvent) event.Subscription {
+	// The pool has a very messed up internal shuffling, so it's kind of
 	// hard to separate newly discovered transaction from resurrected ones. This
 	// is because the new txs are added to the queue, resurrected ones too and
 	// reorgs run lazily, so separating the two would need a marker.
@@ -432,7 +433,7 @@ func (pool *LegacyPool) SubscribeTransactions(ch chan<- core.NewTxsEvent) event.
 
 // SetGasTip updates the minimum gas tip required by the transaction pool for a
 // new transaction, and drops all transactions below this threshold.
-func (pool *LegacyPool) SetGasTip(tip *big.Int) {
+func (pool *DynamicFeePool) SetGasTip(tip *big.Int) {
 	pool.mu.Lock()
 	defer pool.mu.Unlock()
 
@@ -448,12 +449,12 @@ func (pool *LegacyPool) SetGasTip(tip *big.Int) {
 		}
 		pool.priced.Removed(len(drop))
 	}
-	log.Info("Legacy pool tip threshold updated", "tip", tip)
+	log.Info("Dynamic fee pool tip threshold updated", "tip", tip)
 }
 
 // Nonce returns the next nonce of an account, with all transactions executable
 // by the pool already applied on top.
-func (pool *LegacyPool) Nonce(addr common.Address) uint64 {
+func (pool *DynamicFeePool) Nonce(addr common.Address) uint64 {
 	pool.mu.RLock()
 	defer pool.mu.RUnlock()
 
@@ -462,7 +463,7 @@ func (pool *LegacyPool) Nonce(addr common.Address) uint64 {
 
 // Stats retrieves the current pool stats, namely the number of pending and the
 // number of queued (non-executable) transactions.
-func (pool *LegacyPool) Stats() (int, int) {
+func (pool *DynamicFeePool) Stats() (int, int) {
 	pool.mu.RLock()
 	defer pool.mu.RUnlock()
 
@@ -471,7 +472,7 @@ func (pool *LegacyPool) Stats() (int, int) {
 
 // stats retrieves the current pool stats, namely the number of pending and the
 // number of queued (non-executable) transactions.
-func (pool *LegacyPool) stats() (int, int) {
+func (pool *DynamicFeePool) stats() (int, int) {
 	pending := 0
 	for _, list := range pool.pending {
 		pending += list.Len()
@@ -485,7 +486,7 @@ func (pool *LegacyPool) stats() (int, int) {
 
 // Content retrieves the data content of the transaction pool, returning all the
 // pending as well as queued transactions, grouped by account and sorted by nonce.
-func (pool *LegacyPool) Content() (map[common.Address][]*types.Transaction, map[common.Address][]*types.Transaction) {
+func (pool *DynamicFeePool) Content() (map[common.Address][]*types.Transaction, map[common.Address][]*types.Transaction) {
 	pool.mu.Lock()
 	defer pool.mu.Unlock()
 
@@ -502,7 +503,7 @@ func (pool *LegacyPool) Content() (map[common.Address][]*types.Transaction, map[
 
 // ContentFrom retrieves the data content of the transaction pool, returning the
 // pending as well as queued transactions of this address, grouped by nonce.
-func (pool *LegacyPool) ContentFrom(addr common.Address) ([]*types.Transaction, []*types.Transaction) {
+func (pool *DynamicFeePool) ContentFrom(addr common.Address) ([]*types.Transaction, []*types.Transaction) {
 	pool.mu.RLock()
 	defer pool.mu.RUnlock()
 
@@ -522,7 +523,7 @@ func (pool *LegacyPool) ContentFrom(addr common.Address) ([]*types.Transaction, 
 //
 // The transactions can also be pre-filtered by the dynamic fee components to
 // reduce allocations and load on downstream subsystems.
-func (pool *LegacyPool) Pending(filter txpool.PendingFilter) map[common.Address][]*txpool.LazyTransaction {
+func (pool *DynamicFeePool) Pending(filter txpool.PendingFilter) map[common.Address][]*txpool.LazyTransaction {
 	pool.mu.Lock()
 	defer pool.mu.Unlock()
 
@@ -569,7 +570,7 @@ func (pool *LegacyPool) Pending(filter txpool.PendingFilter) map[common.Address]
 }
 
 // Locals retrieves the accounts currently considered local by the pool.
-func (pool *LegacyPool) Locals() []common.Address {
+func (pool *DynamicFeePool) Locals() []common.Address {
 	pool.mu.Lock()
 	defer pool.mu.Unlock()
 
@@ -579,7 +580,7 @@ func (pool *LegacyPool) Locals() []common.Address {
 // local retrieves all currently known local transactions, grouped by origin
 // account and sorted by nonce. The returned transaction set is a copy and can be
 // freely modified by calling code.
-func (pool *LegacyPool) local() map[common.Address]types.Transactions {
+func (pool *DynamicFeePool) local() map[common.Address]types.Transactions {
 	txs := make(map[common.Address]types.Transactions)
 	for addr := range pool.locals.accounts {
 		if pending := pool.pending[addr]; pending != nil {
@@ -596,7 +597,7 @@ func (pool *LegacyPool) local() map[common.Address]types.Transactions {
 // rules, but does not check state-dependent validation such as sufficient balance.
 // This check is meant as an early check which only needs to be performed once,
 // and does not require the pool mutex to be held.
-func (pool *LegacyPool) validateTxBasics(tx *types.Transaction, local bool) error {
+func (pool *DynamicFeePool) validateTxBasics(tx *types.Transaction, local bool) error {
 	opts := &txpool.ValidationOptions{
 		Config: pool.chainconfig,
 		Accept: 0 |
@@ -615,7 +616,7 @@ func (pool *LegacyPool) validateTxBasics(tx *types.Transaction, local bool) erro
 
 // validateTx checks whether a transaction is valid according to the consensus
 // rules and adheres to some heuristic limits of the local node (price and size).
-func (pool *LegacyPool) validateTx(tx *types.Transaction, local bool) error {
+func (pool *DynamicFeePool) validateTx(tx *types.Transaction, local bool) error {
 	opts := &txpool.ValidationOptionsWithState{
 		State: pool.currentState,
 
@@ -658,7 +659,7 @@ func (pool *LegacyPool) validateTx(tx *types.Transaction, local bool) error {
 // If a newly added transaction is marked as local, its sending account will be
 // added to the allowlist, preventing any associated transaction from being dropped
 // out of the pool due to pricing constraints.
-func (pool *LegacyPool) add(tx *types.Transaction, local bool) (replaced bool, err error) {
+func (pool *DynamicFeePool) add(tx *types.Transaction, local bool) (replaced bool, err error) {
 	// If the transaction is already known, discard it
 	hash := tx.Hash()
 	if pool.all.Get(hash) != nil {
@@ -808,7 +809,7 @@ func (pool *LegacyPool) add(tx *types.Transaction, local bool) (replaced bool, e
 }
 
 // isGapped reports whether the given transaction is immediately executable.
-func (pool *LegacyPool) isGapped(from common.Address, tx *types.Transaction) bool {
+func (pool *DynamicFeePool) isGapped(from common.Address, tx *types.Transaction) bool {
 	// Short circuit if transaction falls within the scope of the pending list
 	// or matches the next pending nonce which can be promoted as an executable
 	// transaction afterwards. Note, the tx staleness is already checked in
@@ -834,7 +835,7 @@ func (pool *LegacyPool) isGapped(from common.Address, tx *types.Transaction) boo
 // enqueueTx inserts a new transaction into the non-executable transaction queue.
 //
 // Note, this method assumes the pool lock is held!
-func (pool *LegacyPool) enqueueTx(hash common.Hash, tx *types.Transaction, local bool, addAll bool) (bool, error) {
+func (pool *DynamicFeePool) enqueueTx(hash common.Hash, tx *types.Transaction, local bool, addAll bool) (bool, error) {
 	// Try to insert the transaction into the future queue
 	from, _ := types.Sender(pool.signer, tx) // already validated
 	if pool.queue[from] == nil {
@@ -873,7 +874,7 @@ func (pool *LegacyPool) enqueueTx(hash common.Hash, tx *types.Transaction, local
 
 // journalTx adds the specified transaction to the local disk journal if it is
 // deemed to have been sent from a local account.
-func (pool *LegacyPool) journalTx(from common.Address, tx *types.Transaction) {
+func (pool *DynamicFeePool) journalTx(from common.Address, tx *types.Transaction) {
 	// Only journal if it's enabled and the transaction is local
 	if pool.journal == nil || !pool.locals.contains(from) {
 		return
@@ -887,7 +888,7 @@ func (pool *LegacyPool) journalTx(from common.Address, tx *types.Transaction) {
 // and returns whether it was inserted or an older was better.
 //
 // Note, this method assumes the pool lock is held!
-func (pool *LegacyPool) promoteTx(addr common.Address, hash common.Hash, tx *types.Transaction) bool {
+func (pool *DynamicFeePool) promoteTx(addr common.Address, hash common.Hash, tx *types.Transaction) bool {
 	// Try to insert the transaction into the pending queue
 	if pool.pending[addr] == nil {
 		pool.pending[addr] = newList(true)
@@ -924,13 +925,13 @@ func (pool *LegacyPool) promoteTx(addr common.Address, hash common.Hash, tx *typ
 //
 // This method is used to add transactions from the RPC API and performs synchronous pool
 // reorganization and event propagation.
-func (pool *LegacyPool) addLocals(txs []*types.Transaction) []error {
+func (pool *DynamicFeePool) addLocals(txs []*types.Transaction) []error {
 	return pool.Add(txs, !pool.config.NoLocals, true)
 }
 
 // addLocal enqueues a single local transaction into the pool if it is valid. This is
 // a convenience wrapper around addLocals.
-func (pool *LegacyPool) addLocal(tx *types.Transaction) error {
+func (pool *DynamicFeePool) addLocal(tx *types.Transaction) error {
 	return pool.addLocals([]*types.Transaction{tx})[0]
 }
 
@@ -939,23 +940,23 @@ func (pool *LegacyPool) addLocal(tx *types.Transaction) error {
 //
 // This method is used to add transactions from the p2p network and does not wait for pool
 // reorganization and internal event propagation.
-func (pool *LegacyPool) addRemotes(txs []*types.Transaction) []error {
+func (pool *DynamicFeePool) addRemotes(txs []*types.Transaction) []error {
 	return pool.Add(txs, false, false)
 }
 
 // addRemote enqueues a single transaction into the pool if it is valid. This is a convenience
 // wrapper around addRemotes.
-func (pool *LegacyPool) addRemote(tx *types.Transaction) error {
+func (pool *DynamicFeePool) addRemote(tx *types.Transaction) error {
 	return pool.addRemotes([]*types.Transaction{tx})[0]
 }
 
 // addRemotesSync is like addRemotes, but waits for pool reorganization. Tests use this method.
-func (pool *LegacyPool) addRemotesSync(txs []*types.Transaction) []error {
+func (pool *DynamicFeePool) addRemotesSync(txs []*types.Transaction) []error {
 	return pool.Add(txs, false, true)
 }
 
 // This is like addRemotes with a single transaction, but waits for pool reorganization. Tests use this method.
-func (pool *LegacyPool) addRemoteSync(tx *types.Transaction) error {
+func (pool *DynamicFeePool) addRemoteSync(tx *types.Transaction) error {
 	return pool.Add([]*types.Transaction{tx}, false, true)[0]
 }
 
@@ -964,7 +965,7 @@ func (pool *LegacyPool) addRemoteSync(tx *types.Transaction) error {
 //
 // If sync is set, the method will block until all internal maintenance related
 // to the add is finished. Only use this during tests for determinism!
-func (pool *LegacyPool) Add(txs []*types.Transaction, local, sync bool) []error {
+func (pool *DynamicFeePool) Add(txs []*types.Transaction, local, sync bool) []error {
 	// Do not treat as local if local transactions have been disabled
 	local = local && !pool.config.NoLocals
 
@@ -1019,7 +1020,7 @@ func (pool *LegacyPool) Add(txs []*types.Transaction, local, sync bool) []error 
 
 // addTxsLocked attempts to queue a batch of transactions if they are valid.
 // The transaction pool lock must be held.
-func (pool *LegacyPool) addTxsLocked(txs []*types.Transaction, local bool) ([]error, *accountSet) {
+func (pool *DynamicFeePool) addTxsLocked(txs []*types.Transaction, local bool) ([]error, *accountSet) {
 	dirty := newAccountSet(pool.signer)
 	errs := make([]error, len(txs))
 	for i, tx := range txs {
@@ -1035,7 +1036,7 @@ func (pool *LegacyPool) addTxsLocked(txs []*types.Transaction, local bool) ([]er
 
 // Status returns the status (unknown/pending/queued) of a batch of transactions
 // identified by their hashes.
-func (pool *LegacyPool) Status(hash common.Hash) txpool.TxStatus {
+func (pool *DynamicFeePool) Status(hash common.Hash) txpool.TxStatus {
 	tx := pool.get(hash)
 	if tx == nil {
 		return txpool.TxStatusUnknown
@@ -1054,7 +1055,7 @@ func (pool *LegacyPool) Status(hash common.Hash) txpool.TxStatus {
 }
 
 // Get returns a transaction if it is contained in the pool and nil otherwise.
-func (pool *LegacyPool) Get(hash common.Hash) *types.Transaction {
+func (pool *DynamicFeePool) Get(hash common.Hash) *types.Transaction {
 	tx := pool.get(hash)
 	if tx == nil {
 		return nil
@@ -1063,13 +1064,13 @@ func (pool *LegacyPool) Get(hash common.Hash) *types.Transaction {
 }
 
 // get returns a transaction if it is contained in the pool and nil otherwise.
-func (pool *LegacyPool) get(hash common.Hash) *types.Transaction {
+func (pool *DynamicFeePool) get(hash common.Hash) *types.Transaction {
 	return pool.all.Get(hash)
 }
 
 // Has returns an indicator whether txpool has a transaction cached with the
 // given hash.
-func (pool *LegacyPool) Has(hash common.Hash) bool {
+func (pool *DynamicFeePool) Has(hash common.Hash) bool {
 	return pool.all.Get(hash) != nil
 }
 
@@ -1082,7 +1083,7 @@ func (pool *LegacyPool) Has(hash common.Hash) bool {
 // which could lead to a premature release of the lock.
 //
 // Returns the number of transactions removed from the pending queue.
-func (pool *LegacyPool) removeTx(hash common.Hash, outofbound bool, unreserve bool) int {
+func (pool *DynamicFeePool) removeTx(hash common.Hash, outofbound bool, unreserve bool) int {
 	// Fetch the transaction we wish to delete
 	tx := pool.all.Get(hash)
 	if tx == nil {
@@ -1147,7 +1148,7 @@ func (pool *LegacyPool) removeTx(hash common.Hash, outofbound bool, unreserve bo
 
 // requestReset requests a pool reset to the new head block.
 // The returned channel is closed when the reset has occurred.
-func (pool *LegacyPool) requestReset(oldHead *types.Header, newHead *types.Header) chan struct{} {
+func (pool *DynamicFeePool) requestReset(oldHead *types.Header, newHead *types.Header) chan struct{} {
 	select {
 	case pool.reqResetCh <- &txpoolResetRequest{oldHead, newHead}:
 		return <-pool.reorgDoneCh
@@ -1158,7 +1159,7 @@ func (pool *LegacyPool) requestReset(oldHead *types.Header, newHead *types.Heade
 
 // requestPromoteExecutables requests transaction promotion checks for the given addresses.
 // The returned channel is closed when the promotion checks have occurred.
-func (pool *LegacyPool) requestPromoteExecutables(set *accountSet) chan struct{} {
+func (pool *DynamicFeePool) requestPromoteExecutables(set *accountSet) chan struct{} {
 	select {
 	case pool.reqPromoteCh <- set:
 		return <-pool.reorgDoneCh
@@ -1168,7 +1169,7 @@ func (pool *LegacyPool) requestPromoteExecutables(set *accountSet) chan struct{}
 }
 
 // queueTxEvent enqueues a transaction event to be sent in the next reorg run.
-func (pool *LegacyPool) queueTxEvent(tx *types.Transaction) {
+func (pool *DynamicFeePool) queueTxEvent(tx *types.Transaction) {
 	select {
 	case pool.queueTxEventCh <- tx:
 	case <-pool.reorgShutdownCh:
@@ -1178,7 +1179,7 @@ func (pool *LegacyPool) queueTxEvent(tx *types.Transaction) {
 // scheduleReorgLoop schedules runs of reset and promoteExecutables. Code above should not
 // call those methods directly, but request them being run using requestReset and
 // requestPromoteExecutables instead.
-func (pool *LegacyPool) scheduleReorgLoop() {
+func (pool *DynamicFeePool) scheduleReorgLoop() {
 	defer pool.wg.Done()
 
 	var (
@@ -1248,7 +1249,7 @@ func (pool *LegacyPool) scheduleReorgLoop() {
 }
 
 // runReorg runs reset and promoteExecutables on behalf of scheduleReorgLoop.
-func (pool *LegacyPool) runReorg(done chan struct{}, reset *txpoolResetRequest, dirtyAccounts *accountSet, events map[common.Address]*sortedMap) {
+func (pool *DynamicFeePool) runReorg(done chan struct{}, reset *txpoolResetRequest, dirtyAccounts *accountSet, events map[common.Address]*sortedMap) {
 	defer func(t0 time.Time) {
 		reorgDurationTimer.Update(time.Since(t0))
 	}(time.Now())
@@ -1326,7 +1327,7 @@ func (pool *LegacyPool) runReorg(done chan struct{}, reset *txpoolResetRequest, 
 
 // reset retrieves the current state of the blockchain and ensures the content
 // of the transaction pool is valid with regard to the chain state.
-func (pool *LegacyPool) reset(oldHead, newHead *types.Header) {
+func (pool *DynamicFeePool) reset(oldHead, newHead *types.Header) {
 	// If we're reorging an old state, reinject all dropped transactions
 	var reinject types.Transactions
 
@@ -1426,7 +1427,7 @@ func (pool *LegacyPool) reset(oldHead, newHead *types.Header) {
 // promoteExecutables moves transactions that have become processable from the
 // future queue to the set of pending transactions. During this process, all
 // invalidated transactions (low nonce, low balance) are deleted.
-func (pool *LegacyPool) promoteExecutables(accounts []common.Address) []*types.Transaction {
+func (pool *DynamicFeePool) promoteExecutables(accounts []common.Address) []*types.Transaction {
 	// Track the promoted transactions to broadcast them at once
 	var promoted []*types.Transaction
 
@@ -1496,7 +1497,7 @@ func (pool *LegacyPool) promoteExecutables(accounts []common.Address) []*types.T
 // truncatePending removes transactions from the pending queue if the pool is above the
 // pending limit. The algorithm tries to reduce transaction counts by an approximately
 // equal number for all for accounts with many pending transactions.
-func (pool *LegacyPool) truncatePending() {
+func (pool *DynamicFeePool) truncatePending() {
 	pending := uint64(0)
 	for _, list := range pool.pending {
 		pending += uint64(list.Len())
@@ -1581,7 +1582,7 @@ func (pool *LegacyPool) truncatePending() {
 }
 
 // truncateQueue drops the oldest transactions in the queue if the pool is above the global queue limit.
-func (pool *LegacyPool) truncateQueue() {
+func (pool *DynamicFeePool) truncateQueue() {
 	queued := uint64(0)
 	for _, list := range pool.queue {
 		queued += uint64(list.Len())
@@ -1632,7 +1633,7 @@ func (pool *LegacyPool) truncateQueue() {
 // Note: transactions are not marked as removed in the priced list because re-heaping
 // is always explicitly triggered by SetBaseFee and it would be unnecessary and wasteful
 // to trigger a re-heap is this function
-func (pool *LegacyPool) demoteUnexecutables() {
+func (pool *DynamicFeePool) demoteUnexecutables() {
 	// Iterate over all accounts and demote any non-executable transactions
 	gasLimit := pool.currentHead.Load().GasLimit
 	for addr, list := range pool.pending {
@@ -1764,15 +1765,15 @@ func (as *accountSet) merge(other *accountSet) {
 	as.cache = nil
 }
 
-// lookup is used internally by LegacyPool to track transactions while allowing
+// lookup is used internally by DynamicFeePool to track transactions while allowing
 // lookup without mutex contention.
 //
 // Note, although this type is properly protected against concurrent access, it
 // is **not** a type that should ever be mutated or even exposed outside of the
 // transaction pool, since its internal state is tightly coupled with the pools
 // internal mechanisms. The sole purpose of the type is to permit out-of-bound
-// peeking into the pool in LegacyPool.Get without having to acquire the widely scoped
-// LegacyPool.mu mutex.
+// peeking into the pool in DynamicFeePool.Get without having to acquire the widely scoped
+// DynamicFeePool.mu mutex.
 //
 // This lookup set combines the notion of "local transactions", which is useful
 // to build upper-level structure.

@@ -220,7 +220,7 @@ func (d *Downloader) findBeaconAncestor() (uint64, error) {
 	case FullSync:
 		linked = d.blockchain.HasBlock(beaconTail.ParentHash, beaconTail.Number.Uint64()-1)
 	case SnapSync:
-		linked = d.blockchain.HasFastBlock(beaconTail.ParentHash, beaconTail.Number.Uint64()-1)
+		linked = d.blockchain.HasSnapBlock(beaconTail.ParentHash, beaconTail.Number.Uint64()-1)
 	default:
 		panic("unknown sync mode")
 	}
@@ -255,7 +255,7 @@ func (d *Downloader) findBeaconAncestor() (uint64, error) {
 		case FullSync:
 			known = d.blockchain.HasBlock(h.Hash(), n)
 		case SnapSync:
-			known = d.blockchain.HasFastBlock(h.Hash(), n)
+			known = d.blockchain.HasSnapBlock(h.Hash(), n)
 		default:
 			panic("unknown sync mode")
 		}

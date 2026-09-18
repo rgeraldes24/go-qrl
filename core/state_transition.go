@@ -269,7 +269,7 @@ func (st *StateTransition) preCheck() error {
 		}
 	}
 
-	// Make sure that transaction gasFeeCap is greater than the baseFee (post london)
+	// Make sure that transaction gasFeeCap is greater than the baseFee
 	// Skip the checks if gas fields are zero and baseFee was explicitly disabled (eth_call)
 	if !st.qrvm.Config.NoBaseFee || msg.GasFeeCap.BitLen() > 0 || msg.GasTipCap.BitLen() > 0 {
 		if l := msg.GasFeeCap.BitLen(); l > 256 {

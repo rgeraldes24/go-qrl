@@ -79,7 +79,7 @@ func InitDatabaseFromFreezer(db qrldb.Database) {
 	batch.Reset()
 
 	WriteHeadHeaderHash(db, hash)
-	WriteHeadFastBlockHash(db, hash)
+	WriteHeadSnapBlockHash(db, hash)
 	log.Info("Initialized database from freezer", "blocks", frozen, "elapsed", common.PrettyDuration(time.Since(start)))
 }
 

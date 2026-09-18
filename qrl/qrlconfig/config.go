@@ -25,7 +25,7 @@ import (
 	"github.com/theQRL/go-qrl/consensus/beacon"
 	"github.com/theQRL/go-qrl/core"
 	"github.com/theQRL/go-qrl/core/rawdb"
-	"github.com/theQRL/go-qrl/core/txpool/legacypool"
+	"github.com/theQRL/go-qrl/core/txpool/dynamicfeepool"
 	"github.com/theQRL/go-qrl/miner"
 	"github.com/theQRL/go-qrl/params"
 	"github.com/theQRL/go-qrl/qrl/downloader"
@@ -56,7 +56,7 @@ var Defaults = Config{
 	SnapshotCache:      102,
 	FilterLogCacheSize: 32,
 	Miner:              miner.DefaultConfig,
-	TxPool:             legacypool.DefaultConfig,
+	TxPool:             dynamicfeepool.DefaultConfig,
 	RPCGasCap:          50000000,
 	RPCQRVMTimeout:     5 * time.Second,
 	GPO:                FullNodeGPO,
@@ -116,7 +116,7 @@ type Config struct {
 	Miner miner.Config
 
 	// Transaction pool options
-	TxPool legacypool.Config
+	TxPool dynamicfeepool.Config
 
 	// Gas Price Oracle options
 	GPO gasprice.Config

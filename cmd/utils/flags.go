@@ -39,7 +39,7 @@ import (
 	"github.com/theQRL/go-qrl/common/fdlimit"
 	"github.com/theQRL/go-qrl/core"
 	"github.com/theQRL/go-qrl/core/rawdb"
-	"github.com/theQRL/go-qrl/core/txpool/legacypool"
+	"github.com/theQRL/go-qrl/core/txpool/dynamicfeepool"
 	"github.com/theQRL/go-qrl/core/vm"
 	"github.com/theQRL/go-qrl/crypto"
 	"github.com/theQRL/go-qrl/graphql"
@@ -127,7 +127,7 @@ var (
 	}
 	BetaNetFlag = &cli.BoolFlag{
 		Name:     "betanet",
-		Usage:    "BetaNet network: pre-configured proof-of-work test network",
+		Usage:    "BetaNet network: pre-configured test network",
 		Category: flags.QRLCategory,
 	}
 	TestnetFlag = &cli.BoolFlag{
@@ -138,7 +138,7 @@ var (
 	// Dev mode
 	DeveloperFlag = &cli.BoolFlag{
 		Name:     "dev",
-		Usage:    "Ephemeral proof-of-authority network with a pre-funded developer account, mining enabled",
+		Usage:    "Ephemeral development network with a pre-funded developer account and a simulated beacon client",
 		Category: flags.DevCategory,
 	}
 	DeveloperPeriodFlag = &cli.Uint64Flag{
@@ -1290,7 +1290,7 @@ func setGPO(ctx *cli.Context, cfg *gasprice.Config) {
 	}
 }
 
-func setTxPool(ctx *cli.Context, cfg *legacypool.Config) {
+func setTxPool(ctx *cli.Context, cfg *dynamicfeepool.Config) {
 	if ctx.IsSet(TxPoolLocalsFlag.Name) {
 		locals := strings.SplitSeq(ctx.String(TxPoolLocalsFlag.Name), ",")
 		for account := range locals {

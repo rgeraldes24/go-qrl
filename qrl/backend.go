@@ -32,7 +32,7 @@ import (
 	"github.com/theQRL/go-qrl/core/rawdb"
 	"github.com/theQRL/go-qrl/core/state/pruner"
 	"github.com/theQRL/go-qrl/core/txpool"
-	"github.com/theQRL/go-qrl/core/txpool/legacypool"
+	"github.com/theQRL/go-qrl/core/txpool/dynamicfeepool"
 	"github.com/theQRL/go-qrl/core/types"
 	"github.com/theQRL/go-qrl/core/vm"
 	"github.com/theQRL/go-qrl/event"
@@ -193,8 +193,8 @@ func New(stack *node.Node, config *qrlconfig.Config) (*QRL, error) {
 	if config.TxPool.Journal != "" {
 		config.TxPool.Journal = stack.ResolvePath(config.TxPool.Journal)
 	}
-	legacyPool := legacypool.New(config.TxPool, qrl.blockchain)
-	qrl.txPool, err = txpool.New(new(big.Int).SetUint64(config.TxPool.PriceLimit), qrl.blockchain, []txpool.SubPool{legacyPool})
+	dynamicFeePool := dynamicfeepool.New(config.TxPool, qrl.blockchain)
+	qrl.txPool, err = txpool.New(new(big.Int).SetUint64(config.TxPool.PriceLimit), qrl.blockchain, []txpool.SubPool{dynamicFeePool})
 	if err != nil {
 		return nil, err
 	}

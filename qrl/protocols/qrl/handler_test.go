@@ -28,7 +28,7 @@ import (
 	"github.com/theQRL/go-qrl/core"
 	"github.com/theQRL/go-qrl/core/rawdb"
 	"github.com/theQRL/go-qrl/core/txpool"
-	"github.com/theQRL/go-qrl/core/txpool/legacypool"
+	"github.com/theQRL/go-qrl/core/txpool/dynamicfeepool"
 	"github.com/theQRL/go-qrl/core/types"
 	"github.com/theQRL/go-qrl/core/vm"
 	"github.com/theQRL/go-qrl/internal/testutil"
@@ -83,10 +83,10 @@ func newTestBackendWithGenerator(blocks int, generator func(int, *core.BlockGen)
 	for _, block := range bs {
 		chain.TrieDB().Commit(block.Root(), false)
 	}
-	txconfig := legacypool.DefaultConfig
+	txconfig := dynamicfeepool.DefaultConfig
 	txconfig.Journal = "" // Don't litter the disk with test journals
 
-	pool := legacypool.New(txconfig, chain)
+	pool := dynamicfeepool.New(txconfig, chain)
 	txpool, _ := txpool.New(new(big.Int).SetUint64(txconfig.PriceLimit), chain, []txpool.SubPool{pool})
 
 	return &testBackend{
@@ -447,9 +447,9 @@ func newTestBackendMaxBlocks(blocks int, gen func(int, *core.BlockGen)) *testBac
 	for _, block := range bs {
 		chain.TrieDB().Commit(block.Root(), false)
 	}
-	txconfig := legacypool.DefaultConfig
+	txconfig := dynamicfeepool.DefaultConfig
 	txconfig.Journal = ""
-	pool := legacypool.New(txconfig, chain)
+	pool := dynamicfeepool.New(txconfig, chain)
 	txpool, _ := txpool.New(new(big.Int).SetUint64(txconfig.PriceLimit), chain, []txpool.SubPool{pool})
 	return &testBackend{db: db, chain: chain, txpool: txpool}
 }
