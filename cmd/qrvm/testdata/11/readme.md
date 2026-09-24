@@ -9,5 +9,5 @@ When it's missing, an error is expected.
 
 ```
 $ go run . t8n --state.fork=Zond --input.alloc=testdata/11/alloc.json --input.txs=testdata/11/txs.json --input.env=testdata/11/env.json --output.alloc=stdout --output.result=stdout
-ERROR(3): EIP-1559 config but missing 'parentBaseFee' in env section
+ERROR(3): missing 'currentBaseFee' or 'parentBaseFee' in env section
 ```

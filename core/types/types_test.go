@@ -49,14 +49,15 @@ func benchRLP(b *testing.B, encode bool) {
 		obj  any
 	}{
 		{
-			"london-header",
+			"header",
 			&Header{
-				Number:   big.NewInt(1000),
-				GasLimit: 8_000_000,
-				GasUsed:  8_000_000,
-				Time:     555,
-				Extra:    make([]byte, 32),
-				BaseFee:  big.NewInt(10000000000),
+				Number:          big.NewInt(1000),
+				GasLimit:        8_000_000,
+				GasUsed:         8_000_000,
+				Time:            555,
+				Extra:           make([]byte, 32),
+				BaseFee:         big.NewInt(10000000000),
+				WithdrawalsHash: &EmptyWithdrawalsHash,
 			},
 		},
 		{
@@ -70,6 +71,7 @@ func benchRLP(b *testing.B, encode bool) {
 		{
 			"receipt-full",
 			&Receipt{
+				Type:              DynamicFeeTxType,
 				Status:            ReceiptStatusSuccessful,
 				CumulativeGasUsed: 0x888888888,
 				Logs:              make([]*Log, 0),

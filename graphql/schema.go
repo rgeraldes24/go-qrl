@@ -235,7 +235,6 @@ const schema string = `
         # Raw is the RLP encoding of the block.
         raw: Bytes!
         # WithdrawalsRoot is the withdrawals trie root in this block.
-        # If withdrawals are unavailable for this block, this field will be null.
         withdrawalsRoot: Bytes32
         # Withdrawals is a list of withdrawals associated with this block. If
         # withdrawals are unavailable for this block, this field will be null.

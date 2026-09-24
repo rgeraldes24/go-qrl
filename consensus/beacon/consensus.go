@@ -129,7 +129,7 @@ func (beacon *Beacon) verifyHeader(chain consensus.ChainHeaderReader, header, pa
 	if err := eip1559.VerifyEIP1559Header(chain.Config(), parent, header); err != nil {
 		return err
 	}
-	// Verify existence / non-existence of withdrawalsHash.
+	// Verify the withdrawals root is present.
 	if header.WithdrawalsHash == nil {
 		return errors.New("missing withdrawalsHash")
 	}
@@ -205,10 +205,6 @@ func (beacon *Beacon) Finalize(chain consensus.ChainHeaderReader, header *types.
 // FinalizeAndAssemble implements consensus.Engine, setting the final state and
 // assembling the block.
 func (beacon *Beacon) FinalizeAndAssemble(chain consensus.ChainHeaderReader, header *types.Header, state *state.StateDB, body *types.Body, receipts []*types.Receipt) (*types.Block, error) {
-	// All blocks after Zond must include a withdrawals root.
-	if body.Withdrawals == nil {
-		body.Withdrawals = make([]*types.Withdrawal, 0)
-	}
 	// Finalize and assemble the block.
 	beacon.Finalize(chain, header, state, body)
 

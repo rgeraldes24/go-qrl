@@ -89,10 +89,6 @@ func flatCallTracerTestRunner(tracerName string, filename string, dirPath string
 		Origin:   origin,
 		GasPrice: tx.GasPrice(),
 	}
-	baseFee := test.Genesis.BaseFee
-	if baseFee == nil {
-		baseFee = tx.GasPrice()
-	}
 	context := vm.BlockContext{
 		CanTransfer: core.CanTransfer,
 		Transfer:    core.Transfer,
@@ -100,7 +96,7 @@ func flatCallTracerTestRunner(tracerName string, filename string, dirPath string
 		BlockNumber: new(big.Int).SetUint64(uint64(test.Context.Number)),
 		Time:        uint64(test.Context.Time),
 		GasLimit:    uint64(test.Context.GasLimit),
-		BaseFee:     baseFee,
+		BaseFee:     test.Genesis.BaseFee,
 	}
 	triedb, _, statedb := tests.MakePreState(rawdb.NewMemoryDatabase(), test.Genesis.Alloc, false, rawdb.HashScheme)
 	defer triedb.Close()

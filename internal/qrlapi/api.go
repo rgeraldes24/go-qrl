@@ -33,7 +33,6 @@ import (
 	"github.com/theQRL/go-qrl/common/hexutil"
 	"github.com/theQRL/go-qrl/common/math"
 	"github.com/theQRL/go-qrl/consensus"
-	"github.com/theQRL/go-qrl/consensus/misc/eip1559"
 	"github.com/theQRL/go-qrl/core"
 	"github.com/theQRL/go-qrl/core/state"
 	"github.com/theQRL/go-qrl/core/types"
@@ -64,11 +63,7 @@ func (s *QRLAPI) GasPrice(ctx context.Context) (*hexutil.Big, error) {
 	if err != nil {
 		return nil, err
 	}
-	head := s.b.CurrentHeader()
-	if head == nil || head.BaseFee == nil {
-		return nil, errors.New("current header missing BaseFee")
-	}
-	tipcap.Add(tipcap, head.BaseFee)
+	tipcap.Add(tipcap, s.b.CurrentHeader().BaseFee)
 	return (*hexutil.Big)(tipcap), err
 }
 
@@ -167,12 +162,11 @@ func (s *TxPoolAPI) Content() map[string]map[string]map[string]*RPCTransaction {
 		"queued":  make(map[string]map[string]*RPCTransaction),
 	}
 	pending, queue := s.b.TxPoolContent()
-	curHeader := s.b.CurrentHeader()
 	// Flatten the pending transactions
 	for account, txs := range pending {
 		dump := make(map[string]*RPCTransaction)
 		for _, tx := range txs {
-			dump[fmt.Sprintf("%d", tx.Nonce())] = NewRPCPendingTransaction(tx, curHeader, s.b.ChainConfig())
+			dump[fmt.Sprintf("%d", tx.Nonce())] = NewRPCPendingTransaction(tx, s.b.ChainConfig())
 		}
 		content["pending"][account.Hex()] = dump
 	}
@@ -180,7 +174,7 @@ func (s *TxPoolAPI) Content() map[string]map[string]map[string]*RPCTransaction {
 	for account, txs := range queue {
 		dump := make(map[string]*RPCTransaction)
 		for _, tx := range txs {
-			dump[fmt.Sprintf("%d", tx.Nonce())] = NewRPCPendingTransaction(tx, curHeader, s.b.ChainConfig())
+			dump[fmt.Sprintf("%d", tx.Nonce())] = NewRPCPendingTransaction(tx, s.b.ChainConfig())
 		}
 		content["queued"][account.Hex()] = dump
 	}
@@ -191,19 +185,18 @@ func (s *TxPoolAPI) Content() map[string]map[string]map[string]*RPCTransaction {
 func (s *TxPoolAPI) ContentFrom(addr common.Address) map[string]map[string]*RPCTransaction {
 	content := make(map[string]map[string]*RPCTransaction, 2)
 	pending, queue := s.b.TxPoolContentFrom(addr)
-	curHeader := s.b.CurrentHeader()
 
 	// Build the pending transactions
 	dump := make(map[string]*RPCTransaction, len(pending))
 	for _, tx := range pending {
-		dump[fmt.Sprintf("%d", tx.Nonce())] = NewRPCPendingTransaction(tx, curHeader, s.b.ChainConfig())
+		dump[fmt.Sprintf("%d", tx.Nonce())] = NewRPCPendingTransaction(tx, s.b.ChainConfig())
 	}
 	content["pending"] = dump
 
 	// Build the queued transactions
 	dump = make(map[string]*RPCTransaction, len(queue))
 	for _, tx := range queue {
-		dump[fmt.Sprintf("%d", tx.Nonce())] = NewRPCPendingTransaction(tx, curHeader, s.b.ChainConfig())
+		dump[fmt.Sprintf("%d", tx.Nonce())] = NewRPCPendingTransaction(tx, s.b.ChainConfig())
 	}
 	content["queued"] = dump
 
@@ -937,12 +930,8 @@ func RPCMarshalHeader(head *types.Header) map[string]any {
 		"timestamp":        hexutil.Uint64(head.Time),
 		"transactionsRoot": head.TxHash,
 		"receiptsRoot":     head.ReceiptHash,
-	}
-	if head.BaseFee != nil {
-		result["baseFeePerGas"] = (*hexutil.Big)(head.BaseFee)
-	}
-	if head.WithdrawalsHash != nil {
-		result["withdrawalsRoot"] = head.WithdrawalsHash
+		"baseFeePerGas":    (*hexutil.Big)(head.BaseFee),
+		"withdrawalsRoot":  head.WithdrawalsHash,
 	}
 	return result
 }
@@ -970,9 +959,7 @@ func RPCMarshalBlock(block *types.Block, inclTx bool, fullTx bool, config *param
 		}
 		fields["transactions"] = transactions
 	}
-	if block.Header().WithdrawalsHash != nil {
-		fields["withdrawals"] = block.Withdrawals()
-	}
+	fields["withdrawals"] = block.Withdrawals()
 	return fields
 }
 
@@ -997,8 +984,8 @@ type RPCTransaction struct {
 	// NOTE(rgeraldes24): keeping GasPrice for now because it provides
 	// the effective gas price if the transaction has been included
 	GasPrice         *hexutil.Big      `json:"gasPrice"`
-	GasFeeCap        *hexutil.Big      `json:"maxFeePerGas,omitempty"`
-	GasTipCap        *hexutil.Big      `json:"maxPriorityFeePerGas,omitempty"`
+	GasFeeCap        *hexutil.Big      `json:"maxFeePerGas"`
+	GasTipCap        *hexutil.Big      `json:"maxPriorityFeePerGas"`
 	Hash             common.Hash       `json:"hash"`
 	Input            hexutil.Bytes     `json:"input"`
 	Nonce            hexutil.Uint64    `json:"nonce"`
@@ -1006,8 +993,8 @@ type RPCTransaction struct {
 	TransactionIndex *hexutil.Uint64   `json:"transactionIndex"`
 	Value            *hexutil.Big      `json:"value"`
 	Type             hexutil.Uint64    `json:"type"`
-	Accesses         *types.AccessList `json:"accessList,omitempty"`
-	ChainID          *hexutil.Big      `json:"chainId,omitempty"`
+	Accesses         *types.AccessList `json:"accessList"`
+	ChainID          *hexutil.Big      `json:"chainId"`
 	Descriptor       hexutil.Bytes     `json:"descriptor"`
 	ExtraParams      hexutil.Bytes     `json:"extraParams"`
 	PublicKey        hexutil.Bytes     `json:"publicKey"`
@@ -1023,16 +1010,21 @@ func newRPCTransaction(tx *types.Transaction, blockHash common.Hash, blockNumber
 	signature := tx.RawSignatureValue()
 	descriptor := tx.Descriptor()
 	extraParams := tx.ExtraParams()
+	al := tx.AccessList()
 	result := &RPCTransaction{
 		Type:       hexutil.Uint64(tx.Type()),
 		From:       from,
 		Gas:        hexutil.Uint64(tx.Gas()),
-		GasPrice:   (*hexutil.Big)(tx.GasPrice()),
+		GasPrice:   (*hexutil.Big)(tx.GasFeeCap()),
+		GasFeeCap:  (*hexutil.Big)(tx.GasFeeCap()),
+		GasTipCap:  (*hexutil.Big)(tx.GasTipCap()),
 		Hash:       tx.Hash(),
 		Input:      hexutil.Bytes(tx.Data()),
 		Nonce:      hexutil.Uint64(tx.Nonce()),
 		To:         tx.To(),
 		Value:      (*hexutil.Big)(tx.Value()),
+		Accesses:   &al,
+		ChainID:    (*hexutil.Big)(tx.ChainId()),
 		PublicKey:  hexutil.Bytes(publicKey),
 		Signature:  hexutil.Bytes(signature),
 		Descriptor: hexutil.Bytes(descriptor),
@@ -1045,22 +1037,8 @@ func newRPCTransaction(tx *types.Transaction, blockHash common.Hash, blockNumber
 		result.BlockHash = &blockHash
 		result.BlockNumber = (*hexutil.Big)(new(big.Int).SetUint64(blockNumber))
 		result.TransactionIndex = (*hexutil.Uint64)(&index)
-	}
-
-	switch tx.Type() {
-	case types.DynamicFeeTxType:
-		al := tx.AccessList()
-		result.Accesses = &al
-		result.ChainID = (*hexutil.Big)(tx.ChainId())
-		result.GasFeeCap = (*hexutil.Big)(tx.GasFeeCap())
-		result.GasTipCap = (*hexutil.Big)(tx.GasTipCap())
-		// if the transaction has been mined, compute the effective gas price
-		if baseFee != nil && blockHash != (common.Hash{}) {
-			// price = min(gasTipCap + baseFee, gasFeeCap)
-			result.GasPrice = (*hexutil.Big)(effectiveGasPrice(tx, baseFee))
-		} else {
-			result.GasPrice = (*hexutil.Big)(tx.GasFeeCap())
-		}
+		// The transaction has been mined, so report its effective gas price.
+		result.GasPrice = (*hexutil.Big)(effectiveGasPrice(tx, baseFee))
 	}
 	return result
 }
@@ -1078,16 +1056,8 @@ func effectiveGasPrice(tx *types.Transaction, baseFee *big.Int) *big.Int {
 }
 
 // NewRPCPendingTransaction returns a pending transaction that will serialize to the RPC representation
-func NewRPCPendingTransaction(tx *types.Transaction, current *types.Header, config *params.ChainConfig) *RPCTransaction {
-	var (
-		baseFee     *big.Int
-		blockNumber = uint64(0)
-	)
-	if current != nil {
-		baseFee = eip1559.CalcBaseFee(config, current)
-		blockNumber = current.Number.Uint64()
-	}
-	return newRPCTransaction(tx, common.Hash{}, blockNumber, 0, baseFee, config)
+func NewRPCPendingTransaction(tx *types.Transaction, config *params.ChainConfig) *RPCTransaction {
+	return newRPCTransaction(tx, common.Hash{}, 0, 0, nil, config)
 }
 
 // newRPCTransactionFromBlockIndex returns a transaction that will serialize to the RPC representation.
@@ -1298,7 +1268,7 @@ func (s *TransactionAPI) GetTransactionByHash(ctx context.Context, hash common.H
 	}
 	// No finalized transaction, try to retrieve it from the pool
 	if tx := s.b.GetPoolTransaction(hash); tx != nil {
-		return NewRPCPendingTransaction(tx, s.b.CurrentHeader(), s.b.ChainConfig()), nil
+		return NewRPCPendingTransaction(tx, s.b.ChainConfig()), nil
 	}
 
 	// Transaction unknown, return as such
@@ -1541,12 +1511,11 @@ func (s *TransactionAPI) PendingTransactions() ([]*RPCTransaction, error) {
 			accounts[account.Address] = struct{}{}
 		}
 	}
-	curHeader := s.b.CurrentHeader()
 	transactions := make([]*RPCTransaction, 0, len(pending))
 	for _, tx := range pending {
 		from, _ := types.Sender(s.signer, tx)
 		if _, exists := accounts[from]; exists {
-			transactions = append(transactions, NewRPCPendingTransaction(tx, curHeader, s.b.ChainConfig()))
+			transactions = append(transactions, NewRPCPendingTransaction(tx, s.b.ChainConfig()))
 		}
 	}
 	return transactions, nil

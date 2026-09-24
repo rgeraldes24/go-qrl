@@ -79,10 +79,7 @@ func genValueTx(nbytes int) func(int, *BlockGen) {
 		data := make([]byte, nbytes)
 		gas, _ := IntrinsicGas(data, nil, false)
 		signer := types.MakeSigner(gen.config)
-		baseFee := big.NewInt(0)
-		if gen.header.BaseFee != nil {
-			baseFee = gen.header.BaseFee
-		}
+		baseFee := gen.BaseFee()
 		tx, _ := types.SignNewTx(benchRootWallet, signer, &types.DynamicFeeTx{
 			Nonce:     gen.TxNonce(benchRootAddr),
 			To:        &toaddr,
@@ -118,10 +115,7 @@ func genTxRing(naccounts int) func(int, *BlockGen) {
 	return func(i int, gen *BlockGen) {
 		block := gen.PrevBlock(i - 1)
 		gas := block.GasLimit()
-		baseFee := big.NewInt(0)
-		if gen.header.BaseFee != nil {
-			baseFee = gen.header.BaseFee
-		}
+		baseFee := gen.BaseFee()
 		signer := types.MakeSigner(gen.config)
 		for {
 			gas -= params.TxGas
@@ -229,11 +223,14 @@ func makeChainForBench(db qrldb.Database, full bool, count uint64) {
 	var hash common.Hash
 	for n := range count {
 		header := &types.Header{
-			Coinbase:    common.Address{},
-			Number:      big.NewInt(int64(n)),
-			ParentHash:  hash,
-			TxHash:      types.EmptyTxsHash,
-			ReceiptHash: types.EmptyReceiptsHash,
+			Coinbase:        common.Address{},
+			Number:          big.NewInt(int64(n)),
+			ParentHash:      hash,
+			Root:            types.EmptyRootHash,
+			TxHash:          types.EmptyTxsHash,
+			ReceiptHash:     types.EmptyReceiptsHash,
+			BaseFee:         big.NewInt(params.InitialBaseFee),
+			WithdrawalsHash: &types.EmptyWithdrawalsHash,
 		}
 		hash = header.Hash()
 

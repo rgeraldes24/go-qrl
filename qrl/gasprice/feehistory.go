@@ -83,9 +83,7 @@ func (oracle *Oracle) processBlock(bf *blockFees, percentiles []float64) {
 	chainconfig := oracle.backend.ChainConfig()
 
 	// Fill in base fee and next base fee.
-	if bf.results.baseFee = bf.header.BaseFee; bf.results.baseFee == nil {
-		bf.results.baseFee = new(big.Int)
-	}
+	bf.results.baseFee = bf.header.BaseFee
 	bf.results.nextBaseFee = eip1559.CalcBaseFee(chainconfig, bf.header)
 	// Compute gas used ratio.
 	bf.results.gasUsedRatio = float64(bf.header.GasUsed) / float64(bf.header.GasLimit)

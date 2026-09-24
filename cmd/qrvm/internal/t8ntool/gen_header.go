@@ -30,8 +30,8 @@ func (h header) MarshalJSON() ([]byte, error) {
 		Time            math.HexOrDecimal64   `json:"timestamp"        gencodec:"required"`
 		Extra           hexutil.Bytes         `json:"extraData"`
 		Random          common.Hash           `json:"prevRandao"`
-		BaseFee         *math.HexOrDecimal256 `json:"baseFeePerGas" rlp:"optional"`
-		WithdrawalsHash *common.Hash          `json:"withdrawalsRoot" rlp:"optional"`
+		BaseFee         *math.HexOrDecimal256 `json:"baseFeePerGas"    gencodec:"required"`
+		WithdrawalsHash *common.Hash          `json:"withdrawalsRoot"  gencodec:"required"`
 	}
 	var enc header
 	enc.ParentHash = h.ParentHash
@@ -66,8 +66,8 @@ func (h *header) UnmarshalJSON(input []byte) error {
 		Time            *math.HexOrDecimal64  `json:"timestamp"        gencodec:"required"`
 		Extra           *hexutil.Bytes        `json:"extraData"`
 		Random          *common.Hash          `json:"prevRandao"`
-		BaseFee         *math.HexOrDecimal256 `json:"baseFeePerGas" rlp:"optional"`
-		WithdrawalsHash *common.Hash          `json:"withdrawalsRoot" rlp:"optional"`
+		BaseFee         *math.HexOrDecimal256 `json:"baseFeePerGas"    gencodec:"required"`
+		WithdrawalsHash *common.Hash          `json:"withdrawalsRoot"  gencodec:"required"`
 	}
 	var dec header
 	if err := json.Unmarshal(input, &dec); err != nil {
@@ -113,11 +113,13 @@ func (h *header) UnmarshalJSON(input []byte) error {
 	if dec.Random != nil {
 		h.Random = *dec.Random
 	}
-	if dec.BaseFee != nil {
-		h.BaseFee = (*big.Int)(dec.BaseFee)
+	if dec.BaseFee == nil {
+		return errors.New("missing required field 'baseFeePerGas' for header")
 	}
-	if dec.WithdrawalsHash != nil {
-		h.WithdrawalsHash = dec.WithdrawalsHash
+	h.BaseFee = (*big.Int)(dec.BaseFee)
+	if dec.WithdrawalsHash == nil {
+		return errors.New("missing required field 'withdrawalsRoot' for header")
 	}
+	h.WithdrawalsHash = dec.WithdrawalsHash
 	return nil
 }

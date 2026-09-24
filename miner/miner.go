@@ -108,8 +108,8 @@ func (miner *Miner) SetExtra(extra []byte) error {
 	return nil
 }
 
-// SetGasCeil sets the gaslimit to strive for when mining blocks post 1559.
-// For pre-1559 blocks, it sets the ceiling.
+// SetGasCeil sets the configured gas ceiling. Block building currently ignores
+// it and always uses params.MaxGasLimit.
 func (miner *Miner) SetGasCeil(ceil uint64) {
 	miner.confMu.Lock()
 	miner.config.GasCeil = ceil

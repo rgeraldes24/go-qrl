@@ -249,11 +249,6 @@ func (t *StateTest) RunNoVerify(subtest StateSubtest, vmconfig vm.Config, snapsh
 	context := core.NewQRVMBlockContext(block.Header(), nil, &t.json.Env.Coinbase)
 	context.GetHash = vmTestBlockHash
 	context.BaseFee = baseFee
-	context.Random = nil
-	if t.json.Env.Random != nil {
-		rnd := common.BigToHash(t.json.Env.Random)
-		context.Random = &rnd
-	}
 	qrvm := vm.NewQRVM(context, txContext, statedb, config, vmconfig)
 
 	// Execute the message.
@@ -321,7 +316,6 @@ func (t *StateTest) genesis(config *params.ChainConfig) *core.Genesis {
 		Alloc:     t.json.Pre,
 	}
 	if t.json.Env.Random != nil {
-		// Post-Merge
 		genesis.Mixhash = common.BigToHash(t.json.Env.Random)
 	}
 	return genesis
