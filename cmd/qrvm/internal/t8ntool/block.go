@@ -44,8 +44,8 @@ type header struct {
 	Time            uint64          `json:"timestamp"        gencodec:"required"`
 	Extra           []byte          `json:"extraData"`
 	Random          common.Hash     `json:"prevRandao"`
-	BaseFee         *big.Int        `json:"baseFeePerGas" rlp:"optional"`
-	WithdrawalsHash *common.Hash    `json:"withdrawalsRoot" rlp:"optional"`
+	BaseFee         *big.Int        `json:"baseFeePerGas"    gencodec:"required"`
+	WithdrawalsHash *common.Hash    `json:"withdrawalsRoot"  gencodec:"required"`
 }
 
 type headerMarshaling struct {
@@ -118,7 +118,7 @@ func readInput(ctx *cli.Context) (*bbInput, error) {
 		txsStr         = ctx.String(InputTxsRlpFlag.Name)
 		inputData      = &bbInput{}
 	)
-	if headerStr == stdinSelector || txsStr == stdinSelector {
+	if headerStr == stdinSelector || withdrawalsStr == stdinSelector || txsStr == stdinSelector {
 		decoder := json.NewDecoder(os.Stdin)
 		if err := decoder.Decode(inputData); err != nil {
 			return nil, NewError(ErrorJson, fmt.Errorf("failed unmarshaling stdin: %v", err))

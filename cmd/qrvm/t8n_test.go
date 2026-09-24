@@ -163,7 +163,7 @@ func TestT8n(t *testing.T) {
 			expOut:               "exp.json",
 			ignoreSignedTxHashes: true,
 		},
-		{ // Post-merge/Zond env must include currentRandom
+		{ // Exit 3 on missing currentRandom
 			base: "./testdata/24",
 			input: t8nInput{
 				"alloc.json", "txs.json", "env-missingrandom.json", "Zond",

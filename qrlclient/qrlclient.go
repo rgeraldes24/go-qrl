@@ -121,7 +121,7 @@ func (qc *Client) BlockReceipts(ctx context.Context, blockNrOrHash rpc.BlockNumb
 type rpcBlock struct {
 	Hash         common.Hash         `json:"hash"`
 	Transactions []rpcTransaction    `json:"transactions"`
-	Withdrawals  []*types.Withdrawal `json:"withdrawals,omitempty"`
+	Withdrawals  []*types.Withdrawal `json:"withdrawals"`
 }
 
 func (qc *Client) getBlock(ctx context.Context, method string, args ...any) (*types.Block, error) {
@@ -145,12 +145,18 @@ func (qc *Client) getBlock(ctx context.Context, method string, args ...any) (*ty
 	if err := json.Unmarshal(raw, &body); err != nil {
 		return nil, err
 	}
-	// Quick-verify transaction list. This mostly helps with debugging the server.
+	// Quick-verify transaction and withdrawal lists. This mostly helps with debugging the server.
 	if head.TxHash == types.EmptyTxsHash && len(body.Transactions) > 0 {
 		return nil, errors.New("server returned non-empty transaction list but block header indicates no transactions")
 	}
 	if head.TxHash != types.EmptyTxsHash && len(body.Transactions) == 0 {
 		return nil, errors.New("server returned empty transaction list but block header indicates transactions")
+	}
+	if *head.WithdrawalsHash == types.EmptyWithdrawalsHash && len(body.Withdrawals) > 0 {
+		return nil, errors.New("server returned non-empty withdrawals list but block header indicates no withdrawals")
+	}
+	if *head.WithdrawalsHash != types.EmptyWithdrawalsHash && len(body.Withdrawals) == 0 {
+		return nil, errors.New("server returned empty withdrawals list but block header indicates withdrawals")
 	}
 	// Fill the sender cache of transactions in the block.
 	txs := make([]*types.Transaction, len(body.Transactions))

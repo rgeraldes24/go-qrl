@@ -226,12 +226,9 @@ func (st *StateTransition) to() common.Address {
 func (st *StateTransition) buyGas() error {
 	mgval := new(big.Int).SetUint64(st.msg.GasLimit)
 	mgval = mgval.Mul(mgval, st.msg.GasPrice)
-	balanceCheck := new(big.Int).Set(mgval)
-	if st.msg.GasFeeCap != nil {
-		balanceCheck.SetUint64(st.msg.GasLimit)
-		balanceCheck = balanceCheck.Mul(balanceCheck, st.msg.GasFeeCap)
-		balanceCheck.Add(balanceCheck, st.msg.Value)
-	}
+	balanceCheck := new(big.Int).SetUint64(st.msg.GasLimit)
+	balanceCheck = balanceCheck.Mul(balanceCheck, st.msg.GasFeeCap)
+	balanceCheck.Add(balanceCheck, st.msg.Value)
 	if have, want := st.state.GetBalance(st.msg.From), balanceCheck; have.Cmp(want) < 0 {
 		return fmt.Errorf("%w: address %v have %v want %v", ErrInsufficientFunds, st.msg.From.Hex(), have, want)
 	}
@@ -269,7 +266,7 @@ func (st *StateTransition) preCheck() error {
 		}
 	}
 
-	// Make sure that transaction gasFeeCap is greater than the baseFee (post london)
+	// Make sure that transaction gasFeeCap is greater than the baseFee
 	// Skip the checks if gas fields are zero and baseFee was explicitly disabled (eth_call)
 	if !st.qrvm.Config.NoBaseFee || msg.GasFeeCap.BitLen() > 0 || msg.GasTipCap.BitLen() > 0 {
 		if l := msg.GasFeeCap.BitLen(); l > 256 {

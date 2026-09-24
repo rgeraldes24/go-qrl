@@ -131,10 +131,7 @@ func roundTripBlockEncoding(t *testing.T, makeTx func(Signer, wallet.Wallet) *Tr
 		WithdrawalsHash: &EmptyWithdrawalsHash,
 	}
 
-	// Pass an empty Withdrawals slice (not nil) so NewBlock keeps
-	// header.WithdrawalsHash populated — the reflection-based Header decoder
-	// requires the field, otherwise it fails with "too few elements".
-	block := NewBlock(header, &Body{Transactions: Transactions{tx}, Withdrawals: Withdrawals{}}, nil, blocktest.NewHasher())
+	block := NewBlock(header, &Body{Transactions: Transactions{tx}}, nil, blocktest.NewHasher())
 
 	enc, err := rlp.EncodeToBytes(block)
 	if err != nil {
@@ -335,8 +332,24 @@ func TestMaxBlockSize(t *testing.T) {
 	}
 	// Block layout widened for 64-byte addresses (Coinbase, tx To fields,
 	// bloom topic words). Re-run the test and print if that ever changes again.
-	const expectedBlockSize = uint64(6967855)
+	const expectedBlockSize = uint64(6967889)
 	if blockSize != expectedBlockSize {
 		t.Errorf("block size mismatch: got %d, want %d", blockSize, expectedBlockSize)
+	}
+}
+
+// Tests that a body must carry the withdrawals list, and that a missing
+// list becomes an empty one.
+func TestBodyRequiresWithdrawals(t *testing.T) {
+	txsOnly, err := rlp.EncodeToBytes([]any{[]any{}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := rlp.DecodeBytes(txsOnly, new(Body)); err == nil {
+		t.Fatal("decoded a body without a withdrawals list")
+	}
+	block := NewBlockWithHeader(&Header{}).WithBody(Body{})
+	if block.Withdrawals() == nil {
+		t.Fatal("WithBody left the withdrawals list nil")
 	}
 }

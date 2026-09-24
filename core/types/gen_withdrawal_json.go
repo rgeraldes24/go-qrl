@@ -4,6 +4,7 @@ package types
 
 import (
 	"encoding/json"
+	"errors"
 
 	"github.com/theQRL/go-qrl/common"
 	"github.com/theQRL/go-qrl/common/hexutil"
@@ -14,10 +15,10 @@ var _ = (*withdrawalMarshaling)(nil)
 // MarshalJSON marshals as JSON.
 func (w Withdrawal) MarshalJSON() ([]byte, error) {
 	type Withdrawal struct {
-		Index     hexutil.Uint64 `json:"index"`
-		Validator hexutil.Uint64 `json:"validatorIndex"`
-		Address   common.Address `json:"address"`
-		Amount    hexutil.Uint64 `json:"amount"`
+		Index     hexutil.Uint64 `json:"index"          gencodec:"required"`
+		Validator hexutil.Uint64 `json:"validatorIndex" gencodec:"required"`
+		Address   common.Address `json:"address"        gencodec:"required"`
+		Amount    hexutil.Uint64 `json:"amount"         gencodec:"required"`
 	}
 	var enc Withdrawal
 	enc.Index = hexutil.Uint64(w.Index)
@@ -30,26 +31,30 @@ func (w Withdrawal) MarshalJSON() ([]byte, error) {
 // UnmarshalJSON unmarshals from JSON.
 func (w *Withdrawal) UnmarshalJSON(input []byte) error {
 	type Withdrawal struct {
-		Index     *hexutil.Uint64 `json:"index"`
-		Validator *hexutil.Uint64 `json:"validatorIndex"`
-		Address   *common.Address `json:"address"`
-		Amount    *hexutil.Uint64 `json:"amount"`
+		Index     *hexutil.Uint64 `json:"index"          gencodec:"required"`
+		Validator *hexutil.Uint64 `json:"validatorIndex" gencodec:"required"`
+		Address   *common.Address `json:"address"        gencodec:"required"`
+		Amount    *hexutil.Uint64 `json:"amount"         gencodec:"required"`
 	}
 	var dec Withdrawal
 	if err := json.Unmarshal(input, &dec); err != nil {
 		return err
 	}
-	if dec.Index != nil {
-		w.Index = uint64(*dec.Index)
+	if dec.Index == nil {
+		return errors.New("missing required field 'index' for Withdrawal")
 	}
-	if dec.Validator != nil {
-		w.Validator = uint64(*dec.Validator)
+	w.Index = uint64(*dec.Index)
+	if dec.Validator == nil {
+		return errors.New("missing required field 'validatorIndex' for Withdrawal")
 	}
-	if dec.Address != nil {
-		w.Address = *dec.Address
+	w.Validator = uint64(*dec.Validator)
+	if dec.Address == nil {
+		return errors.New("missing required field 'address' for Withdrawal")
 	}
-	if dec.Amount != nil {
-		w.Amount = uint64(*dec.Amount)
+	w.Address = *dec.Address
+	if dec.Amount == nil {
+		return errors.New("missing required field 'amount' for Withdrawal")
 	}
+	w.Amount = uint64(*dec.Amount)
 	return nil
 }

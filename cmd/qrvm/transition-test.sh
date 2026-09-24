@@ -100,22 +100,28 @@ type Env struct {
     CurrentGasLimit  uint64              `json:"currentGasLimit"`
     CurrentNumber    uint64              `json:"currentNumber"`
     CurrentTimestamp uint64              `json:"currentTimestamp"`
+    CurrentRandom    *big.Int            `json:"currentRandom"`
     Withdrawals      []*Withdrawal       `json:"withdrawals"`
     // optional
-    CurrentRandom     *big.Int           `json:"currentRandom"`
     CurrentBaseFee    *big.Int           `json:"currentBaseFee"`
+    ParentBaseFee     *big.Int           `json:"parentBaseFee"`
     ParentGasUsed     uint64             `json:"parentGasUsed"`
     ParentGasLimit    uint64             `json:"parentGasLimit"`
-    ParentTimestamp   uint64             `json:"parentTimestamp"`
     BlockHashes       map[uint64]common.Hash `json:"blockHashes"`
 }
 type Withdrawal struct {
-    Index          uint64         `json:"index"`
-    ValidatorIndex uint64         `json:"validatorIndex"`
-    Recipient      common.Address `json:"recipient"`
-    Amount         *big.Int       `json:"amount"`
+    // required
+    Index          hexutil.Uint64 `json:"index"`
+    ValidatorIndex hexutil.Uint64 `json:"validatorIndex"`
+    Address        common.Address `json:"address"`
+    Amount         hexutil.Uint64 `json:"amount"` // in Shor
 }
 ```
+
+Either `currentBaseFee` or `parentBaseFee` must be set. Without `currentBaseFee`,
+`t8n` derives the base fee from `parentBaseFee`, `parentGasUsed` and
+`parentGasLimit`. That needs `currentNumber` above 0 and, when `parentGasUsed` is
+non-zero, a `parentGasLimit` of at least 2.
 
 ##### `txs`
 
@@ -152,15 +158,16 @@ information about the post-transition environment.
 
 ```go
 type ExecutionResult struct {
-    StateRoot   common.Hash    `json:"stateRoot"`
-    TxRoot      common.Hash    `json:"txRoot"`
-    ReceiptRoot common.Hash    `json:"receiptsRoot"`
-    LogsHash    common.Hash    `json:"logsHash"`
-    Bloom       types.Bloom    `json:"logsBloom"`
-    Receipts    types.Receipts `json:"receipts"`
-    Rejected    []*rejectedTx  `json:"rejected,omitempty"`
-    GasUsed     uint64         `json:"gasUsed"`
-    BaseFee     *big.Int       `json:"currentBaseFee,omitempty"`
+    StateRoot       common.Hash    `json:"stateRoot"`
+    TxRoot          common.Hash    `json:"txRoot"`
+    ReceiptRoot     common.Hash    `json:"receiptsRoot"`
+    LogsHash        common.Hash    `json:"logsHash"`
+    Bloom           types.Bloom    `json:"logsBloom"`
+    Receipts        types.Receipts `json:"receipts"`
+    Rejected        []*rejectedTx  `json:"rejected,omitempty"`
+    GasUsed         uint64         `json:"gasUsed"`
+    BaseFee         *big.Int       `json:"currentBaseFee"`
+    WithdrawalsRoot *common.Hash   `json:"withdrawalsRoot"`
 }
 ```
 
@@ -337,9 +344,10 @@ Command line params that need to be supported are:
 
 ```
     --input.header value        `stdin` or file name of where to find the block header to use. (default: "header.json")
+    --input.withdrawals value   `stdin` or file name of where to find the list of withdrawals to use.
     --input.txs value           `stdin` or file name of where to find the transactions list in RLP form. (default: "txs.rlp")
     --output.basedir value      Specifies where output files are placed. Will be created if it does not exist.
-    --output.block value        Determines where to put the alloc of the post-state. (default: "block.json")
+    --output.block value        Determines where to put the `block` after building. (default: "block.json")
                                 <file> - into the file <file>
                                 `stdout` - into the stdout output
                                 `stderr` - into the stderr output
@@ -366,8 +374,8 @@ type Header struct {
         Time            uint64          `json:"timestamp"        gencodec:"required"`
         Extra           []byte          `json:"extraData"`
         Random          common.Hash     `json:"prevRandao"`
-        BaseFee         *big.Int        `json:"baseFeePerGas"`
-        WithdrawalsHash *common.Hash    `json:"withdrawalsRoot"`
+        BaseFee         *big.Int        `json:"baseFeePerGas"    gencodec:"required"`
+        WithdrawalsHash *common.Hash    `json:"withdrawalsRoot"  gencodec:"required"`
 }
 ```
 #### `txs`
