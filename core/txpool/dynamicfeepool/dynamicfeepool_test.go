@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with the go-ethereum library. If not, see <http://www.gnu.org/licenses/>.
 
-package legacypool
+package dynamicfeepool
 
 import (
 	crand "crypto/rand"
@@ -99,7 +99,7 @@ func transaction(nonce uint64, gaslimit uint64, wallet wallet.Wallet) *types.Tra
 }
 
 func dynamicFeeTx(nonce uint64, gaslimit uint64, gasFee *big.Int, tip *big.Int, wallet wallet.Wallet) *types.Transaction {
-	tx, _ := types.SignNewTx(wallet, types.LatestSignerForChainID(params.TestChainConfig.ChainID), &types.DynamicFeeTx{
+	tx, _ := types.SignNewTx(wallet, types.NewZondSigner(params.TestChainConfig.ChainID), &types.DynamicFeeTx{
 		ChainID:    params.TestChainConfig.ChainID,
 		Nonce:      nonce,
 		GasTipCap:  tip,
@@ -156,11 +156,11 @@ func makeAddressReserver() txpool.AddressReserver {
 	}
 }
 
-func setupPool() (*LegacyPool, wallet.Wallet) {
+func setupPool() (*DynamicFeePool, wallet.Wallet) {
 	return setupPoolWithConfig(params.TestChainConfig)
 }
 
-func setupPoolWithConfig(config *params.ChainConfig) (*LegacyPool, wallet.Wallet) {
+func setupPoolWithConfig(config *params.ChainConfig) (*DynamicFeePool, wallet.Wallet) {
 	statedb, _ := state.New(types.EmptyRootHash, state.NewDatabase(rawdb.NewMemoryDatabase()), nil)
 	blockchain := newTestBlockChain(config, 10000000, statedb, new(event.Feed))
 
@@ -175,7 +175,7 @@ func setupPoolWithConfig(config *params.ChainConfig) (*LegacyPool, wallet.Wallet
 }
 
 // validatePoolInternals checks various consistency invariants within the pool.
-func validatePoolInternals(pool *LegacyPool) error {
+func validatePoolInternals(pool *DynamicFeePool) error {
 	pool.mu.RLock()
 	defer pool.mu.RUnlock()
 
@@ -317,7 +317,7 @@ func TestRejectNonEmptyExtraParams(t *testing.T) {
 	testAddBalance(pool, addr, big.NewInt(1000000))
 
 	tx := dynamicFeeTx(0, 100000, big.NewInt(1), big.NewInt(1), wallet)
-	signer := types.LatestSignerForChainID(params.TestChainConfig.ChainID)
+	signer := types.NewZondSigner(params.TestChainConfig.ChainID)
 	tampered, err := tx.WithAuthValues(signer, tx.RawSignatureValue(), tx.RawPublicKeyValue(), tx.Descriptor(), []byte{0x01})
 	if err != nil {
 		t.Fatalf("re-wrap with extra params: %v", err)
@@ -332,13 +332,13 @@ func TestRejectNonEmptyExtraParams(t *testing.T) {
 	}
 }
 
-func testAddBalance(pool *LegacyPool, addr common.Address, amount *big.Int) {
+func testAddBalance(pool *DynamicFeePool, addr common.Address, amount *big.Int) {
 	pool.mu.Lock()
 	pool.currentState.AddBalance(addr, amount)
 	pool.mu.Unlock()
 }
 
-func testSetNonce(pool *LegacyPool, addr common.Address, nonce uint64) {
+func testSetNonce(pool *DynamicFeePool, addr common.Address, nonce uint64) {
 	pool.mu.Lock()
 	pool.currentState.SetNonce(addr, nonce)
 	pool.mu.Unlock()

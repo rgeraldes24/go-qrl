@@ -200,19 +200,19 @@ func WriteHeadBlockHash(db qrldb.KeyValueWriter, hash common.Hash) {
 	}
 }
 
-// ReadHeadFastBlockHash retrieves the hash of the current fast-sync head block.
-func ReadHeadFastBlockHash(db qrldb.KeyValueReader) common.Hash {
-	data, _ := db.Get(headFastBlockKey)
+// ReadHeadSnapBlockHash retrieves the hash of the current snap-sync head block.
+func ReadHeadSnapBlockHash(db qrldb.KeyValueReader) common.Hash {
+	data, _ := db.Get(headSnapBlockKey)
 	if len(data) == 0 {
 		return common.Hash{}
 	}
 	return common.BytesToHash(data)
 }
 
-// WriteHeadFastBlockHash stores the hash of the current fast-sync head block.
-func WriteHeadFastBlockHash(db qrldb.KeyValueWriter, hash common.Hash) {
-	if err := db.Put(headFastBlockKey, hash.Bytes()); err != nil {
-		log.Crit("Failed to store last fast block's hash", "err", err)
+// WriteHeadSnapBlockHash stores the hash of the current snap-sync head block.
+func WriteHeadSnapBlockHash(db qrldb.KeyValueWriter, hash common.Hash) {
+	if err := db.Put(headSnapBlockKey, hash.Bytes()); err != nil {
+		log.Crit("Failed to store last snap block's hash", "err", err)
 	}
 }
 

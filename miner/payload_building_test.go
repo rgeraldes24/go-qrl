@@ -29,7 +29,7 @@ import (
 	"github.com/theQRL/go-qrl/core"
 	"github.com/theQRL/go-qrl/core/rawdb"
 	"github.com/theQRL/go-qrl/core/txpool"
-	"github.com/theQRL/go-qrl/core/txpool/legacypool"
+	"github.com/theQRL/go-qrl/core/txpool/dynamicfeepool"
 	"github.com/theQRL/go-qrl/core/types"
 	"github.com/theQRL/go-qrl/core/vm"
 	"github.com/theQRL/go-qrl/crypto/pqcrypto/wallet"
@@ -39,7 +39,7 @@ import (
 
 var (
 	// Test chain configurations
-	testTxPoolConfig  legacypool.Config
+	testTxPoolConfig  dynamicfeepool.Config
 	beaconChainConfig *params.ChainConfig
 
 	// Test accounts
@@ -61,12 +61,12 @@ var (
 )
 
 func init() {
-	testTxPoolConfig = legacypool.DefaultConfig
+	testTxPoolConfig = dynamicfeepool.DefaultConfig
 	testTxPoolConfig.Journal = ""
 	beaconChainConfig = new(params.ChainConfig)
 	*beaconChainConfig = *params.TestChainConfig
 
-	signer := types.LatestSigner(params.TestChainConfig)
+	signer := types.NewZondSigner(params.TestChainConfig.ChainID)
 	tx1 := types.MustSignNewTx(testBankWallet, signer, &types.DynamicFeeTx{
 		ChainID:   params.TestChainConfig.ChainID,
 		Nonce:     0,
@@ -109,7 +109,7 @@ func newTestWorkerBackend(t *testing.T, chainConfig *params.ChainConfig, engine 
 	if err != nil {
 		t.Fatalf("core.NewBlockChain failed: %v", err)
 	}
-	pool := legacypool.New(testTxPoolConfig, chain)
+	pool := dynamicfeepool.New(testTxPoolConfig, chain)
 	txpool, _ := txpool.New(new(big.Int).SetUint64(testTxPoolConfig.PriceLimit), chain, []txpool.SubPool{pool})
 
 	return &testWorkerBackend{

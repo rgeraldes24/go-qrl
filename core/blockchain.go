@@ -53,7 +53,7 @@ import (
 var (
 	headBlockGauge          = metrics.NewRegisteredGauge("chain/head/block", nil)
 	headHeaderGauge         = metrics.NewRegisteredGauge("chain/head/header", nil)
-	headFastBlockGauge      = metrics.NewRegisteredGauge("chain/head/receipt", nil)
+	headSnapBlockGauge      = metrics.NewRegisteredGauge("chain/head/receipt", nil)
 	headFinalizedBlockGauge = metrics.NewRegisteredGauge("chain/head/finalized", nil)
 	headSafeBlockGauge      = metrics.NewRegisteredGauge("chain/head/safe", nil)
 
@@ -376,7 +376,7 @@ func NewBlockChain(db qrldb.Database, cacheConfig *CacheConfig, genesis *Genesis
 			low = fullBlock.Number.Uint64()
 		}
 		// In snap sync, it may happen that ancient data has been written to the
-		// ancient store, but the LastFastBlock has not been updated, truncate the
+		// ancient store, but the snap head has not been updated, truncate the
 		// extra data here.
 		snapBlock := bc.CurrentSnapBlock()
 		if snapBlock != nil && snapBlock.Number.Uint64() < frozen-1 {
@@ -392,9 +392,8 @@ func NewBlockChain(db qrldb.Database, cacheConfig *CacheConfig, genesis *Genesis
 			}
 		}
 	}
-	// The first thing the node will do is reconstruct the verification data for
-	// the head block (ethash cache or clique voting snapshot). Might as well do
-	// it in advance.
+	// Verify the head header up front so any engine-side state is warmed
+	// before the node starts serving.
 	bc.engine.VerifyHeader(bc, bc.CurrentHeader())
 
 	// Load any existing snapshot, regenerating it if loading failed
@@ -445,7 +444,7 @@ func NewBlockChain(db qrldb.Database, cacheConfig *CacheConfig, genesis *Genesis
 // into node seamlessly.
 func (bc *BlockChain) empty() bool {
 	genesis := bc.genesisBlock.Hash()
-	for _, hash := range []common.Hash{rawdb.ReadHeadBlockHash(bc.db), rawdb.ReadHeadHeaderHash(bc.db), rawdb.ReadHeadFastBlockHash(bc.db)} {
+	for _, hash := range []common.Hash{rawdb.ReadHeadBlockHash(bc.db), rawdb.ReadHeadHeaderHash(bc.db), rawdb.ReadHeadSnapBlockHash(bc.db)} {
 		if hash != genesis {
 			return false
 		}
@@ -485,12 +484,12 @@ func (bc *BlockChain) loadLastState() error {
 
 	// Restore the last known head snap block
 	bc.currentSnapBlock.Store(headBlock.Header())
-	headFastBlockGauge.Update(int64(headBlock.NumberU64()))
+	headSnapBlockGauge.Update(int64(headBlock.NumberU64()))
 
-	if head := rawdb.ReadHeadFastBlockHash(bc.db); head != (common.Hash{}) {
+	if head := rawdb.ReadHeadSnapBlockHash(bc.db); head != (common.Hash{}) {
 		if block := bc.GetBlockByHash(head); block != nil {
 			bc.currentSnapBlock.Store(block.Header())
-			headFastBlockGauge.Update(int64(block.NumberU64()))
+			headSnapBlockGauge.Update(int64(block.NumberU64()))
 		}
 	}
 
@@ -708,14 +707,14 @@ func (bc *BlockChain) setHeadBeyondRoot(head uint64, time uint64, root common.Ha
 			if newHeadSnapBlock == nil {
 				newHeadSnapBlock = bc.genesisBlock
 			}
-			rawdb.WriteHeadFastBlockHash(db, newHeadSnapBlock.Hash())
+			rawdb.WriteHeadSnapBlockHash(db, newHeadSnapBlock.Hash())
 
 			// Degrade the chain markers if they are explicitly reverted.
 			// In theory we should update all in-memory markers in the
 			// last step, however the direction of SetHead is from high
 			// to low, so it's safe the update in-memory markers directly.
 			bc.currentSnapBlock.Store(newHeadSnapBlock.Header())
-			headFastBlockGauge.Update(int64(newHeadSnapBlock.NumberU64()))
+			headSnapBlockGauge.Update(int64(newHeadSnapBlock.NumberU64()))
 		}
 		var (
 			headHeader = bc.CurrentBlock()
@@ -732,7 +731,6 @@ func (bc *BlockChain) setHeadBeyondRoot(head uint64, time uint64, root common.Ha
 	}
 	// Rewind the header chain, deleting all block bodies until then
 	delFn := func(db qrldb.KeyValueWriter, hash common.Hash, num uint64) {
-		// Ignore the error here since light client won't hit this path
 		frozen, _ := bc.db.Ancients()
 		if num+1 <= frozen {
 			// Truncate all relative data(header, body, receipt
@@ -853,7 +851,7 @@ func (bc *BlockChain) ResetWithGenesisBlock(genesis *types.Block) error {
 	bc.hc.SetGenesis(bc.genesisBlock.Header())
 	bc.hc.SetCurrentHeader(bc.genesisBlock.Header())
 	bc.currentSnapBlock.Store(bc.genesisBlock.Header())
-	headFastBlockGauge.Update(int64(bc.genesisBlock.NumberU64()))
+	headSnapBlockGauge.Update(int64(bc.genesisBlock.NumberU64()))
 	return nil
 }
 
@@ -904,7 +902,7 @@ func (bc *BlockChain) writeHeadBlock(block *types.Block) {
 	// Add the block to the canonical chain number scheme and mark as the head
 	batch := bc.db.NewBatch()
 	rawdb.WriteHeadHeaderHash(batch, block.Hash())
-	rawdb.WriteHeadFastBlockHash(batch, block.Hash())
+	rawdb.WriteHeadSnapBlockHash(batch, block.Hash())
 	rawdb.WriteCanonicalHash(batch, block.Hash(), block.NumberU64())
 	rawdb.WriteTxLookupEntriesByBlock(batch, block)
 	rawdb.WriteHeadBlockHash(batch, block.Hash())
@@ -917,7 +915,7 @@ func (bc *BlockChain) writeHeadBlock(block *types.Block) {
 	bc.hc.SetCurrentHeader(block.Header())
 
 	bc.currentSnapBlock.Store(block.Header())
-	headFastBlockGauge.Update(int64(block.NumberU64()))
+	headSnapBlockGauge.Update(int64(block.NumberU64()))
 
 	bc.currentBlock.Store(block.Header())
 	headBlockGauge.Update(int64(block.NumberU64()))
@@ -1077,9 +1075,9 @@ func (bc *BlockChain) InsertReceiptChain(blockChain types.Blocks, receiptChain [
 
 		// Rewind may have occurred, skip in that case.
 		if bc.CurrentHeader().Number.Cmp(head.Number()) >= 0 {
-			rawdb.WriteHeadFastBlockHash(bc.db, head.Hash())
+			rawdb.WriteHeadSnapBlockHash(bc.db, head.Hash())
 			bc.currentSnapBlock.Store(head.Header())
-			headFastBlockGauge.Update(int64(head.NumberU64()))
+			headSnapBlockGauge.Update(int64(head.NumberU64()))
 			return true
 		}
 		return false
@@ -1478,7 +1476,7 @@ func (bc *BlockChain) insertChain(chain types.Blocks, setHead bool) (int, error)
 	}
 
 	// Start a parallel signature recovery (signer will fluke on fork transition, minimal perf loss)
-	SenderCacher.RecoverFromBlocks(types.MakeSigner(bc.chainConfig), chain)
+	SenderCacher.RecoverFromBlocks(types.NewZondSigner(bc.chainConfig.ChainID), chain)
 
 	var (
 		stats     = insertStats{startTime: mclock.Now()}
@@ -1528,8 +1526,8 @@ func (bc *BlockChain) insertChain(chain types.Blocks, setHead bool) (int, error)
 		// and leaves a few known blocks in the database.
 		//
 		// When node runs a snap sync again, it can re-import a batch of known blocks via
-		// `insertChain` while a part of them have higher total difficulty than current
-		// head full block(new pivot point).
+		// `insertChain` while a part of them are above the current head full block
+		// (new pivot point).
 		for block != nil && bc.skipBlock(err, it) {
 			log.Debug("Writing previously known block", "number", block.Number(), "hash", block.Hash())
 			if err := bc.writeKnownBlock(block); err != nil {
@@ -1578,7 +1576,7 @@ func (bc *BlockChain) insertChain(chain types.Blocks, setHead bool) (int, error)
 			break
 		}
 		// If the block is known (in the middle of the chain), it's a special case for
-		// Clique blocks where they can share state among each other, so importing an
+		// empty blocks which share state with their parent, so importing an
 		// older block might complete the state of the subsequent one. In this case,
 		// just skip the block (we already validated it once fully (and crashed), since
 		// its header and body was already in the database). But if the corresponding
@@ -1590,9 +1588,9 @@ func (bc *BlockChain) insertChain(chain types.Blocks, setHead bool) (int, error)
 				"root", block.Root())
 
 			// Special case. Commit the empty receipt slice if we meet the known
-			// block in the middle. It can only happen in the clique chain. Whenever
-			// we insert blocks via `insertSideChain`, we only commit `td`, `header`
-			// and `body` if it's non-existent. Since we don't have receipts without
+			// block in the middle. This can only happen for blocks without any
+			// transactions. Whenever we insert blocks via `insertSideChain`, we only
+			// commit `header` and `body` if it's non-existent. Since we don't have receipts without
 			// reexecution, so nothing to commit. But if the sidechain will be adopted
 			// as the canonical chain eventually, it needs to be reexecuted for missing
 			// state, but if it's this special case here(skip reexecution) we will lose
@@ -1609,7 +1607,7 @@ func (bc *BlockChain) insertChain(chain types.Blocks, setHead bool) (int, error)
 			stats.processed++
 
 			// We can assume that logs are empty here, since the only way for consecutive
-			// Clique blocks to have the same state is if there are no transactions.
+			// blocks to have the same state is if there are no transactions.
 			lastCanon = block
 			continue
 		}

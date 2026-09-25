@@ -51,9 +51,11 @@ type Genesis struct {
 	Timestamp uint64              `json:"timestamp"`
 	ExtraData []byte              `json:"extraData"`
 	GasLimit  uint64              `json:"gasLimit"   gencodec:"required"`
-	Mixhash   common.Hash         `json:"mixHash"`
-	Coinbase  common.Address      `json:"coinbase"`
-	Alloc     GenesisAlloc        `json:"alloc"      gencodec:"required"`
+	// Mixhash is the header prevRandao value. The field and JSON key keep the
+	// pre-merge name so existing genesis files stay valid.
+	Mixhash  common.Hash    `json:"mixHash"`
+	Coinbase common.Address `json:"coinbase"`
+	Alloc    GenesisAlloc   `json:"alloc"      gencodec:"required"`
 
 	// These fields are used for consensus tests. Please don't use them
 	// in actual genesis blocks.
@@ -482,7 +484,7 @@ func (g *Genesis) Commit(db qrldb.Database, triedb *trie.Database) (*types.Block
 	rawdb.WriteReceipts(db, block.Hash(), block.NumberU64(), nil)
 	rawdb.WriteCanonicalHash(db, block.Hash(), block.NumberU64())
 	rawdb.WriteHeadBlockHash(db, block.Hash())
-	rawdb.WriteHeadFastBlockHash(db, block.Hash())
+	rawdb.WriteHeadSnapBlockHash(db, block.Hash())
 	rawdb.WriteHeadHeaderHash(db, block.Hash())
 	rawdb.WriteChainConfig(db, block.Hash(), config)
 	return block, nil

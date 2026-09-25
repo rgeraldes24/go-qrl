@@ -306,13 +306,13 @@ func TestHeadStorage(t *testing.T) {
 	if entry := ReadHeadBlockHash(db); entry != (common.Hash{}) {
 		t.Fatalf("Non head block entry returned: %v", entry)
 	}
-	if entry := ReadHeadFastBlockHash(db); entry != (common.Hash{}) {
+	if entry := ReadHeadSnapBlockHash(db); entry != (common.Hash{}) {
 		t.Fatalf("Non fast head block entry returned: %v", entry)
 	}
 	// Assign separate entries for the head header and block
 	WriteHeadHeaderHash(db, blockHead.Hash())
 	WriteHeadBlockHash(db, blockFull.Hash())
-	WriteHeadFastBlockHash(db, blockFast.Hash())
+	WriteHeadSnapBlockHash(db, blockFast.Hash())
 
 	// Check that both heads are present, and different (i.e. two heads maintained)
 	if entry := ReadHeadHeaderHash(db); entry != blockHead.Hash() {
@@ -321,7 +321,7 @@ func TestHeadStorage(t *testing.T) {
 	if entry := ReadHeadBlockHash(db); entry != blockFull.Hash() {
 		t.Fatalf("Head block hash mismatch: have %v, want %v", entry, blockFull.Hash())
 	}
-	if entry := ReadHeadFastBlockHash(db); entry != blockFast.Hash() {
+	if entry := ReadHeadSnapBlockHash(db); entry != blockFast.Hash() {
 		t.Fatalf("Fast head block hash mismatch: have %v, want %v", entry, blockFast.Hash())
 	}
 }
@@ -609,7 +609,7 @@ func BenchmarkWriteAncientBlocks(b *testing.B) {
 // makeTestBlocks creates fake blocks for the ancient write benchmark.
 func makeTestBlocks(tb testing.TB, nblock int, txsPerBlock int) []*types.Block {
 	wallet := testutil.LoadAccount(tb, "alice").Wallet(tb)
-	signer := types.LatestSignerForChainID(big.NewInt(8))
+	signer := types.NewZondSigner(big.NewInt(8))
 
 	// Create transactions.
 	txs := make([]*types.Transaction, txsPerBlock)

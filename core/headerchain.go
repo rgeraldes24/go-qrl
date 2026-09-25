@@ -48,9 +48,8 @@ const (
 // HeaderChain is responsible for maintaining the header chain including the
 // header query and updating.
 //
-// The components maintained by headerchain includes: (1) total difficulty
-// (2) header (3) block hash -> number mapping (4) canonical number -> hash mapping
-// and (5) head header flag.
+// The components maintained by headerchain includes: (1) header (2) block hash
+// -> number mapping (3) canonical number -> hash mapping and (4) head header flag.
 //
 // It is not thread safe either, the encapsulating chain structures should do
 // the necessary mutex locking/unlocking.
@@ -246,8 +245,7 @@ func (hc *HeaderChain) WriteHeaders(headers []*types.Header) (int, error) {
 // Note: This method is not concurrent-safe with inserting blocks simultaneously
 // into the chain, as side effects caused by reorganisations cannot be emulated
 // without the real blocks. Hence, writing headers directly should only be done
-// in two scenarios: pure-header mode of operation (light clients), or properly
-// separated header/block phases (non-archive clients).
+// when the header and block phases are properly separated (snap sync).
 func (hc *HeaderChain) writeHeadersAndSetHead(headers []*types.Header) (*headerWriteResult, error) {
 	inserted, err := hc.WriteHeaders(headers)
 	if err != nil {
@@ -557,7 +555,7 @@ func (hc *HeaderChain) setHead(headBlock uint64, headTime uint64, updateFn Updat
 		// the database (ancient store or active store), we need to update head
 		// first then remove the relative data from the database.
 		//
-		// Update head first(head fast block, head full block) before deleting the data.
+		// Update head first(head snap block, head full block) before deleting the data.
 		markerBatch := hc.chainDb.NewBatch()
 		if updateFn != nil {
 			newHead, force := updateFn(markerBatch, parent)

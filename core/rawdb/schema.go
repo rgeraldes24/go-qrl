@@ -37,8 +37,9 @@ var (
 	// headBlockKey tracks the latest known full block's hash.
 	headBlockKey = []byte("LastBlock")
 
-	// headFastBlockKey tracks the latest known incomplete block's hash during fast sync.
-	headFastBlockKey = []byte("LastFast")
+	// headSnapBlockKey tracks the latest known incomplete block's hash during snap
+	// sync. The stored key keeps its historical fast-sync name for compatibility.
+	headSnapBlockKey = []byte("LastFast")
 
 	// headFinalizedBlockKey tracks the latest known finalized block hash.
 	headFinalizedBlockKey = []byte("LastFinalized")
@@ -46,7 +47,7 @@ var (
 	// persistentStateIDKey tracks the id of latest stored state(for path-based only).
 	persistentStateIDKey = []byte("LastStateID")
 
-	// lastPivotKey tracks the last pivot block used by fast sync (to reenable on sethead).
+	// lastPivotKey tracks the last pivot block used by snap sync (to reenable on sethead).
 	lastPivotKey = []byte("LastPivot")
 
 	// fastTrieProgressKey tracks the number of trie entries imported during fast sync.

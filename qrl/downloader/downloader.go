@@ -159,8 +159,8 @@ type BlockChain interface {
 	// HasBlock verifies a block's presence in the local chain.
 	HasBlock(common.Hash, uint64) bool
 
-	// HasFastBlock verifies a snap block's presence in the local chain.
-	HasFastBlock(common.Hash, uint64) bool
+	// HasSnapBlock verifies a snap block's presence in the local chain.
+	HasSnapBlock(common.Hash, uint64) bool
 
 	// GetBlockByHash retrieves a block from the local chain.
 	GetBlockByHash(common.Hash) *types.Block
@@ -490,7 +490,7 @@ func (d *Downloader) syncToHead() (err error) {
 			d.ancientLimit = 0
 		}
 
-		frozen, _ := d.stateDB.Ancients() // Ignore the error here since light client can also hit here.
+		frozen, _ := d.stateDB.Ancients()
 
 		// If a part of blockchain data has already been written into active store,
 		// disable the ancient style insertion explicitly.
@@ -674,9 +674,6 @@ func (d *Downloader) processHeaders(origin uint64) error {
 
 				// In case of header only syncing, validate the chunk immediately
 				if mode == SnapSync {
-					// Although the received headers might be all valid, a legacy
-					// PoW/PoA sync must not accept post-merge headers. Make sure
-					// that any transition is rejected at this point.
 					if len(chunkHeaders) > 0 {
 						if n, err := d.blockchain.InsertHeaderChain(chunkHeaders); err != nil {
 							log.Warn("Invalid header encountered", "number", chunkHeaders[n].Number, "hash", chunkHashes[n], "parent", chunkHeaders[n].ParentHash, "err", err)

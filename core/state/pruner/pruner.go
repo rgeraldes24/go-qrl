@@ -268,13 +268,12 @@ func (p *Pruner) Prune(root common.Hash) error {
 	// is the presence of root can indicate the presence of the
 	// entire trie.
 	if !rawdb.HasLegacyTrieNode(p.db, root) {
-		// The special case is for clique based networks(goerli
-		// and some other private networks), it's possible that two
-		// consecutive blocks will have same root. In this case snapshot
-		// difflayer won't be created. So HEAD-127 may not paired with
-		// head-127 layer. Instead the paired layer is higher than the
-		// bottom-most diff layer. Try to find the bottom-most snapshot
-		// layer with state available.
+		// The special case is empty blocks: without transactions or
+		// withdrawals two consecutive blocks share the same state root,
+		// so no snapshot difflayer is created for the second one and
+		// HEAD-127 may not be paired with a head-127 layer. Instead the
+		// paired layer is higher than the bottom-most diff layer. Try to
+		// find the bottom-most snapshot layer with state available.
 		//
 		// Note HEAD and HEAD-1 is ignored. Usually there is the associated
 		// state available, but we don't want to use the topmost state
