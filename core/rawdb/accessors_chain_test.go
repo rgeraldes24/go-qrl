@@ -268,6 +268,27 @@ func TestBadBlockStorage(t *testing.T) {
 	}
 }
 
+// Tests that an undecodable bad block list is replaced instead of stopping the node.
+func TestBadBlockStorageUndecodable(t *testing.T) {
+	db := NewMemoryDatabase()
+	if err := db.Put(badBlockKey, []byte{0xc1, 0x80}); err != nil {
+		t.Fatal(err)
+	}
+	block := types.NewBlockWithHeader(&types.Header{
+		Number:          big.NewInt(1),
+		Extra:           []byte("bad block"),
+		TxHash:          types.EmptyTxsHash,
+		ReceiptHash:     types.EmptyReceiptsHash,
+		BaseFee:         common.Big0,
+		WithdrawalsHash: &types.EmptyWithdrawalsHash,
+	})
+	WriteBadBlock(db, block)
+	badBlocks := ReadAllBadBlocks(db)
+	if len(badBlocks) != 1 || badBlocks[0].Hash() != block.Hash() {
+		t.Fatalf("bad blocks: have %v, want only %x", badBlocks, block.Hash())
+	}
+}
+
 // Tests that canonical numbers can be mapped to hashes and retrieved.
 func TestCanonicalMappingStorage(t *testing.T) {
 	db := NewMemoryDatabase()

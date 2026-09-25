@@ -833,7 +833,11 @@ func WriteBadBlock(db qrldb.KeyValueStore, block *types.Block) {
 	var badBlocks []*badBlock
 	if len(blob) > 0 {
 		if err := rlp.DecodeBytes(blob, &badBlocks); err != nil {
-			log.Crit("Failed to decode old bad blocks", "error", err)
+			// Bad blocks are only kept for debugging, so drop a list that no
+			// longer decodes, e.g. after a block encoding change, rather than
+			// stopping the node.
+			log.Warn("Dropping undecodable bad blocks", "error", err)
+			badBlocks = nil
 		}
 	}
 	for _, b := range badBlocks {
