@@ -45,6 +45,13 @@ func (db *Database) ValidateTransaction(selector *string, tx *apitypes.SendTxArg
 	if tx.Data != nil {
 		data = *tx.Data
 	}
+	// Every transaction needs both fee fields, contract creation included
+	if tx.MaxFeePerGas == nil {
+		messages.Crit("Field 'maxFeePerGas' not specified.")
+	}
+	if tx.MaxPriorityFeePerGas == nil {
+		messages.Crit("Field 'maxPriorityFeePerGas' not specified.")
+	}
 	// Contract creation doesn't validate call data, handle first
 	if tx.To == nil {
 		// Contract creation should contain sufficient data to deploy a contract. A
@@ -73,14 +80,6 @@ func (db *Database) ValidateTransaction(selector *string, tx *apitypes.SendTxArg
 	if bytes.Equal(tx.To.Address().Bytes(), common.Address{}.Bytes()) {
 		messages.Crit("Transaction recipient is the zero address")
 	}
-
-	switch {
-	case tx.MaxFeePerGas == nil:
-		messages.Crit("Field 'maxFeePerGas' not specified.")
-	case tx.MaxPriorityFeePerGas == nil:
-		messages.Crit("Field 'maxPriorityFeePerGas' not specified.")
-	}
-
 	// Semantic fields validated, try to make heads or tails of the call data
 	db.ValidateCallData(selector, data, messages)
 	return messages, nil
