@@ -352,15 +352,12 @@ func (s *Suite) TestLargeAnnounce(t *utesting.T) {
 	blocks := []*NewBlock{
 		{
 			Block: largeBlock(),
-			TD:    s.fullChain.TotalDifficultyAt(nextBlock),
 		},
 		{
 			Block: s.fullChain.blocks[nextBlock],
-			TD:    largeNumber(2),
 		},
 		{
 			Block: largeBlock(),
-			TD:    largeNumber(2),
 		},
 	}
 
@@ -416,7 +413,7 @@ func (s *Suite) TestMaliciousHandshake(t *utesting.T) {
 	}
 }
 
-// TestMaliciousStatus sends a status package with a large total difficulty.
+// TestMaliciousStatus sends a malformed status message.
 func (s *Suite) TestMaliciousStatus(t *utesting.T) {
 	conn, err := s.dial()
 	if err != nil {

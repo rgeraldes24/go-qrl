@@ -293,9 +293,8 @@ func (d *Downloader) UnregisterPeer(id string) error {
 	return nil
 }
 
-// synchronise will select the peer and use it for synchronising. If an empty string is given
-// it will use the best peer possible and synchronize if its TD is higher than our own. If any of the
-// checks fail an error will be returned. This method is synchronous
+// synchronise runs one synchronization attempt. This method is synchronous.
+// If any of the checks fail an error will be returned.
 func (d *Downloader) synchronise(mode SyncMode, beaconPing chan struct{}) error {
 	// The beacon header syncer is async. It will start this synchronization and
 	// will continue doing other tasks. However, if synchronization needs to be
@@ -672,11 +671,8 @@ func (d *Downloader) processHeaders(origin uint64) error {
 				chunkHeaders := headers[:limit]
 				chunkHashes := hashes[:limit]
 
-				// In case of header only syncing, validate the chunk immediately
+				// In case of header only syncing, validate the chunk immediately.
 				if mode == SnapSync {
-					// Although the received headers might be all valid, a legacy
-					// PoW/PoA sync must not accept post-merge headers. Make sure
-					// that any transition is rejected at this point.
 					if len(chunkHeaders) > 0 {
 						if n, err := d.blockchain.InsertHeaderChain(chunkHeaders); err != nil {
 							log.Warn("Invalid header encountered", "number", chunkHeaders[n].Number, "hash", chunkHashes[n], "parent", chunkHeaders[n].ParentHash, "err", err)

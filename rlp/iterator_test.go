@@ -39,7 +39,7 @@ func TestIterator(t *testing.T) {
 	}
 	txs := it.Value()
 
-	// Check that uncles exist
+	// Check that the body has a second list.
 	if !it.Next() {
 		t.Fatal("expected two elems, got one")
 	}

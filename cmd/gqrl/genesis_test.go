@@ -94,8 +94,7 @@ func TestCustomBackend(t *testing.T) {
 		t.Skip("Custom backends are only available on 64-bit platform")
 	}
 	// coinbase widens to 128 hex chars so the 64-byte IsAddress check accepts
-	// it; the genesis nonce expected from an invalid-backend init below
-	// then matches the default-mainnet genesis block hash.
+	// it. An invalid-backend init below then reports the default mainnet genesis hash.
 	genesis := `{
 		"alloc"      : {},
 		"coinbase"   : "Q00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
@@ -174,8 +173,7 @@ func TestCustomBackend(t *testing.T) {
 		{ // Reject invalid backend choice
 			initArgs:   []string{"--db.engine", "mssql"},
 			initExpect: `Fatal: Invalid choice for db.engine 'mssql', allowed 'leveldb' or 'pebble'`,
-			// Since the init fails, this will return the (default) mainnet genesis
-			// block nonce
+			// Since the init fails, this returns the default mainnet genesis hash.
 			execExpect: `0x11bbe8db4e347b4e8c937c1c8370e4b5ed33adb3db69cbdb7a38e1e50b1b82fa`,
 		},
 	} {

@@ -29,8 +29,8 @@ import (
 /*
 // rewindTest is a test case for chain rollback upon user request.
 type rewindTest struct {
-	canonicalBlocks int     // Number of blocks to generate for the canonical chain (heavier)
-	sidechainBlocks int     // Number of blocks to generate for the side chain (lighter)
+	canonicalBlocks int     // Number of blocks to generate for the canonical chain
+	sidechainBlocks int     // Number of blocks to generate for the side chain
 	freezeThreshold uint64  // Block number until which to move things into the freezer
 	commitBlock     uint64  // Block number for which to commit the state to disk
 	pivotBlock      *uint64 // Pivot block number in case of fast sync

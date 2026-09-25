@@ -43,7 +43,7 @@ func testHeaderVerification(t *testing.T, scheme string) {
 	for i, block := range blocks {
 		headers[i] = block.Header()
 	}
-	// Run the header checker for blocks one-by-one, checking for both valid and invalid nonces
+	// Run the header checker for blocks one-by-one, checking both accepted and rejected headers.
 	chain, _ := NewBlockChain(rawdb.NewMemoryDatabase(), DefaultCacheConfigWithScheme(scheme), gspec, beacon.NewFaker(), vm.Config{}, nil)
 	defer chain.Stop()
 

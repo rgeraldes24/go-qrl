@@ -393,8 +393,7 @@ func NewBlockChain(db qrldb.Database, cacheConfig *CacheConfig, genesis *Genesis
 		}
 	}
 	// The first thing the node will do is reconstruct the verification data for
-	// the head block (ethash cache or clique voting snapshot). Might as well do
-	// it in advance.
+	// the head block. Might as well do it in advance.
 	bc.engine.VerifyHeader(bc, bc.CurrentHeader())
 
 	// Load any existing snapshot, regenerating it if loading failed
@@ -973,7 +972,7 @@ func (bc *BlockChain) Stop() {
 		// Ensure the state of a recent block is also stored to disk before exiting.
 		// We're writing three different states to catch different restart scenarios:
 		//  - HEAD:     So we don't need to reprocess any blocks in the general case
-		//  - HEAD-1:   So we don't do large reorgs if our HEAD becomes an uncle
+		//  - HEAD-1:   So a one-block reorg does not require reprocessing from scratch
 		//  - HEAD-127: So we have a hard limit on the number of blocks reexecuted
 		if !bc.cacheConfig.TrieDirtyDisabled {
 			triedb := bc.triedb
@@ -1309,7 +1308,7 @@ func (bc *BlockChain) writeKnownBlock(block *types.Block) error {
 func (bc *BlockChain) writeBlockWithState(block *types.Block, receipts []*types.Receipt, state *state.StateDB) error {
 	// Irrelevant of the canonical status, write the block itself to the database.
 	//
-	// Note all the components of block(td, hash->number map, header, body, receipts)
+	// Note all the components of the block (hash->number map, header, body, receipts)
 	// should be written atomically. BlockBatch is used for containing all components.
 	blockBatch := bc.db.NewBatch()
 	rawdb.WriteBlock(blockBatch, block)
@@ -1528,8 +1527,8 @@ func (bc *BlockChain) insertChain(chain types.Blocks, setHead bool) (int, error)
 		// and leaves a few known blocks in the database.
 		//
 		// When node runs a snap sync again, it can re-import a batch of known blocks via
-		// `insertChain` while a part of them have higher total difficulty than current
-		// head full block(new pivot point).
+		// `insertChain` while a part of them are above the current
+		// head full block (new pivot point).
 		for block != nil && bc.skipBlock(err, it) {
 			log.Debug("Writing previously known block", "number", block.Number(), "hash", block.Hash())
 			if err := bc.writeKnownBlock(block); err != nil {
@@ -1577,26 +1576,21 @@ func (bc *BlockChain) insertChain(chain types.Blocks, setHead bool) (int, error)
 			log.Debug("Abort during block processing")
 			break
 		}
-		// If the block is known (in the middle of the chain), it's a special case for
-		// Clique blocks where they can share state among each other, so importing an
-		// older block might complete the state of the subsequent one. In this case,
-		// just skip the block (we already validated it once fully (and crashed), since
-		// its header and body was already in the database). But if the corresponding
-		// snapshot layer is missing, forcibly rerun the execution to build it.
+		// If the block is already known, skip execution. An older block can share
+		// state with the next one, so importing it might complete the subsequent
+		// state. The header and body are already in the database. If the
+		// corresponding snapshot layer is missing, forcibly rerun the execution
+		// to build it.
 		if bc.skipBlock(err, it) {
 			logger := log.Warn
 			logger("Inserted known block", "number", block.Number(), "hash", block.Hash(),
 				"txs", len(block.Transactions()), "gas", block.GasUsed(),
 				"root", block.Root())
 
-			// Special case. Commit the empty receipt slice if we meet the known
-			// block in the middle. It can only happen in the clique chain. Whenever
-			// we insert blocks via `insertSideChain`, we only commit `td`, `header`
-			// and `body` if it's non-existent. Since we don't have receipts without
-			// reexecution, so nothing to commit. But if the sidechain will be adopted
-			// as the canonical chain eventually, it needs to be reexecuted for missing
-			// state, but if it's this special case here(skip reexecution) we will lose
-			// the empty receipt entry.
+			// Commit an empty receipt slice for a known block with no transactions.
+			// Side-chain inserts write the header and body without receipts, and
+			// skipping reexecution would otherwise drop the empty receipt entry
+			// if that chain later becomes canonical.
 			if len(block.Transactions()) == 0 {
 				rawdb.WriteReceipts(bc.db, block.Hash(), block.NumberU64(), nil)
 			} else {
@@ -1608,8 +1602,8 @@ func (bc *BlockChain) insertChain(chain types.Blocks, setHead bool) (int, error)
 			}
 			stats.processed++
 
-			// We can assume that logs are empty here, since the only way for consecutive
-			// Clique blocks to have the same state is if there are no transactions.
+			// Logs are empty here: consecutive blocks share state only when there
+			// are no transactions.
 			lastCanon = block
 			continue
 		}

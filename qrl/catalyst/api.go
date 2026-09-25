@@ -125,7 +125,6 @@ type ConsensusAPI struct {
 }
 
 // NewConsensusAPI creates a new consensus api for the given backend.
-// The underlying blockchain needs to have a valid terminal total difficulty set.
 func NewConsensusAPI(qrl *qrl.QRL) *ConsensusAPI {
 	api := newConsensusAPIWithoutHeartbeat(qrl)
 	go api.heartbeat()
@@ -389,7 +388,7 @@ func (api *ConsensusAPI) newPayload(params engine.ExecutableData) (engine.Payloa
 	}
 	// If the parent is missing, we - in theory - could trigger a sync, but that
 	// would also entail a reorg. That is problematic if multiple sibling blocks
-	// are being fed to us, and even more so, if some semi-distant uncle shortens
+	// are being fed to us, and even more so if a side chain shortens
 	// our live chain. As such, payload execution will not permit reorgs and thus
 	// will not trigger a sync cycle. That is fine though, if we get a fork choice
 	// update after legit payload executions.

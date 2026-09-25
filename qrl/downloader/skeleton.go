@@ -171,10 +171,8 @@ type backfiller interface {
 	resume()
 }
 
-// skeleton represents a header chain synchronized after the merge where blocks
-// aren't validated any more via PoW in a forward fashion, rather are dictated
-// and extended at the head via the beacon chain and backfilled on the original
-// QRL block sync protocol.
+// skeleton represents a header chain grown backwards from the beacon head and
+// backfilled on the QRL block sync protocol.
 //
 // Since the skeleton is grown backwards from head to genesis, it is handled as
 // a separate entity, not mixed in with the logical sequential transition of the

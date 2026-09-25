@@ -48,9 +48,8 @@ const (
 // HeaderChain is responsible for maintaining the header chain including the
 // header query and updating.
 //
-// The components maintained by headerchain includes: (1) total difficulty
-// (2) header (3) block hash -> number mapping (4) canonical number -> hash mapping
-// and (5) head header flag.
+// The components maintained by headerchain are the header, the block hash to
+// number mapping, the canonical number to hash mapping, and the head header flag.
 //
 // It is not thread safe either, the encapsulating chain structures should do
 // the necessary mutex locking/unlocking.
@@ -414,8 +413,8 @@ func (hc *HeaderChain) GetHeaderByHash(hash common.Hash) *types.Header {
 }
 
 // HasHeader checks if a block header is present in the database or not.
-// In theory, if header is present in the database, all relative components
-// like td and hash->number should be present too.
+// In theory, if a header is present in the database, the hash to number
+// mapping should be present too.
 func (hc *HeaderChain) HasHeader(hash common.Hash, number uint64) bool {
 	if hc.numberCache.Contains(hash) || hc.headerCache.Contains(hash) {
 		return true

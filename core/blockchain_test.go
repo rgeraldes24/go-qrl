@@ -532,9 +532,8 @@ func TestReorgShortBlocks(t *testing.T) {
 }
 
 func testReorgShort(t *testing.T, full bool, scheme string) {
-	// Create a long easy chain vs. a short heavy one. Due to difficulty adjustment
-	// we need a fairly long chain of blocks with different difficulties for a short
-	// one to become heavier than a long one. The 96 is an empirical value.
+	// Build a longer chain and a shorter one. Their timestamps differ so the
+	// chains are distinct. The length 96 is an empirical value.
 	easy := make([]int64, 96)
 	for i := range easy {
 		easy[i] = 60
@@ -602,7 +601,7 @@ func testReorg(t *testing.T, first, second []int64, full bool, scheme string) {
 	}
 }
 
-// Tests chain insertions in the face of one entity containing an invalid nonce.
+// Tests chain insertion when the consensus engine rejects one block.
 func TestHeadersInsertNonceError(t *testing.T) {
 	testInsertNonceError(t, false, rawdb.HashScheme)
 	testInsertNonceError(t, false, rawdb.PathScheme)
@@ -621,7 +620,7 @@ func testInsertNonceError(t *testing.T, full bool, scheme string) {
 		}
 		defer blockchain.Stop()
 
-		// Create and insert a chain with a failing nonce
+		// Create and insert a chain that the consensus engine rejects at one block.
 		var (
 			failAt  int
 			failRes int
@@ -974,7 +973,7 @@ func testChainTxReorgs(t *testing.T, scheme string) {
 			gen.AddTx(freshDrop) // This transaction will be dropped in the fork from exactly at the split point
 			gen.AddTx(swapped)   // This transaction will be swapped out at the exact height
 
-			gen.OffsetTime(9) // Lower the block difficulty to simulate a weaker chain
+			gen.OffsetTime(9) // Shift this block later than its sibling.
 		}
 	})
 	// Import the chain. This runs all block validation rules.
@@ -1168,7 +1167,7 @@ func testLogRebirth(t *testing.T, scheme string) {
 			}
 			gen.AddTx(tx)
 		}
-		gen.OffsetTime(-9) // higher block difficulty
+		gen.OffsetTime(-9) // Shift this block earlier than its sibling.
 	})
 	if _, err := blockchain.InsertChain(forkChain); err != nil {
 		t.Fatalf("failed to insert forked chain: %v", err)
@@ -1579,14 +1578,14 @@ func testLargeReorgTrieGC(t *testing.T, scheme string) {
 	if chain.HasState(shared[len(shared)-1].Root()) {
 		t.Fatalf("common-but-old ancestor still cache")
 	}
-	// Import the competitor chain without exceeding the canonical's TD and ensure
+	// Import the competitor chain without making it canonical and ensure
 	// we have not processed any of the blocks (protection against malicious blocks)
 	if _, err := chain.InsertChain(competitor[:len(competitor)-2]); err != nil {
 		t.Fatalf("failed to insert competitor chain: %v", err)
 	}
 	for i, block := range competitor[:len(competitor)-2] {
 		if chain.HasState(block.Root()) {
-			t.Fatalf("competitor %d: low TD chain became processed", i)
+			t.Fatalf("competitor %d: side chain became processed", i)
 		}
 	}
 	// Import the head of the competitor chain, triggering the reorg and ensure we
@@ -1885,7 +1884,7 @@ func testInsertKnownChainData(t *testing.T, typ string) {
 	asserter(t, blocks2[len(blocks2)-1])
 }
 
-// getLongAndShortChains returns two chains: A is longer, B is heavier.
+// getLongAndShortChains returns two chains: A is longer, B is shorter.
 func getLongAndShortChains(scheme string) (*BlockChain, []*types.Block, []*types.Block, *Genesis, error) {
 	// Generate a canonical chain to act as the main dataset
 	engine := beacon.NewFaker()
@@ -1893,8 +1892,7 @@ func getLongAndShortChains(scheme string) (*BlockChain, []*types.Block, []*types
 		Config:  params.TestChainConfig,
 		BaseFee: big.NewInt(params.InitialBaseFee),
 	}
-	// Generate and import the canonical chain,
-	// Offset the time, to keep the difficulty low
+	// Generate and import the canonical chain.
 	genDb, longChain, _ := GenerateChainWithGenesis(genesis, engine, 80, func(i int, b *BlockGen) {
 		b.SetCoinbase(common.Address{1})
 	})
@@ -1923,7 +1921,7 @@ func getLongAndShortChains(scheme string) (*BlockChain, []*types.Block, []*types
 
 // TestReorgToShorterRemovesCanonMapping tests that if we
 // 1. Have a chain [0 ... N .. X]
-// 2. Reorg to shorter but heavier chain [0 ... N ... Y]
+// 2. Reorg to the shorter chain [0 ... N ... Y]
 // 3. Then there should be no canon mapping for the block at height X
 // 4. The forked block should still be retrievable by hash
 func TestReorgToShorterRemovesCanonMapping(t *testing.T) {

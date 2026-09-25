@@ -368,8 +368,7 @@ func TestNewBlock(t *testing.T) {
 }
 
 func TestDeepReorg(t *testing.T) {
-	// TODO (MariusVanDerWijden) TestDeepReorg is currently broken, because it tries to reorg
-	// before the totalTerminalDifficulty threshold
+	// TODO (MariusVanDerWijden) TestDeepReorg is currently broken.
 	/*
 		genesis, blocks := generateChain(core.TriesInMemory * 2)
 		n, qrlservice := startQRLService(t, genesis, blocks)

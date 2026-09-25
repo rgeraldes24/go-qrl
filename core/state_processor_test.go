@@ -368,7 +368,7 @@ func TestStateProcessorRejectsNonEmptyExtraParams(t *testing.T) {
 // GenerateBadBlock constructs a "block" which contains the transactions. The transactions are not expected to be
 // valid, and no proper post-state can be made. But from the perspective of the blockchain, the block is sufficiently
 // valid to be considered for import:
-// - valid pow (fake), ancestry, difficulty, gaslimit etc
+// - valid ancestry, gas limit, and the other header checks the chain applies
 func GenerateBadBlock(parent *types.Block, engine consensus.Engine, txs types.Transactions, config *params.ChainConfig) *types.Block {
 	header := &types.Header{
 		ParentHash: parent.Hash(),

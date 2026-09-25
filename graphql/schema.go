@@ -207,12 +207,12 @@ const schema string = `
         baseFeePerGas: BigInt
         # NextBaseFeePerGas is the fee per unit of gas which needs to be burned in the next block.
         nextBaseFeePerGas: BigInt
-        # Timestamp is the unix timestamp at which this block was mined.
+        # Timestamp is the unix timestamp at which this block was produced.
         timestamp: Long!
         # LogsBloom is a bloom filter that can be used to check if a block may
         # contain log entries matching a filter.
         logsBloom: Bytes!
-        # Random is the hash that was used as an input to the PoW process.
+        # Random is the prevRandao value mixed into this block.
         random: Bytes32!
         # Transactions is a list of transactions associated with this block. If
         # transactions are unavailable for this block, this field will be null.
