@@ -18,8 +18,7 @@ which can
   - Block context information,
   - Previous blockshashes (*optional)
 2. Apply a set of transactions,
-3. Apply a mining-reward (*optional),
-4. And generate a post-state, including
+3. And generate a post-state, including
   - State root, transaction root, receipt root,
   - Information about rejected transactions,
   - Optionally: a full or partial post-state dump
@@ -36,21 +35,18 @@ implementation.
 Command line params that need to be supported are
 
 ```
-    --input.alloc value            (default: "alloc.json")
-    --input.env value              (default: "env.json")
-    --input.txs value              (default: "txs.json")
-    --output.alloc value           (default: "alloc.json")
-    --output.basedir value        
-    --output.body value           
-    --output.result value          (default: "result.json")
-    --state.chainid value          (default: 1)
-    --state.reward value           (default: 0)
-    --state.fork value             (default: "Zond")
-    --trace.memory                 (default: false)
-    --trace.nomemory               (default: true)
-    --trace.noreturndata           (default: true)
-    --trace.nostack                (default: false)
-    --trace.returndata             (default: false)
+          --trace.memory                      (default: false)                  
+          --trace.nostack                     (default: false)                  
+          --trace.returndata                  (default: false)                  
+          --output.basedir value                                                
+          --output.alloc value                (default: "alloc.json")           
+          --output.result value               (default: "result.json")          
+          --output.body value                                                   
+          --input.alloc value                 (default: "alloc.json")           
+          --input.env value                   (default: "env.json")             
+          --input.txs value                   (default: "txs.json")             
+          --state.fork value                  (default: "Zond")                 
+          --state.chainid value               (default: 1)                      
 ```
 #### Objects
 
@@ -176,7 +172,7 @@ There are a few (not many) errors that can occur, those are defined below.
 
 ```
 # This should exit with 3
-./qrvm t8n --input.alloc=./testdata/1/alloc.json --input.txs=./testdata/1/txs.json --input.env=./testdata/1/env.json --state.fork=Zond 2>/dev/null
+./qrvm t8n --input.alloc=./testdata/1/alloc.json --input.txs=./testdata/1/txs.json --input.env=./testdata/1/env.json --state.fork=Zond+1346 2>/dev/null
 exitcode:3 OK
 ```
 #### Forks
@@ -395,7 +391,6 @@ The transaction tool is used to perform static validity checks on transactions s
 * intrinsic gas calculation
 * max values on integers
 * fee semantics, such as `maxFeePerGas < maxPriorityFeePerGas`
-* newer tx types on old forks
 
 ### Examples
 
@@ -416,7 +411,7 @@ The transaction tool is used to perform static validity checks on transactions s
 ```
 ## Block builder tool (b11r)
 
-The `qrvm b11r` tool is used to assemble and seal full block rlps.
+The `qrvm b11r` tool is used to assemble full block rlps.
 
 ### Specification
 
