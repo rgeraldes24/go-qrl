@@ -390,7 +390,6 @@ func GenerateBadBlock(parent *types.Block, engine consensus.Engine, txs types.Tr
 		hasher.Write(txh[:])
 		receipt := &types.Receipt{
 			Type:              types.DynamicFeeTxType,
-			PostState:         common.CopyBytes(nil),
 			CumulativeGasUsed: cumulativeGas + tx.Gas(),
 			Status:            types.ReceiptStatusSuccessful,
 		}

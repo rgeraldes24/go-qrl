@@ -123,7 +123,7 @@ func BenchmarkCreateBloom(b *testing.B) {
 			GasUsed:         1,
 		},
 		&Receipt{
-			PostState:         common.Hash{2}.Bytes(),
+			Status:            ReceiptStatusSuccessful,
 			CumulativeGasUsed: 3,
 			Logs: []*Log{
 				{Address: common.BytesToAddress([]byte{0x22})},

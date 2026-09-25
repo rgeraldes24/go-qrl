@@ -104,13 +104,12 @@ func applyTransaction(msg *Message, gp *GasPool, statedb *state.StateDB, blockNu
 	}
 
 	// Update the state with pending changes.
-	var root []byte
 	statedb.Finalise(true)
 	*usedGas += result.UsedGas
 
-	// Create a new receipt for the transaction, storing the intermediate root and gas used
+	// Create a new receipt for the transaction, storing the status and gas used
 	// by the tx.
-	receipt := &types.Receipt{Type: tx.Type(), PostState: root, CumulativeGasUsed: *usedGas}
+	receipt := &types.Receipt{Type: tx.Type(), CumulativeGasUsed: *usedGas}
 	if result.Failed() {
 		receipt.Status = types.ReceiptStatusFailed
 	} else {

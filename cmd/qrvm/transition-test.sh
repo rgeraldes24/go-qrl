@@ -356,20 +356,20 @@ The `header` object is a consensus header.
 
 ```go=
 type Header struct {
-        ParentHash  common.Hash       `json:"parentHash"`
-        Coinbase    *common.Address   `json:"miner"`
-        Root        common.Hash       `json:"stateRoot"         gencodec:"required"`
-        TxHash      *common.Hash      `json:"transactionsRoot"`
-        ReceiptHash *common.Hash      `json:"receiptsRoot"`
-        Bloom       types.Bloom       `json:"logsBloom"`
-        Number      *big.Int          `json:"number"            gencodec:"required"`
-        GasLimit    uint64            `json:"gasLimit"          gencodec:"required"`
-        GasUsed     uint64            `json:"gasUsed"`
-        Time        uint64            `json:"timestamp"         gencodec:"required"`
-        Extra       []byte            `json:"extraData"`
-        Random      common.Hash       `json:"prevRandao"`
-        Nonce       *types.BlockNonce `json:"nonce"`
-        BaseFee     *big.Int          `json:"baseFeePerGas"`
+        ParentHash      common.Hash     `json:"parentHash"`
+        Coinbase        *common.Address `json:"miner"`
+        Root            common.Hash     `json:"stateRoot"        gencodec:"required"`
+        TxHash          *common.Hash    `json:"transactionsRoot"`
+        ReceiptHash     *common.Hash    `json:"receiptsRoot"`
+        Bloom           types.Bloom     `json:"logsBloom"`
+        Number          *big.Int        `json:"number"           gencodec:"required"`
+        GasLimit        uint64          `json:"gasLimit"         gencodec:"required"`
+        GasUsed         uint64          `json:"gasUsed"`
+        Time            uint64          `json:"timestamp"        gencodec:"required"`
+        Extra           []byte          `json:"extraData"`
+        Random          common.Hash     `json:"prevRandao"`
+        BaseFee         *big.Int        `json:"baseFeePerGas"`
+        WithdrawalsHash *common.Hash    `json:"withdrawalsRoot"`
 }
 ```
 #### `txs`

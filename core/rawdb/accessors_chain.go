@@ -630,7 +630,7 @@ func DeleteReceipts(db qrldb.KeyValueWriter, hash common.Hash, number uint64) {
 // Re-definition in core/types/receipt.go.
 // TODO: Re-use the existing definition.
 type storedReceiptRLP struct {
-	PostStateOrStatus []byte
+	Status            []byte
 	CumulativeGasUsed uint64
 	Logs              []*types.Log
 }

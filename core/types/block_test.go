@@ -216,7 +216,6 @@ func makeBenchBlock() *Block {
 		txs[i] = signedTx
 		receipts[i] = &Receipt{
 			Type:              DynamicFeeTxType,
-			PostState:         common.CopyBytes(make([]byte, 32)),
 			CumulativeGasUsed: tx.Gas(),
 			Status:            ReceiptStatusSuccessful,
 		}

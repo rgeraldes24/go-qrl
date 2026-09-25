@@ -1,6 +1,6 @@
 module github.com/theQRL/go-qrl
 
-go 1.25.5
+go 1.26.5
 
 require (
 	github.com/Microsoft/go-winio v0.6.2
@@ -40,12 +40,12 @@ require (
 	github.com/olekukonko/tablewriter v0.0.5
 	github.com/peterh/liner v1.1.1-0.20190123174540-a2c9a5303de7
 	github.com/pkg/errors v0.9.1
-	github.com/prysmaticlabs/fastssz v0.0.0-20221107182844-78142813af44
+	github.com/prysmaticlabs/fastssz v0.0.0-20260421202104-7a6eb71e6e45
 	github.com/rs/cors v1.7.0
 	github.com/shirou/gopsutil v3.21.4-0.20210419000835-c7a38de76ee5+incompatible
 	github.com/stretchr/testify v1.10.0
 	github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7
-	github.com/theQRL/go-qrllib v0.8.0
+	github.com/theQRL/go-qrllib v0.10.0
 	github.com/urfave/cli/v2 v2.27.5
 	go.uber.org/automaxprocs v1.5.2
 	golang.org/x/crypto v0.52.0
@@ -128,5 +128,3 @@ tool (
 	golang.org/x/tools/cmd/stringer
 	google.golang.org/protobuf/cmd/protoc-gen-go
 )
-
-replace github.com/theQRL/go-qrllib => github.com/rgeraldes24/go-qrllib v0.1.1-0.20260707094212-a6d78f111b1f

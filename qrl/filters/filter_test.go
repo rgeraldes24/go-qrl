@@ -40,7 +40,6 @@ import (
 func makeReceipt(addr common.Address) *types.Receipt {
 	receipt := &types.Receipt{
 		Type:              types.DynamicFeeTxType,
-		PostState:         common.CopyBytes(nil),
 		CumulativeGasUsed: 0,
 		Status:            types.ReceiptStatusSuccessful,
 	}

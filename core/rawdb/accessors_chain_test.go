@@ -369,7 +369,7 @@ func TestBlockReceiptStorage(t *testing.T) {
 
 	receipt2 := &types.Receipt{
 		Type:              0x02,
-		PostState:         common.Hash{2}.Bytes(),
+		Status:            types.ReceiptStatusSuccessful,
 		CumulativeGasUsed: 2,
 		Logs: []*types.Log{
 			{Address: common.BytesToAddress([]byte{0x22})},
@@ -722,7 +722,7 @@ func TestReadLogs(t *testing.T) {
 	receipt1.Bloom = types.CreateBloom(types.Receipts{receipt1})
 
 	receipt2 := &types.Receipt{
-		PostState:         common.Hash{2}.Bytes(),
+		Status:            types.ReceiptStatusSuccessful,
 		CumulativeGasUsed: 2,
 		Logs: []*types.Log{
 			{Address: common.BytesToAddress([]byte{0x22})},

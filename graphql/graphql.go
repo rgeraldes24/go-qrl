@@ -435,9 +435,6 @@ func (t *Transaction) Status(ctx context.Context) (*hexutil.Uint64, error) {
 	if err != nil || receipt == nil {
 		return nil, err
 	}
-	if len(receipt.PostState) != 0 {
-		return nil, nil
-	}
 	ret := hexutil.Uint64(receipt.Status)
 	return &ret, nil
 }

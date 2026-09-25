@@ -177,12 +177,11 @@ func (pre *Prestate) Apply(vmConfig vm.Config, chainConfig *params.ChainConfig,
 
 		// Receipt:
 		{
-			var root []byte
 			statedb.Finalise(true)
 
-			// Create a new receipt for the transaction, storing the intermediate root and
+			// Create a new receipt for the transaction, storing the status and
 			// gas used by the tx.
-			receipt := &types.Receipt{Type: tx.Type(), PostState: root, CumulativeGasUsed: gasUsed}
+			receipt := &types.Receipt{Type: tx.Type(), CumulativeGasUsed: gasUsed}
 			if msgResult.Failed() {
 				receipt.Status = types.ReceiptStatusFailed
 			} else {
