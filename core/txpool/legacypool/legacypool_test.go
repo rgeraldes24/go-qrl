@@ -45,17 +45,11 @@ var (
 	// testTxPoolConfig is a transaction pool configuration without stateful disk
 	// sideeffects used during testing.
 	testTxPoolConfig Config
-
-	// eip1559Config is a chain config with EIP-1559 enabled at block 0.
-	eip1559Config *params.ChainConfig
 )
 
 func init() {
 	testTxPoolConfig = DefaultConfig
 	testTxPoolConfig.Journal = ""
-
-	cpy := *params.TestChainConfig
-	eip1559Config = &cpy
 }
 
 type testBlockChain struct {
@@ -463,7 +457,7 @@ func TestNegativeValue(t *testing.T) {
 func TestTipAboveFeeCap(t *testing.T) {
 	t.Parallel()
 
-	pool, key := setupPoolWithConfig(eip1559Config)
+	pool, key := setupPool()
 	defer pool.Close()
 
 	tx := dynamicFeeTx(0, 100, big.NewInt(1), big.NewInt(2), key)
@@ -476,7 +470,7 @@ func TestTipAboveFeeCap(t *testing.T) {
 func TestVeryHighValues(t *testing.T) {
 	t.Parallel()
 
-	pool, key := setupPoolWithConfig(eip1559Config)
+	pool, key := setupPool()
 	defer pool.Close()
 
 	veryBigNumber := big.NewInt(1)
@@ -1400,7 +1394,7 @@ func TestMinGasPriceEnforced(t *testing.T) {
 
 	// Create the pool to test the pricing enforcement with
 	statedb, _ := state.New(types.EmptyRootHash, state.NewDatabase(rawdb.NewMemoryDatabase()), nil)
-	blockchain := newTestBlockChain(eip1559Config, 10000000, statedb, new(event.Feed))
+	blockchain := newTestBlockChain(params.TestChainConfig, 10000000, statedb, new(event.Feed))
 
 	txPoolConfig := DefaultConfig
 	txPoolConfig.NoLocals = true
@@ -1448,7 +1442,7 @@ func TestRepricingDynamicFee(t *testing.T) {
 	t.Parallel()
 
 	// Create the pool to test the pricing enforcement with
-	pool, _ := setupPoolWithConfig(eip1559Config)
+	pool, _ := setupPool()
 	defer pool.Close()
 
 	// Keep track of transaction events to ensure all executables get announced
@@ -1573,7 +1567,7 @@ func TestRepricingKeepsLocals(t *testing.T) {
 
 	// Create the pool to test the pricing enforcement with
 	statedb, _ := state.New(types.EmptyRootHash, state.NewDatabase(rawdb.NewMemoryDatabase()), nil)
-	blockchain := newTestBlockChain(eip1559Config, 1000000, statedb, new(event.Feed))
+	blockchain := newTestBlockChain(params.TestChainConfig, 1000000, statedb, new(event.Feed))
 
 	pool := New(testTxPoolConfig, blockchain)
 	pool.Init(new(big.Int).SetUint64(testTxPoolConfig.PriceLimit), blockchain.CurrentBlock(), makeAddressReserver())
@@ -1702,7 +1696,7 @@ func TestStableUnderpricing(t *testing.T) {
 func TestUnderpricingDynamicFee(t *testing.T) {
 	t.Parallel()
 
-	pool, _ := setupPoolWithConfig(eip1559Config)
+	pool, _ := setupPool()
 	defer pool.Close()
 
 	pool.config.GlobalSlots = 2
@@ -1809,7 +1803,7 @@ func TestUnderpricingDynamicFee(t *testing.T) {
 func TestDualHeapEviction(t *testing.T) {
 	t.Parallel()
 
-	pool, _ := setupPoolWithConfig(eip1559Config)
+	pool, _ := setupPool()
 	defer pool.Close()
 
 	pool.config.GlobalSlots = 10
@@ -1933,7 +1927,7 @@ func TestReplacementDynamicFee(t *testing.T) {
 	t.Parallel()
 
 	// Create the pool to test the pricing enforcement with
-	pool, key := setupPoolWithConfig(eip1559Config)
+	pool, key := setupPool()
 	defer pool.Close()
 	testAddBalance(pool, key.GetAddress(), big.NewInt(1000000000))
 

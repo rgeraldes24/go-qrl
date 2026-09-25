@@ -273,7 +273,6 @@ func (api *API) traceChain(start, end *types.Block, config *TraceConfig, closed 
 						log.Warn("Tracing failed", "hash", tx.Hash(), "block", task.block.NumberU64(), "err", err)
 						break
 					}
-					// Only delete empty objects if EIP158/161 (a.k.a Spurious Dragon) is in effect
 					task.statedb.Finalise(true)
 					task.results[i] = &txTraceResult{TxHash: tx.Hash(), Result: res}
 				}
@@ -607,7 +606,6 @@ func (api *API) traceBlock(ctx context.Context, block *types.Block, config *Trac
 		}
 		results[i] = &txTraceResult{TxHash: tx.Hash(), Result: res}
 		// Finalize the state so any modifications are written to the trie
-		// Only delete empty objects if EIP158/161 (a.k.a Spurious Dragon) is in effect
 		statedb.Finalise(true)
 	}
 	return results, nil
@@ -671,7 +669,6 @@ txloop:
 			break txloop
 		}
 		// Finalize the state so any modifications are written to the trie
-		// Only delete empty objects if EIP158/161 (a.k.a Spurious Dragon) is in effect
 		statedb.Finalise(true)
 	}
 
@@ -785,7 +782,6 @@ func (api *API) standardTraceBlockToFile(ctx context.Context, block *types.Block
 			return dumps, err
 		}
 		// Finalize the state so any modifications are written to the trie
-		// Only delete empty objects if EIP158/161 (a.k.a Spurious Dragon) is in effect
 		statedb.Finalise(true)
 
 		// If we've traced the transaction we were looking for, abort

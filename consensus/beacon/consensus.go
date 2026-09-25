@@ -101,13 +101,9 @@ func (beacon *Beacon) VerifyHeaders(chain consensus.ChainHeaderReader, headers [
 }
 
 // verifyHeader checks whether a header conforms to the consensus rules of the
-// stock QRL consensus engine. The difference between the beacon and classic is
-// (a) The following fields are expected to be constants:
-//
-//	to be the desired constants
-//
-// (b) we don't verify if a block is in the future anymore
-// (c) the extradata is limited to 32 bytes
+// stock QRL consensus engine. Note that
+// (a) we don't verify if a block is in the future
+// (b) the extradata is limited to 32 bytes
 func (beacon *Beacon) verifyHeader(chain consensus.ChainHeaderReader, header, parent *types.Header) error {
 	// Ensure that the header's extra-data section is of a reasonable size
 	if len(header.Extra) > 32 {

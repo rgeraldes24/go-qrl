@@ -469,19 +469,11 @@ func (d *Downloader) syncToHead() (err error) {
 		// recent data will be written to the active database and will wait for the
 		// freezer to migrate.
 		//
-		// If the network is post-merge, use either the last announced finalized
-		// block as the ancient limit, or if we haven't yet received one, the head-
-		// a max fork ancestry limit. One quirky case if we've already passed the
-		// finalized block, in which case the skeleton.Bounds will return nil and
-		// we'll revert to head - 90K. That's fine, we're finishing sync anyway.
-		//
-		// For non-merged networks, if there is a checkpoint available, then calculate
-		// the ancientLimit through that. Otherwise calculate the ancient limit through
-		// the advertised height of the remote peer. This most is mostly a fallback for
-		// legacy networks, but should eventually be dropped. TODO(karalabe).
-		//
-		// Beacon sync, use the latest finalized block as the ancient limit
-		// or a reasonable height if no finalized block is yet announced.
+		// Use either the last announced finalized block as the ancient limit, or
+		// if we haven't yet received one, the head - a max fork ancestry limit.
+		// One quirky case if we've already passed the finalized block, in which
+		// case the skeleton.Bounds will return nil and we'll revert to head - 90K.
+		// That's fine, we're finishing sync anyway.
 		if final != nil {
 			d.ancientLimit = final.Number.Uint64()
 		} else if height > fullMaxForkAncestry+1 {
@@ -757,14 +749,13 @@ func (d *Downloader) importBlockResults(results []*fetchResult) error {
 	for i, result := range results {
 		blocks[i] = types.NewBlockWithHeader(result.Header).WithBody(result.body())
 	}
-	// Downloaded blocks are always regarded as trusted after the
-	// transition. Because the downloaded chain is guided by the
-	// consensus-layer.
+	// Downloaded blocks are always regarded as trusted, because the
+	// downloaded chain is guided by the consensus-layer.
 	if index, err := d.blockchain.InsertChain(blocks); err != nil {
 		if index < len(results) {
 			log.Debug("Downloaded item processing failed", "number", results[index].Header.Number, "hash", results[index].Header.Hash(), "err", err)
 
-			// In post-merge, notify the engine API of encountered bad chains
+			// Notify the engine API of encountered bad chains
 			if d.badBlock != nil {
 				head, _, _, err := d.skeleton.Bounds()
 				if err != nil {
@@ -1081,7 +1072,7 @@ func (d *Downloader) reportSnapSyncProgress(force bool) {
 	// Retrieve the current chain head and calculate the ETA
 	latest, _, _, err := d.skeleton.Bounds()
 	if err != nil {
-		// We're going to cheat for non-merged networks, but that's fine
+		// Fall back to the pivot header if the beacon bounds are unavailable
 		latest = d.pivotHeader
 	}
 	if latest == nil {

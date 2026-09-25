@@ -914,7 +914,7 @@ func TestSimultaneousNewBlock(t *testing.T) {
 	}
 }
 
-// TestWithdrawals creates and verifies two post-Zond blocks. The first
+// TestWithdrawals creates and verifies two blocks. The first
 // includes zero withdrawals and the second includes two.
 func TestWithdrawals(t *testing.T) {
 	genesis, blocks := generateChain(10)
@@ -924,7 +924,7 @@ func TestWithdrawals(t *testing.T) {
 
 	api := NewConsensusAPI(qrlservice)
 
-	// 10: Build Zond block with no withdrawals.
+	// 10: Build block with no withdrawals.
 	parent := qrlservice.BlockChain().CurrentHeader()
 	blockParams := engine.PayloadAttributes{
 		Timestamp:   parent.Time + 5,
@@ -964,7 +964,7 @@ func TestWithdrawals(t *testing.T) {
 		t.Fatalf("invalid payload")
 	}
 
-	// 11: build zond block with withdrawal
+	// 11: build block with withdrawal
 	aa := common.Address{0xaa}
 	bb := common.Address{0xbb}
 	blockParams = engine.PayloadAttributes{
@@ -1140,12 +1140,12 @@ func setupBodies(t *testing.T) (*node.Node, *qrl.QRL, []*types.Block) {
 		}
 	}
 
-	postZondHeaders := setupBlocks(t, qrlservice, 10, parent, callback, withdrawals)
-	postZondBlocks := make([]*types.Block, len(postZondHeaders))
-	for i, header := range postZondHeaders {
-		postZondBlocks[i] = qrlservice.BlockChain().GetBlock(header.Hash(), header.Number.Uint64())
+	newHeaders := setupBlocks(t, qrlservice, 10, parent, callback, withdrawals)
+	newBlocks := make([]*types.Block, len(newHeaders))
+	for i, header := range newHeaders {
+		newBlocks[i] = qrlservice.BlockChain().GetBlock(header.Hash(), header.Number.Uint64())
 	}
-	return n, qrlservice, append(blocks, postZondBlocks...)
+	return n, qrlservice, append(blocks, newBlocks...)
 }
 
 func allHashes(blocks []*types.Block) []common.Hash {
@@ -1230,13 +1230,13 @@ func TestGetBlockBodiesByRange(t *testing.T) {
 			start:   1,
 			count:   1,
 		},
-		// First post-merge block
+		// Last block of the generated chain
 		{
 			results: []*types.Body{blocks[9].Body()},
 			start:   10,
 			count:   1,
 		},
-		// Pre & post merge blocks
+		// Generated and engine-built blocks
 		{
 			results: []*types.Body{blocks[7].Body(), blocks[8].Body(), blocks[9].Body(), blocks[10].Body()},
 			start:   8,
