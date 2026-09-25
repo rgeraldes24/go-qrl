@@ -466,6 +466,14 @@ func testGetBlock(t *testing.T, client *rpc.Client) {
 	if block.Hash() != blockH.Hash() {
 		t.Fatalf("BlockByHash returned wrong block: want %v got %v", block.Hash().Hex(), blockH.Hash().Hex())
 	}
+	// Get the pending block, which the server returns without a hash
+	pending, err := zc.BlockByNumber(t.Context(), big.NewInt(int64(rpc.PendingBlockNumber)))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if pending.NumberU64() != blockNumber+1 {
+		t.Fatalf("BlockByNumber returned wrong pending block: want %d got %d", blockNumber+1, pending.NumberU64())
+	}
 	// Get header by number
 	header, err := zc.HeaderByNumber(t.Context(), new(big.Int).SetUint64(blockNumber))
 	if err != nil {
