@@ -262,8 +262,8 @@ func NewBlockChain(db qrldb.Database, cacheConfig *CacheConfig, genesis *Genesis
 	// Setup the genesis block, commit the provided genesis specification
 	// to database if the genesis block is not present yet, or load the
 	// stored one from database.
-	chainConfig, genesisHash, genesisErr := SetupGenesisBlockWithOverride(db, triedb, genesis)
-	if _, ok := genesisErr.(*params.ConfigCompatError); genesisErr != nil && !ok {
+	chainConfig, _, genesisErr := SetupGenesisBlockWithOverride(db, triedb, genesis)
+	if genesisErr != nil {
 		return nil, genesisErr
 	}
 	log.Info("")
@@ -345,7 +345,7 @@ func NewBlockChain(db qrldb.Database, cacheConfig *CacheConfig, genesis *Genesis
 			if diskRoot != (common.Hash{}) {
 				log.Warn("Head state missing, repairing", "number", head.Number, "hash", head.Hash(), "snaproot", diskRoot)
 
-				snapDisk, err := bc.setHeadBeyondRoot(head.Number.Uint64(), 0, diskRoot, true)
+				snapDisk, err := bc.setHeadBeyondRoot(head.Number.Uint64(), diskRoot, true)
 				if err != nil {
 					return nil, err
 				}
@@ -355,7 +355,7 @@ func NewBlockChain(db qrldb.Database, cacheConfig *CacheConfig, genesis *Genesis
 				}
 			} else {
 				log.Warn("Head state missing, repairing", "number", head.Number, "hash", head.Hash())
-				if _, err := bc.setHeadBeyondRoot(head.Number.Uint64(), 0, common.Hash{}, true); err != nil {
+				if _, err := bc.setHeadBeyondRoot(head.Number.Uint64(), common.Hash{}, true); err != nil {
 					return nil, err
 				}
 			}
@@ -419,16 +419,6 @@ func NewBlockChain(db qrldb.Database, cacheConfig *CacheConfig, genesis *Genesis
 		bc.snaps, _ = snapshot.New(snapconfig, bc.db, bc.triedb, head.Root)
 	}
 
-	// Rewind the chain in case of an incompatible config upgrade.
-	if compat, ok := genesisErr.(*params.ConfigCompatError); ok {
-		log.Warn("Rewinding chain to upgrade configuration", "err", compat)
-		if compat.RewindToTime > 0 {
-			bc.SetHeadWithTimestamp(compat.RewindToTime)
-		} else {
-			bc.SetHead(compat.RewindToBlock)
-		}
-		rawdb.WriteChainConfig(db, genesisHash, chainConfig)
-	}
 	// Start tx indexer/unindexer if required.
 	if txLookupLimit != nil {
 		bc.txLookupLimit = *txLookupLimit
@@ -530,29 +520,7 @@ func (bc *BlockChain) loadLastState() error {
 // was snap synced or full synced and in which state, the method will try to
 // delete minimal data from disk whilst retaining chain consistency.
 func (bc *BlockChain) SetHead(head uint64) error {
-	if _, err := bc.setHeadBeyondRoot(head, 0, common.Hash{}, false); err != nil {
-		return err
-	}
-	// Send chain head event to update the transaction pool
-	header := bc.CurrentBlock()
-	block := bc.GetBlock(header.Hash(), header.Number.Uint64())
-	if block == nil {
-		// This should never happen. In practice, previsouly currentBlock
-		// contained the entire block whereas now only a "marker", so there
-		// is an ever so slight chance for a race we should handle.
-		log.Error("Current block not found in database", "block", header.Number, "hash", header.Hash())
-		return fmt.Errorf("current block missing: #%d [%x..]", header.Number, header.Hash().Bytes()[:4])
-	}
-	bc.chainHeadFeed.Send(ChainHeadEvent{Block: block})
-	return nil
-}
-
-// SetHeadWithTimestamp rewinds the local chain to a new head that has at max
-// the given timestamp. Depending on whether the node was snap synced or full
-// synced and in which state, the method will try to delete minimal data from
-// disk whilst retaining chain consistency.
-func (bc *BlockChain) SetHeadWithTimestamp(timestamp uint64) error {
-	if _, err := bc.setHeadBeyondRoot(0, timestamp, common.Hash{}, false); err != nil {
+	if _, err := bc.setHeadBeyondRoot(head, common.Hash{}, false); err != nil {
 		return err
 	}
 	// Send chain head event to update the transaction pool
@@ -620,12 +588,8 @@ func (bc *BlockChain) resetState() {
 // in which state, the method will try to delete minimal data from disk whilst
 // retaining chain consistency.
 //
-// The method also works in timestamp mode if `head == 0` but `time != 0`. In that
-// case blocks are rolled back until the new head becomes older or equal to the
-// requested time. If both `head` and `time` is 0, the chain is rewound to genesis.
-//
 // The method returns the block number where the requested root cap was found.
-func (bc *BlockChain) setHeadBeyondRoot(head uint64, time uint64, root common.Hash, repair bool) (uint64, error) {
+func (bc *BlockChain) setHeadBeyondRoot(head uint64, root common.Hash, repair bool) (uint64, error) {
 	if !bc.chainmu.TryLock() {
 		return 0, errChainStopped
 	}
@@ -760,13 +724,8 @@ func (bc *BlockChain) setHeadBeyondRoot(head uint64, time uint64, root common.Ha
 	} else {
 		// Rewind the chain to the requested head and keep going backwards until a
 		// block with a state is found or snap sync pivot is passed
-		if time > 0 {
-			log.Warn("Rewinding blockchain to timestamp", "target", time)
-			bc.hc.SetHeadWithTimestamp(time, updateFn, delFn)
-		} else {
-			log.Warn("Rewinding blockchain to block", "target", head)
-			bc.hc.SetHead(head, updateFn, delFn)
-		}
+		log.Warn("Rewinding blockchain to block", "target", head)
+		bc.hc.SetHead(head, updateFn, delFn)
 	}
 	// Clear out any stale content from the caches
 	bc.bodyCache.Purge()

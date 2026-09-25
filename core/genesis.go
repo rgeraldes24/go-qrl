@@ -286,9 +286,9 @@ func (e *GenesisMismatchError) Error() string {
 //	db has no genesis |  main-net default  |  genesis
 //	db has genesis    |  from DB           |  genesis (if compatible)
 //
-// The stored chain configuration will be updated if it is compatible (i.e. does not
-// specify a fork block below the local head block). In case of a conflict, the
-// error is a *params.ConfigCompatError and the new, unwritten config is returned.
+// The stored chain configuration will be updated if it is compatible (i.e. has
+// the same chain ID). In case of a conflict, an error is returned together with
+// the new, unwritten config.
 //
 // The returned chain configuration is never nil.
 func SetupGenesisBlock(db qrldb.Database, triedb *trie.Database, genesis *Genesis) (*params.ChainConfig, common.Hash, error) {
@@ -343,9 +343,6 @@ func SetupGenesisBlockWithOverride(db qrldb.Database, triedb *trie.Database, gen
 	}
 	// Get the existing chain configuration.
 	newcfg := genesis.configOrDefault(stored)
-	if err := newcfg.CheckConfigForkOrder(); err != nil {
-		return newcfg, common.Hash{}, err
-	}
 	storedcfg := rawdb.ReadChainConfig(db, stored)
 	if storedcfg == nil {
 		log.Warn("Found genesis block without chain config")
@@ -361,15 +358,9 @@ func SetupGenesisBlockWithOverride(db qrldb.Database, triedb *trie.Database, gen
 	if genesis == nil && stored != params.MainnetGenesisHash {
 		newcfg = storedcfg
 	}
-	// Check config compatibility and write the config. Compatibility errors
-	// are returned to the caller unless we're already at block zero.
-	head := rawdb.ReadHeadHeader(db)
-	if head == nil {
-		return newcfg, stored, errors.New("missing head header")
-	}
-	compatErr := storedcfg.CheckCompatible(newcfg, head.Number.Uint64(), head.Time)
-	if compatErr != nil && ((head.Number.Uint64() != 0 && compatErr.RewindToBlock != 0) || (head.Time != 0 && compatErr.RewindToTime != 0)) {
-		return newcfg, stored, compatErr
+	// Check config compatibility and write the config.
+	if err := storedcfg.CheckCompatible(newcfg); err != nil {
+		return newcfg, stored, err
 	}
 	// Don't overwrite if the old is identical to the new
 	if newData, _ := json.Marshal(newcfg); !bytes.Equal(storedData, newData) {
@@ -468,9 +459,6 @@ func (g *Genesis) Commit(db qrldb.Database, triedb *trie.Database) (*types.Block
 	config := g.Config
 	if config == nil {
 		config = params.AllBeaconProtocolChanges
-	}
-	if err := config.CheckConfigForkOrder(); err != nil {
-		return nil, err
 	}
 	// All the checks has passed, flush the states derived from the genesis
 	// specification as well as the specification itself into the provided

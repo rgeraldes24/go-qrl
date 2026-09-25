@@ -105,84 +105,12 @@ func (c *ChainConfig) Description() string {
 	return banner
 }
 
-// CheckCompatible checks whether scheduled fork transitions have been imported
-// with a mismatching chain configuration.
-func (c *ChainConfig) CheckCompatible(newcfg *ChainConfig, height uint64, time uint64) *ConfigCompatError {
-	var (
-		bhead = new(big.Int).SetUint64(height)
-		// btime = time
-	)
-	// Iterate checkCompatible to find the lowest conflict.
-	var lasterr *ConfigCompatError
-	for {
-		err := c.checkCompatible(newcfg /*, bhead, btime*/)
-		if err == nil || (lasterr != nil && err.RewindToBlock == lasterr.RewindToBlock && err.RewindToTime == lasterr.RewindToTime) {
-			break
-		}
-		lasterr = err
-
-		if err.RewindToTime > 0 {
-			// btime = err.RewindToTime
-		} else {
-			bhead.SetUint64(err.RewindToBlock)
-		}
-	}
-	return lasterr
-}
-
-// CheckConfigForkOrder checks that we don't "skip" any forks, gqrl isn't pluggable enough
-// to guarantee that forks can be implemented in a different order than on official networks
-func (c *ChainConfig) CheckConfigForkOrder() error {
-	type fork struct {
-		name      string
-		block     *big.Int // forks up to - and including the merge - were defined with block numbers
-		timestamp *uint64  // forks after the merge are scheduled using timestamps
-		optional  bool     // if true, the fork may be nil and next fork is still allowed
-	}
-	var lastFork fork
-	for _, cur := range []fork{} {
-		if lastFork.name != "" {
-			switch {
-			// Non-optional forks must all be present in the chain config up to the last defined fork
-			case lastFork.block == nil && lastFork.timestamp == nil && (cur.block != nil || cur.timestamp != nil):
-				if cur.block != nil {
-					return fmt.Errorf("unsupported fork ordering: %v not enabled, but %v enabled at block %v",
-						lastFork.name, cur.name, cur.block)
-				} else {
-					return fmt.Errorf("unsupported fork ordering: %v not enabled, but %v enabled at timestamp %v",
-						lastFork.name, cur.name, cur.timestamp)
-				}
-
-			// Fork (whether defined by block or timestamp) must follow the fork definition sequence
-			case (lastFork.block != nil && cur.block != nil) || (lastFork.timestamp != nil && cur.timestamp != nil):
-				if lastFork.block != nil && lastFork.block.Cmp(cur.block) > 0 {
-					return fmt.Errorf("unsupported fork ordering: %v enabled at block %v, but %v enabled at block %v",
-						lastFork.name, lastFork.block, cur.name, cur.block)
-				} else if lastFork.timestamp != nil && *lastFork.timestamp > *cur.timestamp {
-					return fmt.Errorf("unsupported fork ordering: %v enabled at timestamp %v, but %v enabled at timestamp %v",
-						lastFork.name, lastFork.timestamp, cur.name, cur.timestamp)
-				}
-
-				// Timestamp based forks can follow block based ones, but not the other way around
-				if lastFork.timestamp != nil && cur.block != nil {
-					return fmt.Errorf("unsupported fork ordering: %v used timestamp ordering, but %v reverted to block ordering",
-						lastFork.name, cur.name)
-				}
-			}
-		}
-		// If it was optional and not set, then ignore it
-		if !cur.optional || (cur.block != nil || cur.timestamp != nil) {
-			lastFork = cur
-		}
-	}
-	return nil
-}
-
-func (c *ChainConfig) checkCompatible(newcfg *ChainConfig /*, headNumber *big.Int, headTimestamp uint64*/) *ConfigCompatError {
+// CheckCompatible checks whether newcfg can replace the stored configuration c.
+// The chain ID must match, since every transaction signs it.
+func (c *ChainConfig) CheckCompatible(newcfg *ChainConfig) error {
 	if !configBlockEqual(c.ChainID, newcfg.ChainID) {
-		return newBlockCompatError("chain ID", c.ChainID, newcfg.ChainID)
+		return fmt.Errorf("mismatching chain ID in database (have %v, want %v)", c.ChainID, newcfg.ChainID)
 	}
-
 	return nil
 }
 
@@ -204,53 +132,6 @@ func configBlockEqual(x, y *big.Int) bool {
 		return x == nil
 	}
 	return x.Cmp(y) == 0
-}
-
-// ConfigCompatError is raised if the locally-stored blockchain is initialised with a
-// ChainConfig that would alter the past.
-type ConfigCompatError struct {
-	What string
-
-	// block numbers of the stored and new configurations if block based forking
-	StoredBlock, NewBlock *big.Int
-
-	// timestamps of the stored and new configurations if time based forking
-	StoredTime, NewTime *uint64
-
-	// the block number to which the local chain must be rewound to correct the error
-	RewindToBlock uint64
-
-	// the timestamp to which the local chain must be rewound to correct the error
-	RewindToTime uint64
-}
-
-func newBlockCompatError(what string, storedblock, newblock *big.Int) *ConfigCompatError {
-	var rew *big.Int
-	switch {
-	case storedblock == nil:
-		rew = newblock
-	case newblock == nil || storedblock.Cmp(newblock) < 0:
-		rew = storedblock
-	default:
-		rew = newblock
-	}
-	err := &ConfigCompatError{
-		What:          what,
-		StoredBlock:   storedblock,
-		NewBlock:      newblock,
-		RewindToBlock: 0,
-	}
-	if rew != nil && rew.Sign() > 0 {
-		err.RewindToBlock = rew.Uint64() - 1
-	}
-	return err
-}
-
-func (err *ConfigCompatError) Error() string {
-	if err.StoredBlock != nil {
-		return fmt.Sprintf("mismatching %s in database (have block %d, want block %d, rewindto block %d)", err.What, err.StoredBlock, err.NewBlock, err.RewindToBlock)
-	}
-	return fmt.Sprintf("mismatching %s in database (have timestamp %d, want timestamp %d, rewindto timestamp %d)", err.What, err.StoredTime, err.NewTime, err.RewindToTime)
 }
 
 // Rules wraps ChainConfig and is merely syntactic sugar or can be used for functions

@@ -18,13 +18,16 @@ package core
 
 import (
 	"encoding/json"
+	"fmt"
 	"math/big"
 	"reflect"
 	"testing"
 
 	"github.com/davecgh/go-spew/spew"
 	"github.com/theQRL/go-qrl/common"
+	"github.com/theQRL/go-qrl/consensus/beacon"
 	"github.com/theQRL/go-qrl/core/rawdb"
+	"github.com/theQRL/go-qrl/core/vm"
 	"github.com/theQRL/go-qrl/params"
 	"github.com/theQRL/go-qrl/qrldb"
 	"github.com/theQRL/go-qrl/trie"
@@ -119,35 +122,6 @@ func testSetupGenesis(t *testing.T, scheme string) {
 			wantHash:   customghash,
 			wantConfig: customg.Config,
 		},
-		// NOTE(rgeraldes24): not valid for now
-		/*
-			{
-				name: "incompatible config in DB",
-				fn: func(db qrldb.Database) (*params.ChainConfig, common.Hash, error) {
-					// Commit the 'old' genesis block with Homestead transition at #2.
-					// Advance to block #4, past the homestead transition block of customg.
-					tdb := trie.NewDatabase(db, newDbConfig(scheme))
-					oldcustomg.Commit(db, tdb)
-
-					bc, _ := NewBlockChain(db, DefaultCacheConfigWithScheme(scheme), &oldcustomg, beacon.NewFullFaker(), vm.Config{}, nil, nil)
-					defer bc.Stop()
-
-					_, blocks, _ := GenerateChainWithGenesis(&oldcustomg, beacon.NewFaker(), 4, nil)
-					bc.InsertChain(blocks)
-
-					// This should return a compatibility error.
-					return SetupGenesisBlock(db, tdb, &customg)
-				},
-				wantHash:   customghash,
-				wantConfig: customg.Config,
-				wantErr: &params.ConfigCompatError{
-					What:          "Homestead fork block",
-					StoredBlock:   big.NewInt(2),
-					NewBlock:      big.NewInt(3),
-					RewindToBlock: 1,
-				},
-			},
-		*/
 	}
 
 	for _, test := range tests {
@@ -169,6 +143,35 @@ func testSetupGenesis(t *testing.T, scheme string) {
 			if stored.Hash() != test.wantHash {
 				t.Errorf("%s: block in DB has hash %s, want %s", test.name, stored.Hash(), test.wantHash)
 			}
+		}
+	}
+}
+
+// Tests that reopening a database with a genesis whose chain ID differs from
+// the stored one fails and leaves the stored chain config unchanged.
+func TestReopenWithDifferentChainID(t *testing.T) {
+	for _, ids := range [][2]int64{{1, 1337}, {1337, 32382}} {
+		var (
+			db   = rawdb.NewMemoryDatabase()
+			oldg = &Genesis{Config: &params.ChainConfig{ChainID: big.NewInt(ids[0])}}
+			newg = &Genesis{Config: &params.ChainConfig{ChainID: big.NewInt(ids[1])}}
+		)
+		chain, err := NewBlockChain(db, nil, oldg, beacon.NewFaker(), vm.Config{}, nil)
+		if err != nil {
+			t.Fatalf("failed to create chain: %v", err)
+		}
+		_, blocks, _ := GenerateChainWithGenesis(oldg, beacon.NewFaker(), 4, nil)
+		if _, err := chain.InsertChain(blocks); err != nil {
+			t.Fatalf("failed to insert chain: %v", err)
+		}
+		chain.Stop()
+
+		want := fmt.Sprintf("mismatching chain ID in database (have %d, want %d)", ids[0], ids[1])
+		if _, err := NewBlockChain(db, nil, newg, beacon.NewFaker(), vm.Config{}, nil); err == nil || err.Error() != want {
+			t.Errorf("chain ID %d -> %d: have error %v, want %s", ids[0], ids[1], err, want)
+		}
+		if stored := rawdb.ReadChainConfig(db, chain.Genesis().Hash()); stored.ChainID.Int64() != ids[0] {
+			t.Errorf("chain ID %d -> %d: stored chain ID changed to %v", ids[0], ids[1], stored.ChainID)
 		}
 	}
 }
