@@ -55,7 +55,7 @@ func NewQRVMBlockContext(header *types.Header, chain ChainContext, author *commo
 		Time:        header.Time,
 		BaseFee:     new(big.Int).Set(header.BaseFee),
 		GasLimit:    header.GasLimit,
-		Random:      &header.Random,
+		Random:      header.Random,
 	}
 }
 
