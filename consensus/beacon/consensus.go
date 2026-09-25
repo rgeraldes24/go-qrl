@@ -117,7 +117,7 @@ func (beacon *Beacon) verifyHeader(chain consensus.ChainHeaderReader, header, pa
 	if header.Time <= parent.Time {
 		return errInvalidTimestamp
 	}
-	// Verify that the gas limit is <= 2^63-1
+	// Verify that the gas limit does not exceed the maximum
 	if header.GasLimit > params.MaxGasLimit {
 		return fmt.Errorf("invalid gasLimit: have %v, max %v", header.GasLimit, params.MaxGasLimit)
 	}

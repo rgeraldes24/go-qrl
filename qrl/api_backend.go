@@ -266,10 +266,6 @@ func (b *QRLAPIBackend) SubscribeChainHeadEvent(ch chan<- core.ChainHeadEvent) e
 	return b.qrl.BlockChain().SubscribeChainHeadEvent(ch)
 }
 
-func (b *QRLAPIBackend) SubscribeChainSideEvent(ch chan<- core.ChainSideEvent) event.Subscription {
-	return b.qrl.BlockChain().SubscribeChainSideEvent(ch)
-}
-
 func (b *QRLAPIBackend) SubscribeLogsEvent(ch chan<- []*types.Log) event.Subscription {
 	return b.qrl.BlockChain().SubscribeLogsEvent(ch)
 }

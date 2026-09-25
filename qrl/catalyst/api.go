@@ -113,8 +113,6 @@ type ConsensusAPI struct {
 	// Gqrl can appear to be stuck or do strange things if the beacon client is
 	// offline or is sending us strange data. Stash some update stats away so
 	// that we can warn the user and not have them open issues on our tracker.
-	lastTransitionUpdate time.Time
-	lastTransitionLock   sync.Mutex
 	lastForkchoiceUpdate time.Time
 	lastForkchoiceLock   sync.Mutex
 	lastNewPayloadUpdate time.Time
@@ -554,10 +552,6 @@ func (api *ConsensusAPI) heartbeat() {
 		// Sleep a bit and retrieve the last known consensus updates
 		time.Sleep(5 * time.Second)
 
-		api.lastTransitionLock.Lock()
-		lastTransitionUpdate := api.lastTransitionUpdate
-		api.lastTransitionLock.Unlock()
-
 		api.lastForkchoiceLock.Lock()
 		lastForkchoiceUpdate := api.lastForkchoiceUpdate
 		api.lastForkchoiceLock.Unlock()
@@ -575,11 +569,7 @@ func (api *ConsensusAPI) heartbeat() {
 
 		if time.Since(offlineLogged) > beaconUpdateWarnFrequency {
 			if lastForkchoiceUpdate.IsZero() && lastNewPayloadUpdate.IsZero() {
-				if lastTransitionUpdate.IsZero() {
-					log.Warn("No beacon client seen. Please launch one to follow the chain!")
-				} else {
-					log.Warn("Beacon client online, but never received consensus updates. Please ensure your beacon client is operational to follow the chain!")
-				}
+				log.Warn("No beacon client seen. Please launch one to follow the chain!")
 			} else {
 				log.Warn("Beacon client online, but no consensus updates received in a while. Please fix your beacon client to follow the chain!")
 			}
