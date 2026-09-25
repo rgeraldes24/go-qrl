@@ -103,27 +103,6 @@ Now get the QNR of your node and store it in the `NODE` environment variable.
 
 Start the test by running `devp2p discv5 test -listen1 127.0.0.1 -listen2 127.0.0.2 $NODE`.
 
-### QRL Protocol Test Suite
-
-The QRL Protocol test suite is a conformance test suite for the qrl protocol.
-
-To run the qrl protocol test suite against your implementation, the node needs to be initialized as such:
-
-1. initialize the gqrl node with the `genesis.json` file contained in the `testdata` directory
-2. import the `halfchain.rlp` file in the `testdata` directory
-3. run gqrl with the following flags:
-```
-gqrl --datadir <datadir> --nodiscover --nat=none --networkid 19763 --verbosity 5
-```
-
-Then, run the following command, replacing `<qnode>` with the qnode of the gqrl node:
- ```
- devp2p rlpx qrl-test <qnode> cmd/devp2p/internal/qrltest/testdata/chain.rlp cmd/devp2p/internal/qrltest/testdata/genesis.json
-```
-
-Repeat the above process (re-initialising the node) in order to run the QRL Protocol test suite again.
-
-[eth]: https://github.com/ethereum/devp2p/blob/master/caps/eth.md
 [dns-tutorial]: https://geth.ethereum.org/docs/developers/geth-developer/dns-discovery-setup
 [discv4]: https://github.com/ethereum/devp2p/tree/master/discv4.md
 [discv5]: https://github.com/ethereum/devp2p/tree/master/discv5/discv5.md

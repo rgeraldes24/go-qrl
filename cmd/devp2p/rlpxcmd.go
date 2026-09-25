@@ -34,34 +34,12 @@ var (
 		Usage: "RLPx Commands",
 		Subcommands: []*cli.Command{
 			rlpxPingCommand,
-			rlpxQRLTestCommand,
-			rlpxSnapTestCommand,
 		},
 	}
 	rlpxPingCommand = &cli.Command{
 		Name:   "ping",
 		Usage:  "ping <node>",
 		Action: rlpxPing,
-	}
-	rlpxQRLTestCommand = &cli.Command{
-		Name:      "qrl-test",
-		Usage:     "Runs tests against a node",
-		ArgsUsage: "<node> <chain.rlp> <genesis.json>",
-		Action:    rlpxQRLTest,
-		Flags: []cli.Flag{
-			testPatternFlag,
-			testTAPFlag,
-		},
-	}
-	rlpxSnapTestCommand = &cli.Command{
-		Name:      "snap-test",
-		Usage:     "Runs tests against a node",
-		ArgsUsage: "<node> <chain.rlp> <genesis.json>",
-		Action:    rlpxSnapTest,
-		Flags: []cli.Flag{
-			testPatternFlag,
-			testTAPFlag,
-		},
 	}
 )
 
@@ -83,12 +61,7 @@ func rlpxPing(ctx *cli.Context) error {
 	}
 	switch code {
 	case 0:
-		// TODO(now.youtrack.cloud/issue/TGZ-6)
-		// var h qrltest.Hello
-		// if err := rlp.DecodeBytes(data, &h); err != nil {
-		// 	return fmt.Errorf("invalid handshake: %v", err)
-		// }
-		// fmt.Printf("%+v\n", h)
+		// Handshake received; the hello payload is not decoded here.
 	case 1:
 		var msg []p2p.DiscReason
 		if rlp.DecodeBytes(data, &msg); len(msg) == 0 {
@@ -98,33 +71,5 @@ func rlpxPing(ctx *cli.Context) error {
 	default:
 		return fmt.Errorf("invalid message code %d, expected handshake (code zero)", code)
 	}
-	return nil
-}
-
-// rlpxQRLTest runs the qrl protocol test suite.
-func rlpxQRLTest(ctx *cli.Context) error {
-	if ctx.NArg() < 3 {
-		exit("missing path to chain.rlp as command-line argument")
-	}
-	// TODO(now.youtrack.cloud/issue/TGZ-6)
-	// suite, err := qrltest.NewSuite(getNodeArg(ctx), ctx.Args().Get(1), ctx.Args().Get(2))
-	// if err != nil {
-	// 	exit(err)
-	// }
-	// return runTests(ctx, suite.QRLTests())
-	return nil
-}
-
-// rlpxSnapTest runs the snap protocol test suite.
-func rlpxSnapTest(ctx *cli.Context) error {
-	if ctx.NArg() < 3 {
-		exit("missing path to chain.rlp as command-line argument")
-	}
-	// TODO(now.youtrack.cloud/issue/TGZ-6)
-	// suite, err := qrltest.NewSuite(getNodeArg(ctx), ctx.Args().Get(1), ctx.Args().Get(2))
-	// if err != nil {
-	// 	exit(err)
-	// }
-	// return runTests(ctx, suite.SnapTests())
 	return nil
 }
