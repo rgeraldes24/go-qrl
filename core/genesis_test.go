@@ -95,20 +95,6 @@ func testSetupGenesis(t *testing.T, scheme string) {
 			wantHash:   customghash,
 			wantConfig: customg.Config,
 		},
-		// TODO(now.youtrack.cloud/issue/TGZ-16)
-		/*
-			{
-				name: "custom block in DB, genesis == goerli",
-				fn: func(db qrldb.Database) (*params.ChainConfig, common.Hash, error) {
-					tdb := trie.NewDatabase(db, newDbConfig(scheme))
-					customg.Commit(db, tdb)
-					return SetupGenesisBlock(db, tdb, DefaultGoerliGenesisBlock())
-				},
-				wantErr:    &GenesisMismatchError{Stored: customghash, New: params.GoerliGenesisHash},
-				wantHash:   params.GoerliGenesisHash,
-				wantConfig: params.GoerliChainConfig,
-			},
-		*/
 		{
 			name: "compatible config in DB",
 			fn: func(db qrldb.Database) (*params.ChainConfig, common.Hash, error) {
