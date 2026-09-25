@@ -17,12 +17,8 @@
 package core
 
 import (
-	crand "crypto/rand"
 	"errors"
 	"fmt"
-	"math"
-	"math/big"
-	mrand "math/rand"
 	"sync/atomic"
 	"time"
 
@@ -67,25 +63,18 @@ type HeaderChain struct {
 
 	procInterrupt func() bool
 
-	rand   *mrand.Rand
 	engine consensus.Engine
 }
 
 // NewHeaderChain creates a new HeaderChain structure. ProcInterrupt points
 // to the parent's interrupt semaphore.
 func NewHeaderChain(chainDb qrldb.Database, config *params.ChainConfig, engine consensus.Engine, procInterrupt func() bool) (*HeaderChain, error) {
-	// Seed a fast but crypto originating random generator
-	seed, err := crand.Int(crand.Reader, big.NewInt(math.MaxInt64))
-	if err != nil {
-		return nil, err
-	}
 	hc := &HeaderChain{
 		config:        config,
 		chainDb:       chainDb,
 		headerCache:   lru.NewCache[common.Hash, *types.Header](headerCacheLimit),
 		numberCache:   lru.NewCache[common.Hash, uint64](numberCacheLimit),
 		procInterrupt: procInterrupt,
-		rand:          mrand.New(mrand.NewSource(seed.Int64())),
 		engine:        engine,
 	}
 	hc.genesisHeader = hc.GetHeaderByNumber(0)
@@ -242,7 +231,7 @@ func (hc *HeaderChain) WriteHeaders(headers []*types.Header) (int, error) {
 }
 
 // writeHeadersAndSetHead writes a batch of block headers and applies the last
-// header as the chain head if the fork choicer says it's ok to update the chain.
+// header as the chain head.
 // Note: This method is not concurrent-safe with inserting blocks simultaneously
 // into the chain, as side effects caused by reorganisations cannot be emulated
 // without the real blocks. Hence, writing headers directly should only be done
@@ -320,8 +309,8 @@ func (hc *HeaderChain) ValidateHeaderChain(chain []*types.Header) (int, error) {
 // This insert is all-or-nothing. If this returns an error, no headers were written,
 // otherwise they were all processed successfully.
 //
-// The returned 'write status' says if the inserted headers are part of the canonical chain
-// or a side chain.
+// The returned 'write status' says if the inserted headers were applied to the
+// canonical chain or were already part of it.
 func (hc *HeaderChain) InsertHeaderChain(chain []*types.Header, start time.Time) (WriteStatus, error) {
 	if hc.procInterrupt() {
 		return 0, errors.New("aborted")

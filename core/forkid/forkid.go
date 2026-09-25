@@ -44,10 +44,10 @@ var (
 	ErrLocalIncompatibleOrStale = errors.New("local incompatible or needs update")
 )
 
-// timestampThreshold is the QRL mainnet genesis timestamp. It is used to
-// differentiate if a forkid.next field is a block number or a timestamp. Whilst
-// very hacky, something's needed to split the validation during the transition
-// period (block forks -> time forks).
+// timestampThreshold is the Ethereum mainnet genesis timestamp, inherited from
+// go-ethereum. It is used to differentiate if a forkid.next field is a block
+// number or a timestamp when validating a remote fork ID. It does not affect
+// the local fork ID.
 const timestampThreshold = 1438269973
 
 // Blockchain defines all necessary method to build a forkID.

@@ -95,7 +95,6 @@ var (
 	}
 
 	blockNumber = big.NewInt(1)
-	blockTime   = uint64(2)
 	blockHash   = common.BytesToHash([]byte{0x03, 0x14})
 	// contractAddr is CreateAddress(zeroSender, nonce=1) — derived from the
 	// first (unsigned) transaction in txs. Recomputed for 64-byte QRL
@@ -268,7 +267,7 @@ func TestDeriveFields(t *testing.T) {
 	// Re-derive receipts.
 	basefee := big.NewInt(1000)
 	derivedReceipts := clearComputedFieldsOnReceipts(receipts)
-	err := Receipts(derivedReceipts).DeriveFields(params.TestChainConfig, blockHash, blockNumber.Uint64(), blockTime, basefee, txs)
+	err := Receipts(derivedReceipts).DeriveFields(params.TestChainConfig, blockHash, blockNumber.Uint64(), basefee, txs)
 	if err != nil {
 		t.Fatalf("DeriveFields(...) = %v, want <nil>", err)
 	}

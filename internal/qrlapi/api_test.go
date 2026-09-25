@@ -441,7 +441,7 @@ func (b testBackend) GetReceipts(ctx context.Context, hash common.Hash) (types.R
 	if header == nil || err != nil {
 		return nil, err
 	}
-	receipts := rawdb.ReadReceipts(b.db, hash, header.Number.Uint64(), header.Time, b.chain.Config())
+	receipts := rawdb.ReadReceipts(b.db, hash, header.Number.Uint64(), b.chain.Config())
 	return receipts, nil
 }
 
@@ -460,9 +460,6 @@ func (b testBackend) SubscribeChainEvent(ch chan<- core.ChainEvent) event.Subscr
 	panic("implement me")
 }
 func (b testBackend) SubscribeChainHeadEvent(ch chan<- core.ChainHeadEvent) event.Subscription {
-	panic("implement me")
-}
-func (b testBackend) SubscribeChainSideEvent(ch chan<- core.ChainSideEvent) event.Subscription {
 	panic("implement me")
 }
 func (b testBackend) SendTx(ctx context.Context, signedTx *types.Transaction) error {

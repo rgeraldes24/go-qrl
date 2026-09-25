@@ -200,7 +200,7 @@ func (bc *BlockChain) GetReceiptsByHash(hash common.Hash) types.Receipts {
 	if header == nil {
 		return nil
 	}
-	receipts := rawdb.ReadReceipts(bc.db, hash, *number, header.Time, bc.chainConfig)
+	receipts := rawdb.ReadReceipts(bc.db, hash, *number, bc.chainConfig)
 	if receipts == nil {
 		return nil
 	}
@@ -346,11 +346,6 @@ func (bc *BlockChain) SubscribeChainEvent(ch chan<- ChainEvent) event.Subscripti
 // SubscribeChainHeadEvent registers a subscription of ChainHeadEvent.
 func (bc *BlockChain) SubscribeChainHeadEvent(ch chan<- ChainHeadEvent) event.Subscription {
 	return bc.scope.Track(bc.chainHeadFeed.Subscribe(ch))
-}
-
-// SubscribeChainSideEvent registers a subscription of ChainSideEvent.
-func (bc *BlockChain) SubscribeChainSideEvent(ch chan<- ChainSideEvent) event.Subscription {
-	return bc.scope.Track(bc.chainSideFeed.Subscribe(ch))
 }
 
 // SubscribeLogsEvent registers a subscription of []*types.Log.

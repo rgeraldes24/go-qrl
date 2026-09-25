@@ -598,7 +598,6 @@ func (pool *LegacyPool) local() map[common.Address]types.Transactions {
 // and does not require the pool mutex to be held.
 func (pool *LegacyPool) validateTxBasics(tx *types.Transaction, local bool) error {
 	opts := &txpool.ValidationOptions{
-		Config: pool.chainconfig,
 		Accept: 0 |
 			1<<types.DynamicFeeTxType,
 		MaxSize: txMaxSize,

@@ -216,7 +216,6 @@ type BlockChain struct {
 	hc            *HeaderChain
 	rmLogsFeed    event.Feed
 	chainFeed     event.Feed
-	chainSideFeed event.Feed
 	chainHeadFeed event.Feed
 	logsFeed      event.Feed
 	blockProcFeed event.Feed
@@ -392,11 +391,6 @@ func NewBlockChain(db qrldb.Database, cacheConfig *CacheConfig, genesis *Genesis
 			}
 		}
 	}
-	// The first thing the node will do is reconstruct the verification data for
-	// the head block (ethash cache or clique voting snapshot). Might as well do
-	// it in advance.
-	bc.engine.VerifyHeader(bc, bc.CurrentHeader())
-
 	// Load any existing snapshot, regenerating it if loading failed
 	if bc.cacheConfig.SnapshotLimit > 0 {
 		// If the chain was rewound past the snapshot persistent layer (causing
@@ -1806,7 +1800,7 @@ func (bc *BlockChain) recoverAncestors(block *types.Block) (common.Hash, error) 
 // the processing of a block. These logs are later announced as deleted or reborn.
 func (bc *BlockChain) collectLogs(b *types.Block, removed bool) []*types.Log {
 	receipts := rawdb.ReadRawReceipts(bc.db, b.Hash(), b.NumberU64())
-	if err := receipts.DeriveFields(bc.chainConfig, b.Hash(), b.NumberU64(), b.Time(), b.BaseFee(), b.Transactions()); err != nil {
+	if err := receipts.DeriveFields(bc.chainConfig, b.Hash(), b.NumberU64(), b.BaseFee(), b.Transactions()); err != nil {
 		log.Error("Failed to derive block receipts fields", "hash", b.Hash(), "number", b.NumberU64(), "err", err)
 	}
 	var logs []*types.Log
@@ -1952,12 +1946,9 @@ func (bc *BlockChain) reorg(oldHead *types.Header, newHead *types.Block) error {
 	// logs from the new canon chain. The number of logs can be very
 	// high, so the events are sent in batches of size around 512.
 
-	// Deleted logs + blocks:
+	// Deleted logs:
 	var deletedLogs []*types.Log
 	for i := len(oldChain) - 1; i >= 0; i-- {
-		// Also send event for blocks removed from the canon chain.
-		bc.chainSideFeed.Send(ChainSideEvent{Block: oldChain[i]})
-
 		// Collect deleted logs for notification
 		if logs := bc.collectLogs(oldChain[i], true); len(logs) > 0 {
 			deletedLogs = append(deletedLogs, logs...)
