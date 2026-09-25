@@ -45,8 +45,7 @@ which can
   - Block context information,
   - Previous blockshashes (*optional)
 2. Apply a set of transactions,
-3. Apply a mining-reward (*optional),
-4. And generate a post-state, including
+3. And generate a post-state, including
   - State root, transaction root, receipt root,
   - Information about rejected transactions,
   - Optionally: a full or partial post-state dump
@@ -193,9 +192,9 @@ There are a few (not many) errors that can occur, those are defined below.
 
 ```
 # This should exit with 3
-./qrvm t8n --input.alloc=./testdata/1/alloc.json --input.txs=./testdata/1/txs.json --input.env=./testdata/1/env.json --state.fork=Frontier+1346 2>/dev/null
+./qrvm t8n --input.alloc=./testdata/1/alloc.json --input.txs=./testdata/1/txs.json --input.env=./testdata/1/env.json --state.fork=Zond+1346 2>/dev/null
 EOF
-./qrvm t8n --input.alloc=./testdata/1/alloc.json --input.txs=./testdata/1/txs.json --input.env=./testdata/1/env.json --state.fork=Frontier+1346 2>/dev/null
+./qrvm t8n --input.alloc=./testdata/1/alloc.json --input.txs=./testdata/1/txs.json --input.env=./testdata/1/env.json --state.fork=Zond+1346 2>/dev/null
 exitcode=$?
 if [ $exitcode !=  3 ]; then
 	echo "Failed, exitcode should be 3,was $exitcode"
@@ -322,7 +321,6 @@ The transaction tool is used to perform static validity checks on transactions s
 * intrinsic gas calculation
 * max values on integers
 * fee semantics, such as `maxFeePerGas < maxPriorityFeePerGas`
-* newer tx types on old forks
 
 ### Examples
 
@@ -336,7 +334,7 @@ tick
 cat << "EOF"
 ## Block builder tool (b11r)
 
-The `qrvm b11r` tool is used to assemble and seal full block rlps.
+The `qrvm b11r` tool is used to assemble full block rlps.
 
 ### Specification
 
