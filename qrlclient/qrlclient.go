@@ -119,7 +119,7 @@ func (qc *Client) BlockReceipts(ctx context.Context, blockNrOrHash rpc.BlockNumb
 }
 
 type rpcBlock struct {
-	Hash         common.Hash         `json:"hash"`
+	Hash         *common.Hash        `json:"hash"`
 	Transactions []rpcTransaction    `json:"transactions"`
 	Withdrawals  []*types.Withdrawal `json:"withdrawals"`
 }
@@ -145,6 +145,11 @@ func (qc *Client) getBlock(ctx context.Context, method string, args ...any) (*ty
 	if err := json.Unmarshal(raw, &body); err != nil {
 		return nil, err
 	}
+	// Pending blocks don't return a block hash, compute it for sender caching.
+	if body.Hash == nil {
+		tmp := head.Hash()
+		body.Hash = &tmp
+	}
 	// Quick-verify transaction and withdrawal lists. This mostly helps with debugging the server.
 	if head.TxHash == types.EmptyTxsHash && len(body.Transactions) > 0 {
 		return nil, errors.New("server returned non-empty transaction list but block header indicates no transactions")
@@ -162,7 +167,7 @@ func (qc *Client) getBlock(ctx context.Context, method string, args ...any) (*ty
 	txs := make([]*types.Transaction, len(body.Transactions))
 	for i, tx := range body.Transactions {
 		if tx.From != nil {
-			setSenderFromServer(tx.tx, *tx.From, body.Hash)
+			setSenderFromServer(tx.tx, *tx.From, *body.Hash)
 		}
 		txs[i] = tx.tx
 	}
