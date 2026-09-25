@@ -60,7 +60,7 @@ type BlockContext struct {
 	BlockNumber *big.Int       // Provides information for NUMBER
 	Time        uint64         // Provides information for TIME
 	BaseFee     *big.Int       // Provides information for BASEFEE
-	Random      *common.Hash   // Provides information for PREVRANDAO
+	Random      common.Hash    // Provides information for PREVRANDAO
 }
 
 // TxContext provides the QRVM with information about a transaction.
