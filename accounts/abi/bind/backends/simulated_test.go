@@ -30,6 +30,7 @@ import (
 	"github.com/theQRL/go-qrl/accounts/abi"
 	"github.com/theQRL/go-qrl/accounts/abi/bind"
 	"github.com/theQRL/go-qrl/common"
+	"github.com/theQRL/go-qrl/common/math"
 	"github.com/theQRL/go-qrl/core"
 	"github.com/theQRL/go-qrl/core/types"
 	"github.com/theQRL/go-qrl/crypto/pqcrypto/wallet"
@@ -1184,6 +1185,31 @@ func TestPendingAndCallContract(t *testing.T) {
 
 	if !bytes.Equal(res, expectedReturn) || !strings.Contains(string(res), "hello world") {
 		t.Errorf("response from calling contract was expected to be 'hello world' instead received %v", string(res))
+	}
+}
+
+// TestPendingCallContractGasPrice checks that a pending call derives GASPRICE
+// from the pending block's base fee, the one BASEFEE reports, not the head's.
+func TestPendingCallContractGasPrice(t *testing.T) {
+	// Runtime code returning GASPRICE and BASEFEE as two 64-byte words:
+	// GASPRICE PUSH1 0 MSTORE BASEFEE PUSH1 64 MSTORE PUSH1 128 PUSH1 0 RETURN
+	code := common.FromHex("3a6000524860405260806000f3")
+	contractAddr := common.BytesToAddress([]byte{0xc0, 0xde})
+	sim := NewSimulatedBackend(core.GenesisAlloc{contractAddr: {Code: code}}, 10000000)
+	defer sim.Close()
+
+	tip, feeCap := big.NewInt(1), big.NewInt(2*params.InitialBaseFee)
+	res, err := sim.PendingCallContract(t.Context(), qrl.CallMsg{
+		To:        &contractAddr,
+		GasFeeCap: feeCap,
+		GasTipCap: tip,
+	})
+	if err != nil || len(res) != 128 {
+		t.Fatalf("unexpected call result: %x, err: %v", res, err)
+	}
+	gasPrice, baseFee := new(big.Int).SetBytes(res[:64]), new(big.Int).SetBytes(res[64:])
+	if want := math.BigMin(new(big.Int).Add(baseFee, tip), feeCap); gasPrice.Cmp(want) != 0 {
+		t.Errorf("GASPRICE mismatch: have %v, want %v (BASEFEE %v)", gasPrice, want, baseFee)
 	}
 }
 
