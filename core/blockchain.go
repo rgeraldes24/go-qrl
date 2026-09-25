@@ -1545,7 +1545,7 @@ func (bc *BlockChain) insertChain(chain types.Blocks, setHead bool) (int, error)
 	// First block is pruned
 	case errors.Is(err, consensus.ErrPrunedAncestor):
 		if !setHead {
-			// We're post-merge and the parent is pruned, try to recover the parent state
+			// The parent is pruned, try to recover the parent state
 			log.Debug("Pruned ancestor", "number", block.Number(), "hash", block.Hash())
 			_, err := bc.recoverAncestors(block)
 			return it.index, err
@@ -1718,7 +1718,7 @@ func (bc *BlockChain) insertChain(chain types.Blocks, setHead bool) (int, error)
 		stats.report(chain, it.index, snapDiffItems, snapBufItems, trieDiffNodes, trieBufNodes, setHead)
 
 		if !setHead {
-			// After merge we expect few side chains. Simply count
+			// We expect few side chains. Simply count
 			// all blocks the CL gives us for GC processing time
 			bc.gcproc += proctime
 
@@ -1753,7 +1753,6 @@ func (bc *BlockChain) insertChain(chain types.Blocks, setHead bool) (int, error)
 
 // recoverAncestors finds the closest ancestor with available state and re-execute
 // all the ancestor blocks since that.
-// recoverAncestors is only used post-merge.
 // We return the hash of the latest block that we could correctly validate.
 func (bc *BlockChain) recoverAncestors(block *types.Block) (common.Hash, error) {
 	// Gather all the sidechain hashes (full blocks may be memory heavy)
@@ -1902,7 +1901,7 @@ func (bc *BlockChain) reorg(oldHead *types.Header, newHead *types.Block) error {
 		blockReorgDropMeter.Mark(int64(len(oldChain)))
 		blockReorgMeter.Mark(1)
 	} else if len(newChain) > 0 {
-		// Special case happens in the post merge stage that current head is
+		// Special case happens when the current head is
 		// the ancestor of new head while these two blocks are not consecutive
 		log.Info("Extend chain", "add", len(newChain), "number", newChain[0].Number(), "hash", newChain[0].Hash())
 		blockReorgAddMeter.Mark(int64(len(newChain)))

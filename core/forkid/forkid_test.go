@@ -84,8 +84,8 @@ func TestCreation(t *testing.T) {
 					{15049999, 0, ID{Hash: checksumToBytes(0x20c327fc), Next: 15050000}},            // Last Arrow Glacier block
 					{15050000, 0, ID{Hash: checksumToBytes(0xf0afd0e3), Next: 1681338455}},          // First Gray Glacier block
 					{20000000, 1681338454, ID{Hash: checksumToBytes(0xf0afd0e3), Next: 1681338455}}, // Last Gray Glacier block
-					{20000000, 1681338455, ID{Hash: checksumToBytes(0xdce96c2d), Next: 0}},          // First Zond block
-					{30000000, 2000000000, ID{Hash: checksumToBytes(0xdce96c2d), Next: 0}},          // Future Zond block
+					{20000000, 1681338455, ID{Hash: checksumToBytes(0xdce96c2d), Next: 0}},          // First Shanghai block
+					{30000000, 2000000000, ID{Hash: checksumToBytes(0xdce96c2d), Next: 0}},          // Future Shanghai block
 				*/
 			},
 		},
@@ -182,17 +182,6 @@ func TestTimeBasedForkInGenesis(t *testing.T) {
 		config *params.ChainConfig
 		want   ID
 	}{
-		// NOTE(rgeraldes24): revisit upon new fork
-		/*
-			// Zond active before genesis, skip
-			{config(), ID{Hash: forkidHash, Next: time + 1}},
-
-			// Zond active at genesis, skip
-			{config(), ID{Hash: forkidHash, Next: time + 1}},
-
-			// Zond not active, skip
-			{config(), ID{Hash: forkidHash, Next: time + 1}},
-		*/
 		// No forks
 		{config(), ID{Hash: forkidHash, Next: 0}},
 	}
