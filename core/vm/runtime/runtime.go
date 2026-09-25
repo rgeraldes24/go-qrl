@@ -43,7 +43,7 @@ type Config struct {
 	Debug       bool
 	QRVMConfig  vm.Config
 	BaseFee     *big.Int
-	Random      *common.Hash
+	Random      common.Hash
 
 	State     *state.StateDB
 	GetHashFn func(n uint64) common.Hash
@@ -76,9 +76,6 @@ func setDefaults(cfg *Config) {
 	}
 	if cfg.BaseFee == nil {
 		cfg.BaseFee = big.NewInt(params.InitialBaseFee)
-	}
-	if cfg.Random == nil {
-		cfg.Random = &(common.Hash{})
 	}
 }
 

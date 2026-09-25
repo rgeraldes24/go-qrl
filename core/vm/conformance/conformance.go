@@ -122,7 +122,7 @@ func execute(code, input []byte, gasLimit uint64) (Result, error) {
 		Time:        0,
 		GasLimit:    gasLimit,
 		BaseFee:     big.NewInt(params.InitialBaseFee),
-		Random:      &common.Hash{},
+		Random:      common.Hash{},
 	}
 	txctx := vm.TxContext{
 		Origin:   origin,
