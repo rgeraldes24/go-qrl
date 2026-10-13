@@ -258,7 +258,7 @@ func U256(x *big.Int) *big.Int {
 	return x.And(x, tt256m1)
 }
 
-// U256Bytes converts a big Int into a 256bit number (32 bytes, big-endian).
+// U256Bytes converts a big Int into a 256bit QRVM number.
 // This operation is destructive.
 func U256Bytes(n *big.Int) []byte {
 	return PaddedBigBytes(U256(n), 32)
