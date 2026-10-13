@@ -26,6 +26,7 @@ import (
 	"github.com/theQRL/go-qrl/common/hexutil"
 	"github.com/theQRL/go-qrl/common/math"
 	"github.com/theQRL/go-qrl/core/types"
+	"github.com/theQRL/go-qrl/log"
 	"github.com/theQRL/go-qrl/rlp"
 	"github.com/urfave/cli/v2"
 )
@@ -99,6 +100,11 @@ func (i *bbInput) ToBlock() *types.Block {
 
 // BuildBlock constructs a block from the given inputs.
 func BuildBlock(ctx *cli.Context) error {
+	// Configure the go-qrl logger
+	glogger := log.NewGlogHandler(log.NewTerminalHandler(os.Stderr, false))
+	glogger.Verbosity(log.FromLegacyLevel(ctx.Int(VerbosityFlag.Name)))
+	log.SetDefault(log.NewLogger(glogger))
+
 	baseDir, err := createBasedir(ctx)
 	if err != nil {
 		return NewError(ErrorIO, fmt.Errorf("failed creating output basedir: %v", err))

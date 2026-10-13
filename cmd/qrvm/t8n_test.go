@@ -228,6 +228,28 @@ func TestT8n(t *testing.T) {
 	}
 }
 
+// TestT8nVerbosity checks that the t8n log output follows --verbosity.
+func TestT8nVerbosity(t *testing.T) {
+	tt := new(testT8n)
+	tt.TestCmd = cmdtest.NewTestCmd(t, tt)
+	input := t8nInput{"alloc.json", "txs.json", "env.json", "Zond"}
+	for _, tc := range []struct {
+		verbosity string
+		logged    bool
+	}{
+		{"3", true},
+		{"0", false},
+	} {
+		args := []string{"t8n", "--output.basedir", t.TempDir(), "--verbosity", tc.verbosity}
+		args = append(args, input.get("./testdata/1")...)
+		tt.Run("qrvm-test", args...)
+		tt.WaitExit()
+		if have := strings.Contains(tt.StderrText(), "Wrote file"); have != tc.logged {
+			t.Errorf("verbosity %s: log output present is %v, want %v", tc.verbosity, have, tc.logged)
+		}
+	}
+}
+
 type t9nInput struct {
 	inTxs  string
 	stFork string

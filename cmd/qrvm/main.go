@@ -123,7 +123,7 @@ var (
 	DisableReturnDataFlag = &cli.BoolFlag{
 		Name:  "noreturndata",
 		Value: true,
-		Usage: "enable return data output",
+		Usage: "disable return data output",
 	}
 )
 

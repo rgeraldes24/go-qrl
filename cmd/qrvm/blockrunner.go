@@ -24,6 +24,7 @@ import (
 
 	"github.com/theQRL/go-qrl/core/rawdb"
 	"github.com/theQRL/go-qrl/core/vm"
+	"github.com/theQRL/go-qrl/log"
 	"github.com/theQRL/go-qrl/qrl/tracers/logger"
 	"github.com/theQRL/go-qrl/tests"
 	"github.com/urfave/cli/v2"
@@ -40,6 +41,10 @@ func blockTestCmd(ctx *cli.Context) error {
 	if len(ctx.Args().First()) == 0 {
 		return errors.New("path-to-test argument required")
 	}
+	// Configure the go-qrl logger
+	glogger := log.NewGlogHandler(log.NewTerminalHandler(os.Stderr, false))
+	glogger.Verbosity(log.FromLegacyLevel(ctx.Int(VerbosityFlag.Name)))
+	log.SetDefault(log.NewLogger(glogger))
 	var tracer vm.QRVMLogger
 	// Configure the QRVM logger
 	if ctx.Bool(MachineFlag.Name) {

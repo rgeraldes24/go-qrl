@@ -83,6 +83,11 @@ type input struct {
 }
 
 func Transition(ctx *cli.Context) error {
+	// Configure the go-qrl logger
+	glogger := log.NewGlogHandler(log.NewTerminalHandler(os.Stderr, false))
+	glogger.Verbosity(log.FromLegacyLevel(ctx.Int(VerbosityFlag.Name)))
+	log.SetDefault(log.NewLogger(glogger))
+
 	var (
 		err    error
 		tracer vm.QRVMLogger
