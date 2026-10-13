@@ -54,6 +54,7 @@ var (
 // fetchRequest is a currently running data retrieval operation.
 type fetchRequest struct {
 	Peer    *peerConnection // Peer to which the request was sent
+	From    uint64          // Requested chain element index (used for skeleton fills only)
 	Headers []*types.Header // Requested headers, sorted by request order
 	Time    time.Time       // Time when the request was made
 }
@@ -407,7 +408,7 @@ func (q *queue) reserveHeaders(p *peerConnection, count int, taskPool map[common
 	skip := make([]*types.Header, 0)
 	progress := false
 	throttled := false
-	for len(send) < count && !taskQueue.Empty() {
+	for proc := 0; len(send) < count && !taskQueue.Empty(); proc++ {
 		// the task queue will pop items in order, so the highest prio block
 		// is also the lowest block number.
 		header, _ := taskQueue.Peek()
@@ -422,6 +423,7 @@ func (q *queue) reserveHeaders(p *peerConnection, count int, taskPool map[common
 			taskQueue.PopItem()
 			progress = true
 			delete(taskPool, header.Hash())
+			proc = proc - 1
 			log.Error("Fetch reservation already delivered", "number", header.Number.Uint64())
 			continue
 		}
@@ -443,6 +445,7 @@ func (q *queue) reserveHeaders(p *peerConnection, count int, taskPool map[common
 			// If it's a noop, we can skip this task
 			delete(taskPool, header.Hash())
 			taskQueue.PopItem()
+			proc = proc - 1
 			progress = true
 			continue
 		}
@@ -536,6 +539,9 @@ func (q *queue) expire(peer string, pendPool map[string]*fetchRequest, taskQueue
 	delete(pendPool, peer)
 
 	// Return any non-satisfied requests to the pool
+	if req.From > 0 {
+		taskQueue.(*prque.Prque[int64, uint64]).Push(req.From, -int64(req.From))
+	}
 	for _, header := range req.Headers {
 		taskQueue.(*prque.Prque[int64, *types.Header]).Push(header, -int64(header.Number.Uint64()))
 	}
