@@ -145,7 +145,7 @@ func ReadSeedFromFile(file string) (string, error) {
 	} else if n != len(buf) {
 		return "", fmt.Errorf("seed too short, want %d hex characters", SeedSizeBytes*2)
 	}
-	if err := common.CheckKeyFileEnd(r); err != nil {
+	if err := common.CheckKeyFileEnd(r, len(buf)); err != nil {
 		return "", err
 	}
 
