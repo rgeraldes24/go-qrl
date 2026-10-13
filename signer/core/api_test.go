@@ -21,6 +21,7 @@ import (
 	"math/big"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -40,11 +41,13 @@ import (
 type headlessUi struct {
 	approveCh           chan string // to send approve/deny
 	inputCh             chan string // to send password
+	prompts             []string    // prompts of the input requests
 	lastSignDataRequest *core.SignDataRequest
 }
 
 func (ui *headlessUi) OnInputRequired(info core.UserInputRequest) (core.UserInputResponse, error) {
 	input := <-ui.inputCh
+	ui.prompts = append(ui.prompts, info.Prompt)
 	return core.UserInputResponse{Text: input}, nil
 }
 
@@ -168,6 +171,19 @@ func failCreateAccount(ui *headlessUi, api *core.SignerAPI, t *testing.T) {
 func list(ui *headlessUi, api *core.SignerAPI, t *testing.T) ([]common.Address, error) {
 	ui.approveCh <- "A"
 	return api.List(t.Context())
+}
+
+func TestNewAccPasswordPrompt(t *testing.T) {
+	api, control := setup(t)
+	failCreateAccountWithPassword(control, api, "short", t)
+	if len(control.prompts) != 3 {
+		t.Fatalf("Expected 3 password prompts, got %d", len(control.prompts))
+	}
+	for i, prompt := range control.prompts {
+		if want := fmt.Sprintf("(attempt %d of 3)", i+1); !strings.HasSuffix(prompt, want) {
+			t.Errorf("Expected prompt %d to end with %q, got %q", i, want, prompt)
+		}
+	}
 }
 
 func TestNewAcc(t *testing.T) {

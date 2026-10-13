@@ -287,7 +287,7 @@ func (api *SignerAPI) newAccount() (common.Address, error) {
 	for i := range 3 {
 		resp, err := api.UI.OnInputRequired(UserInputRequest{
 			"New account password",
-			fmt.Sprintf("Please enter a password for the new account to be created (attempt %d of 3)", i),
+			fmt.Sprintf("Please enter a password for the new account to be created (attempt %d of 3)", i+1),
 			true})
 		if err != nil {
 			log.Warn("error obtaining password", "attempt", i, "error", err)
