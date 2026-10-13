@@ -881,8 +881,7 @@ func checkFile(filename string) error {
 		return fmt.Errorf("failed stat on %s: %v", filename, err)
 	}
 	// Check the unix permission bits
-	// However, on windows, we cannot use the unix perm-bits, see
-	// https://github.com/theQRL/go-qrl/issues/20123
+	// However, on windows, we cannot use the unix perm-bits
 	if runtime.GOOS != "windows" && info.Mode().Perm()&0377 != 0 {
 		return fmt.Errorf("file (%v) has insecure file permissions (%v)", filename, info.Mode().String())
 	}
