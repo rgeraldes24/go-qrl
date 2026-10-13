@@ -17,8 +17,16 @@
 package qrlstats
 
 import (
+	"context"
+	"math/big"
 	"strconv"
 	"testing"
+
+	"github.com/theQRL/go-qrl/consensus/beacon"
+	"github.com/theQRL/go-qrl/core/types"
+	"github.com/theQRL/go-qrl/qrl"
+	"github.com/theQRL/go-qrl/rpc"
+	"github.com/theQRL/go-qrl/trie"
 )
 
 func TestParseQRLstatsURL(t *testing.T) {
@@ -78,5 +86,50 @@ func TestParseQRLstatsURL(t *testing.T) {
 		if host != c.host {
 			t.Errorf("case=%d mismatch host value, got: %v ,want: %v", i, host, c.host)
 		}
+	}
+}
+
+var _ fullNodeBackend = (*qrl.QRLAPIBackend)(nil)
+
+type testBackend struct {
+	backend
+	head  *types.Block
+	block *types.Block
+}
+
+func (b *testBackend) CurrentBlock() *types.Header {
+	return b.head.Header()
+}
+
+func (b *testBackend) BlockByNumber(ctx context.Context, number rpc.BlockNumber) (*types.Block, error) {
+	if b.block == nil || b.block.NumberU64() != uint64(number) {
+		return nil, nil
+	}
+	return b.block, nil
+}
+
+func (b *testBackend) SuggestGasTipCap(ctx context.Context) (*big.Int, error) {
+	return big.NewInt(1), nil
+}
+
+func TestAssembleBlockStatsFullNode(t *testing.T) {
+	tx := types.NewTx(&types.DynamicFeeTx{})
+	block := types.NewBlock(&types.Header{Number: big.NewInt(1)}, &types.Body{Transactions: []*types.Transaction{tx}}, nil, trie.NewStackTrie(nil))
+
+	s := &Service{backend: &testBackend{head: block, block: block}, engine: beacon.NewFaker()}
+	stats := s.assembleBlockStats(nil)
+	if stats == nil {
+		t.Fatal("no stats for the current head")
+	}
+	if stats.Hash != block.Hash() {
+		t.Errorf("hash mismatch, got: %v, want: %v", stats.Hash, block.Hash())
+	}
+	if len(stats.Txs) != 1 || stats.Txs[0].Hash != tx.Hash() {
+		t.Errorf("transactions mismatch, got: %v, want: [%v]", stats.Txs, tx.Hash())
+	}
+
+	s = &Service{backend: &testBackend{head: block}, engine: beacon.NewFaker()}
+	if stats := s.assembleBlockStats(nil); stats != nil {
+		t.Errorf("got stats for an unavailable head: %v", stats)
 	}
 }

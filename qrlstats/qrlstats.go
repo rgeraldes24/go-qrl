@@ -74,7 +74,7 @@ type backend interface {
 type fullNodeBackend interface {
 	backend
 	BlockByNumber(ctx context.Context, number rpc.BlockNumber) (*types.Block, error)
-	CurrentBlock() *types.Block
+	CurrentBlock() *types.Header
 	SuggestGasTipCap(ctx context.Context) (*big.Int, error)
 }
 
@@ -620,8 +620,15 @@ func (s *Service) assembleBlockStats(block *types.Block) *blockStats {
 	// check if backend is a full node
 	fullBackend, ok := s.backend.(fullNodeBackend)
 	if ok {
+		// Retrieve current chain head if no block is given.
 		if block == nil {
-			block = fullBackend.CurrentBlock()
+			head := fullBackend.CurrentBlock()
+			block, _ = fullBackend.BlockByNumber(context.Background(), rpc.BlockNumber(head.Number.Uint64()))
+		}
+		// Short circuit if no block is available. It might happen when
+		// the blockchain is reorging.
+		if block == nil {
+			return nil
 		}
 		header = block.Header()
 
