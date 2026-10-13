@@ -300,6 +300,7 @@ func (s *QRL) Engine() consensus.Engine           { return s.engine }
 func (s *QRL) ChainDb() qrldb.Database            { return s.chainDb }
 func (s *QRL) Downloader() *downloader.Downloader { return s.handler.downloader }
 func (s *QRL) SetSynced()                         { s.handler.enableSyncedFeatures() }
+func (s *QRL) BloomIndexer() *core.ChainIndexer   { return s.bloomIndexer }
 
 // Protocols returns all the currently configured
 // network protocols to start.

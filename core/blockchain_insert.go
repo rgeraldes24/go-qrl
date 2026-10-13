@@ -27,10 +27,10 @@ import (
 
 // insertStats tracks and reports on block insertion.
 type insertStats struct {
-	processed, ignored int
-	usedGas            uint64
-	lastIndex          int
-	startTime          mclock.AbsTime
+	queued, processed, ignored int
+	usedGas                    uint64
+	lastIndex                  int
+	startTime                  mclock.AbsTime
 }
 
 // statsReportLimit is the time limit during import and export after which we
@@ -76,6 +76,9 @@ func (st *insertStats) report(chain []*types.Block, index int, snapDiffItems, sn
 		}
 		context = append(context, []any{"triedirty", triebufNodes}...)
 
+		if st.queued > 0 {
+			context = append(context, []any{"queued", st.queued}...)
+		}
 		if st.ignored > 0 {
 			context = append(context, []any{"ignored", st.ignored}...)
 		}
