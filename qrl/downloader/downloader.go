@@ -42,7 +42,7 @@ var (
 	MaxHeaderFetch  = 192 // Number of block headers to be fetched per retrieval request
 	MaxReceiptFetch = 256 // Number of transaction receipts to allow fetching per request
 
-	maxQueuedHeaders           = 32 * 1024                        // [qrl/62] Maximum number of headers to queue for import (DOS protection)
+	maxQueuedHeaders           = 32 * 1024                        // Maximum number of headers to queue for import (DOS protection)
 	maxHeadersProcess          = 2048                             // Number of header download results to import at once into the chain
 	maxResultsProcess          = 2048                             // Number of content download results to import at once into the chain
 	fullMaxForkAncestry uint64 = params.FullImmutabilityThreshold // Maximum chain reorganisation (locally redeclared so tests can reduce it)
@@ -203,7 +203,7 @@ func New(stateDb qrldb.Database, mux *event.TypeMux, chain BlockChain, dropPeer 
 		stateSyncStart: make(chan *stateSync),
 		syncStartBlock: chain.CurrentSnapBlock().Number.Uint64(),
 	}
-	// Create the post-merge skeleton syncer and start the process
+	// Create the skeleton syncer and start the process
 	dl.skeleton = newSkeleton(stateDb, dl.peers, dropPeer, newBeaconBackfiller(dl, success))
 
 	go dl.stateFetcher()
@@ -293,9 +293,8 @@ func (d *Downloader) UnregisterPeer(id string) error {
 	return nil
 }
 
-// synchronise will select the peer and use it for synchronising. If an empty string is given
-// it will use the best peer possible and synchronize if its TD is higher than our own. If any of the
-// checks fail an error will be returned. This method is synchronous
+// synchronise runs a sync cycle in the given mode, driven by the beacon header syncer.
+// If any of the checks fail an error will be returned. This method is synchronous
 func (d *Downloader) synchronise(mode SyncMode, beaconPing chan struct{}) error {
 	// The beacon header syncer is async. It will start this synchronization and
 	// will continue doing other tasks. However, if synchronization needs to be
@@ -353,7 +352,7 @@ func (d *Downloader) synchronise(mode SyncMode, beaconPing chan struct{}) error 
 			empty = true
 		}
 	}
-	// Create cancel channel for aborting mid-flight and mark the master peer
+	// Create cancel channel for aborting mid-flight
 	d.cancelLock.Lock()
 	d.cancelCh = make(chan struct{})
 	d.cancelLock.Unlock()
@@ -482,7 +481,7 @@ func (d *Downloader) syncToHead() (err error) {
 			d.ancientLimit = 0
 		}
 
-		frozen, _ := d.stateDB.Ancients() // Ignore the error here since light client can also hit here.
+		frozen, _ := d.stateDB.Ancients() // Ignore the error here since a database without ancient store can also hit here.
 
 		// If a part of blockchain data has already been written into active store,
 		// disable the ancient style insertion explicitly.

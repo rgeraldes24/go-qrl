@@ -39,7 +39,7 @@ var (
 	MainnetChainConfig = &ChainConfig{
 		ChainID: big.NewInt(1),
 	}
-	// TestnetChainConfig contains the chain parameters to run a node on the BetaNet test network.
+	// TestnetChainConfig contains the chain parameters to run a node on the Testnet test network.
 	TestnetChainConfig = &ChainConfig{
 		ChainID: big.NewInt(1337),
 	}
@@ -135,8 +135,8 @@ func (c *ChainConfig) CheckCompatible(newcfg *ChainConfig, height uint64, time u
 func (c *ChainConfig) CheckConfigForkOrder() error {
 	type fork struct {
 		name      string
-		block     *big.Int // forks up to - and including the merge - were defined with block numbers
-		timestamp *uint64  // forks after the merge are scheduled using timestamps
+		block     *big.Int // fork defined with a block number
+		timestamp *uint64  // fork scheduled using a timestamp
 		optional  bool     // if true, the fork may be nil and next fork is still allowed
 	}
 	var lastFork fork

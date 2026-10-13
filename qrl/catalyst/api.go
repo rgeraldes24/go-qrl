@@ -123,7 +123,6 @@ type ConsensusAPI struct {
 }
 
 // NewConsensusAPI creates a new consensus api for the given backend.
-// The underlying blockchain needs to have a valid terminal total difficulty set.
 func NewConsensusAPI(qrl *qrl.QRL) *ConsensusAPI {
 	api := newConsensusAPIWithoutHeartbeat(qrl)
 	go api.heartbeat()
@@ -155,7 +154,7 @@ func newConsensusAPIWithoutHeartbeat(qrl *qrl.QRL) *ConsensusAPI {
 //
 // If there are payloadAttributes: we try to assemble a block with the payloadAttributes
 // and return its payloadID.
-// ForkchoiceUpdatedV2 is equivalent to V1 with the addition of withdrawals in the payload attributes.
+// ForkchoiceUpdatedV2 requires withdrawals in the payload attributes.
 func (api *ConsensusAPI) ForkchoiceUpdatedV2(update engine.ForkchoiceStateV1, params *engine.PayloadAttributes) (engine.ForkChoiceResponse, error) {
 	if params != nil && params.Withdrawals == nil {
 		return engine.STATUS_INVALID, engine.InvalidPayloadAttributes.With(errors.New("missing withdrawals"))
@@ -239,7 +238,7 @@ func (api *ConsensusAPI) forkchoiceUpdated(update engine.ForkchoiceStateV1, payl
 	api.qrl.SetSynced()
 
 	// If the beacon client also advertised a finalized block, mark the local
-	// chain final and completely in PoS mode.
+	// chain final.
 	if update.FinalizedBlockHash != (common.Hash{}) {
 		// If the finalized block is not in our canonical tree, something is wrong
 		finalBlock := api.qrl.BlockChain().GetBlockByHash(update.FinalizedBlockHash)
@@ -335,7 +334,7 @@ func (api *ConsensusAPI) newPayload(params engine.ExecutableData) (engine.Payloa
 	// The locking here is, strictly, not required. Without these locks, this can happen:
 	//
 	// 1. NewPayload( execdata-N ) is invoked from the CL. It goes all the way down to
-	//      api.eth.BlockChain().InsertBlockWithoutSetHead, where it is blocked on
+	//      api.qrl.BlockChain().InsertBlockWithoutSetHead, where it is blocked on
 	//      e.g database compaction.
 	// 2. The call times out on the CL layer, which issues another NewPayload (execdata-N) call.
 	//    Similarly, this also get stuck on the same place. Importantly, since the
@@ -387,7 +386,7 @@ func (api *ConsensusAPI) newPayload(params engine.ExecutableData) (engine.Payloa
 	}
 	// If the parent is missing, we - in theory - could trigger a sync, but that
 	// would also entail a reorg. That is problematic if multiple sibling blocks
-	// are being fed to us, and even more so, if some semi-distant uncle shortens
+	// are being fed to us, and even more so, if some semi-distant side block shortens
 	// our live chain. As such, payload execution will not permit reorgs and thus
 	// will not trigger a sync cycle. That is fine though, if we get a fork choice
 	// update after legit payload executions.
@@ -415,7 +414,7 @@ func (api *ConsensusAPI) newPayload(params engine.ExecutableData) (engine.Payloa
 	}
 	log.Trace("Inserting block without sethead", "hash", block.Hash(), "number", block.Number)
 	if err := api.qrl.BlockChain().InsertBlockWithoutSetHead(block); err != nil {
-		log.Warn("NewPayloadV1: inserting block failed", "error", err)
+		log.Warn("NewPayload: inserting block failed", "error", err)
 
 		api.invalidLock.Lock()
 		api.invalidBlocksHits[block.Hash()] = 1

@@ -94,8 +94,8 @@ func (payload *Payload) update(r *newPayloadResult, elapsed time.Duration) {
 	default:
 	}
 	// Ensure the newly provided full block has a higher transaction fee.
-	// In post-merge stage, there is no uncle reward anymore and transaction
-	// fee(apart from the mev revenue) is the only indicator for comparison.
+	// Transaction fee(apart from the mev revenue) is the only indicator for
+	// comparison.
 	if payload.full == nil || r.fees.Cmp(payload.fullFees) > 0 {
 		payload.full = r.block
 		payload.fullFees = r.fees

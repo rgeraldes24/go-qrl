@@ -97,7 +97,7 @@ func NewSimulatedBeacon(period uint64, qrl *qrl.QRL) (*SimulatedBeacon, error) {
 	}
 	engineAPI := newConsensusAPIWithoutHeartbeat(qrl)
 
-	// if genesis block, send forkchoiceUpdated to trigger transition to PoS
+	// if genesis block, send forkchoiceUpdated to mark it as safe and finalized
 	if block.Number.Sign() == 0 {
 		if _, err := engineAPI.ForkchoiceUpdatedV2(current, nil); err != nil {
 			return nil, err

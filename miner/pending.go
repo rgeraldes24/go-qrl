@@ -25,7 +25,7 @@ import (
 
 // pendingTTL indicates the period of time a generated pending block should
 // exist to serve RPC requests before being discarded if the parent block
-// has not changed yet. The value is chosen to align with the recommit interval.
+// has not changed yet.
 const pendingTTL = 2 * time.Second
 
 // pending wraps a pending block with additional metadata.

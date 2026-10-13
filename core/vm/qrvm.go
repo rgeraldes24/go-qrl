@@ -240,8 +240,8 @@ func (qrvm *QRVM) Call(caller ContractRef, addr common.Address, input []byte, ga
 // DelegateCall executes the contract associated with the addr with the given input
 // as parameters. It reverses the state in case of an execution error.
 //
-// DelegateCall differs from CallCode in the sense that it executes the given address'
-// code with the caller as context and the caller is set to the caller of the caller.
+// DelegateCall executes the given address' code with the caller as context and
+// the caller is set to the caller of the caller.
 func (qrvm *QRVM) DelegateCall(caller ContractRef, addr common.Address, input []byte, gas uint64) (ret []byte, leftOverGas uint64, err error) {
 	// Fail if we're trying to execute above the call depth limit
 	if qrvm.depth > int(params.CallCreateDepth) {
@@ -437,7 +437,7 @@ func (qrvm *QRVM) Create(caller ContractRef, code []byte, gas uint64, value *big
 
 // Create2 creates a new contract using code as deployment code.
 //
-// The different between Create2 with Create is Create2 uses keccak256(0xff ++ msg.sender ++ salt ++ keccak256(init_code))[12:]
+// The different between Create2 with Create is Create2 uses keccak512("QRL-ADDR-v1" ++ 0xff ++ msg.sender ++ salt ++ keccak256(init_code))
 // instead of the usual sender-and-nonce-hash as the address where the contract is initialized at.
 func (qrvm *QRVM) Create2(caller ContractRef, code []byte, gas uint64, endowment *big.Int, salt *uint512.Int) (ret []byte, contractAddr common.Address, leftOverGas uint64, err error) {
 	codeAndHash := &codeAndHash{code: code}

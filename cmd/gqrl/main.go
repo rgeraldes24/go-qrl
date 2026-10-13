@@ -254,10 +254,10 @@ func prepare(ctx *cli.Context) {
      your computer or losing power will wipe your entire block data and chain state for
      your dev environment.
   3. A random, pre-allocated developer account will be available and unlocked as
-     qrl.coinbase, which can be used for testing. The random dev account is temporary,
-     stored on a ramdisk, and will be lost if your machine is restarted.
-  4. Mining is enabled by default. However, the client will only seal blocks if transactions
-     are pending in the mempool. The miner's minimum accepted gas price is 1.
+     the pending fee recipient, which can be used for testing. The random dev account is
+     temporary, stored on a ramdisk, and will be lost if your machine is restarted.
+  4. Block production is enabled by default. However, the client will only build blocks if
+     transactions are pending in the mempool. The miner's minimum accepted gas price is 1.
   5. Networking is disabled; there is no listen-address, the maximum number of peers is set
      to 0, and discovery is disabled.
 `)
@@ -300,8 +300,7 @@ func gqrl(ctx *cli.Context) error {
 }
 
 // startNode boots up the system node and all registered protocols, after which
-// it unlocks any requested accounts, and starts the RPC/IPC interfaces and the
-// miner.
+// it starts the wallet event logger and the optional exit-when-synced monitor.
 func startNode(ctx *cli.Context, stack *node.Node, isConsole bool) {
 	// Start up the node itself
 	utils.StartNode(ctx, stack, isConsole)

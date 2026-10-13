@@ -437,7 +437,7 @@ func (z *Int) Mod(x, y *Int) *Int {
 	return z
 }
 
-// SDiv sets z = x / y with EVM signed semantics (truncate toward zero).
+// SDiv sets z = x / y with QRVM signed semantics (truncate toward zero).
 // Result is 0 when y == 0.
 func (z *Int) SDiv(x, y *Int) *Int {
 	if y.IsZero() {
@@ -453,7 +453,7 @@ func (z *Int) SDiv(x, y *Int) *Int {
 	return z
 }
 
-// SMod sets z = x mod y with EVM signed semantics (result takes the sign of x).
+// SMod sets z = x mod y with QRVM signed semantics (result takes the sign of x).
 // Result is 0 when y == 0.
 func (z *Int) SMod(x, y *Int) *Int {
 	if y.IsZero() {
@@ -505,7 +505,7 @@ func (z *Int) MulMod(x, y, m *Int) *Int {
 }
 
 // ExtendSign sets z to x sign-extended from byte position (byteNum+1) to
-// 512 bits. Matches the semantics of EVM SIGNEXTEND but for 64-byte words.
+// 512 bits. Matches the semantics of QRVM SIGNEXTEND for 64-byte words.
 func (z *Int) ExtendSign(x, byteNum *Int) *Int {
 	if !byteNum.IsUint64() || byteNum[0] >= WordBytes-1 {
 		if z != x {
