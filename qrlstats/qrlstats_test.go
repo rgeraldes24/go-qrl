@@ -17,8 +17,17 @@
 package qrlstats
 
 import (
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
 	"strconv"
+	"strings"
 	"testing"
+
+	"github.com/gorilla/websocket"
+	qrl "github.com/theQRL/go-qrl"
+	"github.com/theQRL/go-qrl/crypto"
+	"github.com/theQRL/go-qrl/p2p"
 )
 
 func TestParseQRLstatsURL(t *testing.T) {
@@ -77,6 +86,71 @@ func TestParseQRLstatsURL(t *testing.T) {
 		}
 		if host != c.host {
 			t.Errorf("case=%d mismatch host value, got: %v ,want: %v", i, host, c.host)
+		}
+	}
+}
+
+type syncBackend struct {
+	backend
+	progress qrl.SyncProgress
+}
+
+func (b *syncBackend) SyncProgress() qrl.SyncProgress {
+	return b.progress
+}
+
+func TestReportStatsSyncing(t *testing.T) {
+	reports := make(chan json.RawMessage)
+	ws := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		conn, err := new(websocket.Upgrader).Upgrade(w, r, nil)
+		if err != nil {
+			return
+		}
+		defer conn.Close()
+		defer close(reports)
+		for {
+			var msg map[string][]json.RawMessage
+			if err := conn.ReadJSON(&msg); err != nil {
+				return
+			}
+			reports <- msg["emit"][1]
+		}
+	}))
+	defer ws.Close()
+
+	conn, _, err := websocket.DefaultDialer.Dial("ws"+strings.TrimPrefix(ws.URL, "http"), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+
+	key, _ := crypto.GenerateKey()
+	server := &p2p.Server{Config: p2p.Config{PrivateKey: key, NoDial: true, NoDiscovery: true}}
+	if err := server.Start(); err != nil {
+		t.Fatal(err)
+	}
+	defer server.Stop()
+
+	for _, c := range []struct {
+		progress qrl.SyncProgress
+		syncing  bool
+	}{
+		{qrl.SyncProgress{}, false},
+		{qrl.SyncProgress{CurrentBlock: 5, HighestBlock: 10}, true},
+		{qrl.SyncProgress{CurrentBlock: 10, HighestBlock: 10}, false},
+	} {
+		s := &Service{backend: &syncBackend{progress: c.progress}, server: server}
+		if err := s.reportStats(newConnectionWrapper(conn)); err != nil {
+			t.Fatal(err)
+		}
+		var msg struct {
+			Stats nodeStats `json:"stats"`
+		}
+		if err := json.Unmarshal(<-reports, &msg); err != nil {
+			t.Fatal(err)
+		}
+		if msg.Stats.Syncing != c.syncing {
+			t.Errorf("syncing mismatch at block %d of %d, got: %v, want: %v", c.progress.CurrentBlock, c.progress.HighestBlock, msg.Stats.Syncing, c.syncing)
 		}
 	}
 }
