@@ -180,7 +180,8 @@ func (c *ChainConfig) CheckConfigForkOrder() error {
 
 func (c *ChainConfig) checkCompatible(newcfg *ChainConfig /*, headNumber *big.Int, headTimestamp uint64*/) *ConfigCompatError {
 	if !configBlockEqual(c.ChainID, newcfg.ChainID) {
-		return newBlockCompatError("chain ID", c.ChainID, newcfg.ChainID)
+		// The chain ID is enforced from the genesis block.
+		return newBlockCompatError("chain ID", common.Big0, common.Big0)
 	}
 
 	return nil

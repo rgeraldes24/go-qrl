@@ -46,8 +46,18 @@ func TestCheckCompatible(t *testing.T) {
 			new:    &ChainConfig{ChainID: common.Big32},
 			wantErr: &ConfigCompatError{
 				What:        "chain ID",
-				StoredBlock: common.Big1,
-				NewBlock:    common.Big32,
+				StoredBlock: common.Big0,
+				NewBlock:    common.Big0,
+			},
+		},
+		{
+			stored:    &ChainConfig{ChainID: common.Big32},
+			new:       &ChainConfig{ChainID: common.Big256},
+			headBlock: 100,
+			wantErr: &ConfigCompatError{
+				What:        "chain ID",
+				StoredBlock: common.Big0,
+				NewBlock:    common.Big0,
 			},
 		},
 		// NOTE(rgeraldes24): not valid at the moment
