@@ -646,7 +646,7 @@ func (srv *Server) setupListening() error {
 		if !tcp.IP.IsLoopback() && !tcp.IP.IsPrivate() {
 			srv.portMappingRegister <- &portMapping{
 				protocol: "TCP",
-				name:     "qrl p2p",
+				name:     "ethereum p2p",
 				port:     tcp.Port,
 			}
 		}
@@ -679,7 +679,7 @@ func (srv *Server) setupUDPListening() (*net.UDPConn, error) {
 	if !laddr.IP.IsLoopback() && !laddr.IP.IsPrivate() {
 		srv.portMappingRegister <- &portMapping{
 			protocol: "UDP",
-			name:     "qrl peer discovery",
+			name:     "ethereum peer discovery",
 			port:     laddr.Port,
 		}
 	}

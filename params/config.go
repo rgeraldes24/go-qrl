@@ -135,8 +135,8 @@ func (c *ChainConfig) CheckCompatible(newcfg *ChainConfig, height uint64, time u
 func (c *ChainConfig) CheckConfigForkOrder() error {
 	type fork struct {
 		name      string
-		block     *big.Int // fork defined with a block number
-		timestamp *uint64  // fork scheduled using a timestamp
+		block     *big.Int // forks up to - and including the merge - were defined with block numbers
+		timestamp *uint64  // forks after the merge are scheduled using timestamps
 		optional  bool     // if true, the fork may be nil and next fork is still allowed
 	}
 	var lastFork fork
