@@ -21,7 +21,6 @@ import (
 	"fmt"
 	"math/big"
 	"runtime"
-	"sync"
 
 	"github.com/theQRL/go-qrl/accounts"
 	"github.com/theQRL/go-qrl/common"
@@ -33,7 +32,6 @@ import (
 	"github.com/theQRL/go-qrl/core/state/pruner"
 	"github.com/theQRL/go-qrl/core/txpool"
 	"github.com/theQRL/go-qrl/core/txpool/legacypool"
-	"github.com/theQRL/go-qrl/core/types"
 	"github.com/theQRL/go-qrl/core/vm"
 	"github.com/theQRL/go-qrl/event"
 	"github.com/theQRL/go-qrl/internal/qrlapi"
@@ -82,15 +80,12 @@ type QRL struct {
 
 	APIBackend *QRLAPIBackend
 
-	miner    *miner.Miner
-	gasPrice *big.Int
+	miner *miner.Miner
 
 	networkID     uint64
 	netRPCService *qrlapi.NetAPI
 
 	p2pServer *p2p.Server
-
-	lock sync.RWMutex // Protects the variadic fields (e.g. gas price and etherbase)
 
 	shutdownTracker *shutdowncheck.ShutdownTracker // Tracks if and when the node has shutdown ungracefully
 }
@@ -145,7 +140,6 @@ func New(stack *node.Node, config *qrlconfig.Config) (*QRL, error) {
 		engine:            engine,
 		closeBloomHandler: make(chan struct{}),
 		networkID:         networkID,
-		gasPrice:          config.Miner.GasPrice,
 		bloomRequests:     make(chan chan *bloombits.Retrieval),
 		bloomIndexer:      core.NewBloomIndexer(chainDb, params.BloomBitsBlocks, params.BloomConfirms),
 		p2pServer:         stack.Server(),
@@ -217,7 +211,7 @@ func New(stack *node.Node, config *qrlconfig.Config) (*QRL, error) {
 	qrl.miner = miner.New(qrl, config.Miner, qrl.engine)
 	qrl.miner.SetExtra(makeExtraData(config.Miner.ExtraData))
 
-	qrl.APIBackend = &QRLAPIBackend{stack.Config().ExtRPCEnabled(), qrl, nil}
+	qrl.APIBackend = &QRLAPIBackend{qrl, nil}
 
 	gpoParams := config.GPO
 	if gpoParams.Default == nil {
@@ -296,10 +290,6 @@ func (s *QRL) APIs() []rpc.API {
 	}...)
 }
 
-func (s *QRL) ResetWithGenesisBlock(gb *types.Block) {
-	s.blockchain.ResetWithGenesisBlock(gb)
-}
-
 func (s *QRL) Miner() *miner.Miner { return s.miner }
 
 func (s *QRL) AccountManager() *accounts.Manager  { return s.accountManager }
@@ -308,12 +298,8 @@ func (s *QRL) TxPool() *txpool.TxPool             { return s.txPool }
 func (s *QRL) EventMux() *event.TypeMux           { return s.eventMux }
 func (s *QRL) Engine() consensus.Engine           { return s.engine }
 func (s *QRL) ChainDb() qrldb.Database            { return s.chainDb }
-func (s *QRL) IsListening() bool                  { return true } // Always listening
 func (s *QRL) Downloader() *downloader.Downloader { return s.handler.downloader }
-func (s *QRL) Synced() bool                       { return s.handler.synced.Load() }
 func (s *QRL) SetSynced()                         { s.handler.enableSyncedFeatures() }
-func (s *QRL) ArchiveMode() bool                  { return s.config.NoPruning }
-func (s *QRL) BloomIndexer() *core.ChainIndexer   { return s.bloomIndexer }
 
 // Protocols returns all the currently configured
 // network protocols to start.

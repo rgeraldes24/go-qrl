@@ -352,9 +352,3 @@ func (bc *BlockChain) SubscribeChainHeadEvent(ch chan<- ChainHeadEvent) event.Su
 func (bc *BlockChain) SubscribeLogsEvent(ch chan<- []*types.Log) event.Subscription {
 	return bc.scope.Track(bc.logsFeed.Subscribe(ch))
 }
-
-// SubscribeBlockProcessingEvent registers a subscription of bool where true means
-// block processing has started while false means it has stopped.
-func (bc *BlockChain) SubscribeBlockProcessingEvent(ch chan<- bool) event.Subscription {
-	return bc.scope.Track(bc.blockProcFeed.Subscribe(ch))
-}

@@ -218,7 +218,6 @@ type BlockChain struct {
 	chainFeed     event.Feed
 	chainHeadFeed event.Feed
 	logsFeed      event.Feed
-	blockProcFeed event.Feed
 	scope         event.SubscriptionScope
 	genesisBlock  *types.Block
 
@@ -1377,18 +1376,8 @@ func (bc *BlockChain) writeBlockWithState(block *types.Block, receipts []*types.
 	return nil
 }
 
-// WriteBlockAndSetHead writes the given block and all associated state to the database,
+// writeBlockAndSetHead writes the given block and all associated state to the database,
 // and applies the block as the new chain head.
-func (bc *BlockChain) WriteBlockAndSetHead(block *types.Block, receipts []*types.Receipt, logs []*types.Log, state *state.StateDB, emitHeadEvent bool) (status WriteStatus, err error) {
-	if !bc.chainmu.TryLock() {
-		return NonStatTy, errChainStopped
-	}
-	defer bc.chainmu.Unlock()
-
-	return bc.writeBlockAndSetHead(block, receipts, logs, state, emitHeadEvent)
-}
-
-// writeBlockAndSetHead is the internal implementation of WriteBlockAndSetHead.
 // This function expects the chain mutex to be held.
 func (bc *BlockChain) writeBlockAndSetHead(block *types.Block, receipts []*types.Receipt, logs []*types.Log, state *state.StateDB, emitHeadEvent bool) (status WriteStatus, err error) {
 	if err := bc.writeBlockWithState(block, receipts, state); err != nil {
@@ -1431,9 +1420,6 @@ func (bc *BlockChain) InsertChain(chain types.Blocks) (int, error) {
 	if len(chain) == 0 {
 		return 0, nil
 	}
-	bc.blockProcFeed.Send(true)
-	defer bc.blockProcFeed.Send(false)
-
 	// Do a sanity check that the provided chain is actually ordered and linked.
 	for i := 1; i < len(chain); i++ {
 		block, prev := chain[i], chain[i-1]
@@ -2222,14 +2208,6 @@ func (bc *BlockChain) InsertHeaderChain(chain []*types.Header) (int, error) {
 	defer bc.chainmu.Unlock()
 	_, err := bc.hc.InsertHeaderChain(chain, start)
 	return 0, err
-}
-
-// SetBlockValidatorAndProcessorForTesting sets the current validator and processor.
-// This method can be used to force an invalid blockchain to be verified for tests.
-// This method is unsafe and should only be used before block import starts.
-func (bc *BlockChain) SetBlockValidatorAndProcessorForTesting(v Validator, p Processor) {
-	bc.validator = v
-	bc.processor = p
 }
 
 // SetTrieFlushInterval configures how often in-memory tries are persisted to disk.
