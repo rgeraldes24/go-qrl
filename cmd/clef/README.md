@@ -445,16 +445,16 @@ Response
         "name": "Ether Mail",
         "version": "1",
         "chainId": 1,
-        "verifyingContract": "QCCCcCCCcCCCcCCCcCCCcCCCcCCCcCCCcCCCcCCCcCCCcCCCcCCCcCCCcCCCcCCCcCCCcCCCcCCCcCCCcCCCcCCCcCCCcCCCc99aabbccddeeff001122334455667788"
+        "verifyingContract": "Q7cee76Fc6086a5381dCAAAfd3A30C0C1716C4A92Ac133d45c71042C8969cb1EC528a3b7C22357A451B9246c62b2661659487Db85A56AA2DE545CF7A7559DF681"
       },
       "message": {
         "from": {
           "name": "Cow",
-          "wallet": "QcD2a3d9F938E13CD947Ec05AbC7FE734Df8DD826cD2a3d9F938E13CD947Ec05AbC7FE734Df8DD826aabbccddeeff010299aabbccddeeff001122334455667788"
+          "wallet": "Q36e0C3f4f3DAADb623d5ff55ECE6fBFCFbEED8BD5B1B56363aB83eDbFb0e2CF2657a7949f4a37D66c439CF384352FD72fef740d56859011E34d501082Fca60bF"
         },
         "to": {
           "name": "Bob",
-          "wallet": "QbBbBBBBbbBBBbbbBbbBbbbbBBbBbbbbBbBbbBBbBbBbBBBBbbBBBbbbBbbBbbbbBBbBbbbbBbBbbBBbBaabbccddee01020399aabbccddeeff001122334455667788"
+          "wallet": "Qe0e11D538EE91B510eaa7539cb99030b5F3406a63565a671D142CB4C9aC472BBD2c41c14c972D65e427850F9dCAF98E99a4a38d590fb848881377EC7d5f055D0"
         },
         "contents": "Hello, Bob!"
       }
