@@ -591,6 +591,8 @@ func (s *StateDB) createObject(addr common.Address) (newobj, prev *stateObject) 
 		delete(s.storagesOrigin, prev.address)
 	}
 
+	newobj.created = true
+
 	s.setStateObject(newobj)
 	if prev != nil && !prev.deleted {
 		return newobj, prev
@@ -778,6 +780,7 @@ func (s *StateDB) Finalise(deleteEmptyObjects bool) {
 		} else {
 			obj.finalise(true) // Prefetch slots in the background
 		}
+		obj.created = false
 		s.stateObjectsPending[addr] = struct{}{}
 		s.stateObjectsDirty[addr] = struct{}{}
 
