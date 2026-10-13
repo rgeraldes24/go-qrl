@@ -219,7 +219,11 @@ loop:
 			if !isFunc {
 				panic(re.vm.ToValue("js error: timer/timeout callback is not a function"))
 			}
-			call(goja.Null(), timer.call.Arguments[2:]...)
+			var args []goja.Value
+			if len(timer.call.Arguments) > 2 {
+				args = timer.call.Arguments[2:]
+			}
+			call(goja.Null(), args...)
 
 			_, inreg := registry[timer] // when clearInterval is called from within the callback don't reset it
 			if timer.interval && inreg {
