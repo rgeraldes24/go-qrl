@@ -138,12 +138,12 @@ var (
 	// Dev mode
 	DeveloperFlag = &cli.BoolFlag{
 		Name:     "dev",
-		Usage:    "Ephemeral proof-of-authority network with a pre-funded developer account, mining enabled",
+		Usage:    "Ephemeral development network with a pre-funded developer account, blocks produced by a simulated beacon",
 		Category: flags.DevCategory,
 	}
 	DeveloperPeriodFlag = &cli.Uint64Flag{
 		Name:     "dev.period",
-		Usage:    "Block period to use in developer mode (0 = mine only if transaction pending)",
+		Usage:    "Block period to use in developer mode (0 = produce a block only when a transaction is pending)",
 		Category: flags.DevCategory,
 	}
 	DeveloperGasLimitFlag = &cli.Uint64Flag{
