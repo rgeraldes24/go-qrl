@@ -42,8 +42,15 @@ func dummyTxArgs(t txtestcase) *apitypes.SendTxArgs {
 	from := common.MustParseMixedcaseAddress(t.from)
 	n := toHexUint(t.n)
 	gas := toHexUint(t.g)
-	maxFeePerGas := toHexBig(t.mfpg)
-	maxPriorityFeePerGas := toHexBig(t.mpfpg)
+	var maxFeePerGas, maxPriorityFeePerGas *hexutil.Big
+	if t.mfpg != "" {
+		a := toHexBig(t.mfpg)
+		maxFeePerGas = &a
+	}
+	if t.mpfpg != "" {
+		a := toHexBig(t.mpfpg)
+		maxPriorityFeePerGas = &a
+	}
 	value := toHexBig(t.value)
 	var (
 		data, input *hexutil.Bytes
@@ -61,8 +68,8 @@ func dummyTxArgs(t txtestcase) *apitypes.SendTxArgs {
 		To:                   to,
 		Value:                value,
 		Nonce:                n,
-		MaxFeePerGas:         &maxFeePerGas,
-		MaxPriorityFeePerGas: &maxPriorityFeePerGas,
+		MaxFeePerGas:         maxFeePerGas,
+		MaxPriorityFeePerGas: maxPriorityFeePerGas,
 		Gas:                  gas,
 		Data:                 data,
 		Input:                input,
@@ -119,6 +126,9 @@ func TestTransactionValidation(t *testing.T) {
 		// Small payload for create
 		{from: lowerDead, to: "",
 			n: "0x01", g: "0x20", mfpg: "0x40", mpfpg: "0x0", value: "0x01", d: "0x01", numMessages: 1},
+		// Create contract without fee fields
+		{from: lowerDead, to: "",
+			n: "0x01", g: "0x20", value: "0x00", d: "0x0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef", numMessages: 2},
 	}
 	for i, test := range testcases {
 		msgs, err := db.ValidateTransaction(nil, dummyTxArgs(test))
