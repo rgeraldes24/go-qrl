@@ -246,6 +246,31 @@ func TestSignData(t *testing.T) {
 	}
 }
 
+func TestUnmarshalValidatorData(t *testing.T) {
+	t.Parallel()
+	addr := domainStandard.VerifyingContract
+	for _, tc := range []struct {
+		address any
+		ok      bool
+	}{
+		{addr, true},
+		{"0x" + addr[1:], false},
+		{addr[1:], false},
+		{addr[:len(addr)-2], false},
+		{"0xCcCCccccCCCCcCCCCCCcCcCccCcCCCcCcccccccC", false},
+		{"", false},
+		{nil, false},
+	} {
+		data, err := core.UnmarshalValidatorData(map[string]any{"address": tc.address, "message": "0x01"})
+		if tc.ok != (err == nil) {
+			t.Errorf("address %v: have error %v, want valid %v", tc.address, err, tc.ok)
+		}
+		if tc.ok && data.Address != common.MustParseAddress(addr) {
+			t.Errorf("address %v: parsed as %v", tc.address, data.Address)
+		}
+	}
+}
+
 func TestDomainChainId(t *testing.T) {
 	t.Parallel()
 	withoutChainID := apitypes.TypedData{
