@@ -237,12 +237,10 @@ func UnmarshalValidatorData(data any) (apitypes.ValidatorData, error) {
 	if !ok {
 		return apitypes.ValidatorData{}, errors.New("validator input is not a map[string]any")
 	}
-	addrBytes, err := fromHex(raw["address"])
+	addrStr, _ := raw["address"].(string)
+	addr, err := common.NewAddressFromString(addrStr)
 	if err != nil {
 		return apitypes.ValidatorData{}, fmt.Errorf("validator address error: %w", err)
-	}
-	if len(addrBytes) == 0 {
-		return apitypes.ValidatorData{}, errors.New("validator address is undefined")
 	}
 	messageBytes, err := fromHex(raw["message"])
 	if err != nil {
@@ -252,7 +250,7 @@ func UnmarshalValidatorData(data any) (apitypes.ValidatorData, error) {
 		return apitypes.ValidatorData{}, errors.New("message is undefined")
 	}
 	return apitypes.ValidatorData{
-		Address: common.BytesToAddress(addrBytes),
+		Address: addr,
 		Message: messageBytes,
 	}, nil
 }
