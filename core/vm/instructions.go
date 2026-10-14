@@ -410,10 +410,7 @@ func opExtCodeCopy(pc *uint64, interpreter *QRVMInterpreter, scope *ScopeContext
 // emptyCodeHash. If the precompile account is not transferred any amount on a private or
 // customized chain, the return value will be zero.
 //
-//  5. Caller tries to get the code hash for an account which is marked as self-destructed
-//     in the current transaction, the code hash of this account should be returned.
-//
-//  6. Caller tries to get the code hash for an account which is marked as deleted, this
+//  5. Caller tries to get the code hash for an account which is marked as deleted, this
 //     account should be regarded as a non-existent account and zero should be returned.
 func opExtCodeHash(pc *uint64, interpreter *QRVMInterpreter, scope *ScopeContext) ([]byte, error) {
 	slot := scope.Stack.peek()
@@ -584,7 +581,7 @@ func opCreate(pc *uint64, interpreter *QRVMInterpreter, scope *ScopeContext) ([]
 	stackvalue := size
 
 	scope.Contract.UseGas(gas)
-	//TODO: use uint256.Int instead of converting with toBig()
+	//TODO: use uint512.Int instead of converting with toBig()
 	var bigVal = big0
 	if !value.IsZero() {
 		bigVal = value.ToBig()
@@ -629,7 +626,7 @@ func opCreate2(pc *uint64, interpreter *QRVMInterpreter, scope *ScopeContext) ([
 	scope.Contract.UseGas(gas)
 	// reuse size int for stackvalue
 	stackvalue := size
-	//TODO: use uint256.Int instead of converting with toBig()
+	//TODO: use uint512.Int instead of converting with toBig()
 	bigEndowment := big0
 	if !endowment.IsZero() {
 		bigEndowment = endowment.ToBig()
@@ -669,9 +666,9 @@ func opCall(pc *uint64, interpreter *QRVMInterpreter, scope *ScopeContext) ([]by
 		return nil, ErrWriteProtection
 	}
 	var bigVal = big0
-	//TODO: use uint256.Int instead of converting with toBig()
-	// By using big0 here, we save an alloc for the most common case (non-ether-transferring contract calls),
-	// but it would make more sense to extend the usage of uint256.Int
+	//TODO: use uint512.Int instead of converting with toBig()
+	// By using big0 here, we save an alloc for the most common case (non-quanta-transferring contract calls),
+	// but it would make more sense to extend the usage of uint512.Int
 	if !value.IsZero() {
 		gas += params.CallStipend
 		bigVal = value.ToBig()

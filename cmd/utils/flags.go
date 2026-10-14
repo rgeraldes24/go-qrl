@@ -138,12 +138,12 @@ var (
 	// Dev mode
 	DeveloperFlag = &cli.BoolFlag{
 		Name:     "dev",
-		Usage:    "Ephemeral proof-of-authority network with a pre-funded developer account, mining enabled",
+		Usage:    "Ephemeral development network with a pre-funded developer account, blocks produced by a simulated beacon",
 		Category: flags.DevCategory,
 	}
 	DeveloperPeriodFlag = &cli.Uint64Flag{
 		Name:     "dev.period",
-		Usage:    "Block period to use in developer mode (0 = mine only if transaction pending)",
+		Usage:    "Block period to use in developer mode (0 = produce a block only when a transaction is pending)",
 		Category: flags.DevCategory,
 	}
 	DeveloperGasLimitFlag = &cli.Uint64Flag{
@@ -1146,8 +1146,8 @@ func MakeAddress(ks *keystore.KeyStore, account string) (accounts.Account, error
 	return accs[index], nil
 }
 
-// setEtherbase retrieves the etherbase from the directly specified command line flags.
-func setEtherbase(ctx *cli.Context, cfg *qrlconfig.Config) {
+// setPendingFeeRecipient retrieves the pending fee recipient from the directly specified command line flags.
+func setPendingFeeRecipient(ctx *cli.Context, cfg *qrlconfig.Config) {
 	if !ctx.IsSet(MinerPendingFeeRecipientFlag.Name) {
 		return
 	}
@@ -1420,7 +1420,7 @@ func SetQRLConfig(ctx *cli.Context, stack *node.Node, cfg *qrlconfig.Config) {
 	CheckExclusive(ctx, DeveloperFlag, ExternalSignerFlag) // Can't use both ephemeral unlocked and external signer
 
 	// Set configurations from CLI flags
-	setEtherbase(ctx, cfg)
+	setPendingFeeRecipient(ctx, cfg)
 	setGPO(ctx, &cfg.GPO)
 	setTxPool(ctx, &cfg.TxPool)
 	setMiner(ctx, &cfg.Miner)
@@ -1593,7 +1593,7 @@ func SetQRLConfig(ctx *cli.Context, stack *node.Node, cfg *qrlconfig.Config) {
 		}
 
 		// Figure out the dev account address.
-		// setEtherbase has been called above, configuring the miner address from command line flags.
+		// setPendingFeeRecipient has been called above, configuring the fee recipient from command line flags.
 		if cfg.Miner.PendingFeeRecipient != (common.Address{}) {
 			developer = accounts.Account{Address: cfg.Miner.PendingFeeRecipient}
 		} else if accs := ks.Accounts(); len(accs) > 0 {

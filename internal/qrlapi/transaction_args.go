@@ -131,9 +131,7 @@ func (args *TransactionArgs) setDefaults(ctx context.Context, b Backend) error {
 
 // setFeeDefaults fills in default fee values for unspecified tx fields.
 func (args *TransactionArgs) setFeeDefaults(ctx context.Context, b Backend) error {
-	// If the tx has completely specified a fee mechanism, no default is needed. This allows users
-	// who are not yet synced past London to get defaults for other tx values. See
-	// https://github.com/theQRL/go-qrl/pull/23274 for more information.
+	// If the tx has completely specified a fee mechanism, no default is needed.
 	eip1559ParamsSet := args.MaxFeePerGas != nil && args.MaxPriorityFeePerGas != nil
 	if eip1559ParamsSet {
 		// Sanity check the EIP-1559 fee parameters if present.

@@ -967,7 +967,7 @@ func (bc *BlockChain) Stop() {
 		// Ensure the state of a recent block is also stored to disk before exiting.
 		// We're writing three different states to catch different restart scenarios:
 		//  - HEAD:     So we don't need to reprocess any blocks in the general case
-		//  - HEAD-1:   So we don't do large reorgs if our HEAD becomes an uncle
+		//  - HEAD-1:   So we don't do large reorgs if our HEAD is reorged out
 		//  - HEAD-127: So we have a hard limit on the number of blocks reexecuted
 		if !bc.cacheConfig.TrieDirtyDisabled {
 			triedb := bc.triedb
@@ -1303,7 +1303,7 @@ func (bc *BlockChain) writeKnownBlock(block *types.Block) error {
 func (bc *BlockChain) writeBlockWithState(block *types.Block, receipts []*types.Receipt, state *state.StateDB) error {
 	// Irrelevant of the canonical status, write the block itself to the database.
 	//
-	// Note all the components of block(td, hash->number map, header, body, receipts)
+	// Note all the components of block(hash->number map, header, body, receipts)
 	// should be written atomically. BlockBatch is used for containing all components.
 	blockBatch := bc.db.NewBatch()
 	rawdb.WriteBlock(blockBatch, block)
@@ -1348,8 +1348,8 @@ func (bc *BlockChain) writeBlockWithState(block *types.Block, receipts []*types.
 	flushInterval := time.Duration(bc.flushInterval.Load())
 	// If we exceeded time allowance, flush an entire trie to disk
 	if bc.gcproc > flushInterval {
-		// If the header is missing (canonical chain behind), we're reorging a low
-		// diff sidechain. Suspend committing until this operation is completed.
+		// If the header is missing (canonical chain behind), we're reorging a
+		// sidechain. Suspend committing until this operation is completed.
 		header := bc.GetHeaderByNumber(chosen)
 		if header == nil {
 			log.Warn("Reorg in progress, trie commit postponed", "number", chosen)
@@ -1505,9 +1505,9 @@ func (bc *BlockChain) insertChain(chain types.Blocks, setHead bool) (int, error)
 		// Skip all known blocks that are behind us.
 		var current = bc.CurrentBlock()
 		for block != nil && bc.skipBlock(err, it) {
-			// In qrl PoS the forker always returns true for reorg decision (blindly trusting
-			// the external consensus engine), but in order to prevent the unnecessary
-			// reorgs when importing known blocks, the special case is handled here.
+			// The reorg decision is left to the external consensus engine (blindly
+			// trusting it), but in order to prevent the unnecessary reorgs when
+			// importing known blocks, the special case is handled here.
 			if block.NumberU64() > current.Number.Uint64() || bc.GetCanonicalHash(block.NumberU64()) != block.Hash() {
 				break
 			}
@@ -1522,7 +1522,7 @@ func (bc *BlockChain) insertChain(chain types.Blocks, setHead bool) (int, error)
 		// and leaves a few known blocks in the database.
 		//
 		// When node runs a snap sync again, it can re-import a batch of known blocks via
-		// `insertChain` while a part of them have higher total difficulty than current
+		// `insertChain` while a part of them have a higher number than the current
 		// head full block(new pivot point).
 		for block != nil && bc.skipBlock(err, it) {
 			log.Debug("Writing previously known block", "number", block.Number(), "hash", block.Hash())
@@ -1572,7 +1572,7 @@ func (bc *BlockChain) insertChain(chain types.Blocks, setHead bool) (int, error)
 			break
 		}
 		// If the block is known (in the middle of the chain), it's a special case for
-		// Clique blocks where they can share state among each other, so importing an
+		// empty blocks where they can share state among each other, so importing an
 		// older block might complete the state of the subsequent one. In this case,
 		// just skip the block (we already validated it once fully (and crashed), since
 		// its header and body was already in the database). But if the corresponding
@@ -1584,13 +1584,9 @@ func (bc *BlockChain) insertChain(chain types.Blocks, setHead bool) (int, error)
 				"root", block.Root())
 
 			// Special case. Commit the empty receipt slice if we meet the known
-			// block in the middle. It can only happen in the clique chain. Whenever
-			// we insert blocks via `insertSideChain`, we only commit `td`, `header`
-			// and `body` if it's non-existent. Since we don't have receipts without
-			// reexecution, so nothing to commit. But if the sidechain will be adopted
-			// as the canonical chain eventually, it needs to be reexecuted for missing
-			// state, but if it's this special case here(skip reexecution) we will lose
-			// the empty receipt entry.
+			// block in the middle. It is only expected for empty blocks. Since we
+			// skip reexecution here, we would otherwise lose the empty receipt
+			// entry if it was never stored.
 			if len(block.Transactions()) == 0 {
 				rawdb.WriteReceipts(bc.db, block.Hash(), block.NumberU64(), nil)
 			} else {
@@ -1603,7 +1599,7 @@ func (bc *BlockChain) insertChain(chain types.Blocks, setHead bool) (int, error)
 			stats.processed++
 
 			// We can assume that logs are empty here, since the only way for consecutive
-			// Clique blocks to have the same state is if there are no transactions.
+			// blocks to have the same state is if there are no transactions.
 			lastCanon = block
 			continue
 		}

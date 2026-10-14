@@ -79,8 +79,7 @@ func (qc *Client) ChainID(ctx context.Context) (*big.Int, error) {
 
 // BlockByHash returns the given full block.
 //
-// Note that loading full blocks requires two requests. Use HeaderByHash
-// if you don't need all transactions.
+// Use HeaderByHash if you don't need all transactions.
 func (qc *Client) BlockByHash(ctx context.Context, hash common.Hash) (*types.Block, error) {
 	return qc.getBlock(ctx, "qrl_getBlockByHash", hash, true)
 }
@@ -88,8 +87,7 @@ func (qc *Client) BlockByHash(ctx context.Context, hash common.Hash) (*types.Blo
 // BlockByNumber returns a block from the current canonical chain. If number is nil, the
 // latest known block is returned.
 //
-// Note that loading full blocks requires two requests. Use HeaderByNumber
-// if you don't need all transactions.
+// Use HeaderByNumber if you don't need all transactions.
 func (qc *Client) BlockByNumber(ctx context.Context, number *big.Int) (*types.Block, error) {
 	return qc.getBlock(ctx, "qrl_getBlockByNumber", toBlockNumArg(number), true)
 }
@@ -548,7 +546,7 @@ func (qc *Client) FeeHistory(ctx context.Context, blockCount uint64, lastBlock *
 }
 
 // EstimateGas tries to estimate the gas needed to execute a specific transaction based on
-// the current pending state of the backend blockchain. There is no guarantee that this is
+// the latest state of the backend blockchain. There is no guarantee that this is
 // the true gas limit requirement as other transactions may be added or removed by miners,
 // but it should provide a basis for setting a reasonable default.
 func (qc *Client) EstimateGas(ctx context.Context, msg qrl.CallMsg) (uint64, error) {

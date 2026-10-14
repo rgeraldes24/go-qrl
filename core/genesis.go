@@ -355,9 +355,9 @@ func SetupGenesisBlockWithOverride(db qrldb.Database, triedb *trie.Database, gen
 	storedData, _ := json.Marshal(storedcfg)
 	// Special case: if a private network is being used (no genesis and also no
 	// mainnet hash in the database), we must not apply the `configOrDefault`
-	// chain config as that would be AllProtocolChanges (applying any new fork
-	// on top of an existing private network genesis block). In that case, only
-	// apply the overrides.
+	// chain config as that would be AllBeaconProtocolChanges (applying any new
+	// fork on top of an existing private network genesis block). In that case,
+	// keep the stored config.
 	if genesis == nil && stored != params.MainnetGenesisHash {
 		newcfg = storedcfg
 	}
@@ -520,7 +520,7 @@ func DefaultBetaNetGenesisBlock() *Genesis {
 	}
 }
 
-// DefaultTestnetGenesisBlock returns the BetaNet network genesis block.
+// DefaultTestnetGenesisBlock returns the Testnet network genesis block.
 func DefaultTestnetGenesisBlock() *Genesis {
 	return &Genesis{
 		Config:    params.TestnetChainConfig,
@@ -533,7 +533,7 @@ func DefaultTestnetGenesisBlock() *Genesis {
 
 // DeveloperGenesisBlock returns the 'gqrl --dev' genesis block.
 func DeveloperGenesisBlock(gasLimit uint64, faucet common.Address) *Genesis {
-	// Override the default period to the user requested one
+	// Work on a copy of the dev chain config
 	config := *params.AllDevChainProtocolChanges
 
 	// Assemble and return the genesis with the precompiles and faucet pre-funded

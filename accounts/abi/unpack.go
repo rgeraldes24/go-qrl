@@ -64,7 +64,7 @@ func ReadInteger(typ Type, b []byte) (any, error) {
 			}
 			return u64, nil
 		default:
-			// the only case left for unsigned integer is uint256.
+			// the only case left for unsigned integer is a big integer (up to uint512).
 			return ret, nil
 		}
 	}
@@ -100,7 +100,7 @@ func ReadInteger(typ Type, b []byte) (any, error) {
 		}
 		return i64, nil
 	default:
-		// the only case left for integer is int256
+		// the only case left for integer is a big integer (up to int512)
 
 		return ret, nil
 	}
@@ -171,7 +171,7 @@ func forEachUnpack(t Type, output []byte, start, size int) (any, error) {
 	}
 
 	// Arrays have packed elements, resulting in longer unpack steps.
-	// Slices have just 32 bytes per element (pointing to the contents).
+	// Slices have just 64 bytes per element (pointing to the contents).
 	elemSize := getTypeSize(*t.Elem)
 
 	for i, j := start, 0; j < size; i, j = i+elemSize, j+1 {

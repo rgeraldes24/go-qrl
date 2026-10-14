@@ -1110,7 +1110,7 @@ func newRPCRawTransactionFromBlockIndex(b *types.Block, index uint64) hexutil.By
 }
 
 // accessListResult returns an optional accesslist
-// It's the result of the `debug_createAccessList` RPC call.
+// It's the result of the `qrl_createAccessList` RPC call.
 // It contains an error if the transaction itself failed.
 type accessListResult struct {
 	Accesslist *types.AccessList `json:"accessList"`

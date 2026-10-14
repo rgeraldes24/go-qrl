@@ -54,7 +54,7 @@ var DefaultConfig = Config{
 	GasCeil:  params.MaxGasLimit,
 	GasPrice: big.NewInt(params.Shor),
 
-	// The default recommit time is chosen as two seconds since
+	// The default recommit time is chosen as ten seconds since
 	// consensus-layer usually will wait a half slot of time(30s)
 	// for payload generation. It should be enough for Gqrl to
 	// run 3 rounds.

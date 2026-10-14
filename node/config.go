@@ -275,7 +275,7 @@ func (c *Config) ExtRPCEnabled() bool {
 // NodeName returns the devp2p node identifier.
 func (c *Config) NodeName() string {
 	name := c.name()
-	// Backwards compatibility: previous versions used title-cased "Gqrl", keep that.
+	// The client identifier uses title-cased "Gqrl".
 	if name == "gqrl" || name == "gqrl-testnet" {
 		name = "Gqrl"
 	}

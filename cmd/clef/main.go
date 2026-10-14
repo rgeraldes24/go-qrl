@@ -881,8 +881,7 @@ func checkFile(filename string) error {
 		return fmt.Errorf("failed stat on %s: %v", filename, err)
 	}
 	// Check the unix permission bits
-	// However, on windows, we cannot use the unix perm-bits, see
-	// https://github.com/theQRL/go-qrl/issues/20123
+	// However, on windows, we cannot use the unix perm-bits
 	if runtime.GOOS != "windows" && info.Mode().Perm()&0377 != 0 {
 		return fmt.Errorf("file (%v) has insecure file permissions (%v)", filename, info.Mode().String())
 	}
@@ -910,7 +909,7 @@ func testExternalUI(api *core.SignerAPI) {
 	ctx = context.WithValue(ctx, "local", "main")
 	errs := make([]string, 0)
 
-	a := common.MustParseAddress("Q0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000deadbeef000000000000000000000000deadbeef")
+	a := common.MustParseAddress("Q6676Ad213190622F27FaE6F8A0F2480BB6f5141B15F2CaEC6c8689ACC6c6CbCE922796A9ef782B11D4b3693Ba7749330D45e56bC74cEfc435BB9118E43FF1f20")
 	addErr := func(errStr string) {
 		log.Info("Test error", "err", errStr)
 		errs = append(errs, errStr)
@@ -955,8 +954,8 @@ func testExternalUI(api *core.SignerAPI) {
 	{ // Sign data test - typed data
 		api.UI.ShowInfo("Please approve the next request for signing QRL typed data")
 		time.Sleep(delay)
-		addr := common.MustParseMixedcaseAddress("Q00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000011223344556677889900112233445566778899")
-		data := `{"types":{"QRLTypedDataDomain":[{"name":"name","type":"string"},{"name":"version","type":"string"},{"name":"chainId","type":"uint256"},{"name":"verifyingContract","type":"address"}],"Person":[{"name":"name","type":"string"},{"name":"test","type":"uint8"},{"name":"wallet","type":"address"}],"Mail":[{"name":"from","type":"Person"},{"name":"to","type":"Person"},{"name":"contents","type":"string"}]},"primaryType":"Mail","domain":{"name":"QRL Mail","version":"1","chainId":"1","verifyingContract":"QCCCcCCCcCCCcCCCcCCCcCCCcCCCcCCCcCCCcCCCcCCCcCCCcCCCcCCCcCCCcCCCcCCCcCCCcCCCcCCCcCCCcCCCcCCCcCCCc99aabbccddeeff001122334455667788"},"message":{"from":{"name":"Cow","test":"3","wallet":"QcD2a3d9F938E13CD947Ec05AbC7FE734Df8DD826cD2a3d9F938E13CD947Ec05AbC7FE734Df8DD826aabbccddeeff010299aabbccddeeff001122334455667788"},"to":{"name":"Bob","wallet":"QbBbBBBBbbBBBbbbBbbBbbbbBBbBbbbbBbBbbBBbBbBbBBBBbbBBBbbbBbbBbbbbBBbBbbbbBbBbbBBbBaabbccddee01020399aabbccddeeff001122334455667788","test":"2"},"contents":"Hello, Bob!"}}`
+		addr := common.MustParseMixedcaseAddress("QEdFec0a69d358a654F06c6b040EFD2A6C075F81490040b3E3d73611C223F15cE5cb80697eDaA9eF78ce9c52cd400c604A11A03CbE3EF62c5d9f0e916Cc2B3A5f")
+		data := `{"types":{"QRLTypedDataDomain":[{"name":"name","type":"string"},{"name":"version","type":"string"},{"name":"chainId","type":"uint256"},{"name":"verifyingContract","type":"address"}],"Person":[{"name":"name","type":"string"},{"name":"test","type":"uint8"},{"name":"wallet","type":"address"}],"Mail":[{"name":"from","type":"Person"},{"name":"to","type":"Person"},{"name":"contents","type":"string"}]},"primaryType":"Mail","domain":{"name":"QRL Mail","version":"1","chainId":"1","verifyingContract":"Q7cee76Fc6086a5381dCAAAfd3A30C0C1716C4A92Ac133d45c71042C8969cb1EC528a3b7C22357A451B9246c62b2661659487Db85A56AA2DE545CF7A7559DF681"},"message":{"from":{"name":"Cow","test":"3","wallet":"Q36e0C3f4f3DAADb623d5ff55ECE6fBFCFbEED8BD5B1B56363aB83eDbFb0e2CF2657a7949f4a37D66c439CF384352FD72fef740d56859011E34d501082Fca60bF"},"to":{"name":"Bob","wallet":"Qe0e11D538EE91B510eaa7539cb99030b5F3406a63565a671D142CB4C9aC472BBD2c41c14c972D65e427850F9dCAF98E99a4a38d590fb848881377EC7d5f055D0","test":"2"},"contents":"Hello, Bob!"}}`
 		// _, err := api.SignData(ctx, accounts.MimetypeTypedData, *addr, hexutil.Encode([]byte(data)))
 		var typedData apitypes.TypedData
 		json.Unmarshal([]byte(data), &typedData)
@@ -966,14 +965,14 @@ func testExternalUI(api *core.SignerAPI) {
 	{ // Sign data test - plain text
 		api.UI.ShowInfo("Please approve the next request for signing text")
 		time.Sleep(delay)
-		addr := common.MustParseMixedcaseAddress("Q00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000011223344556677889900112233445566778899")
+		addr := common.MustParseMixedcaseAddress("QEdFec0a69d358a654F06c6b040EFD2A6C075F81490040b3E3d73611C223F15cE5cb80697eDaA9eF78ce9c52cd400c604A11A03CbE3EF62c5d9f0e916Cc2B3A5f")
 		_, err := api.SignData(ctx, accounts.MimetypeTextPlain, *addr, hexutil.Encode([]byte("hello world")))
 		expectApprove("signdata - text", err)
 	}
 	{ // Sign data test - plain text reject
 		api.UI.ShowInfo("Please deny the next request for signing text")
 		time.Sleep(delay)
-		addr := common.MustParseMixedcaseAddress("Q00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000011223344556677889900112233445566778899")
+		addr := common.MustParseMixedcaseAddress("QEdFec0a69d358a654F06c6b040EFD2A6C075F81490040b3E3d73611C223F15cE5cb80697eDaA9eF78ce9c52cd400c604A11A03CbE3EF62c5d9f0e916Cc2B3A5f")
 		_, err := api.SignData(ctx, accounts.MimetypeTextPlain, *addr, hexutil.Encode([]byte("hello world")))
 		expectDeny("signdata - text", err)
 	}
@@ -1070,7 +1069,7 @@ func newGenDocOnApprovedTx() (*types.Transaction, error) {
 		return nil, fmt.Errorf("create deterministic OnApproved transaction fixture wallet: %w", err)
 	}
 	chainID := big.NewInt(genDocChainID)
-	to := common.BytesToAddress([]byte{0x12, 0x34})
+	to := common.MustParseAddress("QF8a4c9286BEfD637cb54b9bc6Dc3Bf2353Ca69A094e842322405e087c557663f65B6f49c97e81b14a94a4B2e3A65c84b9A29f2B4730aa81120F59307798ef6e3")
 	tx, err := types.SignNewTx(fixtureWallet, types.NewZondSigner(chainID), &types.DynamicFeeTx{
 		ChainID:   chainID,
 		Nonce:     100,
@@ -1089,9 +1088,9 @@ func newGenDocOnApprovedTx() (*types.Transaction, error) {
 // GenDoc outputs examples of all structures used in json-rpc communication
 func GenDoc(ctx *cli.Context) error {
 	var (
-		a    = common.MustParseAddress("Q0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000deadbeef000000000000000000000000deadbeef")
-		b    = common.MustParseAddress("Q00000000000000000000000000000000000000000000000000000000000000000000000000000000000000001111111122222222222233333333334444444444")
-		c    = common.MustParseAddress("Q0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000c0fe")
+		a    = common.MustParseAddress("Q6676Ad213190622F27FaE6F8A0F2480BB6f5141B15F2CaEC6c8689ACC6c6CbCE922796A9ef782B11D4b3693Ba7749330D45e56bC74cEfc435BB9118E43FF1f20")
+		b    = common.MustParseAddress("Q09939e60AF0493A7637618345Dfd8820A3218085c7A51F34AB529fFf66b5aD87847209a19071365338D23172d4aD4C80560402f24bC27FC5ccC1b59841D39E63")
+		c    = common.MustParseAddress("QCF4dC8dF3B39cafF48047a19F246a51aB67368eFa080E9F72d9f1D7983FbDf685009366C4d35253B3ca6112505b1C9a0254edEd1055A6BaEd80a3346DAAAF351")
 		meta = core.Metadata{
 			Scheme:    "http",
 			Local:     "localhost:8545",
@@ -1112,7 +1111,7 @@ func GenDoc(ctx *cli.Context) error {
 	{ // Sign plain text request
 		desc := "SignDataRequest contains information about a pending request to sign some data. " +
 			"The data to be signed can be of various types, defined by content-type. Clef has done most " +
-			"of the work in canonicalizing and making sense of the data, and it's up to the UI to present" +
+			"of the work in canonicalizing and making sense of the data, and it's up to the UI to present " +
 			"the user with the contents of the `message`"
 		sighash, msg := accounts.TextAndHash([]byte("hello world"))
 		messages := []*apitypes.NameValueType{{Name: "message", Value: msg, Typ: accounts.MimetypeTextPlain}}

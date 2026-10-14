@@ -155,7 +155,7 @@ func newConsensusAPIWithoutHeartbeat(qrl *qrl.QRL) *ConsensusAPI {
 //
 // If there are payloadAttributes: we try to assemble a block with the payloadAttributes
 // and return its payloadID.
-// ForkchoiceUpdatedV2 is equivalent to V1 with the addition of withdrawals in the payload attributes.
+// ForkchoiceUpdatedV2 requires withdrawals in the payload attributes.
 func (api *ConsensusAPI) ForkchoiceUpdatedV2(update engine.ForkchoiceStateV1, params *engine.PayloadAttributes) (engine.ForkChoiceResponse, error) {
 	if params != nil && params.Withdrawals == nil {
 		return engine.STATUS_INVALID, engine.InvalidPayloadAttributes.With(errors.New("missing withdrawals"))
@@ -387,7 +387,7 @@ func (api *ConsensusAPI) newPayload(params engine.ExecutableData) (engine.Payloa
 	}
 	// If the parent is missing, we - in theory - could trigger a sync, but that
 	// would also entail a reorg. That is problematic if multiple sibling blocks
-	// are being fed to us, and even more so, if some semi-distant uncle shortens
+	// are being fed to us, and even more so, if some semi-distant side block shortens
 	// our live chain. As such, payload execution will not permit reorgs and thus
 	// will not trigger a sync cycle. That is fine though, if we get a fork choice
 	// update after legit payload executions.
@@ -415,7 +415,7 @@ func (api *ConsensusAPI) newPayload(params engine.ExecutableData) (engine.Payloa
 	}
 	log.Trace("Inserting block without sethead", "hash", block.Hash(), "number", block.Number)
 	if err := api.qrl.BlockChain().InsertBlockWithoutSetHead(block); err != nil {
-		log.Warn("NewPayloadV1: inserting block failed", "error", err)
+		log.Warn("NewPayload: inserting block failed", "error", err)
 
 		api.invalidLock.Lock()
 		api.invalidBlocksHits[block.Hash()] = 1
