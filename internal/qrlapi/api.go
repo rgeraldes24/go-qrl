@@ -684,13 +684,13 @@ func doCall(ctx context.Context, b Backend, args TransactionArgs, state *state.S
 	defer cancel()
 
 	// Get a new instance of the QRVM.
-	msg, err := args.ToMessage(globalGasCap, header.BaseFee)
-	if err != nil {
-		return nil, err
-	}
 	blockCtx := core.NewQRVMBlockContext(header, NewChainContext(ctx, b), nil)
 	if blockOverrides != nil {
 		blockOverrides.Apply(&blockCtx)
+	}
+	msg, err := args.ToMessage(globalGasCap, blockCtx.BaseFee)
+	if err != nil {
+		return nil, err
 	}
 	qrvm := b.GetQRVM(ctx, msg, state, header, &vm.Config{NoBaseFee: true}, &blockCtx)
 
@@ -1625,7 +1625,7 @@ func (api *DebugAPI) GetRawHeader(ctx context.Context, blockNrOrHash rpc.BlockNu
 		hash = h
 	} else {
 		block, err := api.b.BlockByNumberOrHash(ctx, blockNrOrHash)
-		if err != nil {
+		if block == nil || err != nil {
 			return nil, err
 		}
 		hash = block.Hash()
@@ -1644,7 +1644,7 @@ func (api *DebugAPI) GetRawBlock(ctx context.Context, blockNrOrHash rpc.BlockNum
 		hash = h
 	} else {
 		block, err := api.b.BlockByNumberOrHash(ctx, blockNrOrHash)
-		if err != nil {
+		if block == nil || err != nil {
 			return nil, err
 		}
 		hash = block.Hash()
@@ -1663,7 +1663,7 @@ func (api *DebugAPI) GetRawReceipts(ctx context.Context, blockNrOrHash rpc.Block
 		hash = h
 	} else {
 		block, err := api.b.BlockByNumberOrHash(ctx, blockNrOrHash)
-		if err != nil {
+		if block == nil || err != nil {
 			return nil, err
 		}
 		hash = block.Hash()
@@ -1721,9 +1721,17 @@ func (api *DebugAPI) ChaindbProperty(property string) (string, error) {
 // ChaindbCompact flattens the entire key-value database into a single level,
 // removing all unused slots and merging all keys.
 func (api *DebugAPI) ChaindbCompact() error {
-	for b := range byte(255) {
-		log.Info("Compacting chain database", "range", fmt.Sprintf("0x%0.2X-0x%0.2X", b, b+1))
-		if err := api.b.ChainDb().Compact([]byte{b}, []byte{b + 1}); err != nil {
+	cstart := time.Now()
+	for b := 0; b <= 255; b++ {
+		var (
+			start = []byte{byte(b)}
+			end   = []byte{byte(b + 1)}
+		)
+		if b == 255 {
+			end = nil
+		}
+		log.Info("Compacting database", "range", fmt.Sprintf("%#X-%#X", start, end), "elapsed", common.PrettyDuration(time.Since(cstart)))
+		if err := api.b.ChainDb().Compact(start, end); err != nil {
 			log.Error("Database compaction failed", "err", err)
 			return err
 		}
