@@ -29,11 +29,14 @@ import (
 	"github.com/huin/goupnp"
 	"github.com/huin/goupnp/dcps/internetgateway1"
 	"github.com/huin/goupnp/dcps/internetgateway2"
+	"github.com/theQRL/go-qrl/log"
 )
 
 const (
 	soapRequestTimeout = 3 * time.Second
 	rateLimit          = 200 * time.Millisecond
+	retryCount         = 3 // number of retries after a failed AddPortMapping
+	randomCount        = 3 // number of random ports to try
 )
 
 type upnp struct {
@@ -89,44 +92,45 @@ func (n *upnp) AddMapping(protocol string, extport, intport int, desc string, li
 
 	if extport == 0 {
 		extport = intport
-	} else {
-		// Only delete port mapping if the external port was already used by gqrl.
-		n.DeleteMapping(protocol, extport, intport)
 	}
 
 	// Try to add port mapping, preferring the specified external port.
-	err = n.withRateLimit(func() error {
-		p, err := n.addAnyPortMapping(protocol, extport, intport, ip, desc, lifetimeS)
-		if err == nil {
-			extport = int(p)
-		}
-		return err
-	})
-	return uint16(extport), err
+	return n.addAnyPortMapping(protocol, extport, intport, ip, desc, lifetimeS)
 }
 
 // addAnyPortMapping tries to add a port mapping with the specified external port.
 // If the external port is already in use, it will try to assign another port.
 func (n *upnp) addAnyPortMapping(protocol string, extport, intport int, ip net.IP, desc string, lifetimeS uint32) (uint16, error) {
 	if client, ok := n.client.(*internetgateway2.WANIPConnection2); ok {
-		return client.AddAnyPortMapping("", uint16(extport), protocol, uint16(intport), ip.String(), true, desc, lifetimeS)
+		return n.portWithRateLimit(func() (uint16, error) {
+			return client.AddAnyPortMapping("", uint16(extport), protocol, uint16(intport), ip.String(), true, desc, lifetimeS)
+		})
 	}
 	// For IGDv1 and v1 services we should first try to add with extport.
-	err := n.client.AddPortMapping("", uint16(extport), protocol, uint16(intport), ip.String(), true, desc, lifetimeS)
-	if err == nil {
-		return uint16(extport), nil
+	var lastErr error
+	for i := 0; i < retryCount+1; i++ {
+		lastErr = n.withRateLimit(func() error {
+			return n.client.AddPortMapping("", uint16(extport), protocol, uint16(intport), ip.String(), true, desc, lifetimeS)
+		})
+		if lastErr == nil {
+			return uint16(extport), nil
+		}
+		log.Debug("Failed to add port mapping", "protocol", protocol, "extport", extport, "intport", intport, "err", lastErr)
 	}
 
 	// If above fails, we retry with a random port.
 	// We retry several times because of possible port conflicts.
-	for i := 0; i < 3; i++ {
+	for i := 0; i < randomCount; i++ {
 		extport = n.randomPort()
-		err := n.client.AddPortMapping("", uint16(extport), protocol, uint16(intport), ip.String(), true, desc, lifetimeS)
-		if err == nil {
+		lastErr = n.withRateLimit(func() error {
+			return n.client.AddPortMapping("", uint16(extport), protocol, uint16(intport), ip.String(), true, desc, lifetimeS)
+		})
+		if lastErr == nil {
 			return uint16(extport), nil
 		}
+		log.Debug("Failed to add random port mapping", "protocol", protocol, "extport", extport, "intport", intport, "err", lastErr)
 	}
-	return 0, err
+	return 0, lastErr
 }
 
 func (n *upnp) randomPort() int {
@@ -167,6 +171,17 @@ func (n *upnp) DeleteMapping(protocol string, extport, intport int) error {
 
 func (n *upnp) String() string {
 	return "UPNP " + n.service
+}
+
+func (n *upnp) portWithRateLimit(pfn func() (uint16, error)) (uint16, error) {
+	var port uint16
+	var err error
+	fn := func() error {
+		port, err = pfn()
+		return err
+	}
+	n.withRateLimit(fn)
+	return port, err
 }
 
 func (n *upnp) withRateLimit(fn func() error) error {
