@@ -684,13 +684,13 @@ func doCall(ctx context.Context, b Backend, args TransactionArgs, state *state.S
 	defer cancel()
 
 	// Get a new instance of the QRVM.
-	msg, err := args.ToMessage(globalGasCap, header.BaseFee)
-	if err != nil {
-		return nil, err
-	}
 	blockCtx := core.NewQRVMBlockContext(header, NewChainContext(ctx, b), nil)
 	if blockOverrides != nil {
 		blockOverrides.Apply(&blockCtx)
+	}
+	msg, err := args.ToMessage(globalGasCap, blockCtx.BaseFee)
+	if err != nil {
+		return nil, err
 	}
 	qrvm := b.GetQRVM(ctx, msg, state, header, &vm.Config{NoBaseFee: true}, &blockCtx)
 

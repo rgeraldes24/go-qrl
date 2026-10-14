@@ -753,6 +753,22 @@ func TestCall(t *testing.T) {
 			blockOverrides: BlockOverrides{Number: (*hexutil.Big)(big.NewInt(11))},
 			want:           "0x000000000000000000000000000000000000000000000000000000000000000b",
 		},
+		// The gas price should be derived from the overridden base fee.
+		{
+			blockNumber: rpc.LatestBlockNumber,
+			call: TransactionArgs{
+				From:         &accounts[1].addr,
+				Gas:          new(hexutil.Uint64(100000)),
+				MaxFeePerGas: (*hexutil.Big)(big.NewInt(1_000_000_000_000)),
+				Input: &hexutil.Bytes{
+					0x3a,             // GASPRICE
+					0x60, 0x00, 0x52, // PUSH1 0, MSTORE
+					0x60, 0x20, 0x60, 0x20, 0xf3, // PUSH1 32, PUSH1 32, RETURN
+				},
+			},
+			blockOverrides: BlockOverrides{BaseFee: (*hexutil.Big)(big.NewInt(10_000_000_000))},
+			want:           "0x00000000000000000000000000000000000000000000000000000002540be400",
+		},
 	}
 	for i, tc := range testSuite {
 		result, err := api.Call(t.Context(), tc.call, rpc.BlockNumberOrHash{BlockNumber: &tc.blockNumber}, &tc.overrides, &tc.blockOverrides)
