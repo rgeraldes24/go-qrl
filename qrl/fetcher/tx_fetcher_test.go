@@ -1111,6 +1111,10 @@ func TestTransactionFetcherDoSProtection(t *testing.T) {
 	for i := range maxTxAnnounces + 1 {
 		hashesB = append(hashesB, common.Hash{0x02, byte(i / 256), byte(i % 256)})
 	}
+	var hashesC []common.Hash
+	for i := range maxTxAnnounces + 2 {
+		hashesC = append(hashesC, common.Hash{0x03, byte(i / 256), byte(i % 256)})
+	}
 	testTransactionFetcherParallel(t, txFetcherTest{
 		init: func() *TxFetcher {
 			return NewTxFetcher(
@@ -1124,43 +1128,52 @@ func TestTransactionFetcherDoSProtection(t *testing.T) {
 			// Announce half of the transaction and wait for them to be scheduled
 			doTxNotify{peer: "A", hashes: hashesA[:maxTxAnnounces/2]},
 			doTxNotify{peer: "B", hashes: hashesB[:maxTxAnnounces/2-1]},
+			doTxNotify{peer: "C", hashes: hashesC[:maxTxAnnounces/2-1]},
 			doWait{time: txArriveTimeout, step: true},
 
 			// Announce the second half and keep them in the wait list
 			doTxNotify{peer: "A", hashes: hashesA[maxTxAnnounces/2 : maxTxAnnounces]},
 			doTxNotify{peer: "B", hashes: hashesB[maxTxAnnounces/2-1 : maxTxAnnounces-1]},
+			doTxNotify{peer: "C", hashes: hashesC[maxTxAnnounces/2-1 : maxTxAnnounces-1]},
 
 			// Ensure the hashes are split half and half
 			isWaiting(map[string][]common.Hash{
 				"A": hashesA[maxTxAnnounces/2 : maxTxAnnounces],
 				"B": hashesB[maxTxAnnounces/2-1 : maxTxAnnounces-1],
+				"C": hashesC[maxTxAnnounces/2-1 : maxTxAnnounces-1],
 			}),
 			isScheduled{
 				tracking: map[string][]common.Hash{
 					"A": hashesA[:maxTxAnnounces/2],
 					"B": hashesB[:maxTxAnnounces/2-1],
+					"C": hashesC[:maxTxAnnounces/2-1],
 				},
 				fetching: map[string][]common.Hash{
-					"A": hashesA[1643 : 1643+maxTxRetrievals],
-					"B": append(append([]common.Hash{}, hashesB[maxTxAnnounces/2-3:maxTxAnnounces/2-1]...), hashesB[:maxTxRetrievals-2]...),
+					"A": hashesA[633 : 633+maxTxRetrievals],
+					"B": hashesB[66 : 66+maxTxRetrievals],
+					"C": hashesC[517 : 517+maxTxRetrievals],
 				},
 			},
 			// Ensure that adding even one more hash results in dropping the hash
 			doTxNotify{peer: "A", hashes: []common.Hash{hashesA[maxTxAnnounces]}},
 			doTxNotify{peer: "B", hashes: hashesB[maxTxAnnounces-1 : maxTxAnnounces+1]},
+			doTxNotify{peer: "C", hashes: hashesC[maxTxAnnounces-1 : maxTxAnnounces+2]},
 
 			isWaiting(map[string][]common.Hash{
 				"A": hashesA[maxTxAnnounces/2 : maxTxAnnounces],
 				"B": hashesB[maxTxAnnounces/2-1 : maxTxAnnounces],
+				"C": hashesC[maxTxAnnounces/2-1 : maxTxAnnounces],
 			}),
 			isScheduled{
 				tracking: map[string][]common.Hash{
 					"A": hashesA[:maxTxAnnounces/2],
 					"B": hashesB[:maxTxAnnounces/2-1],
+					"C": hashesC[:maxTxAnnounces/2-1],
 				},
 				fetching: map[string][]common.Hash{
-					"A": hashesA[1643 : 1643+maxTxRetrievals],
-					"B": append(append([]common.Hash{}, hashesB[maxTxAnnounces/2-3:maxTxAnnounces/2-1]...), hashesB[:maxTxRetrievals-2]...),
+					"A": hashesA[633 : 633+maxTxRetrievals],
+					"B": hashesB[66 : 66+maxTxRetrievals],
+					"C": hashesC[517 : 517+maxTxRetrievals],
 				},
 			},
 		},
