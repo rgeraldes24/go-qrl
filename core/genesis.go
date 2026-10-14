@@ -278,6 +278,16 @@ func (e *GenesisMismatchError) Error() string {
 	return fmt.Sprintf("database contains incompatible genesis (have %x, new %x)", e.Stored, e.New)
 }
 
+// ChainIDMismatchError is raised when trying to open a database with a chain
+// config whose chain ID differs from the stored one.
+type ChainIDMismatchError struct {
+	Stored, New *big.Int
+}
+
+func (e *ChainIDMismatchError) Error() string {
+	return fmt.Sprintf("mismatching chain ID in database (have %v, want %v)", e.Stored, e.New)
+}
+
 // SetupGenesisBlock writes or updates the genesis block in db.
 // The block that will be used is:
 //
@@ -360,6 +370,11 @@ func SetupGenesisBlockWithOverride(db qrldb.Database, triedb *trie.Database, gen
 	// apply the overrides.
 	if genesis == nil && stored != params.MainnetGenesisHash {
 		newcfg = storedcfg
+	}
+	// Every transaction signs the chain ID, so it cannot change on an existing
+	// database.
+	if (storedcfg.ChainID == nil) != (newcfg.ChainID == nil) || (storedcfg.ChainID != nil && storedcfg.ChainID.Cmp(newcfg.ChainID) != 0) {
+		return newcfg, stored, &ChainIDMismatchError{storedcfg.ChainID, newcfg.ChainID}
 	}
 	// Check config compatibility and write the config. Compatibility errors
 	// are returned to the caller unless we're already at block zero.

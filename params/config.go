@@ -179,10 +179,8 @@ func (c *ChainConfig) CheckConfigForkOrder() error {
 }
 
 func (c *ChainConfig) checkCompatible(newcfg *ChainConfig /*, headNumber *big.Int, headTimestamp uint64*/) *ConfigCompatError {
-	if !configBlockEqual(c.ChainID, newcfg.ChainID) {
-		return newBlockCompatError("chain ID", c.ChainID, newcfg.ChainID)
-	}
-
+	// No fork is scheduled yet. The chain ID is not a fork: a mismatch is
+	// rejected when the genesis block is set up.
 	return nil
 }
 
@@ -194,16 +192,6 @@ func (c *ChainConfig) BaseFeeChangeDenominator() uint64 {
 // ElasticityMultiplier bounds the maximum gas limit an EIP-1559 block may have.
 func (c *ChainConfig) ElasticityMultiplier() uint64 {
 	return DefaultElasticityMultiplier
-}
-
-func configBlockEqual(x, y *big.Int) bool {
-	if x == nil {
-		return y == nil
-	}
-	if y == nil {
-		return x == nil
-	}
-	return x.Cmp(y) == 0
 }
 
 // ConfigCompatError is raised if the locally-stored blockchain is initialised with a
@@ -222,28 +210,6 @@ type ConfigCompatError struct {
 
 	// the timestamp to which the local chain must be rewound to correct the error
 	RewindToTime uint64
-}
-
-func newBlockCompatError(what string, storedblock, newblock *big.Int) *ConfigCompatError {
-	var rew *big.Int
-	switch {
-	case storedblock == nil:
-		rew = newblock
-	case newblock == nil || storedblock.Cmp(newblock) < 0:
-		rew = storedblock
-	default:
-		rew = newblock
-	}
-	err := &ConfigCompatError{
-		What:          what,
-		StoredBlock:   storedblock,
-		NewBlock:      newblock,
-		RewindToBlock: 0,
-	}
-	if rew != nil && rew.Sign() > 0 {
-		err.RewindToBlock = rew.Uint64() - 1
-	}
-	return err
 }
 
 func (err *ConfigCompatError) Error() string {
