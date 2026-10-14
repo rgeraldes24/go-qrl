@@ -59,7 +59,7 @@ type BlockContext struct {
 	GasLimit    uint64         // Provides information for GASLIMIT
 	BlockNumber *big.Int       // Provides information for NUMBER
 	Time        uint64         // Provides information for TIME
-	BaseFee     *big.Int       // Provides information for BASEFEE
+	BaseFee     *big.Int       // Provides information for BASEFEE (0 if vm runs with NoBaseFee flag and 0 gas price)
 	Random      *common.Hash   // Provides information for PREVRANDAO
 }
 
@@ -68,7 +68,7 @@ type BlockContext struct {
 type TxContext struct {
 	// Message information
 	Origin   common.Address // Provides information for ORIGIN
-	GasPrice *big.Int       // Provides information for GASPRICE
+	GasPrice *big.Int       // Provides information for GASPRICE (and is used to zero the basefee if NoBaseFee is set)
 }
 
 // QRVM is the Quantum Resistant Virtual Machine base object and
@@ -110,6 +110,12 @@ type QRVM struct {
 // NewQRVM returns a new QRVM. The returned QRVM is not thread safe and should
 // only ever be used *once*.
 func NewQRVM(blockCtx BlockContext, txCtx TxContext, statedb StateDB, chainConfig *params.ChainConfig, config Config) *QRVM {
+	// If basefee tracking is disabled (qrl_call, qrl_estimateGas, etc), and no
+	// gas prices were specified, lower the basefee to 0 to avoid breaking QRVM
+	// invariants (basefee < feecap)
+	if config.NoBaseFee && txCtx.GasPrice.BitLen() == 0 {
+		blockCtx.BaseFee = new(big.Int)
+	}
 	qrvm := &QRVM{
 		Context:     blockCtx,
 		TxContext:   txCtx,

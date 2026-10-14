@@ -593,6 +593,35 @@ func TestEstimateGas(t *testing.T) {
 			},
 			expectErr: core.ErrInsufficientFunds,
 		},
+		// Test for a bug where the gas price was set to zero but the basefee non-zero
+		//
+		// The init code reverts unless tx.gasprice >= block.basefee and, if
+		// tx.gasprice > 0, block.basefee > 0:
+		//   48 3a 10 60 12 57  BASEFEE GASPRICE LT PUSH1 0x12 JUMPI
+		//   3a 15 60 10 57     GASPRICE ISZERO PUSH1 0x10 JUMPI
+		//   48 15 60 12 57     BASEFEE ISZERO PUSH1 0x12 JUMPI
+		//   5b 00              JUMPDEST STOP
+		//   5b 5f 5f fd        JUMPDEST PUSH0 PUSH0 REVERT
+		{
+			blockNumber: rpc.LatestBlockNumber,
+			call: TransactionArgs{
+				From:         &accounts[0].addr,
+				Input:        hex2Bytes("483a106012573a1560105748156012575b005b5f5ffd"),
+				MaxFeePerGas: (*hexutil.Big)(big.NewInt(100_000_000_000)), // 1559 gas pricing
+			},
+			expectErr: nil,
+			want:      53399,
+		},
+		{
+			blockNumber: rpc.LatestBlockNumber,
+			call: TransactionArgs{
+				From:         &accounts[0].addr,
+				Input:        hex2Bytes("483a106012573a1560105748156012575b005b5f5ffd"),
+				MaxFeePerGas: nil, // No 1559 gas pricing
+			},
+			expectErr: nil,
+			want:      53381,
+		},
 	}
 	for i, tc := range testSuite {
 		result, err := api.EstimateGas(t.Context(), tc.call, &rpc.BlockNumberOrHash{BlockNumber: &tc.blockNumber}, &tc.overrides)
