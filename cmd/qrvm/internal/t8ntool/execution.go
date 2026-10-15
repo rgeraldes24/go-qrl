@@ -52,8 +52,8 @@ type ExecutionResult struct {
 	Receipts        types.Receipts        `json:"receipts"`
 	Rejected        []*rejectedTx         `json:"rejected,omitempty"`
 	GasUsed         math.HexOrDecimal64   `json:"gasUsed"`
-	BaseFee         *math.HexOrDecimal256 `json:"currentBaseFee,omitempty"`
-	WithdrawalsRoot *common.Hash          `json:"withdrawalsRoot,omitempty"`
+	BaseFee         *math.HexOrDecimal256 `json:"currentBaseFee"`
+	WithdrawalsRoot *common.Hash          `json:"withdrawalsRoot"`
 }
 
 //go:generate go run github.com/fjl/gencodec -type stEnv -field-override stEnvMarshaling -out gen_stenv.go
@@ -120,6 +120,7 @@ func (pre *Prestate) Apply(vmConfig vm.Config, chainConfig *params.ChainConfig,
 		txIndex     = 0
 	)
 	gaspool.AddGas(pre.Env.GasLimit)
+	random := common.BigToHash(pre.Env.Random)
 	vmContext := vm.BlockContext{
 		CanTransfer: core.CanTransfer,
 		Transfer:    core.Transfer,
@@ -128,15 +129,8 @@ func (pre *Prestate) Apply(vmConfig vm.Config, chainConfig *params.ChainConfig,
 		Time:        pre.Env.Timestamp,
 		GasLimit:    pre.Env.GasLimit,
 		GetHash:     getHash,
-	}
-	// If currentBaseFee is defined, add it to the vmContext.
-	if pre.Env.BaseFee != nil {
-		vmContext.BaseFee = new(big.Int).Set(pre.Env.BaseFee)
-	}
-	// If random is defined, add it to the vmContext.
-	if pre.Env.Random != nil {
-		rnd := common.BigToHash(pre.Env.Random)
-		vmContext.Random = &rnd
+		BaseFee:     new(big.Int).Set(pre.Env.BaseFee),
+		Random:      &random,
 	}
 
 	for i, tx := range txs {
@@ -230,10 +224,8 @@ func (pre *Prestate) Apply(vmConfig vm.Config, chainConfig *params.ChainConfig,
 		GasUsed:     (math.HexOrDecimal64)(gasUsed),
 		BaseFee:     (*math.HexOrDecimal256)(vmContext.BaseFee),
 	}
-	if pre.Env.Withdrawals != nil {
-		h := types.DeriveSha(types.Withdrawals(pre.Env.Withdrawals), trie.NewStackTrie(nil))
-		execRs.WithdrawalsRoot = &h
-	}
+	withdrawalsRoot := types.DeriveSha(types.Withdrawals(pre.Env.Withdrawals), trie.NewStackTrie(nil))
+	execRs.WithdrawalsRoot = &withdrawalsRoot
 	// Re-create statedb instance with new root upon the updated database
 	// for accessing latest states.
 	statedb, err = state.New(root, statedb.Database(), nil)

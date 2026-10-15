@@ -172,10 +172,9 @@ func (api *FilterAPI) NewPendingTransactions(ctx context.Context, fullTx *bool) 
 			case txs := <-txs:
 				// To keep the original behaviour, send a single tx hash in one notification.
 				// TODO(rjl493456442) Send a batch of tx hashes in one notification
-				latest := api.sys.backend.CurrentHeader()
 				for _, tx := range txs {
 					if fullTx != nil && *fullTx {
-						rpcTx := qrlapi.NewRPCPendingTransaction(tx, latest, chainConfig)
+						rpcTx := qrlapi.NewRPCPendingTransaction(tx, chainConfig)
 						notifier.Notify(rpcSub.ID, rpcTx)
 					} else {
 						notifier.Notify(rpcSub.ID, tx.Hash())
@@ -425,7 +424,6 @@ func (api *FilterAPI) GetFilterChanges(id rpc.ID) (any, error) {
 	defer api.filtersMu.Unlock()
 
 	chainConfig := api.sys.backend.ChainConfig()
-	latest := api.sys.backend.CurrentHeader()
 
 	if f, found := api.filters[id]; found {
 		if !f.deadline.Stop() {
@@ -444,7 +442,7 @@ func (api *FilterAPI) GetFilterChanges(id rpc.ID) (any, error) {
 			if f.fullTx {
 				txs := make([]*qrlapi.RPCTransaction, 0, len(f.txs))
 				for _, tx := range f.txs {
-					txs = append(txs, qrlapi.NewRPCPendingTransaction(tx, latest, chainConfig))
+					txs = append(txs, qrlapi.NewRPCPendingTransaction(tx, chainConfig))
 				}
 				f.txs = nil
 				return txs, nil

@@ -177,13 +177,10 @@ func Transition(ctx *cli.Context) error {
 	if txs, err = loadTransactions(txStr, inputData, chainConfig); err != nil {
 		return err
 	}
-	if err := applyLondonChecks(&prestate.Env, chainConfig); err != nil {
+	if err := applyBaseFeeChecks(&prestate.Env, chainConfig); err != nil {
 		return err
 	}
-	if err := applyZondChecks(&prestate.Env, chainConfig); err != nil {
-		return err
-	}
-	if err := applyMergeChecks(&prestate.Env, chainConfig); err != nil {
+	if err := applyZondChecks(&prestate.Env); err != nil {
 		return err
 	}
 	// Run the test and aggregate the result
@@ -306,14 +303,19 @@ func loadTransactions(txStr string, inputData *input, chainConfig *params.ChainC
 	return signUnsignedTransactions(txsWithKeys, signer)
 }
 
-func applyLondonChecks(env *stEnv, chainConfig *params.ChainConfig) error {
+func applyBaseFeeChecks(env *stEnv, chainConfig *params.ChainConfig) error {
 	// Sanity check, to not `panic` in state_transition
 	if env.BaseFee != nil {
 		// Already set, base fee has precedent over parent base fee.
 		return nil
 	}
 	if env.ParentBaseFee == nil || env.Number == 0 {
-		return NewError(ErrorConfig, errors.New("EIP-1559 config but missing 'parentBaseFee' in env section"))
+		return NewError(ErrorConfig, errors.New("missing 'currentBaseFee' or 'parentBaseFee' in env section"))
+	}
+	// When the parent used gas, CalcBaseFee divides by the parent gas target,
+	// parentGasLimit / ElasticityMultiplier.
+	if env.ParentGasUsed > 0 && env.ParentGasLimit < chainConfig.ElasticityMultiplier() {
+		return NewError(ErrorConfig, fmt.Errorf("'parentGasLimit' must be at least %d when 'parentGasUsed' is non-zero", chainConfig.ElasticityMultiplier()))
 	}
 	env.BaseFee = eip1559.CalcBaseFee(chainConfig, &types.Header{
 		Number:   new(big.Int).SetUint64(env.Number - 1),
@@ -324,16 +326,12 @@ func applyLondonChecks(env *stEnv, chainConfig *params.ChainConfig) error {
 	return nil
 }
 
-func applyZondChecks(env *stEnv, chainConfig *params.ChainConfig) error {
+func applyZondChecks(env *stEnv) error {
 	if env.Withdrawals == nil {
-		return NewError(ErrorConfig, errors.New("zond config but missing 'withdrawals' in env section"))
+		return NewError(ErrorConfig, errors.New("missing 'withdrawals' in env section"))
 	}
-	return nil
-}
-
-func applyMergeChecks(env *stEnv, chainConfig *params.ChainConfig) error {
 	if env.Random == nil {
-		return NewError(ErrorConfig, errors.New("post-merge requires currentRandom to be defined in env"))
+		return NewError(ErrorConfig, errors.New("missing 'currentRandom' in env section"))
 	}
 	return nil
 }

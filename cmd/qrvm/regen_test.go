@@ -13,7 +13,9 @@ import (
 	"testing"
 
 	"github.com/theQRL/go-qrl/common"
+	"github.com/theQRL/go-qrl/core/types"
 	"github.com/theQRL/go-qrl/crypto/pqcrypto/wallet"
+	"github.com/theQRL/go-qrl/trie"
 )
 
 // TestRegenerateT8nFixtures is a one-shot helper that regenerates the minimal
@@ -209,8 +211,21 @@ func TestRegenerateT8nFixtures(t *testing.T) {
 		"extraData":        "0x",
 		"prevRandao":       "0x0000000000000000000000000000000000000000000000000000000000000000",
 		"baseFeePerGas":    "0x1",
+		"withdrawalsRoot":  types.EmptyWithdrawalsHash.Hex(),
 	}
 	writeJSON("header.json", header)
+	// b11r copies withdrawalsRoot as given, so the block with withdrawals needs
+	// a header carrying the root of withdrawals.json.
+	withdrawalsJSON, err := json.Marshal(withdrawals)
+	if err != nil {
+		t.Fatalf("marshal withdrawals: %v", err)
+	}
+	var withdrawalsList types.Withdrawals
+	if err := json.Unmarshal(withdrawalsJSON, &withdrawalsList); err != nil {
+		t.Fatalf("decode withdrawals: %v", err)
+	}
+	header["withdrawalsRoot"] = types.DeriveSha(withdrawalsList, trie.NewStackTrie(nil)).Hex()
+	writeJSON("header_withdrawals.json", header)
 	b11rCmd := exec.Command(qrvm, "b11r",
 		"--input.header", filepath.Join(dir, "header.json"),
 		"--input.txs", filepath.Join(dir, "signed_txs.rlp"),
@@ -230,7 +245,7 @@ func TestRegenerateT8nFixtures(t *testing.T) {
 		t.Fatalf("write b11r_exp.json: %v", err)
 	}
 	b11rWithdrawalsCmd := exec.Command(qrvm, "b11r",
-		"--input.header", filepath.Join(dir, "header.json"),
+		"--input.header", filepath.Join(dir, "header_withdrawals.json"),
 		"--input.withdrawals", filepath.Join(dir, "withdrawals.json"),
 		"--input.txs", filepath.Join(dir, "signed_txs.rlp"),
 		"--output.basedir", dir,
@@ -420,7 +435,7 @@ Fixture data is regenerated for 64-byte QRL addresses. Run ` + "`WRITE_FIXTURES=
 		copyFile("b11r_exp.json", filepath.Join(dir, "exp.json"))
 		writeReadme(dir)
 	}
-	copyFile("withdrawals.json", filepath.Join("testdata", "20", "withdrawals.json"))
 	copyFile("withdrawals.json", filepath.Join("testdata", "27", "withdrawals.json"))
+	copyFile("header_withdrawals.json", filepath.Join("testdata", "27", "header.json"))
 	copyFile("b11r_withdrawals_exp.json", filepath.Join("testdata", "27", "exp.json"))
 }

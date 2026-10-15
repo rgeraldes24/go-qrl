@@ -37,19 +37,13 @@ type ChainContext interface {
 
 // NewQRVMBlockContext creates a new context for use in the QRVM.
 func NewQRVMBlockContext(header *types.Header, chain ChainContext, author *common.Address) vm.BlockContext {
-	var (
-		beneficiary common.Address
-		baseFee     *big.Int
-	)
+	var beneficiary common.Address
 
 	// If we don't have an explicit author (i.e. not mining), extract from the header
 	if author == nil {
 		beneficiary, _ = chain.Engine().Author(header) // Ignore error, we're past header validation
 	} else {
 		beneficiary = *author
-	}
-	if header.BaseFee != nil {
-		baseFee = new(big.Int).Set(header.BaseFee)
 	}
 
 	return vm.BlockContext{
@@ -59,7 +53,7 @@ func NewQRVMBlockContext(header *types.Header, chain ChainContext, author *commo
 		Coinbase:    beneficiary,
 		BlockNumber: new(big.Int).Set(header.Number),
 		Time:        header.Time,
-		BaseFee:     baseFee,
+		BaseFee:     new(big.Int).Set(header.BaseFee),
 		GasLimit:    header.GasLimit,
 		Random:      &header.Random,
 	}
