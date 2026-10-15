@@ -124,9 +124,4 @@ var (
 			strings.Join(vm.ActivateableQips(), ", ")),
 		Value: "Zond",
 	}
-	VerbosityFlag = &cli.IntFlag{
-		Name:  "verbosity",
-		Usage: "sets the verbosity level",
-		Value: 3,
-	}
 )

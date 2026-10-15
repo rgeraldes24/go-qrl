@@ -37,7 +37,6 @@ import (
 	"github.com/theQRL/go-qrl/core/vm"
 	"github.com/theQRL/go-qrl/core/vm/runtime"
 	"github.com/theQRL/go-qrl/internal/flags"
-	"github.com/theQRL/go-qrl/log"
 	"github.com/theQRL/go-qrl/params"
 	"github.com/theQRL/go-qrl/qrl/tracers/logger"
 	"github.com/theQRL/go-qrl/trie"
@@ -108,9 +107,6 @@ func timedExec(bench bool, execFunc func() ([]byte, uint64, error)) (output []by
 }
 
 func runCmd(ctx *cli.Context) error {
-	glogger := log.NewGlogHandler(log.NewTerminalHandler(os.Stderr, false))
-	glogger.Verbosity(log.FromLegacyLevel(ctx.Int(VerbosityFlag.Name)))
-	log.SetDefault(log.NewLogger(glogger))
 	logconfig := &logger.Config{
 		EnableMemory:     !ctx.Bool(DisableMemoryFlag.Name),
 		DisableStack:     ctx.Bool(DisableStackFlag.Name),

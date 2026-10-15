@@ -27,7 +27,6 @@ import (
 	"github.com/theQRL/go-qrl/core/state"
 	"github.com/theQRL/go-qrl/core/state/snapshot"
 	"github.com/theQRL/go-qrl/core/vm"
-	"github.com/theQRL/go-qrl/log"
 	"github.com/theQRL/go-qrl/qrl/tracers/logger"
 	"github.com/theQRL/go-qrl/tests"
 	"github.com/urfave/cli/v2"
@@ -52,11 +51,6 @@ type StatetestResult struct {
 }
 
 func stateTestCmd(ctx *cli.Context) error {
-	// Configure the go-qrl logger
-	glogger := log.NewGlogHandler(log.NewTerminalHandler(os.Stderr, false))
-	glogger.Verbosity(log.FromLegacyLevel(ctx.Int(VerbosityFlag.Name)))
-	log.SetDefault(log.NewLogger(glogger))
-
 	// Configure the QRVM logger
 	config := &logger.Config{
 		EnableMemory:     !ctx.Bool(DisableMemoryFlag.Name),

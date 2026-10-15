@@ -28,7 +28,6 @@ import (
 	"github.com/theQRL/go-qrl/common/hexutil"
 	"github.com/theQRL/go-qrl/core"
 	"github.com/theQRL/go-qrl/core/types"
-	"github.com/theQRL/go-qrl/log"
 	"github.com/theQRL/go-qrl/params"
 	"github.com/theQRL/go-qrl/rlp"
 	"github.com/theQRL/go-qrl/tests"
@@ -65,11 +64,6 @@ func (r *result) MarshalJSON() ([]byte, error) {
 }
 
 func Transaction(ctx *cli.Context) error {
-	// Configure the go-qrl logger
-	glogger := log.NewGlogHandler(log.NewTerminalHandler(os.Stderr, false))
-	glogger.Verbosity(log.FromLegacyLevel(ctx.Int(VerbosityFlag.Name)))
-	log.SetDefault(log.NewLogger(glogger))
-
 	// We need to load the transactions. May be either in stdin input or in files.
 	// Check if anything needs to be read from stdin
 	var (

@@ -240,7 +240,9 @@ func TestT8nVerbosity(t *testing.T) {
 		{"3", true},
 		{"0", false},
 	} {
-		args := []string{"t8n", "--output.basedir", t.TempDir(), "--verbosity", tc.verbosity}
+		// --verbosity is a global flag handled by internal/debug, so it goes
+		// before the subcommand.
+		args := []string{"--verbosity", tc.verbosity, "t8n", "--output.basedir", t.TempDir()}
 		args = append(args, input.get("./testdata/1")...)
 		tt.Run("qrvm-test", args...)
 		tt.WaitExit()
