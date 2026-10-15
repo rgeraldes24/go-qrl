@@ -30,6 +30,7 @@ import (
 	"github.com/theQRL/go-qrl/internal/testutil"
 	"github.com/theQRL/go-qrl/params"
 	"github.com/theQRL/go-qrl/qrldb"
+	"github.com/theQRL/go-qrl/qrldb/pebble"
 )
 
 func BenchmarkInsertChain_empty_memdb(b *testing.B) {
@@ -149,18 +150,16 @@ func genTxRing(naccounts int) func(int, *BlockGen) {
 func benchInsertChain(b *testing.B, disk bool, gen func(int, *BlockGen)) {
 	// Create the database in memory or in a temporary directory.
 	var db qrldb.Database
-	var err error
 	if !disk {
 		db = rawdb.NewMemoryDatabase()
 	} else {
-		dir := b.TempDir()
-		db, err = rawdb.NewLevelDBDatabase(dir, 128, 128, "", false)
+		pdb, err := pebble.New(b.TempDir(), 128, 128, "", false, true)
 		if err != nil {
 			b.Fatalf("cannot create temporary database: %v", err)
 		}
+		db = rawdb.NewDatabase(pdb)
 		defer db.Close()
 	}
-
 	// Generate a chain of b.N blocks using the supplied block
 	// generator function.
 	gspec := &Genesis{
@@ -253,11 +252,11 @@ func makeChainForBench(db qrldb.Database, full bool, count uint64) {
 
 func benchWriteChain(b *testing.B, full bool, count uint64) {
 	for b.Loop() {
-		dir := b.TempDir()
-		db, err := rawdb.NewLevelDBDatabase(dir, 128, 1024, "", false)
+		pdb, err := pebble.New(b.TempDir(), 1024, 128, "", false, true)
 		if err != nil {
-			b.Fatalf("error opening database at %v: %v", dir, err)
+			b.Fatalf("error opening database: %v", err)
 		}
+		db := rawdb.NewDatabase(pdb)
 		makeChainForBench(db, full, count)
 		db.Close()
 	}
@@ -266,10 +265,12 @@ func benchWriteChain(b *testing.B, full bool, count uint64) {
 func benchReadChain(b *testing.B, full bool, count uint64) {
 	dir := b.TempDir()
 
-	db, err := rawdb.NewLevelDBDatabase(dir, 128, 1024, "", false)
+	pdb, err := pebble.New(dir, 1024, 128, "", false, true)
 	if err != nil {
-		b.Fatalf("error opening database at %v: %v", dir, err)
+		b.Fatalf("error opening database: %v", err)
 	}
+	db := rawdb.NewDatabase(pdb)
+
 	makeChainForBench(db, full, count)
 	db.Close()
 	cacheConfig := *defaultCacheConfig
@@ -278,15 +279,16 @@ func benchReadChain(b *testing.B, full bool, count uint64) {
 	b.ReportAllocs()
 
 	for b.Loop() {
-		db, err := rawdb.NewLevelDBDatabase(dir, 128, 1024, "", false)
+		pdb, err = pebble.New(dir, 1024, 128, "", false, true)
 		if err != nil {
-			b.Fatalf("error opening database at %v: %v", dir, err)
+			b.Fatalf("error opening database: %v", err)
 		}
+		db = rawdb.NewDatabase(pdb)
+
 		chain, err := NewBlockChain(db, &cacheConfig, nil, beacon.NewFaker(), vm.Config{}, nil)
 		if err != nil {
 			b.Fatalf("error creating chain: %v", err)
 		}
-
 		for n := range count {
 			header := chain.GetHeaderByNumber(n)
 			if full {
