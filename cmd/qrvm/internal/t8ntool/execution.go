@@ -120,7 +120,6 @@ func (pre *Prestate) Apply(vmConfig vm.Config, chainConfig *params.ChainConfig,
 		txIndex     = 0
 	)
 	gaspool.AddGas(pre.Env.GasLimit)
-	random := common.BigToHash(pre.Env.Random)
 	vmContext := vm.BlockContext{
 		CanTransfer: core.CanTransfer,
 		Transfer:    core.Transfer,
@@ -130,7 +129,7 @@ func (pre *Prestate) Apply(vmConfig vm.Config, chainConfig *params.ChainConfig,
 		GasLimit:    pre.Env.GasLimit,
 		GetHash:     getHash,
 		BaseFee:     new(big.Int).Set(pre.Env.BaseFee),
-		Random:      &random,
+		Random:      common.BigToHash(pre.Env.Random),
 	}
 
 	for i, tx := range txs {

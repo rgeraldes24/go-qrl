@@ -727,7 +727,7 @@ func TestRandom(t *testing.T) {
 		{name: "hash(0x010203)", random: crypto.Keccak256Hash([]byte{0x01, 0x02, 0x03})},
 	} {
 		var (
-			env             = NewQRVM(BlockContext{Random: &tt.random}, TxContext{}, nil, params.TestChainConfig, Config{})
+			env             = NewQRVM(BlockContext{Random: tt.random}, TxContext{}, nil, params.TestChainConfig, Config{})
 			stack           = newstack()
 			pc              = uint64(0)
 			qrvmInterpreter = env.interpreter
