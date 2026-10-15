@@ -24,7 +24,10 @@ Usage: go run build/ci.go <command> <command flags/arguments>
 
 Available commands are:
 
-	lint                                                               -- runs certain pre-selected linters
+	lint           -- runs certain pre-selected linters
+	check_generate -- verifies that 'go generate' and 'go mod tidy' do not produce changes
+	check_baddeps  -- verifies that certain dependencies are avoided
+
 	install    [ -arch architecture ] [ -cc compiler ] [ packages... ] -- builds packages and executables
 	test       [ -coverage ] [ packages... ]                           -- runs the tests
 
@@ -99,6 +102,10 @@ func main() {
 		doTest(os.Args[2:])
 	case "lint":
 		doLint(os.Args[2:])
+	case "check_generate":
+		doCheckGenerate()
+	case "check_baddeps":
+		doCheckBadDeps()
 	case "dockerx":
 		doDockerBuildx(os.Args[2:])
 	case "nsis":
@@ -295,6 +302,80 @@ func doLint(cmdline []string) {
 		}
 	}
 	fmt.Println("You have achieved perfection.")
+}
+
+// doCheckGenerate ensures that re-generating generated files does not cause
+// any mutations in the source file tree.
+func doCheckGenerate() {
+	tc := new(build.GoToolchain)
+
+	excludes := []string{"tests/testdata", "build/cache", ".git"}
+	for i := range excludes {
+		excludes[i] = filepath.FromSlash(excludes[i])
+	}
+
+	for _, mod := range goModules {
+		// Compute the origin hashes of all the files
+		hashes, err := build.HashFolder(mod, excludes)
+		if err != nil {
+			log.Fatal("Error computing hashes", "err", err)
+		}
+
+		c := tc.Go("generate", "./...")
+		c.Dir = mod
+		build.MustRun(c)
+		// Check if generate file hashes have changed
+		generated, err := build.HashFolder(mod, excludes)
+		if err != nil {
+			log.Fatalf("Error re-computing hashes: %v", err)
+		}
+		updates := build.DiffHashes(hashes, generated)
+		for _, file := range updates {
+			log.Printf("File changed: %s", file)
+		}
+		if len(updates) != 0 {
+			log.Fatal("One or more generated files were updated by running 'go generate ./...'")
+		}
+	}
+	fmt.Println("No stale files detected.")
+
+	// Run go mod tidy check.
+	for _, mod := range goModules {
+		tidy := tc.Go("mod", "tidy", "-diff")
+		tidy.Dir = mod
+		build.MustRun(tidy)
+	}
+	fmt.Println("No untidy module files detected.")
+}
+
+// doCheckBadDeps verifies whether certain unintended dependencies between some
+// packages leak into the codebase due to a refactor. This is not an exhaustive
+// list, rather something we build up over time at sensitive places.
+func doCheckBadDeps() {
+	baddeps := [][2]string{
+		// Rawdb tends to be a dumping ground for db utils, sometimes leaking the db itself
+		{"github.com/theQRL/go-qrl/core/rawdb", "github.com/theQRL/go-qrl/qrldb/leveldb"},
+		{"github.com/theQRL/go-qrl/core/rawdb", "github.com/theQRL/go-qrl/qrldb/pebble"},
+	}
+	tc := new(build.GoToolchain)
+
+	var failed bool
+	for _, rule := range baddeps {
+		out, err := tc.Go("list", "-deps", rule[0]).CombinedOutput()
+		if err != nil {
+			log.Fatalf("Failed to list '%s' dependencies: %v", rule[0], err)
+		}
+		for _, line := range strings.Split(string(out), "\n") {
+			if strings.TrimSpace(line) == rule[1] {
+				log.Printf("Found bad dependency '%s' -> '%s'", rule[0], rule[1])
+				failed = true
+			}
+		}
+	}
+	if failed {
+		log.Fatalf("Bad dependencies detected.")
+	}
+	fmt.Println("No bad dependencies detected.")
 }
 
 // downloadLinter downloads and unpacks golangci-lint.
