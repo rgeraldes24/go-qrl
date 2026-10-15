@@ -52,7 +52,7 @@ func makeReceipt(addr common.Address) *types.Receipt {
 
 func BenchmarkFilters(b *testing.B) {
 	var (
-		db, _   = rawdb.NewLevelDBDatabase(b.TempDir(), 0, 0, "", false)
+		db      = rawdb.NewMemoryDatabase()
 		_, sys  = newTestFilterSystem(b, db, Config{})
 		wallet1 = testutil.MustLoadAccount("alice").MustWallet()
 		addr1   = wallet1.GetAddress()
