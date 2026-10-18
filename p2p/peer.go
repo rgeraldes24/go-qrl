@@ -39,11 +39,11 @@ var (
 )
 
 const (
-	baseProtocolVersion    = 5
+	baseProtocolVersion    = 1
 	baseProtocolLength     = uint64(16)
 	baseProtocolMaxMsgSize = 2 * 1024
 
-	snappyProtocolVersion = 5
+	snappyProtocolVersion = 1
 
 	pingInterval = 15 * time.Second
 )

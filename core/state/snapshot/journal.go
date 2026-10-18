@@ -33,7 +33,7 @@ import (
 	"github.com/theQRL/go-qrl/trie"
 )
 
-const journalVersion uint64 = 0
+const journalVersion uint64 = 1
 
 // journalGenerator is a disk layer entry containing the generator progress marker.
 type journalGenerator struct {

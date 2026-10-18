@@ -450,35 +450,35 @@ func (s *Suite) TestMaliciousHandshake(t *utesting.T) {
 	)
 	handshakes := []*protoHandshake{
 		{
-			Version: 5,
+			Version: 1,
 			Caps: []p2p.Cap{
 				{Name: string(randBuf(2)), Version: version},
 			},
 			ID: pub0,
 		},
 		{
-			Version: 5,
+			Version: 1,
 			Caps: []p2p.Cap{
 				{Name: "qrl", Version: version},
 			},
 			ID: append(pub0, byte(0)),
 		},
 		{
-			Version: 5,
+			Version: 1,
 			Caps: []p2p.Cap{
 				{Name: "qrl", Version: version},
 			},
 			ID: append(pub0, pub0...),
 		},
 		{
-			Version: 5,
+			Version: 1,
 			Caps: []p2p.Cap{
 				{Name: "qrl", Version: version},
 			},
 			ID: randBuf(2),
 		},
 		{
-			Version: 5,
+			Version: 1,
 			Caps: []p2p.Cap{
 				{Name: string(randBuf(2)), Version: version},
 			},

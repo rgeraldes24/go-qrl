@@ -342,8 +342,8 @@ func ImportLDBData(db qrldb.Database, f string, startIndex int64, interrupt chan
 	if header.Magic != exportMagic {
 		return errors.New("incompatible data, wrong magic")
 	}
-	if header.Version != 0 {
-		return fmt.Errorf("incompatible version %d, (support only 0)", header.Version)
+	if header.Version != 1 {
+		return fmt.Errorf("incompatible version %d, (support only 1)", header.Version)
 	}
 	log.Info("Importing data", "file", f, "type", header.Kind, "data age",
 		common.PrettyDuration(time.Since(time.Unix(int64(header.UnixTime), 0))))
@@ -453,7 +453,7 @@ func ExportChaindata(fn string, kind string, iter ChainDataIterator, interrupt c
 	// Write the header
 	if err := rlp.Encode(writer, &exportHeader{
 		Magic:    exportMagic,
-		Version:  0,
+		Version:  1,
 		Kind:     kind,
 		UnixTime: uint64(time.Now().Unix()),
 	}); err != nil {

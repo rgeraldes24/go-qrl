@@ -88,5 +88,5 @@ func (ec *EngineClient) sendForkchoiceUpdated() error {
 		SafeBlockHash:      head,
 		FinalizedBlockHash: head,
 	}
-	return ec.call("engine_forkchoiceUpdatedV2", state, nil)
+	return ec.call("engine_forkchoiceUpdatedV1", state, nil)
 }

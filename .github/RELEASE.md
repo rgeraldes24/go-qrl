@@ -20,9 +20,9 @@ Before tagging a release, update the version constants in `version/version.go`:
 
 ```go
 const (
-    Major = 0
-    Minor = 3
-    Patch = 3
+    Major = 1
+    Minor = 0
+    Patch = 0
     Meta  = "stable"
 )
 ```
@@ -34,8 +34,8 @@ Commit the version change before creating the tag.
 ### 1. Tag the release
 
 ```bash
-git tag v0.3.0
-git push origin v0.3.0
+git tag v1.0.0
+git push origin v1.0.0
 ```
 
 Pushing the tag automatically triggers the release workflow.
@@ -87,10 +87,10 @@ If the workflow fails after the draft release was created:
 1. Delete the draft release from the [Releases page](https://github.com/theQRL/go-qrl/releases).
 2. Delete and recreate the tag:
    ```bash
-   git tag -d v0.3.0
-   git push origin :v0.3.0
-   git tag v0.3.0
-   git push origin v0.3.0
+   git tag -d v1.0.0
+   git push origin :v1.0.0
+   git tag v1.0.0
+   git push origin v1.0.0
    ```
 
 This triggers the workflow again. Note that Docker Hub image tags are overwritten on re-push.
