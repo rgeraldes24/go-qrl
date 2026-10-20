@@ -1534,6 +1534,16 @@ func (bc *BlockChain) insertChain(chain types.Blocks, setHead bool) (int, error)
 			_, err := bc.recoverAncestors(block)
 			return it.index, err
 		}
+		// The parent is pruned, recover its state and import the blocks on top of it
+		log.Debug("Pruned ancestor, recovering parent state", "number", block.Number(), "hash", block.Hash())
+		parent := bc.GetBlock(block.ParentHash(), block.NumberU64()-1)
+		if _, err := bc.recoverAncestors(parent); err != nil {
+			if err == errInsertionInterrupted {
+				return it.index, nil
+			}
+			return it.index, err
+		}
+		err = nil
 
 	// Some other error(except ErrKnownBlock) occurred, abort.
 	// ErrKnownBlock is allowed here since some known blocks

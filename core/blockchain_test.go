@@ -1457,7 +1457,6 @@ func TestTrieForkGC(t *testing.T) {
 // Tests that doing large reorgs works even if the state associated with the
 // forking point is not available any more.
 func TestLargeReorgTrieGC(t *testing.T) {
-	t.Skip() // NOTE(rgeraldes24): not valid
 	testLargeReorgTrieGC(t, rawdb.HashScheme)
 	testLargeReorgTrieGC(t, rawdb.PathScheme)
 }
@@ -1469,9 +1468,10 @@ func testLargeReorgTrieGC(t *testing.T, scheme string) {
 		Config:  params.TestChainConfig,
 		BaseFee: big.NewInt(params.InitialBaseFee),
 	}
-	genDb, shared, _ := GenerateChainWithGenesis(genesis, engine, 64, func(i int, b *BlockGen) { b.SetCoinbase(common.Address{1}) })
-	original, _ := GenerateChain(genesis.Config, shared[len(shared)-1], engine, genDb, 2*TriesInMemory, func(i int, b *BlockGen) { b.SetCoinbase(common.Address{2}) })
-	competitor, _ := GenerateChain(genesis.Config, shared[len(shared)-1], engine, genDb, 2*TriesInMemory+1, func(i int, b *BlockGen) { b.SetCoinbase(common.Address{3}) })
+	// Blocks carry a withdrawal so that each one changes the state
+	genDb, shared, _ := GenerateChainWithGenesis(genesis, engine, 64, func(i int, b *BlockGen) { b.AddWithdrawal(&types.Withdrawal{Address: common.Address{1}, Amount: 1}) })
+	original, _ := GenerateChain(genesis.Config, shared[len(shared)-1], engine, genDb, 2*TriesInMemory, func(i int, b *BlockGen) { b.AddWithdrawal(&types.Withdrawal{Address: common.Address{2}, Amount: 1}) })
+	competitor, _ := GenerateChain(genesis.Config, shared[len(shared)-1], engine, genDb, 2*TriesInMemory+1, func(i int, b *BlockGen) { b.AddWithdrawal(&types.Withdrawal{Address: common.Address{3}, Amount: 1}) })
 
 	// Import the shared chain and the original canonical one
 	db, _ := rawdb.NewDatabaseWithFreezer(rawdb.NewMemoryDatabase(), t.TempDir(), "", false)
@@ -1493,18 +1493,14 @@ func testLargeReorgTrieGC(t *testing.T, scheme string) {
 	if chain.HasState(shared[len(shared)-1].Root()) {
 		t.Fatalf("common-but-old ancestor still cache")
 	}
-	// Import the competitor chain without exceeding the canonical's TD and ensure
-	// we have not processed any of the blocks (protection against malicious blocks)
+	// Import the competitor chain, the side chain should be executed
 	if _, err := chain.InsertChain(competitor[:len(competitor)-2]); err != nil {
 		t.Fatalf("failed to insert competitor chain: %v", err)
 	}
-	for i, block := range competitor[:len(competitor)-2] {
-		if chain.HasState(block.Root()) {
-			t.Fatalf("competitor %d: low TD chain became processed", i)
-		}
+	if !chain.HasState(competitor[len(competitor)-3].Root()) {
+		t.Fatalf("failed to insert competitor chain")
 	}
-	// Import the head of the competitor chain, triggering the reorg and ensure we
-	// successfully reprocess all the stashed away blocks.
+	// Import the head of the competitor chain.
 	if _, err := chain.InsertChain(competitor[len(competitor)-2:]); err != nil {
 		t.Fatalf("failed to finalize competitor chain: %v", err)
 	}
