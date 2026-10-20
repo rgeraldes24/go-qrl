@@ -420,7 +420,6 @@ Command line params that need to be supported are:
                                 <file> - into the file <file>
                                 `stdout` - into the stdout output
                                 `stderr` - into the stderr output
-    --verbosity value           Sets the verbosity level. (default: 3)
 ```
 
 #### Objects

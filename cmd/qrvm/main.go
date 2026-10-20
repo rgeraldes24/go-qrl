@@ -21,8 +21,10 @@ import (
 	"fmt"
 	"math/big"
 	"os"
+	"slices"
 
 	"github.com/theQRL/go-qrl/cmd/qrvm/internal/t8ntool"
+	"github.com/theQRL/go-qrl/internal/debug"
 	"github.com/theQRL/go-qrl/internal/flags"
 	"github.com/urfave/cli/v2"
 )
@@ -79,10 +81,6 @@ var (
 		Name:  "inputfile",
 		Usage: "file containing input for the QRVM",
 	}
-	VerbosityFlag = &cli.IntFlag{
-		Name:  "verbosity",
-		Usage: "sets the verbosity level",
-	}
 	BenchFlag = &cli.BoolFlag{
 		Name:  "bench",
 		Usage: "benchmark the execution",
@@ -123,7 +121,7 @@ var (
 	DisableReturnDataFlag = &cli.BoolFlag{
 		Name:  "noreturndata",
 		Value: true,
-		Usage: "enable return data output",
+		Usage: "disable return data output",
 	}
 )
 
@@ -146,7 +144,6 @@ var stateTransitionCommand = &cli.Command{
 		t8ntool.InputTxsFlag,
 		t8ntool.ForknameFlag,
 		t8ntool.ChainIDFlag,
-		t8ntool.VerbosityFlag,
 	},
 }
 
@@ -159,7 +156,6 @@ var transactionCommand = &cli.Command{
 		t8ntool.InputTxsFlag,
 		t8ntool.ChainIDFlag,
 		t8ntool.ForknameFlag,
-		t8ntool.VerbosityFlag,
 	},
 }
 
@@ -174,18 +170,16 @@ var blockBuilderCommand = &cli.Command{
 		t8ntool.InputHeaderFlag,
 		t8ntool.InputWithdrawalsFlag,
 		t8ntool.InputTxsRlpFlag,
-		t8ntool.VerbosityFlag,
 	},
 }
 
 var app = flags.NewApp("the qrvm command line interface")
 
 func init() {
-	app.Flags = []cli.Flag{
+	app.Flags = slices.Concat([]cli.Flag{
 		BenchFlag,
 		CreateFlag,
 		DebugFlag,
-		VerbosityFlag,
 		CodeFlag,
 		CodeFileFlag,
 		GasFlag,
@@ -205,7 +199,7 @@ func init() {
 		DisableStackFlag,
 		DisableStorageFlag,
 		DisableReturnDataFlag,
-	}
+	}, debug.Flags)
 	app.Commands = []*cli.Command{
 		runCommand,
 		blockTestCommand,
@@ -213,6 +207,14 @@ func init() {
 		stateTransitionCommand,
 		transactionCommand,
 		blockBuilderCommand,
+	}
+	app.Before = func(ctx *cli.Context) error {
+		flags.MigrateGlobalFlags(ctx)
+		return debug.Setup(ctx)
+	}
+	app.After = func(ctx *cli.Context) error {
+		debug.Exit()
+		return nil
 	}
 }
 
