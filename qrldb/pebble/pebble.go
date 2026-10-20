@@ -114,6 +114,7 @@ func (d *Database) onCompactionEnd(info pebble.CompactionInfo) {
 
 func (d *Database) onWriteStallBegin(b pebble.WriteStallBeginInfo) {
 	d.writeDelayStartTime = time.Now()
+	d.writeDelayCount.Add(1)
 }
 
 func (d *Database) onWriteStallEnd() {
