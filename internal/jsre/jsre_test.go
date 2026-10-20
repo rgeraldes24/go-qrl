@@ -99,6 +99,26 @@ func TestNatto(t *testing.T) {
 	jsre.Stop(false)
 }
 
+func TestTimerArguments(t *testing.T) {
+	t.Parallel()
+
+	for _, code := range []string{
+		`setTimeout(function(){msg = "testMsg"})`,
+		`setTimeout(function(){msg = "testMsg"}, 1)`,
+		`setTimeout(function(arg){msg = arg}, 1, "testMsg")`,
+	} {
+		jsre := New("", os.Stdout)
+		if _, err := jsre.Run(code); err != nil {
+			t.Fatalf("expected no error, got %v", err)
+		}
+		jsre.Stop(true)
+
+		if val := jsre.vm.Get("msg"); val == nil || val.String() != "testMsg" {
+			t.Errorf("%s: expected 'testMsg', got '%v'", code, val)
+		}
+	}
+}
+
 func TestBind(t *testing.T) {
 	t.Parallel()
 
