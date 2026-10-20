@@ -41,14 +41,11 @@ func TestCheckCompatible(t *testing.T) {
 			// headBlock: 9,
 			wantErr: nil,
 		},
+		// A chain ID mismatch is not a fork conflict, the genesis setup rejects it.
 		{
-			stored: &ChainConfig{ChainID: common.Big1},
-			new:    &ChainConfig{ChainID: common.Big32},
-			wantErr: &ConfigCompatError{
-				What:        "chain ID",
-				StoredBlock: common.Big1,
-				NewBlock:    common.Big32,
-			},
+			stored:  &ChainConfig{ChainID: common.Big1},
+			new:     &ChainConfig{ChainID: common.Big32},
+			wantErr: nil,
 		},
 		// NOTE(rgeraldes24): not valid at the moment
 		/*
