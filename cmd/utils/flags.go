@@ -1682,9 +1682,9 @@ func SetupMetrics(ctx *cli.Context) {
 				ctx.IsSet(MetricsInfluxDBBucketFlag.Name)
 
 			if enableExport && v2FlagIsSet {
-				Fatalf("Flags --influxdb.metrics.organization, --influxdb.metrics.token, --influxdb.metrics.bucket are only available for influxdb-v2")
+				Fatalf("Flags --%s, --%s, --%s are only available for influxdb-v2", MetricsInfluxDBOrganizationFlag.Name, MetricsInfluxDBTokenFlag.Name, MetricsInfluxDBBucketFlag.Name)
 			} else if enableExportV2 && v1FlagIsSet {
-				Fatalf("Flags --influxdb.metrics.username, --influxdb.metrics.password are only available for influxdb-v1")
+				Fatalf("Flags --%s, --%s are only available for influxdb-v1", MetricsInfluxDBUsernameFlag.Name, MetricsInfluxDBPasswordFlag.Name)
 			}
 		}
 

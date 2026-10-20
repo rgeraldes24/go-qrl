@@ -397,7 +397,7 @@ func (api *ConsensusAPI) newPayload(params engine.ExecutableData) (engine.Payloa
 	// We have an existing parent, do some sanity checks to avoid the beacon client
 	// triggering too early
 	if block.Time() <= parent.Time() {
-		log.Warn("Invalid timestamp", "parent", block.Time(), "block", block.Time())
+		log.Warn("Invalid timestamp", "parent", parent.Time(), "block", block.Time())
 		return api.invalid(errors.New("invalid timestamp"), parent.Header()), nil
 	}
 	// Another cornercase: if the node is in snap sync mode, but the CL client
