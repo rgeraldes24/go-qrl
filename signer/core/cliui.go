@@ -117,10 +117,8 @@ func (ui *CommandlineUI) ApproveTx(request *SignTxRequest) (SignTxResponse, erro
 	fmt.Printf("from:               %v\n", request.Transaction.From.String())
 	fmt.Printf("value:              %v planck\n", planckval)
 	fmt.Printf("gas:                %v (%v)\n", request.Transaction.Gas, uint64(request.Transaction.Gas))
-	if request.Transaction.MaxFeePerGas != nil {
-		fmt.Printf("maxFeePerGas:          %v planck\n", request.Transaction.MaxFeePerGas.ToInt())
-		fmt.Printf("maxPriorityFeePerGas:  %v planck\n", request.Transaction.MaxPriorityFeePerGas.ToInt())
-	}
+	fmt.Printf("maxFeePerGas:          %v planck\n", request.Transaction.MaxFeePerGas.ToInt())
+	fmt.Printf("maxPriorityFeePerGas:  %v planck\n", request.Transaction.MaxPriorityFeePerGas.ToInt())
 	fmt.Printf("nonce:    %v (%v)\n", request.Transaction.Nonce, uint64(request.Transaction.Nonce))
 	if chainId := request.Transaction.ChainID; chainId != nil {
 		fmt.Printf("chainid:  %v\n", chainId)
