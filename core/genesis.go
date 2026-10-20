@@ -190,6 +190,8 @@ func CommitGenesisState(db qrldb.Database, triedb *trie.Database, blockhash comm
 			genesis = DefaultGenesisBlock()
 		case params.BetaNetGenesisHash:
 			genesis = DefaultBetaNetGenesisBlock()
+		case params.TestnetGenesisHash:
+			genesis = DefaultTestnetGenesisBlock()
 		}
 		if genesis != nil {
 			alloc = genesis.Alloc

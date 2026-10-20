@@ -25,6 +25,7 @@ import (
 	"github.com/davecgh/go-spew/spew"
 	"github.com/theQRL/go-qrl/common"
 	"github.com/theQRL/go-qrl/core/rawdb"
+	"github.com/theQRL/go-qrl/core/state"
 	"github.com/theQRL/go-qrl/params"
 	"github.com/theQRL/go-qrl/qrldb"
 	"github.com/theQRL/go-qrl/trie"
@@ -256,6 +257,29 @@ func TestReadWriteGenesisAlloc(t *testing.T) {
 		}
 		if !reflect.DeepEqual(want, account) {
 			t.Fatal("Unexpected account")
+		}
+	}
+}
+
+// TestCommitGenesisStateDefaults checks that the genesis state of the built-in
+// networks can be recovered when the stored genesis state spec is missing.
+func TestCommitGenesisStateDefaults(t *testing.T) {
+	for i, genesis := range []*Genesis{
+		DefaultGenesisBlock(),
+		DefaultBetaNetGenesisBlock(),
+		DefaultTestnetGenesisBlock(),
+	} {
+		var (
+			db     = rawdb.NewMemoryDatabase()
+			triedb = trie.NewDatabase(db, trie.HashDefaults)
+			block  = genesis.ToBlock()
+		)
+		if err := CommitGenesisState(db, triedb, block.Hash()); err != nil {
+			t.Errorf("case: %d, failed to commit genesis state: %v", i, err)
+			continue
+		}
+		if _, err := state.New(block.Root(), state.NewDatabaseWithNodeDB(db, triedb), nil); err != nil {
+			t.Errorf("case: %d, genesis state is missing: %v", i, err)
 		}
 	}
 }
