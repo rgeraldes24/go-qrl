@@ -55,3 +55,20 @@ func TestExport(t *testing.T) {
 		t.Fatalf("wrong content exported\nhave: %x\nwant: %x", have, want)
 	}
 }
+
+// TestDumpNonIterative checks that "gqrl dump --iterative=false" works, and that
+// it refuses to include accounts with missing preimages.
+func TestDumpNonIterative(t *testing.T) {
+	datadir := initGqrl(t)
+
+	gqrl := runGqrl(t, "--datadir", datadir, "dump", "--iterative=false")
+	gqrl.WaitExit()
+	if have, want := gqrl.ExitStatus(), 0; have != want {
+		t.Errorf("exit error, have %d want %d", have, want)
+	}
+	gqrl = runGqrl(t, "--datadir", datadir, "dump", "--iterative=false", "--incompletes")
+	gqrl.WaitExit()
+	if have, want := gqrl.ExitStatus(), 1; have != want {
+		t.Errorf("exit error, have %d want %d", have, want)
+	}
+}
