@@ -187,7 +187,7 @@ func LoadECDSA(file string) (*ecdsa.PrivateKey, error) {
 	} else if n != len(buf) {
 		return nil, errors.New("key file too short, want 64 hex characters")
 	}
-	if err := common.CheckKeyFileEnd(r); err != nil {
+	if err := common.CheckKeyFileEnd(r, len(buf)); err != nil {
 		return nil, err
 	}
 

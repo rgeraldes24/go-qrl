@@ -2,13 +2,13 @@ package common
 
 import (
 	"bufio"
-	"errors"
 	"fmt"
 	"io"
 )
 
-// CheckKeyFileEnd skips over additional newlines at the end of a key file.
-func CheckKeyFileEnd(r *bufio.Reader) error {
+// CheckKeyFileEnd skips over additional newlines at the end of a key file
+// holding the given number of hex characters.
+func CheckKeyFileEnd(r *bufio.Reader, hexChars int) error {
 	for i := 0; ; i++ {
 		b, err := r.ReadByte()
 		switch {
@@ -19,7 +19,7 @@ func CheckKeyFileEnd(r *bufio.Reader) error {
 		case b != '\n' && b != '\r':
 			return fmt.Errorf("invalid character %q at end of key file", b)
 		case i >= 2:
-			return errors.New("key file too long, want 64 hex characters")
+			return fmt.Errorf("key file too long, want %d hex characters", hexChars)
 		}
 	}
 }
