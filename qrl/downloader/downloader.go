@@ -321,21 +321,6 @@ func (d *Downloader) synchronise(mode SyncMode, beaconPing chan struct{}) error 
 	if d.notified.CompareAndSwap(false, true) {
 		log.Info("Block synchronisation started")
 	}
-	if mode == SnapSync {
-		// Snap sync will directly modify the persistent state, making the entire
-		// trie database unusable until the state is fully synced. To prevent any
-		// subsequent state reads, explicitly disable the trie database and state
-		// syncer is responsible to address and correct any state missing.
-		if d.blockchain.TrieDB().Scheme() == rawdb.PathScheme {
-			d.blockchain.TrieDB().Reset(types.EmptyRootHash)
-		}
-		// Snap sync uses the snapshot namespace to store potentially flaky data until
-		// sync completely heals and finishes. Pause snapshot maintenance in the mean-
-		// time to prevent access.
-		if snapshots := d.blockchain.Snapshots(); snapshots != nil { // Only nil in tests
-			snapshots.Disable()
-		}
-	}
 	// Reset the queue, peer set and wake channels to clean any internal leftover state
 	d.queue.Reset(blockCacheMaxItems, blockCacheInitialItems)
 	d.peers.Reset()
@@ -462,6 +447,24 @@ func (d *Downloader) syncToHead() (err error) {
 	d.committed.Store(true)
 	if mode == SnapSync && pivot.Number.Uint64() != 0 {
 		d.committed.Store(false)
+	}
+	// Only a cycle with a pivot above genesis syncs state. One whose head is
+	// below the min full block threshold imports every block from genesis,
+	// so it must keep the genesis state and the snapshots it builds on.
+	if mode == SnapSync && !d.committed.Load() {
+		// Snap sync will directly modify the persistent state, making the entire
+		// trie database unusable until the state is fully synced. To prevent any
+		// subsequent state reads, explicitly disable the trie database and state
+		// syncer is responsible to address and correct any state missing.
+		if d.blockchain.TrieDB().Scheme() == rawdb.PathScheme {
+			d.blockchain.TrieDB().Reset(types.EmptyRootHash)
+		}
+		// Snap sync uses the snapshot namespace to store potentially flaky data until
+		// sync completely heals and finishes. Pause snapshot maintenance in the mean-
+		// time to prevent access.
+		if snapshots := d.blockchain.Snapshots(); snapshots != nil { // Only nil in tests
+			snapshots.Disable()
+		}
 	}
 	if mode == SnapSync {
 		// Set the ancient data limitation. If we are running snap sync, all block

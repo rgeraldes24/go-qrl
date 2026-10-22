@@ -80,6 +80,7 @@ func init() {
 		testChainBase.shorten(800 / 8),
 		testChainBase.shorten(3*fsHeaderSafetyNet + 256 + fsMinFullBlocks),
 		testChainBase.shorten(fsMinFullBlocks + 256 - 1),
+		testChainBase.shorten(fsMinFullBlocks),
 	}
 	var wg sync.WaitGroup
 	wg.Add(len(chains))
