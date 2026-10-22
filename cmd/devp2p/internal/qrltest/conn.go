@@ -253,7 +253,7 @@ func (c *Conn) handshake() error {
 	// Write hello to client.
 	pub0 := crypto.FromECDSAPub(&c.ourKey.PublicKey)[1:]
 	ourHandshake := &protoHandshake{
-		Version: 5,
+		Version: 1,
 		Caps:    c.caps,
 		ID:      pub0,
 	}
@@ -271,8 +271,8 @@ func (c *Conn) handshake() error {
 		if err := rlp.DecodeBytes(data, &msg); err != nil {
 			return fmt.Errorf("error decoding handshake msg: %v", err)
 		}
-		// Set snappy if version is at least 5.
-		if msg.Version >= 5 {
+		// Set snappy if version is at least 1.
+		if msg.Version >= 1 {
 			c.SetSnappy(true)
 		}
 		c.negotiateQRLProtocol(msg.Caps)

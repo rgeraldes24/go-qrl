@@ -168,7 +168,7 @@ func TestPrepareAndGetPayload(t *testing.T) {
 		SafeBlockHash:      common.Hash{},
 		FinalizedBlockHash: common.Hash{},
 	}
-	_, err := api.ForkchoiceUpdatedV2(fcState, &blockParams)
+	_, err := api.ForkchoiceUpdatedV1(fcState, &blockParams)
 	if err != nil {
 		t.Fatalf("error preparing payload, err=%v", err)
 	}
@@ -189,7 +189,7 @@ func TestPrepareAndGetPayload(t *testing.T) {
 	var invPayload engine.PayloadID
 	copy(invPayload[:], payloadID[:])
 	invPayload[0] = ^invPayload[0]
-	_, err = api.GetPayloadV2(invPayload)
+	_, err = api.GetPayloadV1(invPayload)
 	if err == nil {
 		t.Fatal("expected error retrieving invalid payload")
 	}
@@ -245,7 +245,7 @@ func TestInvalidPayloadTimestamp(t *testing.T) {
 				SafeBlockHash:      common.Hash{},
 				FinalizedBlockHash: common.Hash{},
 			}
-			_, err := api.ForkchoiceUpdatedV2(fcState, &params)
+			_, err := api.ForkchoiceUpdatedV1(fcState, &params)
 			if test.shouldErr && err == nil {
 				t.Fatalf("expected error preparing payload with invalid timestamp, err=%v", err)
 			} else if !test.shouldErr && err != nil {
@@ -300,7 +300,7 @@ func TestNewBlock(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Failed to convert executable data to block %v", err)
 		}
-		newResp, err := api.NewPayloadV2(*execData)
+		newResp, err := api.NewPayloadV1(*execData)
 		switch {
 		case err != nil:
 			t.Fatalf("Failed to insert block: %v", err)
@@ -315,7 +315,7 @@ func TestNewBlock(t *testing.T) {
 			SafeBlockHash:      block.Hash(),
 			FinalizedBlockHash: block.Hash(),
 		}
-		if _, err := api.ForkchoiceUpdatedV2(fcState, nil); err != nil {
+		if _, err := api.ForkchoiceUpdatedV1(fcState, nil); err != nil {
 			t.Fatalf("Failed to insert block: %v", err)
 		}
 		if have, want := qrlservice.BlockChain().CurrentBlock().Number.Uint64(), block.NumberU64(); have != want {
@@ -342,7 +342,7 @@ func TestNewBlock(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Failed to convert executable data to block %v", err)
 		}
-		newResp, err := api.NewPayloadV2(*execData)
+		newResp, err := api.NewPayloadV1(*execData)
 		if err != nil || newResp.Status != "VALID" {
 			t.Fatalf("Failed to insert block: %v", err)
 		}
@@ -355,7 +355,7 @@ func TestNewBlock(t *testing.T) {
 			SafeBlockHash:      block.Hash(),
 			FinalizedBlockHash: block.Hash(),
 		}
-		if _, err := api.ForkchoiceUpdatedV2(fcState, nil); err != nil {
+		if _, err := api.ForkchoiceUpdatedV1(fcState, nil); err != nil {
 			t.Fatalf("Failed to insert block: %v", err)
 		}
 		if qrlservice.BlockChain().CurrentBlock().Number.Uint64() != block.NumberU64() {
@@ -485,7 +485,7 @@ func setupBlocks(t *testing.T, qrlservice *qrl.QRL, n int, parent *types.Header,
 		}
 
 		payload := getNewPayload(t, api, parent, w)
-		execResp, err := api.NewPayloadV2(*payload)
+		execResp, err := api.NewPayloadV1(*payload)
 		if err != nil {
 			t.Fatalf("can't execute payload: %v", err)
 		}
@@ -497,7 +497,7 @@ func setupBlocks(t *testing.T, qrlservice *qrl.QRL, n int, parent *types.Header,
 			SafeBlockHash:      payload.ParentHash,
 			FinalizedBlockHash: payload.ParentHash,
 		}
-		if _, err := api.ForkchoiceUpdatedV2(fcState, nil); err != nil {
+		if _, err := api.ForkchoiceUpdatedV1(fcState, nil); err != nil {
 			t.Fatalf("Failed to insert block: %v", err)
 		}
 		if qrlservice.BlockChain().CurrentBlock().Number.Uint64() != payload.Number {
@@ -569,7 +569,7 @@ func TestNewPayloadOnInvalidChain(t *testing.T) {
 			err     error
 		)
 		for i := 0; ; i++ {
-			if resp, err = api.ForkchoiceUpdatedV2(fcState, &params); err != nil {
+			if resp, err = api.ForkchoiceUpdatedV1(fcState, &params); err != nil {
 				t.Fatalf("error preparing payload, err=%v", err)
 			}
 			if resp.PayloadStatus.Status != engine.VALID {
@@ -577,7 +577,7 @@ func TestNewPayloadOnInvalidChain(t *testing.T) {
 			}
 			// give the payload some time to be built
 			time.Sleep(50 * time.Millisecond)
-			if payload, err = api.GetPayloadV2(*resp.PayloadID); err != nil {
+			if payload, err = api.GetPayloadV1(*resp.PayloadID); err != nil {
 				t.Fatalf("can't get payload: %v", err)
 			}
 			if len(payload.ExecutionPayload.Transactions) > 0 {
@@ -589,7 +589,7 @@ func TestNewPayloadOnInvalidChain(t *testing.T) {
 				t.Fatalf("payload should not be empty")
 			}
 		}
-		execResp, err := api.NewPayloadV2(*payload.ExecutionPayload)
+		execResp, err := api.NewPayloadV1(*payload.ExecutionPayload)
 		if err != nil {
 			t.Fatalf("can't execute payload: %v", err)
 		}
@@ -601,7 +601,7 @@ func TestNewPayloadOnInvalidChain(t *testing.T) {
 			SafeBlockHash:      payload.ExecutionPayload.ParentHash,
 			FinalizedBlockHash: payload.ExecutionPayload.ParentHash,
 		}
-		if _, err := api.ForkchoiceUpdatedV2(fcState, nil); err != nil {
+		if _, err := api.ForkchoiceUpdatedV1(fcState, nil); err != nil {
 			t.Fatalf("Failed to insert block: %v", err)
 		}
 		if qrlservice.BlockChain().CurrentBlock().Number.Uint64() != payload.ExecutionPayload.Number {
@@ -640,7 +640,7 @@ func TestEmptyBlocks(t *testing.T) {
 	// (1) check LatestValidHash by sending a normal payload (P1'')
 	payload := getNewPayload(t, api, commonAncestor, nil)
 
-	status, err := api.NewPayloadV2(*payload)
+	status, err := api.NewPayloadV1(*payload)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -656,7 +656,7 @@ func TestEmptyBlocks(t *testing.T) {
 	payload.GasUsed += 1
 	payload = setBlockhash(payload)
 	// Now latestValidHash should be the common ancestor
-	status, err = api.NewPayloadV2(*payload)
+	status, err = api.NewPayloadV1(*payload)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -674,7 +674,7 @@ func TestEmptyBlocks(t *testing.T) {
 	payload.ParentHash = common.Hash{1}
 	payload = setBlockhash(payload)
 	// Now latestValidHash should be the common ancestor
-	status, err = api.NewPayloadV2(*payload)
+	status, err = api.NewPayloadV1(*payload)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -785,7 +785,7 @@ func TestTrickRemoteBlockCache(t *testing.T) {
 
 	// feed the payloads to node B
 	for _, payload := range invalidChain {
-		status, err := apiB.NewPayloadV2(*payload)
+		status, err := apiB.NewPayloadV1(*payload)
 		if err != nil {
 			panic(err)
 		}
@@ -793,7 +793,7 @@ func TestTrickRemoteBlockCache(t *testing.T) {
 			t.Error("invalid status: VALID on an invalid chain")
 		}
 		// Now reorg to the head of the invalid chain
-		resp, err := apiB.ForkchoiceUpdatedV2(engine.ForkchoiceStateV1{HeadBlockHash: payload.BlockHash, SafeBlockHash: payload.BlockHash, FinalizedBlockHash: payload.ParentHash}, nil)
+		resp, err := apiB.ForkchoiceUpdatedV1(engine.ForkchoiceStateV1{HeadBlockHash: payload.BlockHash, SafeBlockHash: payload.BlockHash, FinalizedBlockHash: payload.ParentHash}, nil)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -818,7 +818,7 @@ func TestInvalidBloom(t *testing.T) {
 	// (1) check LatestValidHash by sending a normal payload (P1'')
 	payload := getNewPayload(t, api, commonAncestor, nil)
 	payload.LogsBloom = append(payload.LogsBloom, byte(1))
-	status, err := api.NewPayloadV2(*payload)
+	status, err := api.NewPayloadV1(*payload)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -857,7 +857,7 @@ func TestSimultaneousNewBlock(t *testing.T) {
 			for range 10 {
 				go func() {
 					defer wg.Done()
-					if newResp, err := api.NewPayloadV2(*execData); err != nil {
+					if newResp, err := api.NewPayloadV1(*execData); err != nil {
 						errMu.Lock()
 						testErr = fmt.Errorf("failed to insert block: %w", err)
 						errMu.Unlock()
@@ -896,7 +896,7 @@ func TestSimultaneousNewBlock(t *testing.T) {
 			for range 10 {
 				go func() {
 					defer wg.Done()
-					if _, err := api.ForkchoiceUpdatedV2(fcState, nil); err != nil {
+					if _, err := api.ForkchoiceUpdatedV1(fcState, nil); err != nil {
 						errMu.Lock()
 						testErr = fmt.Errorf("failed to insert block: %w", err)
 						errMu.Unlock()
@@ -934,7 +934,7 @@ func TestWithdrawals(t *testing.T) {
 	fcState := engine.ForkchoiceStateV1{
 		HeadBlockHash: parent.Hash(),
 	}
-	resp, err := api.ForkchoiceUpdatedV2(fcState, &blockParams)
+	resp, err := api.ForkchoiceUpdatedV1(fcState, &blockParams)
 	if err != nil {
 		t.Fatalf("error preparing payload, err=%v", err)
 	}
@@ -950,7 +950,7 @@ func TestWithdrawals(t *testing.T) {
 		Random:       blockParams.Random,
 		Withdrawals:  blockParams.Withdrawals,
 	}).Id()
-	execData, err := api.GetPayloadV2(payloadID)
+	execData, err := api.GetPayloadV1(payloadID)
 	if err != nil {
 		t.Fatalf("error getting payload, err=%v", err)
 	}
@@ -959,7 +959,7 @@ func TestWithdrawals(t *testing.T) {
 	}
 
 	// 10: verify locally built block
-	if status, err := api.NewPayloadV2(*execData.ExecutionPayload); err != nil {
+	if status, err := api.NewPayloadV1(*execData.ExecutionPayload); err != nil {
 		t.Fatalf("error validating payload: %v", err)
 	} else if status.Status != engine.VALID {
 		t.Fatalf("invalid payload")
@@ -984,7 +984,7 @@ func TestWithdrawals(t *testing.T) {
 		},
 	}
 	fcState.HeadBlockHash = execData.ExecutionPayload.BlockHash
-	_, err = api.ForkchoiceUpdatedV2(fcState, &blockParams)
+	_, err = api.ForkchoiceUpdatedV1(fcState, &blockParams)
 	if err != nil {
 		t.Fatalf("error preparing payload, err=%v", err)
 	}
@@ -997,11 +997,11 @@ func TestWithdrawals(t *testing.T) {
 		Random:       blockParams.Random,
 		Withdrawals:  blockParams.Withdrawals,
 	}).Id()
-	execData, err = api.GetPayloadV2(payloadID)
+	execData, err = api.GetPayloadV1(payloadID)
 	if err != nil {
 		t.Fatalf("error getting payload, err=%v", err)
 	}
-	if status, err := api.NewPayloadV2(*execData.ExecutionPayload); err != nil {
+	if status, err := api.NewPayloadV1(*execData.ExecutionPayload); err != nil {
 		t.Fatalf("error validating payload: %v", err)
 	} else if status.Status != engine.VALID {
 		t.Fatalf("invalid payload")
@@ -1009,7 +1009,7 @@ func TestWithdrawals(t *testing.T) {
 
 	// 11: set block as head.
 	fcState.HeadBlockHash = execData.ExecutionPayload.BlockHash
-	_, err = api.ForkchoiceUpdatedV2(fcState, nil)
+	_, err = api.ForkchoiceUpdatedV1(fcState, nil)
 	if err != nil {
 		t.Fatalf("error preparing payload, err=%v", err)
 	}
@@ -1076,10 +1076,10 @@ func TestNilWithdrawals(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		_, err := api.ForkchoiceUpdatedV2(fcState, &test.blockParams)
+		_, err := api.ForkchoiceUpdatedV1(fcState, &test.blockParams)
 		if test.wantErr {
 			if err == nil {
-				t.Fatal("wanted error on fcuv2 with invalid withdrawals")
+				t.Fatal("wanted error on fcuv1 with invalid withdrawals")
 			}
 			continue
 		}
@@ -1094,11 +1094,11 @@ func TestNilWithdrawals(t *testing.T) {
 			FeeRecipient: test.blockParams.SuggestedFeeRecipient,
 			Random:       test.blockParams.Random,
 		}).Id()
-		execData, err := api.GetPayloadV2(payloadID)
+		execData, err := api.GetPayloadV1(payloadID)
 		if err != nil {
 			t.Fatalf("error getting payload, err=%v", err)
 		}
-		if status, err := api.NewPayloadV2(*execData.ExecutionPayload); err != nil {
+		if status, err := api.NewPayloadV1(*execData.ExecutionPayload); err != nil {
 			t.Fatalf("error validating payload: %v", err.(*engine.EngineAPIError).ErrorData())
 		} else if status.Status != engine.VALID {
 			t.Fatalf("invalid payload")

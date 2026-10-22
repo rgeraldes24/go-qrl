@@ -211,7 +211,7 @@ class StdIOHandler:
         """
         Example request:
 
-        {"jsonrpc":"2.0", "method":"ui_onSignerStartup", "params":[{"info":{"extapi_http":"n/a","extapi_ipc":"/home/user/.clef/clef.ipc","extapi_version":"6.1.0","intapi_version":"7.0.1"}}]}
+        {"jsonrpc":"2.0", "method":"ui_onSignerStartup", "params":[{"info":{"extapi_http":"n/a","extapi_ipc":"/home/user/.clef/clef.ipc","extapi_version":"1.0.0","intapi_version":"1.0.0"}}]}
         """  # noqa: E501
         message = (
             "\n"

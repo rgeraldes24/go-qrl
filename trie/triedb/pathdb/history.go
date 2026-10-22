@@ -68,7 +68,7 @@ const (
 	slotIndexSize    = common.HashLength + 5     // The length of encoded slot index
 	historyMetaSize  = 9 + 2*common.HashLength   // The length of fixed size part of meta object
 
-	stateHistoryVersion = uint8(0) // initial version of state history structure.
+	stateHistoryVersion = uint8(1) // initial version of state history structure.
 )
 
 // Each state history entry is consisted of five elements:

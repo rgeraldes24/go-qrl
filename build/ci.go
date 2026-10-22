@@ -391,7 +391,7 @@ func maybeSkipArchive(env build.Environment) {
 		log.Printf("skipping archive creation because this is a PR build")
 		os.Exit(0)
 	}
-	if env.Branch != "main" && !strings.HasPrefix(env.Tag, "v0.") {
+	if env.Branch != "main" && !strings.HasPrefix(env.Tag, "v1.") {
 		log.Printf("skipping archive creation because branch %q, tag %q is not on the inclusion list", env.Branch, env.Tag)
 		os.Exit(0)
 	}
@@ -433,7 +433,7 @@ func doDockerBuildx(cmdline []string) {
 	switch {
 	case env.Branch == "main":
 		tags = []string{"latest"}
-	case strings.HasPrefix(env.Tag, "v0."):
+	case strings.HasPrefix(env.Tag, "v1."):
 		tags = []string{"stable", fmt.Sprintf("release-%v", version.Family), "v" + version.Semantic}
 	}
 	// Need to create a mult-arch builder

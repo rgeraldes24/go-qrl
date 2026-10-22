@@ -52,8 +52,8 @@ INFO [07-01|11:00:46.391] Audit logs configured                    file=audit.lo
 DEBUG[07-01|11:00:46.392] IPC registered                           namespace=account
 INFO [07-01|11:00:46.392] IPC endpoint opened                      url=$HOME/.clef/clef.ipc
 ------- Signer info -------
-* intapi_version : 7.0.0
-* extapi_version : 6.0.0
+* intapi_version : 1.0.0
+* extapi_version : 1.0.0
 * extapi_http : n/a
 * extapi_ipc : $HOME/.clef/clef.ipc
 ```
@@ -137,8 +137,8 @@ INFO [07-01|13:39:49.728] Audit logs configured                    file=audit.lo
 DEBUG[07-01|13:39:49.728] IPC registered                           namespace=account
 INFO [07-01|13:39:49.728] IPC endpoint opened                      url=$HOME/.clef/clef.ipc
 ------- Signer info -------
-* intapi_version : 7.0.0
-* extapi_version : 6.0.0
+* intapi_version : 1.0.0
+* extapi_version : 1.0.0
 * extapi_http : n/a
 * extapi_ipc : $HOME/.clef/clef.ipc
 ```
@@ -247,8 +247,8 @@ INFO [07-01|14:12:41.638] Audit logs configured                    file=audit.lo
 DEBUG[07-01|14:12:41.638] IPC registered                           namespace=account
 INFO [07-01|14:12:41.638] IPC endpoint opened                      url=$HOME/.clef/clef.ipc
 ------- Signer info -------
-* intapi_version : 7.0.0
-* extapi_version : 6.0.0
+* intapi_version : 1.0.0
+* extapi_version : 1.0.0
 * extapi_http : n/a
 * extapi_ipc : $HOME/.clef/clef.ipc
 ```
@@ -285,7 +285,7 @@ For more details on writing automatic rules, please see the [rules spec](https:/
 
 Of course, as awesome as Clef is, it's not feasible to interact with it via JSON RPC by hand. Long term, we're hoping to convince the general Ethereum community to support Clef as a general signer (it's only 3-5 methods), thus allowing your favorite DApp, Metamask, MyCrypto, etc to request signatures directly.
 
-Until then however, we're trying to pave the way via Gqrl. Gqrl v1.9.0 has built in support via `--signer <API endpoint>` for using a local or remote Clef instance as an account backend!
+Until then however, we're trying to pave the way via Gqrl. Gqrl has built in support via `--signer <API endpoint>` for using a local or remote Clef instance as an account backend!
 
 We can try this by running Clef with our previous rules on the testnet (for now it's a good idea to allow auto-listing accounts, since Gqrl likes to retrieve them once in a while).
 
@@ -310,7 +310,7 @@ $ gqrl --testnet --signer=~/.clef/clef.ipc console
         address: "Q00000000000000000000000000000000000000000000000000000000086278a6c067775f71d6b2bb1856db6e28c30418",
         url: "extapi://$HOME/.clef/clef.ipc"
     }],
-    status: "ok [version=6.0.0]",
+    status: "ok [version=1.0.0]",
     url: "extapi://$HOME/.clef/clef.ipc"
 }]
 

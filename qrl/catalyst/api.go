@@ -74,9 +74,9 @@ const (
 
 // All methods provided over the engine endpoint.
 var caps = []string{
-	"engine_forkchoiceUpdatedV2",
-	"engine_getPayloadV2",
-	"engine_newPayloadV2",
+	"engine_forkchoiceUpdatedV1",
+	"engine_getPayloadV1",
+	"engine_newPayloadV1",
 	"engine_getPayloadBodiesByHashV1",
 	"engine_getPayloadBodiesByRangeV1",
 }
@@ -142,7 +142,7 @@ func newConsensusAPIWithoutHeartbeat(qrl *qrl.QRL) *ConsensusAPI {
 	return api
 }
 
-// ForkchoiceUpdatedV2 has several responsibilities:
+// ForkchoiceUpdatedV1 has several responsibilities:
 //
 // We try to set our blockchain to the headBlock.
 //
@@ -154,8 +154,8 @@ func newConsensusAPIWithoutHeartbeat(qrl *qrl.QRL) *ConsensusAPI {
 //
 // If there are payloadAttributes: we try to assemble a block with the payloadAttributes
 // and return its payloadID.
-// ForkchoiceUpdatedV2 is equivalent to V1 with the addition of withdrawals in the payload attributes.
-func (api *ConsensusAPI) ForkchoiceUpdatedV2(update engine.ForkchoiceStateV1, params *engine.PayloadAttributes) (engine.ForkChoiceResponse, error) {
+// ForkchoiceUpdatedV1 requires withdrawals in the payload attributes.
+func (api *ConsensusAPI) ForkchoiceUpdatedV1(update engine.ForkchoiceStateV1, params *engine.PayloadAttributes) (engine.ForkChoiceResponse, error) {
 	if params != nil && params.Withdrawals == nil {
 		return engine.STATUS_INVALID, engine.InvalidPayloadAttributes.With(errors.New("missing withdrawals"))
 	}
@@ -307,8 +307,8 @@ func (api *ConsensusAPI) forkchoiceUpdated(update engine.ForkchoiceStateV1, payl
 	return valid(nil), nil
 }
 
-// GetPayloadV2 returns a cached payload by id.
-func (api *ConsensusAPI) GetPayloadV2(payloadID engine.PayloadID) (*engine.ExecutionPayloadEnvelope, error) {
+// GetPayloadV1 returns a cached payload by id.
+func (api *ConsensusAPI) GetPayloadV1(payloadID engine.PayloadID) (*engine.ExecutionPayloadEnvelope, error) {
 	return api.getPayload(payloadID, false)
 }
 
@@ -321,8 +321,8 @@ func (api *ConsensusAPI) getPayload(payloadID engine.PayloadID, full bool) (*eng
 	return data, nil
 }
 
-// NewPayloadV2 creates a QRL execution block, inserts it in the chain, and returns the status of the chain.
-func (api *ConsensusAPI) NewPayloadV2(params engine.ExecutableData) (engine.PayloadStatusV1, error) {
+// NewPayloadV1 creates a QRL execution block, inserts it in the chain, and returns the status of the chain.
+func (api *ConsensusAPI) NewPayloadV1(params engine.ExecutableData) (engine.PayloadStatusV1, error) {
 	if params.Withdrawals == nil {
 		return engine.PayloadStatusV1{Status: engine.INVALID}, engine.InvalidParams.With(errors.New("nil withdrawals post-zond"))
 	}

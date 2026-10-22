@@ -99,7 +99,7 @@ func NewSimulatedBeacon(period uint64, qrl *qrl.QRL) (*SimulatedBeacon, error) {
 
 	// if genesis block, send forkchoiceUpdated to trigger transition to PoS
 	if block.Number.Sign() == 0 {
-		if _, err := engineAPI.ForkchoiceUpdatedV2(current, nil); err != nil {
+		if _, err := engineAPI.ForkchoiceUpdatedV1(current, nil); err != nil {
 			return nil, err
 		}
 	}
@@ -156,7 +156,7 @@ func (c *SimulatedBeacon) sealBlock(withdrawals []*types.Withdrawal, timestamp u
 
 	var random [32]byte
 	rand.Read(random[:])
-	fcResponse, err := c.engineAPI.ForkchoiceUpdatedV2(c.curForkchoiceState, &engine.PayloadAttributes{
+	fcResponse, err := c.engineAPI.ForkchoiceUpdatedV1(c.curForkchoiceState, &engine.PayloadAttributes{
 		Timestamp:             timestamp,
 		SuggestedFeeRecipient: feeRecipient,
 		Withdrawals:           withdrawals,
@@ -186,12 +186,12 @@ func (c *SimulatedBeacon) sealBlock(withdrawals []*types.Withdrawal, timestamp u
 	}
 
 	// Mark the payload as canon
-	if _, err = c.engineAPI.NewPayloadV2(*payload); err != nil {
+	if _, err = c.engineAPI.NewPayloadV1(*payload); err != nil {
 		return err
 	}
 	c.setCurrentState(payload.BlockHash, finalizedHash)
 	// Mark the block containing the payload as canonical
-	if _, err = c.engineAPI.ForkchoiceUpdatedV2(c.curForkchoiceState, nil); err != nil {
+	if _, err = c.engineAPI.ForkchoiceUpdatedV1(c.curForkchoiceState, nil); err != nil {
 		return err
 	}
 	c.lastBlockTime = payload.Timestamp
