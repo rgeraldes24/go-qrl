@@ -230,10 +230,18 @@ func (api *ConsensusAPI) forkchoiceUpdated(update engine.ForkchoiceStateV1, payl
 		// generating the payload. It's a special corner case that a few slots are
 		// missing and we are requested to generate the payload in slot.
 	} else {
-		// If the head block is already in our canonical chain, the beacon client is
-		// probably resyncing. Ignore the update.
-		log.Info("Ignoring beacon update to old head", "number", block.NumberU64(), "hash", update.HeadBlockHash, "age", common.PrettyAge(time.Unix(int64(block.Time()), 0)), "have", api.qrl.BlockChain().CurrentBlock().Number)
-		return valid(nil), nil
+		// If the head block is below our head, the beacon client is probably
+		// resyncing. Ignore the update.
+		if current := api.qrl.BlockChain().CurrentBlock().Number.Uint64(); block.NumberU64() < current {
+			log.Info("Ignoring beacon update to old head", "number", block.NumberU64(), "hash", update.HeadBlockHash, "age", common.PrettyAge(time.Unix(int64(block.Time()), 0)), "have", current)
+			return valid(nil), nil
+		}
+		// A canonical block above the current head (the index outlived a head
+		// rewind, e.g. after an unclean shutdown) is a forward move, not a reorg.
+		if latestValid, err := api.qrl.BlockChain().SetCanonical(block); err != nil {
+			log.Error("Error setting canonical", "number", block.NumberU64(), "hash", update.HeadBlockHash, "error", err)
+			return engine.ForkChoiceResponse{PayloadStatus: engine.PayloadStatusV1{Status: engine.INVALID, LatestValidHash: &latestValid}}, err
+		}
 	}
 	api.qrl.SetSynced()
 
