@@ -413,6 +413,71 @@ func TestTransactionCoding(t *testing.T) {
 	}
 }
 
+// txJSONWith returns the JSON encoding of tx with field set to value, or
+// removed if value is nil.
+func txJSONWith(t *testing.T, tx *Transaction, field string, value any) []byte {
+	t.Helper()
+	data, err := json.Marshal(tx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var m map[string]any
+	if err := json.Unmarshal(data, &m); err != nil {
+		t.Fatal(err)
+	}
+	if value == nil {
+		delete(m, field)
+	} else {
+		m[field] = value
+	}
+	if data, err = json.Marshal(m); err != nil {
+		t.Fatal(err)
+	}
+	return data
+}
+
+// Tests that a transaction decoded from JSON without an access list gets an
+// empty one, so that it encodes back as [] instead of null.
+func TestTransactionJSONMissingAccessList(t *testing.T) {
+	for _, input := range [][]byte{
+		txJSONWith(t, signedEip2718Tx, "accessList", nil),
+		bytes.Replace(txJSONWith(t, signedEip2718Tx, "accessList", []any{}), []byte(`"accessList":[]`), []byte(`"accessList":null`), 1),
+	} {
+		var tx Transaction
+		if err := json.Unmarshal(input, &tx); err != nil {
+			t.Fatal(err)
+		}
+		if tx.AccessList() == nil {
+			t.Fatal("access list is nil, want an empty list")
+		}
+		if tx.Hash() != signedEip2718Tx.Hash() {
+			t.Fatalf("wrong hash: have %x, want %x", tx.Hash(), signedEip2718Tx.Hash())
+		}
+		output, err := json.Marshal(&tx)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !bytes.Contains(output, []byte(`"accessList":[]`)) {
+			t.Fatalf("access list not encoded as []: %s", output)
+		}
+	}
+}
+
+// Tests that a descriptor of the wrong length is rejected, and that an unsigned
+// transaction may leave it empty.
+func TestTransactionJSONDescriptorLength(t *testing.T) {
+	for _, desc := range []string{"0x01", "0x0102", "0x01020304"} {
+		var tx Transaction
+		if err := json.Unmarshal(txJSONWith(t, signedEip2718Tx, "descriptor", desc), &tx); err == nil {
+			t.Fatalf("descriptor %s: expected an error", desc)
+		}
+	}
+	var tx Transaction
+	if err := json.Unmarshal(txJSONWith(t, emptyEip2718Tx, "descriptor", "0x"), &tx); err != nil {
+		t.Fatalf("empty descriptor: %v", err)
+	}
+}
+
 func encodeDecodeJSON(tx *Transaction) (*Transaction, error) {
 	data, err := json.Marshal(tx)
 	if err != nil {
