@@ -76,7 +76,7 @@ func newFetchResult(header *types.Header, fastSync bool) *fetchResult {
 	}
 	if !header.EmptyBody() {
 		item.pending.Store(item.pending.Load() | (1 << bodyType))
-	} else if header.WithdrawalsHash != nil {
+	} else {
 		item.Withdrawals = make(types.Withdrawals, 0)
 	}
 	if fastSync && !header.EmptyReceipts() {
@@ -555,20 +555,9 @@ func (q *queue) DeliverBodies(id string, txLists [][]*types.Transaction, txListH
 		if txListHashes[index] != header.TxHash {
 			return errInvalidBody
 		}
-		if header.WithdrawalsHash == nil {
-			// nil hash means that withdrawals should not be present in body
-			if withdrawalLists[index] != nil {
-				return errInvalidBody
-			}
-		} else { // non-nil hash: body must have withdrawals
-			if withdrawalLists[index] == nil {
-				return errInvalidBody
-			}
-			if withdrawalListHashes[index] != *header.WithdrawalsHash {
-				return errInvalidBody
-			}
+		if header.WithdrawalsHash == nil || withdrawalListHashes[index] != *header.WithdrawalsHash {
+			return errInvalidBody
 		}
-
 		return nil
 	}
 

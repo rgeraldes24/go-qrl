@@ -192,6 +192,20 @@ func TestBasics(t *testing.T) {
 	}
 }
 
+// Tests that a block whose body is empty, and is therefore never fetched,
+// still gets an empty withdrawals list rather than a nil one.
+func TestEmptyBodyWithdrawals(t *testing.T) {
+	header := emptyChain.blocks[0].Header()
+	if !header.EmptyBody() {
+		t.Fatal("test block has a non-empty body")
+	}
+	result := newFetchResult(header, false)
+	block := types.NewBlockWithHeader(result.Header).WithBody(result.body())
+	if block.Withdrawals() == nil {
+		t.Fatal("empty-body block has a nil withdrawals list")
+	}
+}
+
 func TestEmptyBlocks(t *testing.T) {
 	numOfBlocks := len(emptyChain.blocks)
 
