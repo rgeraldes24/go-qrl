@@ -31,7 +31,7 @@ func (e ExecutableData) MarshalJSON() ([]byte, error) {
 		BaseFeePerGas *hexutil.Big        `json:"baseFeePerGas" gencodec:"required"`
 		BlockHash     common.Hash         `json:"blockHash"     gencodec:"required"`
 		Transactions  []hexutil.Bytes     `json:"transactions"  gencodec:"required"`
-		Withdrawals   []*types.Withdrawal `json:"withdrawals"`
+		Withdrawals   []*types.Withdrawal `json:"withdrawals"   gencodec:"required"`
 	}
 	var enc ExecutableData
 	enc.ParentHash = e.ParentHash
@@ -74,7 +74,7 @@ func (e *ExecutableData) UnmarshalJSON(input []byte) error {
 		BaseFeePerGas *hexutil.Big        `json:"baseFeePerGas" gencodec:"required"`
 		BlockHash     *common.Hash        `json:"blockHash"     gencodec:"required"`
 		Transactions  []hexutil.Bytes     `json:"transactions"  gencodec:"required"`
-		Withdrawals   []*types.Withdrawal `json:"withdrawals"`
+		Withdrawals   []*types.Withdrawal `json:"withdrawals"   gencodec:"required"`
 	}
 	var dec ExecutableData
 	if err := json.Unmarshal(input, &dec); err != nil {
@@ -139,8 +139,9 @@ func (e *ExecutableData) UnmarshalJSON(input []byte) error {
 	for k, v := range dec.Transactions {
 		e.Transactions[k] = v
 	}
-	if dec.Withdrawals != nil {
-		e.Withdrawals = dec.Withdrawals
+	if dec.Withdrawals == nil {
+		return errors.New("missing required field 'withdrawals' for ExecutableData")
 	}
+	e.Withdrawals = dec.Withdrawals
 	return nil
 }
