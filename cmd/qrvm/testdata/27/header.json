@@ -11,5 +11,6 @@
   "receiptsRoot": "0xf78dfb743fbd92ade140711c8bbc542b5e307f0ab7984eff35d751969fe57efa",
   "stateRoot": "0x4e8c240fc34843c9b49d936ef9e03f2422ca4cfcfc8502a38cdf3ebb92eec6b2",
   "timestamp": "0x3e8",
-  "transactionsRoot": "0x7fcad3606f4d5779972c5f4b2840da02006fb2a1cbb1a76517ec745e0a7f6123"
+  "transactionsRoot": "0x7fcad3606f4d5779972c5f4b2840da02006fb2a1cbb1a76517ec745e0a7f6123",
+  "withdrawalsRoot": "0xa759957f3a30e322d0cd345226a5bd92caef5f0971635905c563a8d8c076721b"
 }
