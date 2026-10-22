@@ -81,7 +81,7 @@ func (i *bbInput) ToBlock() *types.Block {
 		Extra:           i.Header.Extra,
 		Random:          i.Header.Random,
 		BaseFee:         i.Header.BaseFee,
-		WithdrawalsHash: &types.EmptyWithdrawalsHash,
+		WithdrawalsHash: types.EmptyWithdrawalsHash,
 	}
 
 	// Fill optional values.
@@ -95,7 +95,7 @@ func (i *bbInput) ToBlock() *types.Block {
 		header.ReceiptHash = *i.Header.ReceiptHash
 	}
 	if i.Header.WithdrawalsHash != nil {
-		header.WithdrawalsHash = i.Header.WithdrawalsHash
+		header.WithdrawalsHash = *i.Header.WithdrawalsHash
 	}
 	return types.NewBlockWithHeader(header).WithBody(types.Body{Transactions: i.Txs, Withdrawals: i.Withdrawals})
 }

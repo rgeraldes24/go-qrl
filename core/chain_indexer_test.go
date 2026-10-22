@@ -96,7 +96,7 @@ func testChainIndexer(t *testing.T, count int) {
 			Number:          big.NewInt(int64(number)),
 			Extra:           big.NewInt(rand.Int63()).Bytes(),
 			BaseFee:         big.NewInt(0),
-			WithdrawalsHash: &types.EmptyWithdrawalsHash,
+			WithdrawalsHash: types.EmptyWithdrawalsHash,
 		}
 		if number > 0 {
 			header.ParentHash = rawdb.ReadCanonicalHash(db, number-1)

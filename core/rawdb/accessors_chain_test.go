@@ -43,7 +43,7 @@ func TestHeaderStorage(t *testing.T) {
 		Number:          big.NewInt(42),
 		Extra:           []byte("test header"),
 		BaseFee:         common.Big0,
-		WithdrawalsHash: &types.EmptyWithdrawalsHash,
+		WithdrawalsHash: types.EmptyWithdrawalsHash,
 	}
 	if entry := ReadHeader(db, header.Hash(), header.Number.Uint64()); entry != nil {
 		t.Fatalf("Non existent header returned: %v", entry)
@@ -120,7 +120,7 @@ func TestBlockStorage(t *testing.T) {
 		TxHash:          types.EmptyTxsHash,
 		ReceiptHash:     types.EmptyReceiptsHash,
 		BaseFee:         common.Big0,
-		WithdrawalsHash: &types.EmptyWithdrawalsHash,
+		WithdrawalsHash: types.EmptyWithdrawalsHash,
 	})
 	if entry := ReadBlock(db, block.Hash(), block.NumberU64()); entry != nil {
 		t.Fatalf("Non existent block returned: %v", entry)
@@ -169,7 +169,7 @@ func TestPartialBlockStorage(t *testing.T) {
 		TxHash:          types.EmptyTxsHash,
 		ReceiptHash:     types.EmptyReceiptsHash,
 		BaseFee:         common.Big0,
-		WithdrawalsHash: &types.EmptyWithdrawalsHash,
+		WithdrawalsHash: types.EmptyWithdrawalsHash,
 	})
 	// Store a header and check that it's not recognized as a block
 	WriteHeader(db, block.Header())
@@ -207,7 +207,7 @@ func TestBadBlockStorage(t *testing.T) {
 		TxHash:          types.EmptyTxsHash,
 		ReceiptHash:     types.EmptyReceiptsHash,
 		BaseFee:         common.Big0,
-		WithdrawalsHash: &types.EmptyWithdrawalsHash,
+		WithdrawalsHash: types.EmptyWithdrawalsHash,
 	})
 	if entry := ReadBadBlock(db, block.Hash()); entry != nil {
 		t.Fatalf("Non existent block returned: %v", entry)
@@ -226,7 +226,7 @@ func TestBadBlockStorage(t *testing.T) {
 		TxHash:          types.EmptyTxsHash,
 		ReceiptHash:     types.EmptyReceiptsHash,
 		BaseFee:         common.Big0,
-		WithdrawalsHash: &types.EmptyWithdrawalsHash,
+		WithdrawalsHash: types.EmptyWithdrawalsHash,
 	})
 	WriteBadBlock(db, blockTwo)
 
@@ -246,7 +246,7 @@ func TestBadBlockStorage(t *testing.T) {
 			TxHash:          types.EmptyTxsHash,
 			ReceiptHash:     types.EmptyReceiptsHash,
 			BaseFee:         common.Big0,
-			WithdrawalsHash: &types.EmptyWithdrawalsHash,
+			WithdrawalsHash: types.EmptyWithdrawalsHash,
 		})
 		WriteBadBlock(db, block)
 	}
@@ -912,7 +912,7 @@ func TestHeadersRLPStorage(t *testing.T) {
 			ReceiptHash:     types.EmptyReceiptsHash,
 			ParentHash:      pHash,
 			BaseFee:         common.Big0,
-			WithdrawalsHash: &types.EmptyWithdrawalsHash,
+			WithdrawalsHash: types.EmptyWithdrawalsHash,
 		})
 		chain = append(chain, block)
 		pHash = block.Hash()

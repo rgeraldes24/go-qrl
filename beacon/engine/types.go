@@ -195,7 +195,7 @@ func ExecutableDataToBlockNoHash(data ExecutableData) (*types.Block, error) {
 		BaseFee:         data.BaseFeePerGas,
 		Extra:           data.ExtraData,
 		Random:          data.Random,
-		WithdrawalsHash: &withdrawalsRoot,
+		WithdrawalsHash: withdrawalsRoot,
 	}
 	return types.NewBlockWithHeader(header).
 			WithBody(types.Body{Transactions: txs, Withdrawals: data.Withdrawals}),
