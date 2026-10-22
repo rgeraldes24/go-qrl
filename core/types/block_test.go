@@ -128,7 +128,7 @@ func roundTripBlockEncoding(t *testing.T, makeTx func(Signer, wallet.Wallet) *Tr
 		Time:            9150,
 		Extra:           []byte{},
 		BaseFee:         big.NewInt(0),
-		WithdrawalsHash: &EmptyWithdrawalsHash,
+		WithdrawalsHash: EmptyWithdrawalsHash,
 	}
 
 	block := NewBlock(header, &Body{Transactions: Transactions{tx}}, nil, blocktest.NewHasher())

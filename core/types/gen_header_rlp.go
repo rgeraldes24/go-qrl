@@ -35,11 +35,7 @@ func (obj *Header) EncodeRLP(_w io.Writer) error {
 		}
 		w.WriteBigInt(obj.BaseFee)
 	}
-	if obj.WithdrawalsHash == nil {
-		w.Write([]byte{0x80})
-	} else {
-		w.WriteBytes(obj.WithdrawalsHash[:])
-	}
+	w.WriteBytes(obj.WithdrawalsHash[:])
 	w.ListEnd(_tmp0)
 	return w.Flush()
 }

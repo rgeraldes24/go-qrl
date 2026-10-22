@@ -17,7 +17,6 @@
 package core
 
 import (
-	"errors"
 	"fmt"
 
 	"github.com/theQRL/go-qrl/consensus"
@@ -62,18 +61,8 @@ func (v *BlockValidator) ValidateBody(block *types.Block) error {
 		return fmt.Errorf("transaction root hash mismatch (header value %x, calculated %x)", header.TxHash, hash)
 	}
 
-	// Withdrawals are present after the Zond fork.
-	if header.WithdrawalsHash != nil {
-		// Withdrawals list must be present in body after Zond.
-		if block.Withdrawals() == nil {
-			return errors.New("missing withdrawals in block body")
-		}
-		if hash := types.DeriveSha(block.Withdrawals(), trie.NewStackTrie(nil)); hash != *header.WithdrawalsHash {
-			return fmt.Errorf("withdrawals root hash mismatch (header value %x, calculated %x)", *header.WithdrawalsHash, hash)
-		}
-	} else if block.Withdrawals() != nil {
-		// Withdrawals are not allowed prior to Zond fork
-		return errors.New("withdrawals present in block body")
+	if hash := types.DeriveSha(block.Withdrawals(), trie.NewStackTrie(nil)); hash != header.WithdrawalsHash {
+		return fmt.Errorf("withdrawals root hash mismatch (header value %x, calculated %x)", header.WithdrawalsHash, hash)
 	}
 
 	// Ancestor block must be known.

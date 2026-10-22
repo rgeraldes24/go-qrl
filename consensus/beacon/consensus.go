@@ -129,11 +129,6 @@ func (beacon *Beacon) verifyHeader(chain consensus.ChainHeaderReader, header, pa
 	if err := eip1559.VerifyEIP1559Header(chain.Config(), parent, header); err != nil {
 		return err
 	}
-	// Verify existence / non-existence of withdrawalsHash.
-	if header.WithdrawalsHash == nil {
-		return errors.New("missing withdrawalsHash")
-	}
-
 	if beacon.fakeDelay != nil {
 		time.Sleep(*beacon.fakeDelay)
 	}
