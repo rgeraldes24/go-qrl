@@ -117,6 +117,7 @@ func applyTransaction(msg *Message, gp *GasPool, statedb *state.StateDB, blockNu
 	}
 	receipt.TxHash = tx.Hash()
 	receipt.GasUsed = result.UsedGas
+	receipt.EffectiveGasPrice = new(big.Int).Set(msg.GasPrice)
 
 	// If the transaction created a contract, store the creation address in the receipt.
 	if msg.To == nil {

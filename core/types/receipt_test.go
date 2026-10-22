@@ -305,22 +305,6 @@ func TestReceiptJSON(t *testing.T) {
 	}
 }
 
-// Test we can still parse receipt without EffectiveGasPrice for backwards compatibility, even
-// though it is required per the spec.
-func TestEffectiveGasPriceNotRequired(t *testing.T) {
-	r := *receipts[0]
-	r.EffectiveGasPrice = nil
-	b, err := r.MarshalJSON()
-	if err != nil {
-		t.Fatal("error marshaling receipt to json:", err)
-	}
-	r2 := Receipt{}
-	err = r2.UnmarshalJSON(b)
-	if err != nil {
-		t.Fatal("error unmarshaling receipt from json:", err)
-	}
-}
-
 // TestTypedReceiptEncodingDecoding reproduces a flaw that existed in the receipt
 // rlp decoder, which failed due to a shadowing error.
 func TestTypedReceiptEncodingDecoding(t *testing.T) {
