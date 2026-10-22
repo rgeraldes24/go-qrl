@@ -70,6 +70,7 @@ func benchRLP(b *testing.B, encode bool) {
 		{
 			"receipt-full",
 			&Receipt{
+				Type:              DynamicFeeTxType,
 				Status:            ReceiptStatusSuccessful,
 				CumulativeGasUsed: 0x888888888,
 				Logs:              make([]*Log, 0),
