@@ -61,7 +61,7 @@ type ExecutableData struct {
 	BaseFeePerGas *big.Int            `json:"baseFeePerGas" gencodec:"required"`
 	BlockHash     common.Hash         `json:"blockHash"     gencodec:"required"`
 	Transactions  [][]byte            `json:"transactions"  gencodec:"required"`
-	Withdrawals   []*types.Withdrawal `json:"withdrawals"`
+	Withdrawals   []*types.Withdrawal `json:"withdrawals"   gencodec:"required"`
 }
 
 // JSON type overrides for executableData.
@@ -150,9 +150,7 @@ func decodeTransactions(enc [][]byte) ([]*types.Transaction, error) {
 //
 //	len(extraData) <= 32
 //
-// and that the blockhash of the constructed block matches the parameters. Nil
-// Withdrawals value will propagate through the returned block. Empty
-// Withdrawals value must be passed via non-nil, length 0 value in data.
+// and that the blockhash of the constructed block matches the parameters.
 func ExecutableDataToBlock(data ExecutableData) (*types.Block, error) {
 	block, err := ExecutableDataToBlockNoHash(data)
 	if err != nil {
@@ -179,7 +177,7 @@ func ExecutableDataToBlockNoHash(data ExecutableData) (*types.Block, error) {
 		return nil, fmt.Errorf("invalid logsBloom length: %v", len(data.LogsBloom))
 	}
 	// Check that baseFeePerGas is not negative or too big
-	if data.BaseFeePerGas != nil && (data.BaseFeePerGas.Sign() == -1 || data.BaseFeePerGas.BitLen() > 256) {
+	if data.BaseFeePerGas.Sign() == -1 || data.BaseFeePerGas.BitLen() > 256 {
 		return nil, fmt.Errorf("invalid baseFeePerGas: %v", data.BaseFeePerGas)
 	}
 	header := &types.Header{
