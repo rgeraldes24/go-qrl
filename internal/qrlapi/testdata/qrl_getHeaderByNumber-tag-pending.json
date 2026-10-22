@@ -1,4 +1,5 @@
 {
+  "baseFeePerGas": "0x174876e800",
   "extraData": "0x",
   "gasLimit": "0x0",
   "gasUsed": "0x0",

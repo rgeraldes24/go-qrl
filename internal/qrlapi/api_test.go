@@ -826,7 +826,7 @@ func TestRPCMarshalBlock(t *testing.T) {
 		require.NoError(t, err)
 		txs = append(txs, tx)
 	}
-	block := types.NewBlock(&types.Header{Number: big.NewInt(100)}, &types.Body{Transactions: txs}, nil, blocktest.NewHasher())
+	block := types.NewBlock(&types.Header{Number: big.NewInt(100), BaseFee: big.NewInt(params.InitialBaseFee)}, &types.Body{Transactions: txs}, nil, blocktest.NewHasher())
 
 	var testSuite = []struct {
 		inclTx bool
@@ -880,7 +880,7 @@ func TestRPCGetBlockOrHeader(t *testing.T) {
 		Data:      []byte{0x11, 0x11, 0x11},
 	}), signer, acc1Wallet)
 	require.NoError(t, err)
-	pending := types.NewBlock(&types.Header{Number: big.NewInt(11), Time: 42}, &types.Body{Transactions: types.Transactions{tx}, Withdrawals: types.Withdrawals{withdrawal}}, nil, blocktest.NewHasher())
+	pending := types.NewBlock(&types.Header{Number: big.NewInt(11), Time: 42, BaseFee: big.NewInt(params.InitialBaseFee)}, &types.Body{Transactions: types.Transactions{tx}, Withdrawals: types.Withdrawals{withdrawal}}, nil, blocktest.NewHasher())
 	backend := newTestBackend(t, genBlocks, genesis, beacon.NewFaker(), func(i int, b *core.BlockGen) {
 		// Transfer from account[0] to account[1]
 		//    value: 1000 planck

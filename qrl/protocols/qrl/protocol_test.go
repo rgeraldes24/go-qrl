@@ -133,6 +133,7 @@ func TestMessages(t *testing.T) {
 		GasUsed:         5555,
 		Time:            6666,
 		Extra:           []byte{0x77, 0x88},
+		BaseFee:         big.NewInt(0),
 		WithdrawalsHash: types.EmptyWithdrawalsHash,
 	}
 	{

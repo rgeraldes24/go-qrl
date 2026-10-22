@@ -27,8 +27,8 @@ func (h Header) MarshalJSON() ([]byte, error) {
 		GasUsed         hexutil.Uint64 `json:"gasUsed"          gencodec:"required"`
 		Time            hexutil.Uint64 `json:"timestamp"        gencodec:"required"`
 		Extra           hexutil.Bytes  `json:"extraData"        gencodec:"required"`
-		Random          common.Hash    `json:"prevRandao"`
-		BaseFee         *hexutil.Big   `json:"baseFeePerGas"`
+		Random          common.Hash    `json:"prevRandao"       gencodec:"required"`
+		BaseFee         *hexutil.Big   `json:"baseFeePerGas"    gencodec:"required"`
 		WithdrawalsHash common.Hash    `json:"withdrawalsRoot"  gencodec:"required"`
 		Hash            common.Hash    `json:"hash"`
 	}
@@ -65,8 +65,8 @@ func (h *Header) UnmarshalJSON(input []byte) error {
 		GasUsed         *hexutil.Uint64 `json:"gasUsed"          gencodec:"required"`
 		Time            *hexutil.Uint64 `json:"timestamp"        gencodec:"required"`
 		Extra           *hexutil.Bytes  `json:"extraData"        gencodec:"required"`
-		Random          *common.Hash    `json:"prevRandao"`
-		BaseFee         *hexutil.Big    `json:"baseFeePerGas"`
+		Random          *common.Hash    `json:"prevRandao"       gencodec:"required"`
+		BaseFee         *hexutil.Big    `json:"baseFeePerGas"    gencodec:"required"`
 		WithdrawalsHash *common.Hash    `json:"withdrawalsRoot"  gencodec:"required"`
 	}
 	var dec Header
@@ -116,12 +116,14 @@ func (h *Header) UnmarshalJSON(input []byte) error {
 		return errors.New("missing required field 'extraData' for Header")
 	}
 	h.Extra = *dec.Extra
-	if dec.Random != nil {
-		h.Random = *dec.Random
+	if dec.Random == nil {
+		return errors.New("missing required field 'prevRandao' for Header")
 	}
-	if dec.BaseFee != nil {
-		h.BaseFee = (*big.Int)(dec.BaseFee)
+	h.Random = *dec.Random
+	if dec.BaseFee == nil {
+		return errors.New("missing required field 'baseFeePerGas' for Header")
 	}
+	h.BaseFee = (*big.Int)(dec.BaseFee)
 	if dec.WithdrawalsHash == nil {
 		return errors.New("missing required field 'withdrawalsRoot' for Header")
 	}

@@ -45,8 +45,8 @@ type Header struct {
 	GasUsed         uint64         `json:"gasUsed"          gencodec:"required"`
 	Time            uint64         `json:"timestamp"        gencodec:"required"`
 	Extra           []byte         `json:"extraData"        gencodec:"required"`
-	Random          common.Hash    `json:"prevRandao"`
-	BaseFee         *big.Int       `json:"baseFeePerGas"`
+	Random          common.Hash    `json:"prevRandao"       gencodec:"required"`
+	BaseFee         *big.Int       `json:"baseFeePerGas"    gencodec:"required"`
 	WithdrawalsHash common.Hash    `json:"withdrawalsRoot"  gencodec:"required"`
 }
 
