@@ -892,21 +892,13 @@ func (b *Block) WithdrawalsRoot(ctx context.Context) (*common.Hash, error) {
 	if err != nil {
 		return nil, err
 	}
-	// Pre-zond blocks
-	if header.WithdrawalsHash == nil {
-		return nil, nil
-	}
-	return header.WithdrawalsHash, nil
+	return &header.WithdrawalsHash, nil
 }
 
 func (b *Block) Withdrawals(ctx context.Context) (*[]*Withdrawal, error) {
 	block, err := b.resolve(ctx)
 	if err != nil || block == nil {
 		return nil, err
-	}
-	// Pre-zond blocks
-	if block.Header().WithdrawalsHash == nil {
-		return nil, nil
 	}
 	ret := make([]*Withdrawal, 0, len(block.Withdrawals()))
 	for _, w := range block.Withdrawals() {

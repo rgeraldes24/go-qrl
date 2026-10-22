@@ -315,9 +315,7 @@ func handleBlockBodies(backend Backend, msg Decoder, peer *Peer) error {
 		hasher := trie.NewStackTrie(nil)
 		for i, body := range res.BlockBodiesResponse {
 			txsHashes[i] = types.DeriveSha(types.Transactions(body.Transactions), hasher)
-			if body.Withdrawals != nil {
-				withdrawalHashes[i] = types.DeriveSha(types.Withdrawals(body.Withdrawals), hasher)
-			}
+			withdrawalHashes[i] = types.DeriveSha(types.Withdrawals(body.Withdrawals), hasher)
 		}
 		return [][]common.Hash{txsHashes, withdrawalHashes}
 	}

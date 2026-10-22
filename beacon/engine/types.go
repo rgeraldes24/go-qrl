@@ -182,14 +182,6 @@ func ExecutableDataToBlockNoHash(data ExecutableData) (*types.Block, error) {
 	if data.BaseFeePerGas != nil && (data.BaseFeePerGas.Sign() == -1 || data.BaseFeePerGas.BitLen() > 256) {
 		return nil, fmt.Errorf("invalid baseFeePerGas: %v", data.BaseFeePerGas)
 	}
-	// Only set withdrawalsRoot if it is non-nil. This allows CLs to use
-	// ExecutableData before withdrawals are enabled by marshaling
-	// Withdrawals as the json null value.
-	var withdrawalsRoot *common.Hash
-	if data.Withdrawals != nil {
-		h := types.DeriveSha(types.Withdrawals(data.Withdrawals), trie.NewStackTrie(nil))
-		withdrawalsRoot = &h
-	}
 	header := &types.Header{
 		ParentHash:      data.ParentHash,
 		Coinbase:        data.FeeRecipient,
@@ -204,7 +196,7 @@ func ExecutableDataToBlockNoHash(data ExecutableData) (*types.Block, error) {
 		BaseFee:         data.BaseFeePerGas,
 		Extra:           data.ExtraData,
 		Random:          data.Random,
-		WithdrawalsHash: withdrawalsRoot,
+		WithdrawalsHash: types.DeriveSha(types.Withdrawals(data.Withdrawals), trie.NewStackTrie(nil)),
 	}
 	return types.NewBlockWithHeader(header).
 			WithBody(types.Body{Transactions: txs, Withdrawals: data.Withdrawals}),

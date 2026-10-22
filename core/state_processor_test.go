@@ -378,7 +378,7 @@ func GenerateBadBlock(parent *types.Block, engine consensus.Engine, txs types.Tr
 		Time:       parent.Time() + 10,
 	}
 	header.BaseFee = eip1559.CalcBaseFee(config, parent.Header())
-	header.WithdrawalsHash = &types.EmptyWithdrawalsHash
+	header.WithdrawalsHash = types.EmptyWithdrawalsHash
 	var receipts []*types.Receipt
 	// The post-state result doesn't need to be correct (this is a bad block), but we do need something there
 	// Preferably something unique. So let's use a combo of blocknum + txhash
