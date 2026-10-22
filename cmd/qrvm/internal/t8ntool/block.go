@@ -44,7 +44,7 @@ type header struct {
 	Time            uint64          `json:"timestamp"        gencodec:"required"`
 	Extra           []byte          `json:"extraData"`
 	Random          common.Hash     `json:"prevRandao"`
-	BaseFee         *big.Int        `json:"baseFeePerGas" rlp:"optional"`
+	BaseFee         *big.Int        `json:"baseFeePerGas"    gencodec:"required"`
 	WithdrawalsHash *common.Hash    `json:"withdrawalsRoot"`
 }
 
