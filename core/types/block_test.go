@@ -188,7 +188,7 @@ func makeBenchBlock() *Block {
 		w, _     = wallet.Generate(wallet.ML_DSA_87)
 		txs      = make([]*Transaction, 70)
 		receipts = make([]*Receipt, len(txs))
-		signer   = LatestSigner(params.TestChainConfig)
+		signer   = NewZondSigner(params.TestChainConfig.ChainID)
 	)
 	header := &Header{
 		Number:   math.BigPow(2, 9),
@@ -335,7 +335,7 @@ func TestMaxBlockSize(t *testing.T) {
 	}
 	// Block layout widened for 64-byte addresses (Coinbase, tx To fields,
 	// bloom topic words). Re-run the test and print if that ever changes again.
-	const expectedBlockSize = uint64(6967855)
+	const expectedBlockSize = uint64(6967856)
 	if blockSize != expectedBlockSize {
 		t.Errorf("block size mismatch: got %d, want %d", blockSize, expectedBlockSize)
 	}
