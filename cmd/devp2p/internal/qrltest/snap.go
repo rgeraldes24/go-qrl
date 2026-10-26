@@ -806,14 +806,10 @@ func (s *Suite) snapGetAccountRange(t *utesting.T, tc *accRangeTest) error {
 		nodes[i] = node
 	}
 	if len(nodes) == 0 && tc.startingHash == (common.Hash{}) {
-		_, err = trie.VerifyRangeProof(tc.root, nil, nil, keys, accounts, nil)
+		_, err = trie.VerifyRangeProof(tc.root, nil, keys, accounts, nil)
 		return err
 	}
-	var end []byte
-	if len(keys) > 0 {
-		end = keys[len(keys)-1]
-	}
-	_, err = trie.VerifyRangeProof(tc.root, tc.startingHash[:], end, keys, accounts, nodes.Set())
+	_, err = trie.VerifyRangeProof(tc.root, tc.startingHash[:], keys, accounts, nodes.Set())
 	return err
 }
 
