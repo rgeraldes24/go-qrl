@@ -22,6 +22,7 @@ import (
 	"math/rand"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/theQRL/go-qrl/common"
 	"github.com/theQRL/go-qrl/core/rawdb"
 	"github.com/theQRL/go-qrl/crypto"
@@ -462,4 +463,25 @@ func TestPartialStackTrie(t *testing.T) {
 			}
 		}
 	}
+}
+
+func TestStackTrieErrors(t *testing.T) {
+	s := NewStackTrie(nil)
+	// Deletion
+	if err := s.Update(nil, nil); err == nil {
+		t.Fatal("expected error")
+	}
+	if err := s.Update(nil, []byte{}); err == nil {
+		t.Fatal("expected error")
+	}
+	if err := s.Update([]byte{0xa}, []byte{}); err == nil {
+		t.Fatal("expected error")
+	}
+	// Non-ascending keys (going backwards or repeating)
+	assert.Nil(t, s.Update([]byte{0xaa}, []byte{0xa}))
+	assert.NotNil(t, s.Update([]byte{0xaa}, []byte{0xa}), "repeat insert same key")
+	assert.NotNil(t, s.Update([]byte{0xaa}, []byte{0xb}), "repeat insert same key")
+	assert.Nil(t, s.Update([]byte{0xab}, []byte{0xa}))
+	assert.NotNil(t, s.Update([]byte{0x10}, []byte{0xb}), "out of order insert")
+	assert.NotNil(t, s.Update([]byte{0xaa}, []byte{0xb}), "repeat insert same key")
 }
