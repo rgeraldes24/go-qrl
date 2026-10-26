@@ -941,6 +941,7 @@ func (bc *BlockChain) SnapSyncCommitHead(hash common.Hash) error {
 	if !bc.chainmu.TryLock() {
 		return errChainStopped
 	}
+	rawdb.WriteHeadBlockHash(bc.db, hash)
 	bc.currentBlock.Store(block.Header())
 	headBlockGauge.Update(int64(block.NumberU64()))
 	bc.chainmu.Unlock()
