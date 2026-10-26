@@ -43,10 +43,10 @@ func fuzz(data []byte, debugging bool) {
 		dbA     = newTestDatabase(rawdb.NewMemoryDatabase(), rawdb.HashScheme)
 		trieA   = NewEmpty(dbA)
 		spongeB = &spongeDb{sponge: sha3.NewLegacyKeccak256()}
-		dbB     = NewDatabase(rawdb.NewDatabase(spongeB), nil)
-		trieB   = NewStackTrie(NewStackTrieOptions().WithWriter(func(path []byte, hash common.Hash, blob []byte) {
+		dbB     = newTestDatabase(rawdb.NewDatabase(spongeB), rawdb.HashScheme)
+		trieB   = NewStackTrie(func(path []byte, hash common.Hash, blob []byte) {
 			rawdb.WriteTrieNode(spongeB, common.Hash{}, path, hash, blob, dbB.Scheme())
-		}))
+		})
 		vals        []*kv
 		maxElements = 10000
 		// operate on unique keys only
@@ -110,12 +110,12 @@ func fuzz(data []byte, debugging bool) {
 	// Ensure all the nodes are persisted correctly
 	var (
 		nodeset = make(map[string][]byte) // path -> blob
-		trieC   = NewStackTrie(NewStackTrieOptions().WithWriter(func(path []byte, hash common.Hash, blob []byte) {
+		trieC   = NewStackTrie(func(path []byte, hash common.Hash, blob []byte) {
 			if crypto.Keccak256Hash(blob) != hash {
 				panic("invalid node blob")
 			}
 			nodeset[string(path)] = common.CopyBytes(blob)
-		}))
+		})
 		checked int
 	)
 	for _, kv := range vals {

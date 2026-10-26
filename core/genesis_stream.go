@@ -150,9 +150,9 @@ func (s *streamedGenesis) buildState(preimages bool) (common.Hash, error) {
 			writeErr = batch.flush(false)
 		}
 	}
-	accounts := trie.NewStackTrie(trie.NewStackTrieOptions().WithWriter(func(path []byte, hash common.Hash, blob []byte) {
+	accounts := trie.NewStackTrie(func(path []byte, hash common.Hash, blob []byte) {
 		writeNode(common.Hash{}, path, hash, blob)
-	}))
+	})
 	it := s.index.NewIterator([]byte{'a'}, nil)
 	defer it.Release()
 	for it.Next() {
@@ -192,7 +192,7 @@ func (s *streamedGenesis) buildState(preimages bool) (common.Hash, error) {
 	if err := it.Error(); err != nil {
 		return common.Hash{}, err
 	}
-	root := accounts.Commit()
+	root := accounts.Hash()
 	if writeErr != nil {
 		return common.Hash{}, writeErr
 	}
@@ -200,9 +200,9 @@ func (s *streamedGenesis) buildState(preimages bool) (common.Hash, error) {
 }
 
 func (s *streamedGenesis) buildStorage(owner common.Hash, writeNode func(owner common.Hash, path []byte, hash common.Hash, blob []byte), batch genesisBatch, preimages bool, writeErr *error) (common.Hash, error) {
-	storage := trie.NewStackTrie(trie.NewStackTrieOptions().WithWriter(func(path []byte, hash common.Hash, blob []byte) {
+	storage := trie.NewStackTrie(func(path []byte, hash common.Hash, blob []byte) {
 		writeNode(owner, path, hash, blob)
-	}))
+	})
 	it := s.index.NewIterator(append([]byte{'s'}, owner[:]...), nil)
 	defer it.Release()
 	for it.Next() {
@@ -228,7 +228,7 @@ func (s *streamedGenesis) buildStorage(owner common.Hash, writeNode func(owner c
 	if err := it.Error(); err != nil {
 		return common.Hash{}, err
 	}
-	root := storage.Commit()
+	root := storage.Hash()
 	return root, *writeErr
 }
 
