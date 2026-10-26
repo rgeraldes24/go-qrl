@@ -32,6 +32,7 @@ import (
 	"github.com/theQRL/go-qrl/common/hexutil"
 	beaconConsensus "github.com/theQRL/go-qrl/consensus/beacon"
 	"github.com/theQRL/go-qrl/core"
+	"github.com/theQRL/go-qrl/core/rawdb"
 	"github.com/theQRL/go-qrl/core/types"
 	"github.com/theQRL/go-qrl/crypto"
 	"github.com/theQRL/go-qrl/internal/testutil"
@@ -409,6 +410,59 @@ func TestDeepReorg(t *testing.T) {
 			parent, head = block, block.NumberU64()
 		}
 	*/
+}
+
+// rewindHead moves the head back to block, then writes the canonical index
+// back for the blocks above it, as gqrl leaves its database when it reopens
+// after an unclean shutdown.
+func rewindHead(t *testing.T, qrlservice *qrl.QRL, block *types.Block, above []*types.Block) {
+	t.Helper()
+	if _, err := qrlservice.BlockChain().SetCanonical(block); err != nil {
+		t.Fatalf("rewind failed: %v", err)
+	}
+	for _, block := range above {
+		rawdb.WriteCanonicalHash(qrlservice.ChainDb(), block.Hash(), block.NumberU64())
+	}
+}
+
+func TestForkchoiceUpdatedCanonicalAboveHead(t *testing.T) {
+	genesis, blocks := generateChain(10)
+	n, qrlservice := startQRLService(t, genesis, blocks)
+	defer n.Close()
+	api := NewConsensusAPI(qrlservice)
+
+	rewindHead(t, qrlservice, blocks[6], blocks[7:])
+	update := engine.ForkchoiceStateV1{HeadBlockHash: blocks[9].Hash()}
+	resp, err := api.ForkchoiceUpdatedV2(update, nil)
+	if err != nil {
+		t.Fatalf("forward update onto the canonical index failed: %v", err)
+	}
+	if resp.PayloadStatus.Status != engine.VALID {
+		t.Fatalf("status: have %s, want %s", resp.PayloadStatus.Status, engine.VALID)
+	}
+	if head := qrlservice.BlockChain().CurrentBlock().Number.Uint64(); head != blocks[9].NumberU64() {
+		t.Fatalf("chain head not advanced: have %d, want %d", head, blocks[9].NumberU64())
+	}
+}
+
+func TestForkchoiceUpdatedCanonicalBelowHead(t *testing.T) {
+	genesis, blocks := generateChain(10)
+	n, qrlservice := startQRLService(t, genesis, blocks)
+	defer n.Close()
+	api := NewConsensusAPI(qrlservice)
+
+	// A beacon client that resyncs behind us must not move the head back.
+	update := engine.ForkchoiceStateV1{HeadBlockHash: blocks[5].Hash()}
+	resp, err := api.ForkchoiceUpdatedV2(update, nil)
+	if err != nil {
+		t.Fatalf("update to an old head failed: %v", err)
+	}
+	if resp.PayloadStatus.Status != engine.VALID {
+		t.Fatalf("status: have %s, want %s", resp.PayloadStatus.Status, engine.VALID)
+	}
+	if head := qrlservice.BlockChain().CurrentBlock().Number.Uint64(); head != blocks[9].NumberU64() {
+		t.Fatalf("chain head moved: have %d, want %d", head, blocks[9].NumberU64())
+	}
 }
 
 // startQRLService creates a full node instance for testing.

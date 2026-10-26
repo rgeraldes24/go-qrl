@@ -300,9 +300,13 @@ func (d *Downloader) fetchHeaders(from uint64) error {
 			return err
 		}
 		// If the pivot became stale (older than 2*64-8 (bit of wiggle room)),
-		// move it ahead to HEAD-64
+		// move it ahead to HEAD-64.
+		//
+		// Note the pivot is only moved before its commitment. Once the pivot
+		// is committed, the chain obtains a stateful head and pivot block should
+		// be no longer advanced.
 		d.pivotLock.Lock()
-		if d.pivotHeader != nil {
+		if d.pivotHeader != nil && !d.committed.Load() {
 			if head.Number.Uint64() > d.pivotHeader.Number.Uint64()+2*uint64(fsMinFullBlocks)-8 {
 				// Retrieve the next pivot header, either from skeleton chain
 				// or the filled chain

@@ -58,6 +58,12 @@ func newTester(t *testing.T) *downloadTester {
 
 // newTester creates a new downloader test mocker.
 func newTesterWithNotification(t *testing.T, success func()) *downloadTester {
+	return newTesterWithScheme(t, rawdb.HashScheme, success)
+}
+
+// newTesterWithScheme creates a new downloader test mocker whose chain keeps
+// its state in the given scheme.
+func newTesterWithScheme(t *testing.T, scheme string, success func()) *downloadTester {
 	freezer := t.TempDir()
 	db, err := rawdb.NewDatabaseWithFreezer(rawdb.NewMemoryDatabase(), freezer, "", false)
 	if err != nil {
@@ -71,7 +77,7 @@ func newTesterWithNotification(t *testing.T, success func()) *downloadTester {
 		Alloc:   core.GenesisAlloc{testAddress: {Balance: big.NewInt(1000000000000000000)}},
 		BaseFee: big.NewInt(params.InitialBaseFee),
 	}
-	chain, err := core.NewBlockChain(db, nil, gspec, beacon.NewFaker(), vm.Config{}, nil)
+	chain, err := core.NewBlockChain(db, core.DefaultCacheConfigWithScheme(scheme), gspec, beacon.NewFaker(), vm.Config{}, nil)
 	if err != nil {
 		panic(err)
 	}
@@ -684,6 +690,42 @@ func testBeaconSync(t *testing.T, protocol uint, mode SyncMode) {
 				}
 			case <-time.NewTimer(time.Second * 3).C:
 				t.Fatalf("Failed to sync chain in three seconds")
+			}
+		})
+	}
+}
+
+// Tests that a snap sync whose head is below the pivot threshold imports the
+// chain from genesis in full. With the path scheme, the state must not be
+// reset for it: the import needs the genesis state.
+func TestBeaconSnapSyncShortChain(t *testing.T) {
+	for _, scheme := range []string{rawdb.HashScheme, rawdb.PathScheme} {
+		t.Run(scheme, func(t *testing.T) {
+			success := make(chan struct{})
+			tester := newTesterWithScheme(t, scheme, func() {
+				close(success)
+			})
+			defer tester.terminate()
+
+			// A head of fsMinFullBlocks-1, as a beacon node syncing from genesis
+			// reports first.
+			chain := testChainBase.shorten(fsMinFullBlocks)
+			tester.newPeer("peer", qrlproto.QRL1, chain.blocks[1:])
+
+			head := chain.blocks[len(chain.blocks)-1]
+			if err := tester.downloader.BeaconSync(SnapSync, head.Header(), nil); err != nil {
+				t.Fatalf("Failed to beacon sync chain: %v", err)
+			}
+			select {
+			case <-success:
+			case <-time.NewTimer(3 * time.Second).C:
+				t.Fatalf("Failed to sync chain in three seconds")
+			}
+			if current := tester.chain.CurrentBlock(); current.Hash() != head.Hash() {
+				t.Fatalf("head mismatch: have %d %x, want %d %x", current.Number, current.Hash(), head.Number(), head.Hash())
+			}
+			if !tester.chain.HasState(head.Root()) {
+				t.Fatalf("head state %x is missing", head.Root())
 			}
 		})
 	}
