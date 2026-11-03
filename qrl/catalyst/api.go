@@ -248,7 +248,14 @@ func (api *ConsensusAPI) forkchoiceUpdated(update engine.ForkchoiceStateV1, payl
 				return engine.STATUS_INVALID, engine.TooDeepReorg.With(fmt.Errorf("reorg depth %d exceeds limit %d", depth, api.maxReorgDepth))
 			}
 		}
-		if !api.qrl.Synced() {
+		// A node that restarts after an unclean shutdown rewinds its head to the
+		// last persisted state and is not synced until a forkchoice update moves
+		// its head. After a full outage no node is synced, so a forward move is
+		// accepted while unsynced if the head has its state to re-execute from
+		// and no sync is running.
+		head := api.qrl.BlockChain().CurrentBlock()
+		forward := block.NumberU64() > head.Number.Uint64() && api.qrl.BlockChain().HasState(head.Root) && !api.qrl.Downloader().Synchronising()
+		if !api.qrl.Synced() && !forward {
 			log.Info("Ignoring beacon update to old head while syncing", "number", block.NumberU64(), "hash", update.HeadBlockHash)
 			return valid(nil), nil
 		}

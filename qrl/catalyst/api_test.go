@@ -418,6 +418,16 @@ func TestDeepReorg(t *testing.T) {
 func startQRLService(t *testing.T, genesis *core.Genesis, blocks []*types.Block, mods ...func(*qrlconfig.Config)) (*node.Node, *qrl.QRL) {
 	t.Helper()
 
+	n, qrlservice := startUnsyncedQRLService(t, genesis, blocks, mods...)
+	qrlservice.SetSynced()
+	return n, qrlservice
+}
+
+// startUnsyncedQRLService creates a full node instance for testing that is not
+// marked synced, as a node is when it starts.
+func startUnsyncedQRLService(t *testing.T, genesis *core.Genesis, blocks []*types.Block, mods ...func(*qrlconfig.Config)) (*node.Node, *qrl.QRL) {
+	t.Helper()
+
 	n, err := node.New(&node.Config{
 		P2P: p2p.Config{
 			ListenAddr:  "0.0.0.0:0",
@@ -448,8 +458,6 @@ func startQRLService(t *testing.T, genesis *core.Genesis, blocks []*types.Block,
 	if err := qrlservice.TxPool().Sync(); err != nil {
 		t.Fatal("failed to sync txpool after initial blockchain import:", err)
 	}
-
-	qrlservice.SetSynced()
 	return n, qrlservice
 }
 
@@ -528,6 +536,56 @@ func TestForkchoiceUpdatedCanonicalAboveHead(t *testing.T) {
 	}
 	if head := qrlservice.BlockChain().CurrentBlock().Number.Uint64(); head != blocks[9].NumberU64() {
 		t.Fatalf("chain head not advanced: have %d, want %d", head, blocks[9].NumberU64())
+	}
+}
+
+// TestForkchoiceUpdatedCanonicalAboveHeadUnsynced tests that a node that is not
+// synced, as every node is when it restarts after a full outage, still moves its
+// head forward onto the canonical index left above a rewound head.
+func TestForkchoiceUpdatedCanonicalAboveHeadUnsynced(t *testing.T) {
+	genesis, blocks := generateChain(10)
+	n, qrlservice := startUnsyncedQRLService(t, genesis, blocks)
+	defer n.Close()
+
+	api := newConsensusAPIWithoutHeartbeat(qrlservice)
+
+	// Rewind the head, then restore the canonical index above it.
+	if _, err := qrlservice.BlockChain().SetCanonical(blocks[6]); err != nil {
+		t.Fatalf("rewind failed: %v", err)
+	}
+	for _, block := range blocks[7:] {
+		rawdb.WriteCanonicalHash(qrlservice.ChainDb(), block.Hash(), block.NumberU64())
+	}
+	update := engine.ForkchoiceStateV1{HeadBlockHash: blocks[9].Hash()}
+	if _, err := api.ForkchoiceUpdatedV2(update, nil); err != nil {
+		t.Fatalf("forward update onto the canonical index failed: %v", err)
+	}
+	if head := qrlservice.BlockChain().CurrentBlock().Number.Uint64(); head != blocks[9].NumberU64() {
+		t.Fatalf("chain head not advanced: have %d, want %d", head, blocks[9].NumberU64())
+	}
+	if !qrlservice.Synced() {
+		t.Fatal("node not marked synced after the head moved")
+	}
+}
+
+// TestForkchoiceUpdatedCanonicalBelowHeadUnsynced tests that a node that is not
+// synced still ignores an update to a canonical ancestor of its head.
+func TestForkchoiceUpdatedCanonicalBelowHeadUnsynced(t *testing.T) {
+	genesis, blocks := generateChain(10)
+	n, qrlservice := startUnsyncedQRLService(t, genesis, blocks)
+	defer n.Close()
+
+	api := newConsensusAPIWithoutHeartbeat(qrlservice)
+
+	update := engine.ForkchoiceStateV1{HeadBlockHash: blocks[5].Hash()}
+	if _, err := api.ForkchoiceUpdatedV2(update, nil); err != nil {
+		t.Fatalf("update to an old head failed: %v", err)
+	}
+	if head := qrlservice.BlockChain().CurrentBlock().Number.Uint64(); head != blocks[9].NumberU64() {
+		t.Fatalf("chain head moved: have %d, want %d", head, blocks[9].NumberU64())
+	}
+	if qrlservice.Synced() {
+		t.Fatal("node marked synced by an ignored update")
 	}
 }
 
