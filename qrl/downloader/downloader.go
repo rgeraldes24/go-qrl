@@ -300,8 +300,8 @@ func (d *Downloader) synchronise(mode SyncMode, beaconPing chan struct{}) error 
 	// The beacon header syncer is async. It will start this synchronization and
 	// will continue doing other tasks. However, if synchronization needs to be
 	// cancelled, the syncer needs to know if we reached the startup point (and
-	// inited the cancel channel) or not yet. Make sure that we'll signal even in
-	// case of a failure.
+	// registered the fetchers for cancellation) or not yet. Make sure that we'll
+	// signal even in case of a failure.
 	if beaconPing != nil {
 		defer func() {
 			select {
@@ -320,21 +320,6 @@ func (d *Downloader) synchronise(mode SyncMode, beaconPing chan struct{}) error 
 	// Post a user notification of the sync (only once per session)
 	if d.notified.CompareAndSwap(false, true) {
 		log.Info("Block synchronisation started")
-	}
-	if mode == SnapSync {
-		// Snap sync will directly modify the persistent state, making the entire
-		// trie database unusable until the state is fully synced. To prevent any
-		// subsequent state reads, explicitly disable the trie database and state
-		// syncer is responsible to address and correct any state missing.
-		if d.blockchain.TrieDB().Scheme() == rawdb.PathScheme {
-			d.blockchain.TrieDB().Reset(types.EmptyRootHash)
-		}
-		// Snap sync uses the snapshot namespace to store potentially flaky data until
-		// sync completely heals and finishes. Pause snapshot maintenance in the mean-
-		// time to prevent access.
-		if snapshots := d.blockchain.Snapshots(); snapshots != nil { // Only nil in tests
-			snapshots.Disable()
-		}
 	}
 	// Reset the queue, peer set and wake channels to clean any internal leftover state
 	d.queue.Reset(blockCacheMaxItems, blockCacheInitialItems)
@@ -363,10 +348,7 @@ func (d *Downloader) synchronise(mode SyncMode, beaconPing chan struct{}) error 
 	// Atomically set the requested sync mode
 	d.mode.Store(uint32(mode))
 
-	if beaconPing != nil {
-		close(beaconPing)
-	}
-	return d.syncToHead()
+	return d.syncToHead(beaconPing)
 }
 
 func (d *Downloader) getMode() SyncMode {
@@ -375,7 +357,7 @@ func (d *Downloader) getMode() SyncMode {
 
 // syncToHead starts a block synchronization based on the hash chain from
 // the specified head hash.
-func (d *Downloader) syncToHead() (err error) {
+func (d *Downloader) syncToHead(beaconPing chan struct{}) (err error) {
 	d.mux.Post(StartEvent{})
 	defer func() {
 		// reset on error
@@ -463,6 +445,24 @@ func (d *Downloader) syncToHead() (err error) {
 	if mode == SnapSync && pivot.Number.Uint64() != 0 {
 		d.committed.Store(false)
 	}
+	// Only a cycle with a pivot above genesis syncs state. One whose head is
+	// below the min full block threshold imports every block from genesis,
+	// so it must keep the genesis state and the snapshots it builds on.
+	if mode == SnapSync && !d.committed.Load() {
+		// Snap sync will directly modify the persistent state, making the entire
+		// trie database unusable until the state is fully synced. To prevent any
+		// subsequent state reads, explicitly disable the trie database and state
+		// syncer is responsible to address and correct any state missing.
+		if d.blockchain.TrieDB().Scheme() == rawdb.PathScheme {
+			d.blockchain.TrieDB().Reset(types.EmptyRootHash)
+		}
+		// Snap sync uses the snapshot namespace to store potentially flaky data until
+		// sync completely heals and finishes. Pause snapshot maintenance in the mean-
+		// time to prevent access.
+		if snapshots := d.blockchain.Snapshots(); snapshots != nil { // Only nil in tests
+			snapshots.Disable()
+		}
+	}
 	if mode == SnapSync {
 		// Set the ancient data limitation. If we are running snap sync, all block
 		// data older than ancientLimit will be written to the ancient store. More
@@ -524,14 +524,21 @@ func (d *Downloader) syncToHead() (err error) {
 	} else if mode == FullSync {
 		fetchers = append(fetchers, func() error { return d.processFullSyncContent() })
 	}
-	return d.spawnSync(fetchers)
+	return d.spawnSync(fetchers, beaconPing)
 }
 
 // spawnSync runs d.process and all given fetcher functions to completion in
 // separate goroutines, returning the first error that appears.
-func (d *Downloader) spawnSync(fetchers []func() error) error {
+func (d *Downloader) spawnSync(fetchers []func() error, beaconPing chan struct{}) error {
 	errc := make(chan error, len(fetchers))
 	d.cancelWg.Add(len(fetchers))
+
+	// Only now that the fetchers are registered on the cancellation WaitGroup
+	// can a concurrent Cancel wait for them instead of racing the registration;
+	// signal the beacon syncer that it's safe to cancel.
+	if beaconPing != nil {
+		close(beaconPing)
+	}
 	for _, fn := range fetchers {
 		go func() { defer d.cancelWg.Done(); errc <- fn() }()
 	}

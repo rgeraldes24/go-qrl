@@ -21,6 +21,7 @@ import (
 	"math/big"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/theQRL/go-qrl/common"
 	"github.com/theQRL/go-qrl/core/rawdb"
 	"github.com/theQRL/go-qrl/crypto"
@@ -198,13 +199,12 @@ func TestStackTrieInsertAndHash(t *testing.T) {
 			{"000003", "XXXXXXXXXXXXXXXXXXXXXXXXXXXX", "962c0fffdeef7612a4f7bff1950d67e3e81c878e48b9ae45b3b374253b050bd8"},
 		},
 	}
-	st := NewStackTrie(nil)
 	for i, test := range tests {
 		// The StackTrie does not allow Insert(), Hash(), Insert(), ...
 		// so we will create new trie for every sequence length of inserts.
 		for l := 1; l <= len(test); l++ {
-			st.Reset()
-			for j := range l {
+			st := NewStackTrie(nil)
+			for j := 0; j < l; j++ {
 				kv := &test[j]
 				if err := st.Update(common.FromHex(kv.K), []byte(kv.V)); err != nil {
 					t.Fatal(err)
@@ -378,47 +378,23 @@ func TestStacktrieNotModifyValues(t *testing.T) {
 	}
 }
 
-// TestStacktrieSerialization tests that the stacktrie works well if we
-// serialize/unserialize it a lot
-func TestStacktrieSerialization(t *testing.T) {
-	var (
-		st       = NewStackTrie(nil)
-		nt       = NewEmpty(NewDatabase(rawdb.NewMemoryDatabase(), nil))
-		keyB     = big.NewInt(1)
-		keyDelta = big.NewInt(1)
-		vals     [][]byte
-		keys     [][]byte
-	)
-	getValue := func(i int) []byte {
-		if i%2 == 0 { // large
-			return crypto.Keccak256(big.NewInt(int64(i)).Bytes())
-		} else { //small
-			return big.NewInt(int64(i)).Bytes()
-		}
+func TestStackTrieErrors(t *testing.T) {
+	s := NewStackTrie(nil)
+	// Deletion
+	if err := s.Update(nil, nil); err == nil {
+		t.Fatal("expected error")
 	}
-	for i := range 10 {
-		vals = append(vals, getValue(i))
-		keys = append(keys, common.BigToHash(keyB).Bytes())
-		keyB = keyB.Add(keyB, keyDelta)
-		keyDelta.Add(keyDelta, common.Big1)
+	if err := s.Update(nil, []byte{}); err == nil {
+		t.Fatal("expected error")
 	}
-	for i, k := range keys {
-		nt.Update(k, common.CopyBytes(vals[i]))
+	if err := s.Update([]byte{0xa}, []byte{}); err == nil {
+		t.Fatal("expected error")
 	}
-
-	for i, k := range keys {
-		blob, err := st.MarshalBinary()
-		if err != nil {
-			t.Fatal(err)
-		}
-		newSt, err := NewFromBinary(blob, nil)
-		if err != nil {
-			t.Fatal(err)
-		}
-		st = newSt
-		st.Update(k, common.CopyBytes(vals[i]))
-	}
-	if have, want := st.Hash(), nt.Hash(); have != want {
-		t.Fatalf("have %#x want %#x", have, want)
-	}
+	// Non-ascending keys (going backwards or repeating)
+	assert.Nil(t, s.Update([]byte{0xaa}, []byte{0xa}))
+	assert.NotNil(t, s.Update([]byte{0xaa}, []byte{0xa}), "repeat insert same key")
+	assert.NotNil(t, s.Update([]byte{0xaa}, []byte{0xb}), "repeat insert same key")
+	assert.Nil(t, s.Update([]byte{0xab}, []byte{0xa}))
+	assert.NotNil(t, s.Update([]byte{0x10}, []byte{0xb}), "out of order insert")
+	assert.NotNil(t, s.Update([]byte{0xaa}, []byte{0xb}), "repeat insert same key")
 }

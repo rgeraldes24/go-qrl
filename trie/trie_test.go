@@ -26,6 +26,7 @@ import (
 	"math/big"
 	"math/rand"
 	"reflect"
+	"sort"
 	"testing"
 	"testing/quick"
 
@@ -795,6 +796,8 @@ type spongeDb struct {
 	sponge  hash.Hash
 	id      string
 	journal []string
+	keys    []string
+	values  map[string]string
 }
 
 func (s *spongeDb) Has(key []byte) (bool, error)             { panic("implement me") }
@@ -817,9 +820,24 @@ func (s *spongeDb) Put(key []byte, value []byte) error {
 		valbrief = valbrief[:8]
 	}
 	s.journal = append(s.journal, fmt.Sprintf("%v: PUT([%x...], [%d bytes] %x...)\n", s.id, keybrief, len(value), valbrief))
-	s.sponge.Write(key)
-	s.sponge.Write(value)
+
+	if s.values == nil {
+		s.sponge.Write(key)
+		s.sponge.Write(value)
+	} else {
+		s.keys = append(s.keys, string(key))
+		s.values[string(key)] = string(value)
+	}
 	return nil
+}
+
+func (s *spongeDb) Flush() {
+	// Bottom-up, the longest path first
+	sort.Sort(sort.Reverse(sort.StringSlice(s.keys)))
+	for _, key := range s.keys {
+		s.sponge.Write([]byte(key))
+		s.sponge.Write([]byte(s.values[key]))
+	}
 }
 func (s *spongeDb) NewIterator(prefix []byte, start []byte) qrldb.Iterator { panic("implement me") }
 
@@ -916,14 +934,19 @@ func TestCommitSequenceStackTrie(t *testing.T) {
 	for count := 1; count < 200; count++ {
 		prng := rand.New(rand.NewSource(int64(count)))
 		// This spongeDb is used to check the sequence of disk-db-writes
-		s := &spongeDb{sponge: sha3.NewLegacyKeccak256(), id: "a"}
+		s := &spongeDb{sponge: sha3.NewLegacyKeccak256(), id: "a", values: make(map[string]string)}
 		db := NewDatabase(rawdb.NewDatabase(s), nil)
 		trie := NewEmpty(db)
 		// Another sponge is used for the stacktrie commits
-		stackTrieSponge := &spongeDb{sponge: sha3.NewLegacyKeccak256(), id: "b"}
-		stTrie := NewStackTrie(func(owner common.Hash, path []byte, hash common.Hash, blob []byte) {
-			rawdb.WriteTrieNode(stackTrieSponge, owner, path, hash, blob, db.Scheme())
+		stackTrieSponge := &spongeDb{
+			sponge: sha3.NewLegacyKeccak256(),
+			id:     "b",
+			values: make(map[string]string),
+		}
+		stTrie := NewStackTrie(func(path []byte, hash common.Hash, blob []byte) {
+			rawdb.WriteTrieNode(stackTrieSponge, common.Hash{}, path, hash, blob, db.Scheme())
 		})
+
 		// Fill the trie with elements
 		for i := range count {
 			// For the stack trie, we need to do inserts in proper order
@@ -945,14 +968,13 @@ func TestCommitSequenceStackTrie(t *testing.T) {
 		// Flush memdb -> disk (sponge)
 		db.Update(root, types.EmptyRootHash, 0, trienode.NewWithNodeSet(nodes), nil)
 		db.Commit(root, false)
+		s.Flush()
 		// And flush stacktrie -> disk
-		stRoot, err := stTrie.Commit()
-		if err != nil {
-			t.Fatalf("Failed to commit stack trie %v", err)
-		}
+		stRoot := stTrie.Hash()
 		if stRoot != root {
 			t.Fatalf("root wrong, got %x exp %x", stRoot, root)
 		}
+		stackTrieSponge.Flush()
 		if got, exp := stackTrieSponge.sponge.Sum(nil), s.sponge.Sum(nil); !bytes.Equal(got, exp) {
 			// Show the journal
 			t.Logf("Expected:")
@@ -975,13 +997,17 @@ func TestCommitSequenceStackTrie(t *testing.T) {
 // that even a small trie which contains a leaf will have an extension making it
 // not fit into 32 bytes, rlp-encoded. However, it's still the correct thing to do.
 func TestCommitSequenceSmallRoot(t *testing.T) {
-	s := &spongeDb{sponge: sha3.NewLegacyKeccak256(), id: "a"}
+	s := &spongeDb{sponge: sha3.NewLegacyKeccak256(), id: "a", values: make(map[string]string)}
 	db := NewDatabase(rawdb.NewDatabase(s), nil)
 	trie := NewEmpty(db)
 	// Another sponge is used for the stacktrie commits
-	stackTrieSponge := &spongeDb{sponge: sha3.NewLegacyKeccak256(), id: "b"}
-	stTrie := NewStackTrie(func(owner common.Hash, path []byte, hash common.Hash, blob []byte) {
-		rawdb.WriteTrieNode(stackTrieSponge, owner, path, hash, blob, db.Scheme())
+	stackTrieSponge := &spongeDb{
+		sponge: sha3.NewLegacyKeccak256(),
+		id:     "b",
+		values: make(map[string]string),
+	}
+	stTrie := NewStackTrie(func(path []byte, hash common.Hash, blob []byte) {
+		rawdb.WriteTrieNode(stackTrieSponge, common.Hash{}, path, hash, blob, db.Scheme())
 	})
 	// Add a single small-element to the trie(s)
 	key := make([]byte, 5)
@@ -993,16 +1019,15 @@ func TestCommitSequenceSmallRoot(t *testing.T) {
 	// Flush memdb -> disk (sponge)
 	db.Update(root, types.EmptyRootHash, 0, trienode.NewWithNodeSet(nodes), nil)
 	db.Commit(root, false)
+	s.Flush()
 	// And flush stacktrie -> disk
-	stRoot, err := stTrie.Commit()
-	if err != nil {
-		t.Fatalf("Failed to commit stack trie %v", err)
-	}
+	stRoot := stTrie.Hash()
 	if stRoot != root {
 		t.Fatalf("root wrong, got %x exp %x", stRoot, root)
 	}
 
 	t.Logf("root: %x\n", stRoot)
+	stackTrieSponge.Flush()
 	if got, exp := stackTrieSponge.sponge.Sum(nil), s.sponge.Sum(nil); !bytes.Equal(got, exp) {
 		t.Fatalf("test, disk write sequence wrong:\ngot %x exp %x\n", got, exp)
 	}
