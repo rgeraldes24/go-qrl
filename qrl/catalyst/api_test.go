@@ -33,6 +33,7 @@ import (
 	"github.com/theQRL/go-qrl/common/hexutil"
 	beaconConsensus "github.com/theQRL/go-qrl/consensus/beacon"
 	"github.com/theQRL/go-qrl/core"
+	"github.com/theQRL/go-qrl/core/rawdb"
 	"github.com/theQRL/go-qrl/core/types"
 	"github.com/theQRL/go-qrl/crypto"
 	"github.com/theQRL/go-qrl/internal/testutil"
@@ -498,6 +499,36 @@ func TestForkchoiceUpdatedReorgDepthLimit(t *testing.T) {
 			t.Fatalf("chain head not rewound to genesis: have %d, want 0", head)
 		}
 	})
+}
+
+// TestForkchoiceUpdatedCanonicalAboveHead tests that forkchoiceUpdated moves the
+// head forward onto a block that the canonical index already holds above the
+// current head, the state an unclean shutdown leaves behind when the unpersisted
+// state is dropped. Such a move is not a reorg and must not trip the depth limit.
+func TestForkchoiceUpdatedCanonicalAboveHead(t *testing.T) {
+	genesis, blocks := generateChain(10)
+	n, qrlservice := startQRLService(t, genesis, blocks, func(cfg *qrlconfig.Config) {
+		cfg.EngineMaxReorgDepth = 5
+	})
+	defer n.Close()
+
+	api := newConsensusAPIWithoutHeartbeat(qrlservice)
+
+	// Rewind the head, then restore the canonical index above it.
+	rewind := engine.ForkchoiceStateV1{HeadBlockHash: blocks[6].Hash()}
+	if _, err := api.ForkchoiceUpdatedV2(rewind, nil); err != nil {
+		t.Fatalf("rewind failed: %v", err)
+	}
+	for _, block := range blocks[7:] {
+		rawdb.WriteCanonicalHash(qrlservice.ChainDb(), block.Hash(), block.NumberU64())
+	}
+	update := engine.ForkchoiceStateV1{HeadBlockHash: blocks[9].Hash()}
+	if _, err := api.ForkchoiceUpdatedV2(update, nil); err != nil {
+		t.Fatalf("forward update onto the canonical index failed: %v", err)
+	}
+	if head := qrlservice.BlockChain().CurrentBlock().Number.Uint64(); head != blocks[9].NumberU64() {
+		t.Fatalf("chain head not advanced: have %d, want %d", head, blocks[9].NumberU64())
+	}
 }
 
 func TestFullAPI(t *testing.T) {
