@@ -145,6 +145,7 @@ var (
 		utils.RPCGlobalGasCapFlag,
 		utils.RPCGlobalQRVMTimeoutFlag,
 		utils.RPCGlobalTxFeeCapFlag,
+		utils.EngineMaxReorgDepthFlag,
 		utils.BatchRequestLimit,
 		utils.BatchResponseMaxSize,
 	}
