@@ -1891,8 +1891,13 @@ func (bc *BlockChain) reorg(oldHead *types.Header, newHead *types.Block) error {
 		blockReorgAddMeter.Mark(int64(len(newChain)))
 	} else {
 		// len(newChain) == 0 && len(oldChain) > 0
-		// rewind the canonical chain to a lower point.
-		log.Error("Impossible reorg, please file an issue", "oldnum", oldBlock.Number(), "oldhash", oldBlock.Hash(), "oldblocks", len(oldChain), "newnum", newBlock.Number(), "newhash", newBlock.Hash(), "newblocks", len(newChain))
+		// Rewind the canonical chain to a lower point. In EPBs we can reorg to
+		// a parent of the head within 32 blocks.
+		if len(oldChain) > 32 {
+			log.Error("Impossible reorg, please file an issue", "oldnum", oldHead.Number, "oldhash", oldHead.Hash(), "oldblocks", len(oldChain))
+		} else {
+			log.Info("Shorten chain", "del", len(oldChain), "number", oldHead.Number, "hash", oldHead.Hash())
+		}
 	}
 	// Insert the new chain(except the head block(reverse order)),
 	// taking care of the proper incremental order.
