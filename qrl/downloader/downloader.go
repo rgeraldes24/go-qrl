@@ -210,6 +210,11 @@ func New(stateDb qrldb.Database, mux *event.TypeMux, chain BlockChain, dropPeer 
 	return dl
 }
 
+// Synchronising returns whether a sync cycle is running.
+func (d *Downloader) Synchronising() bool {
+	return d.synchronising.Load()
+}
+
 // Progress retrieves the synchronisation boundaries, specifically the origin
 // block where synchronisation started at (may have failed/suspended); the block
 // or header sync is currently at; and the latest known block which the sync targets.
