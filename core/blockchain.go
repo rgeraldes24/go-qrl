@@ -26,6 +26,7 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+	"unsafe"
 
 	"github.com/theQRL/go-qrl/common"
 	"github.com/theQRL/go-qrl/common/lru"
@@ -97,7 +98,13 @@ const (
 	bodyCacheLimit     = 256
 	blockCacheLimit    = 256
 	receiptsCacheLimit = 32
-	TriesInMemory      = 128
+
+	// The caches are also bounded in bytes: a full block is several MB, so the
+	// counts alone would let them hold GBs.
+	bodyCacheSize     = 128 * 1024 * 1024
+	blockCacheSize    = 128 * 1024 * 1024
+	receiptsCacheSize = 64 * 1024 * 1024
+	TriesInMemory     = 128
 
 	// BlockChainVersion ensures that an incompatible database forces a resync from scratch.
 	//
@@ -234,10 +241,10 @@ type BlockChain struct {
 	currentFinalBlock atomic.Pointer[types.Header] // Latest (consensus) finalized block
 	currentSafeBlock  atomic.Pointer[types.Header] // Latest (consensus) safe block
 
-	bodyCache     *lru.Cache[common.Hash, *types.Body]
-	bodyRLPCache  *lru.Cache[common.Hash, rlp.RawValue]
-	receiptsCache *lru.Cache[common.Hash, []*types.Receipt]
-	blockCache    *lru.Cache[common.Hash, *types.Block]
+	bodyCache     *lru.WeightedCache[common.Hash, *types.Body]
+	bodyRLPCache  *lru.WeightedCache[common.Hash, rlp.RawValue]
+	receiptsCache *lru.WeightedCache[common.Hash, []*types.Receipt]
+	blockCache    *lru.WeightedCache[common.Hash, *types.Block]
 
 	wg            sync.WaitGroup //
 	quit          chan struct{}  // shutdown signal, closed in Stop.
@@ -284,10 +291,10 @@ func NewBlockChain(db qrldb.Database, cacheConfig *CacheConfig, genesis *Genesis
 		triegc:        prque.New[int64, common.Hash512](nil),
 		quit:          make(chan struct{}),
 		chainmu:       syncx.NewClosableMutex(),
-		bodyCache:     lru.NewCache[common.Hash, *types.Body](bodyCacheLimit),
-		bodyRLPCache:  lru.NewCache[common.Hash, rlp.RawValue](bodyCacheLimit),
-		receiptsCache: lru.NewCache[common.Hash, []*types.Receipt](receiptsCacheLimit),
-		blockCache:    lru.NewCache[common.Hash, *types.Block](blockCacheLimit),
+		bodyCache:     lru.NewWeightedCache[common.Hash](bodyCacheLimit, bodyCacheSize, bodySize),
+		bodyRLPCache:  lru.NewWeightedCache[common.Hash](bodyCacheLimit, bodyCacheSize, rlpSize),
+		receiptsCache: lru.NewWeightedCache[common.Hash](receiptsCacheLimit, receiptsCacheSize, receiptsSize),
+		blockCache:    lru.NewWeightedCache[common.Hash](blockCacheLimit, blockCacheSize, (*types.Block).Size),
 		engine:        engine,
 		vmConfig:      vmConfig,
 	}
@@ -2235,4 +2242,28 @@ func (bc *BlockChain) SetTrieFlushInterval(interval time.Duration) {
 // GetTrieFlushInterval gets the in-memroy tries flush interval
 func (bc *BlockChain) GetTrieFlushInterval() time.Duration {
 	return time.Duration(bc.flushInterval.Load())
+}
+
+// bodySize returns the approximate memory a block body takes in a cache.
+func bodySize(body *types.Body) uint64 {
+	size := uint64(len(body.Withdrawals)) * uint64(unsafe.Sizeof(types.Withdrawal{}))
+	for _, tx := range body.Transactions {
+		size += tx.Size()
+	}
+	return size
+}
+
+// rlpSize returns the memory an RLP-encoded value takes in a cache.
+func rlpSize(value rlp.RawValue) uint64 {
+	return uint64(len(value))
+}
+
+// receiptsSize returns the approximate memory a block's receipts take in a
+// cache.
+func receiptsSize(receipts []*types.Receipt) uint64 {
+	var size uint64
+	for _, receipt := range receipts {
+		size += uint64(receipt.Size())
+	}
+	return size
 }
