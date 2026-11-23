@@ -1201,7 +1201,10 @@ func TestGetBlockBodiesByHash(t *testing.T) {
 	}
 
 	for k, test := range tests {
-		result := api.GetPayloadBodiesByHashV1(test.hashes)
+		result, err := api.GetPayloadBodiesByHashV1(test.hashes)
+		if err != nil {
+			t.Fatalf("test %v: unexpected error: %v", k, err)
+		}
 		for i, r := range result {
 			if !equalBody(test.results[i], r) {
 				t.Fatalf("test %v: invalid response: expected %+v got %+v", k, test.results[i], r)
@@ -1288,6 +1291,29 @@ func TestGetBlockBodiesByRange(t *testing.T) {
 		} else {
 			t.Fatalf("test %d: invalid length want %v got %v", k, len(test.results), len(result))
 		}
+	}
+}
+
+func TestGetBlockBodiesByHashTooLarge(t *testing.T) {
+	node, qrl, blocks := setupBodies(t)
+	api := NewConsensusAPI(qrl)
+	defer node.Close()
+
+	hashes := make([]common.Hash, maxPayloadBodies)
+	for i := range hashes {
+		hashes[i] = blocks[0].Hash()
+	}
+	if _, err := api.GetPayloadBodiesByHashV1(hashes); err != nil {
+		t.Fatalf("%d hashes: unexpected error: %v", len(hashes), err)
+	}
+
+	hashes = append(hashes, blocks[0].Hash())
+	result, err := api.GetPayloadBodiesByHashV1(hashes)
+	if err == nil {
+		t.Fatalf("%d hashes: expected an error, got %d bodies", len(hashes), len(result))
+	}
+	if have, want := err.Error(), engine.TooLargeRequest.Error(); have != want {
+		t.Fatalf("%d hashes: have %s, want %s", len(hashes), have, want)
 	}
 }
 

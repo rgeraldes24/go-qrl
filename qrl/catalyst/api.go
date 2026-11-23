@@ -583,15 +583,22 @@ func (api *ConsensusAPI) ExchangeCapabilities([]string) []string {
 	return caps
 }
 
+// maxPayloadBodies is the most block bodies a payload-bodies request may ask
+// for. The engine API spec requires a client to support at least 32.
+const maxPayloadBodies = 1024
+
 // GetPayloadBodiesByHashV1 implements engine_getPayloadBodiesByHashV1 which allows for retrieval of a list
 // of block bodies by the engine api.
-func (api *ConsensusAPI) GetPayloadBodiesByHashV1(hashes []common.Hash) []*engine.ExecutionPayloadBodyV1 {
+func (api *ConsensusAPI) GetPayloadBodiesByHashV1(hashes []common.Hash) ([]*engine.ExecutionPayloadBodyV1, error) {
+	if len(hashes) > maxPayloadBodies {
+		return nil, engine.TooLargeRequest.With(fmt.Errorf("requested count too large: %v", len(hashes)))
+	}
 	bodies := make([]*engine.ExecutionPayloadBodyV1, len(hashes))
 	for i, hash := range hashes {
 		block := api.qrl.BlockChain().GetBlockByHash(hash)
 		bodies[i] = getBody(block)
 	}
-	return bodies
+	return bodies, nil
 }
 
 // GetPayloadBodiesByRangeV1 implements engine_getPayloadBodiesByRangeV1 which allows for retrieval of a range
@@ -600,7 +607,7 @@ func (api *ConsensusAPI) GetPayloadBodiesByRangeV1(start, count hexutil.Uint64) 
 	if start == 0 || count == 0 {
 		return nil, engine.InvalidParams.With(fmt.Errorf("invalid start or count, start: %v count: %v", start, count))
 	}
-	if count > 1024 {
+	if count > maxPayloadBodies {
 		return nil, engine.TooLargeRequest.With(fmt.Errorf("requested count too large: %v", count))
 	}
 	// limit count up until current
