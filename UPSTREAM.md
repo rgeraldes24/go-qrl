@@ -2677,7 +2677,7 @@ Flags on commits to port: **consensus** touches state transition, the VM, types,
 - [ ] [#35111](https://github.com/ethereum/go-ethereum/pull/35111) node: fix wrong status code in ws `node`
 - [ ] [#35008](https://github.com/ethereum/go-ethereum/pull/35008) all: fix all typos, as reported by crates-ci/typos `accounts/abi`, `cmd/devp2p`, `core`, `core/filtermaps` **consensus**
 - [ ] [#35132](https://github.com/ethereum/go-ethereum/pull/35132) rpc: add option to configure TextMapPropagator on client `rpc`
-- [-] [#35140](https://github.com/ethereum/go-ethereum/pull/35140) beacon/engine: ensure nil ExecutionPayloadEnvelope.BlockValue doesn't crash `beacon/engine` **security?** — n/a: go-qrl has no gen_epe.go encoder
+- [-] [#35140](https://github.com/ethereum/go-ethereum/pull/35140) beacon/engine: ensure nil ExecutionPayloadEnvelope.BlockValue doesn't crash `beacon/engine` **security?** — n/a: the crash is in upstream's hand-written epe_encode.go, which go-qrl doesn't have
 - [x] [#35074](https://github.com/ethereum/go-ethereum/pull/35074) log: share mutex in log handles with same writer and other fields `log` — in go-qrl
 - [ ] [#34626](https://github.com/ethereum/go-ethereum/pull/34626) core, eth/protocols/snap, eth/downloader: snap/2 sync logic `cmd/devp2p`, `cmd/gqrl`, `cmd/utils`, `core` **consensus**
 - [ ] [#35124](https://github.com/ethereum/go-ethereum/pull/35124) core/txpool/blobpool: add cache for GetBlobs request `core/txpool`, `miner`, `qrl`, `qrl/catalyst`
