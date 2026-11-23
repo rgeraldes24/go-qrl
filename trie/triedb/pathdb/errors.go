@@ -21,6 +21,7 @@ import (
 	"fmt"
 
 	"github.com/theQRL/go-qrl/common"
+	"github.com/theQRL/go-qrl/common/hexutil"
 )
 
 var (
@@ -46,6 +47,10 @@ var (
 	errUnexpectedNode = errors.New("unexpected node")
 )
 
-func newUnexpectedNodeError(loc string, expHash common.Hash512, gotHash common.Hash512, owner common.Hash512, path []byte) error {
-	return fmt.Errorf("%w, loc: %s, node: (%x %v), %x!=%x", errUnexpectedNode, loc, owner, path, expHash, gotHash)
+func newUnexpectedNodeError(loc string, expHash common.Hash512, gotHash common.Hash512, owner common.Hash512, path []byte, blob []byte) error {
+	blobHex := "nil"
+	if len(blob) > 0 {
+		blobHex = hexutil.Encode(blob)
+	}
+	return fmt.Errorf("%w, loc: %s, node: (%x %v), %x!=%x, blob: %s", errUnexpectedNode, loc, owner, path, expHash, gotHash, blobHex)
 }
