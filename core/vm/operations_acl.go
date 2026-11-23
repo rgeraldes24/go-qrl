@@ -33,7 +33,7 @@ func makeGasSStoreFunc(clearingRefund uint64) gasFunc {
 		// Gas sentry honoured, do the actual gas calculation based on the stored value
 		var (
 			y, x    = stack.Back(1), stack.peek()
-			slot    = common.Hash(x.Bytes32())
+			slot    = common.StorageKey(x.Bytes64())
 			current = qrvm.StateDB.GetState(contract.Address(), slot)
 			cost    = uint64(0)
 		)
@@ -54,7 +54,7 @@ func makeGasSStoreFunc(clearingRefund uint64) gasFunc {
 		if current == value { // noop (1)
 			return cost + params.WarmStorageReadCostEIP2929, nil // SLOAD_GAS
 		}
-		original := qrvm.StateDB.GetCommittedState(contract.Address(), x.Bytes32())
+		original := qrvm.StateDB.GetCommittedState(contract.Address(), x.Bytes64())
 		if original == current {
 			if original == (common.StorageValue64{}) { // create slot (2.1.1)
 				return cost + params.SstoreSetGasEIP2200, nil
@@ -92,7 +92,7 @@ func makeGasSStoreFunc(clearingRefund uint64) gasFunc {
 // If the pair is already in accessed_storage_keys, charge 100 gas.
 func gasSLoadEIP2929(qrvm *QRVM, contract *Contract, stack *Stack, mem *Memory, memorySize uint64) (uint64, error) {
 	loc := stack.peek()
-	slot := common.Hash(loc.Bytes32())
+	slot := common.StorageKey(loc.Bytes64())
 	// Check slot presence in the access list
 	if _, slotPresent := qrvm.StateDB.SlotInAccessList(contract.Address(), slot); !slotPresent {
 		// If the caller cannot afford the cost, this change will be rolled back

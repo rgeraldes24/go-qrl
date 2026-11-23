@@ -26,69 +26,75 @@ import (
 // split up the remaining hash space into a fixed number of chunks.
 func TestHashRanges(t *testing.T) {
 	tests := []struct {
-		head   common.Hash
+		head   common.Hash512
 		chunks uint64
-		starts []common.Hash
-		ends   []common.Hash
+		starts []common.Hash512
+		ends   []common.Hash512
 	}{
+		{
+			head:   common.Hash512{},
+			chunks: 1,
+			starts: []common.Hash512{{}},
+			ends:   []common.Hash512{common.MaxHash512},
+		},
 		// Simple test case to split the entire hash range into 4 chunks
 		{
-			head:   common.Hash{},
+			head:   common.Hash512{},
 			chunks: 4,
-			starts: []common.Hash{
+			starts: []common.Hash512{
 				{},
-				common.HexToHash("0x4000000000000000000000000000000000000000000000000000000000000000"),
-				common.HexToHash("0x8000000000000000000000000000000000000000000000000000000000000000"),
-				common.HexToHash("0xc000000000000000000000000000000000000000000000000000000000000000"),
+				common.HexToHash512("0x40000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"),
+				common.HexToHash512("0x80000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"),
+				common.HexToHash512("0xc0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"),
 			},
-			ends: []common.Hash{
-				common.HexToHash("0x3fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"),
-				common.HexToHash("0x7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"),
-				common.HexToHash("0xbfffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"),
-				common.MaxHash,
+			ends: []common.Hash512{
+				common.HexToHash512("0x3fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"),
+				common.HexToHash512("0x7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"),
+				common.HexToHash512("0xbfffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"),
+				common.MaxHash512,
 			},
 		},
 		// Split a divisible part of the hash range up into 2 chunks
 		{
-			head:   common.HexToHash("0x2000000000000000000000000000000000000000000000000000000000000000"),
+			head:   common.HexToHash512("0x20000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"),
 			chunks: 2,
-			starts: []common.Hash{
+			starts: []common.Hash512{
 				{},
-				common.HexToHash("0x9000000000000000000000000000000000000000000000000000000000000000"),
+				common.HexToHash512("0x90000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"),
 			},
-			ends: []common.Hash{
-				common.HexToHash("0x8fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"),
-				common.MaxHash,
+			ends: []common.Hash512{
+				common.HexToHash512("0x8fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"),
+				common.MaxHash512,
 			},
 		},
 		// Split the entire hash range into a non divisible 3 chunks
 		{
-			head:   common.Hash{},
+			head:   common.Hash512{},
 			chunks: 3,
-			starts: []common.Hash{
+			starts: []common.Hash512{
 				{},
-				common.HexToHash("0x5555555555555555555555555555555555555555555555555555555555555556"),
-				common.HexToHash("0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaac"),
+				common.HexToHash512("0x55555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555556"),
+				common.HexToHash512("0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaac"),
 			},
-			ends: []common.Hash{
-				common.HexToHash("0x5555555555555555555555555555555555555555555555555555555555555555"),
-				common.HexToHash("0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaab"),
-				common.MaxHash,
+			ends: []common.Hash512{
+				common.HexToHash512("0x55555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555"),
+				common.HexToHash512("0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaab"),
+				common.MaxHash512,
 			},
 		},
 		// Split a part of hash range into a non divisible 3 chunks
 		{
-			head:   common.HexToHash("0x2000000000000000000000000000000000000000000000000000000000000000"),
+			head:   common.HexToHash512("0x20000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"),
 			chunks: 3,
-			starts: []common.Hash{
+			starts: []common.Hash512{
 				{},
-				common.HexToHash("0x6aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaab"),
-				common.HexToHash("0xb555555555555555555555555555555555555555555555555555555555555556"),
+				common.HexToHash512("0x6aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaab"),
+				common.HexToHash512("0xb5555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555556"),
 			},
-			ends: []common.Hash{
-				common.HexToHash("0x6aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"),
-				common.HexToHash("0xb555555555555555555555555555555555555555555555555555555555555555"),
-				common.MaxHash,
+			ends: []common.Hash512{
+				common.HexToHash512("0x6aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"),
+				common.HexToHash512("0xb5555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555"),
+				common.MaxHash512,
 			},
 		},
 		// Split a part of hash range into a non divisible 3 chunks, but with a
@@ -98,17 +104,17 @@ func TestHashRanges(t *testing.T) {
 		//   - Since the range is not divisible, the last interval will be shorter, capped at 0xff...f
 		//   - The chunk ranges thus needs to be [..0, ..5], [..6, ..b], [..c, ..f]
 		{
-			head:   common.HexToHash("0xfffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff0"),
+			head:   common.HexToHash512("0xfffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff0"),
 			chunks: 3,
-			starts: []common.Hash{
+			starts: []common.Hash512{
 				{},
-				common.HexToHash("0xfffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff6"),
-				common.HexToHash("0xfffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffc"),
+				common.HexToHash512("0xfffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff6"),
+				common.HexToHash512("0xfffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffc"),
 			},
-			ends: []common.Hash{
-				common.HexToHash("0xfffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff5"),
-				common.HexToHash("0xfffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffb"),
-				common.MaxHash,
+			ends: []common.Hash512{
+				common.HexToHash512("0xfffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff5"),
+				common.HexToHash512("0xfffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffb"),
+				common.MaxHash512,
 			},
 		},
 	}
@@ -116,8 +122,8 @@ func TestHashRanges(t *testing.T) {
 		r := newHashRange(tt.head, tt.chunks)
 
 		var (
-			starts = []common.Hash{{}}
-			ends   = []common.Hash{r.End()}
+			starts = []common.Hash512{{}}
+			ends   = []common.Hash512{r.End()}
 		)
 		for r.Next() {
 			starts = append(starts, r.Start())

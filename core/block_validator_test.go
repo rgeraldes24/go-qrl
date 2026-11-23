@@ -17,6 +17,8 @@
 package core
 
 import (
+	"errors"
+	"math/big"
 	"testing"
 	"time"
 
@@ -25,6 +27,7 @@ import (
 	"github.com/theQRL/go-qrl/core/types"
 	"github.com/theQRL/go-qrl/core/vm"
 	"github.com/theQRL/go-qrl/params"
+	"github.com/theQRL/go-qrl/trie"
 )
 
 // Tests that simple header verification works, for both good and bad blocks.
@@ -75,5 +78,37 @@ func testHeaderVerification(t *testing.T, scheme string) {
 			}
 		}
 		chain.InsertChain(blocks[i : i+1])
+	}
+}
+
+// Tests that a block is accepted at the EIP-7934 size cap and rejected above it.
+func TestBlockSizeCap(t *testing.T) {
+	gspec := &Genesis{Config: params.TestChainConfig}
+	chain, err := NewBlockChain(rawdb.NewMemoryDatabase(), nil, gspec, beacon.NewFaker(), vm.Config{}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer chain.Stop()
+
+	// makeBlock builds a child of genesis holding one transaction with the
+	// given amount of calldata.
+	makeBlock := func(dataLen uint64) *types.Block {
+		tx := types.NewTx(&types.DynamicFeeTx{Data: make([]byte, dataLen)})
+		header := &types.Header{ParentHash: chain.Genesis().Hash(), Number: big.NewInt(1)}
+		return types.NewBlock(header, &types.Body{Transactions: []*types.Transaction{tx}}, nil, trie.NewStackTrie(nil))
+	}
+	// Everything around the calldata has a fixed size at this scale, so the
+	// calldata length can be chosen to land the block exactly on the cap.
+	overhead := makeBlock(params.MaxBlockSize).Size() - params.MaxBlockSize
+	atCap := makeBlock(params.MaxBlockSize - overhead)
+	if atCap.Size() != params.MaxBlockSize {
+		t.Fatalf("block size mismatch: have %d, want %d", atCap.Size(), params.MaxBlockSize)
+	}
+	if err := chain.Validator().ValidateBody(atCap); err != nil {
+		t.Fatalf("block at the size cap rejected: %v", err)
+	}
+	overCap := makeBlock(params.MaxBlockSize - overhead + 1)
+	if err := chain.Validator().ValidateBody(overCap); !errors.Is(err, ErrBlockOversized) {
+		t.Fatalf("block above the size cap: have error %v, want %v", err, ErrBlockOversized)
 	}
 }

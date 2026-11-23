@@ -55,7 +55,7 @@ var (
 // generateSnapshot regenerates a brand new snapshot based on an existing state
 // database and head block asynchronously. The snapshot is returned immediately
 // and generation is continued in the background until done.
-func generateSnapshot(diskdb qrldb.KeyValueStore, triedb *trie.Database, cache int, root common.Hash) *diskLayer {
+func generateSnapshot(diskdb qrldb.KeyValueStore, triedb *trie.Database, cache int, root common.Hash512) *diskLayer {
 	// Create a new disk layer with an initialized state marker at zero
 	var (
 		stats     = &generatorStats{start: time.Now()}
@@ -105,10 +105,10 @@ func journalProgress(db qrldb.KeyValueWriter, marker []byte, stats *generatorSta
 		logstr = "done"
 	case bytes.Equal(marker, []byte{}):
 		logstr = "empty"
-	case len(marker) == common.HashLength:
+	case len(marker) == common.Hash512Length:
 		logstr = fmt.Sprintf("%#x", marker)
 	default:
-		logstr = fmt.Sprintf("%#x:%#x", marker[:common.HashLength], marker[common.HashLength:])
+		logstr = fmt.Sprintf("%#x:%#x", marker[:common.Hash512Length], marker[common.Hash512Length:])
 	}
 	log.Debug("Journalled generator progress", "progress", logstr)
 	rawdb.WriteSnapshotGenerator(db, blob)
@@ -254,7 +254,7 @@ func (dl *diskLayer) proveRange(ctx *generatorContext, trieId *trie.ID, prefix [
 	}
 	// Generate the Merkle proofs for the first and last element
 	if origin == nil {
-		origin = common.Hash{}.Bytes()
+		origin = common.Hash512{}.Bytes()
 	}
 	if err := tr.Prove(origin, proof); err != nil {
 		log.Debug("Failed to prove range", "kind", kind, "origin", origin, "err", err)
@@ -370,7 +370,7 @@ func (dl *diskLayer) generateRange(ctx *generatorContext, trieId *trie.ID, prefi
 			tdb.Update(root, types.EmptyRootHash, 0, trienode.NewWithNodeSet(nodes), nil)
 			tdb.Commit(root, false)
 		}
-		resolver = func(owner common.Hash, path []byte, hash common.Hash) []byte {
+		resolver = func(owner common.Hash512, path []byte, hash common.Hash512) []byte {
 			return rawdb.ReadTrieNode(mdb, owner, path, hash, tdb.Scheme())
 		}
 	}
@@ -515,24 +515,24 @@ func (dl *diskLayer) checkAndFlush(ctx *generatorContext, current []byte) error 
 
 // generateStorages generates the missing storage slots of the specific contract.
 // It's supposed to restart the generation from the given origin position.
-func generateStorages(ctx *generatorContext, dl *diskLayer, stateRoot common.Hash, account common.Hash, storageRoot common.Hash, storeMarker []byte) error {
+func generateStorages(ctx *generatorContext, dl *diskLayer, stateRoot common.Hash512, account common.Hash512, storageRoot common.Hash512, storeMarker []byte) error {
 	onStorage := func(key []byte, val []byte, write bool, delete bool) error {
 		defer func(start time.Time) {
 			snapStorageWriteCounter.Inc(time.Since(start).Nanoseconds())
 		}(time.Now())
 
 		if delete {
-			rawdb.DeleteStorageSnapshot(ctx.batch, account, common.BytesToHash(key))
+			rawdb.DeleteStorageSnapshot(ctx.batch, account, common.BytesToHash512(key))
 			snapWipedStorageMeter.Mark(1)
 			return nil
 		}
 		if write {
-			rawdb.WriteStorageSnapshot(ctx.batch, account, common.BytesToHash(key), val)
+			rawdb.WriteStorageSnapshot(ctx.batch, account, common.BytesToHash512(key), val)
 			snapGeneratedStorageMeter.Mark(1)
 		} else {
 			snapRecoveredStorageMeter.Mark(1)
 		}
-		ctx.stats.storage += common.StorageSize(1 + 2*common.HashLength + len(val))
+		ctx.stats.storage += common.StorageSize(1 + 2*common.Hash512Length + len(val))
 		ctx.stats.slots++
 
 		// If we've exceeded our batch allowance or termination was requested, flush to disk
@@ -566,7 +566,7 @@ func generateStorages(ctx *generatorContext, dl *diskLayer, stateRoot common.Has
 func generateAccounts(ctx *generatorContext, dl *diskLayer, accMarker []byte) error {
 	onAccount := func(key []byte, val []byte, write bool, delete bool) error {
 		// Make sure to clear all dangling storages before this account
-		account := common.BytesToHash(key)
+		account := common.BytesToHash512(key)
 		ctx.removeStorageBefore(account)
 
 		start := time.Now()
@@ -588,10 +588,10 @@ func generateAccounts(ctx *generatorContext, dl *diskLayer, accMarker []byte) er
 			dataLen := len(val) // Approximate size, saves us a round of RLP-encoding
 			if !write {
 				if bytes.Equal(acc.CodeHash, types.EmptyCodeHash[:]) {
-					dataLen -= 32
+					dataLen -= common.Hash512Length
 				}
 				if acc.Root == types.EmptyRootHash {
-					dataLen -= 32
+					dataLen -= common.Hash512Length
 				}
 				snapRecoveredAccountMeter.Mark(1)
 			} else {
@@ -600,13 +600,13 @@ func generateAccounts(ctx *generatorContext, dl *diskLayer, accMarker []byte) er
 				rawdb.WriteAccountSnapshot(ctx.batch, account, data)
 				snapGeneratedAccountMeter.Mark(1)
 			}
-			ctx.stats.storage += common.StorageSize(1 + common.HashLength + dataLen)
+			ctx.stats.storage += common.StorageSize(1 + common.Hash512Length + dataLen)
 			ctx.stats.accounts++
 		}
 		// If the snap generation goes here after interrupted, genMarker may go backward
 		// when last genMarker is consisted of accountHash and storageHash
 		marker := account[:]
-		if accMarker != nil && bytes.Equal(marker, accMarker) && len(dl.genMarker) > common.HashLength {
+		if accMarker != nil && bytes.Equal(marker, accMarker) && len(dl.genMarker) > common.Hash512Length {
 			marker = dl.genMarker[:]
 		}
 		// If we've exceeded our batch allowance or termination was requested, flush to disk
@@ -621,8 +621,8 @@ func generateAccounts(ctx *generatorContext, dl *diskLayer, accMarker []byte) er
 			ctx.removeStorageAt(account)
 		} else {
 			var storeMarker []byte
-			if accMarker != nil && bytes.Equal(account[:], accMarker) && len(dl.genMarker) > common.HashLength {
-				storeMarker = dl.genMarker[common.HashLength:]
+			if accMarker != nil && bytes.Equal(account[:], accMarker) && len(dl.genMarker) > common.Hash512Length {
+				storeMarker = dl.genMarker[common.Hash512Length:]
 			}
 			if err := generateStorages(ctx, dl, dl.root, account, acc.Root, storeMarker); err != nil {
 				return err
@@ -668,7 +668,7 @@ func (dl *diskLayer) generate(stats *generatorStats) {
 		abort     chan *generatorStats
 	)
 	if len(dl.genMarker) > 0 { // []byte{} is the start, use nil for that
-		accMarker = dl.genMarker[:common.HashLength]
+		accMarker = dl.genMarker[:common.Hash512Length]
 	}
 	stats.Log("Resuming state snapshot generation", dl.root, dl.genMarker)
 

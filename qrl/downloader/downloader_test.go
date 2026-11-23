@@ -102,7 +102,7 @@ func (dl *downloadTester) newPeer(id string, version uint, blocks []*types.Block
 		dl:             dl,
 		id:             id,
 		chain:          newTestBlockchain(blocks),
-		withholdBodies: make(map[common.Hash]struct{}),
+		withholdBodies: make(map[common.Hash512]struct{}),
 	}
 	dl.peers[id] = peer
 
@@ -127,7 +127,7 @@ func (dl *downloadTester) dropPeer(id string) {
 
 type downloadTesterPeer struct {
 	dl             *downloadTester
-	withholdBodies map[common.Hash]struct{}
+	withholdBodies map[common.Hash512]struct{}
 	id             string
 	chain          *core.BlockChain
 }
@@ -226,8 +226,8 @@ func (dlp *downloadTesterPeer) RequestBodies(hashes []common.Hash, sink chan *qr
 		rlp.DecodeBytes(blob, bodies[i])
 	}
 	var (
-		txsHashes        = make([]common.Hash, len(bodies))
-		withdrawalHashes = make([]common.Hash, len(bodies))
+		txsHashes        = make([]common.Hash512, len(bodies))
+		withdrawalHashes = make([]common.Hash512, len(bodies))
 	)
 	hasher := trie.NewStackTrie(nil)
 	for i, body := range bodies {
@@ -247,7 +247,7 @@ func (dlp *downloadTesterPeer) RequestBodies(hashes []common.Hash, sink chan *qr
 	res := &qrlproto.Response{
 		Req:  req,
 		Res:  (*qrlproto.BlockBodiesResponse)(&bodies),
-		Meta: [][]common.Hash{txsHashes, withdrawalHashes},
+		Meta: [][]common.Hash512{txsHashes, withdrawalHashes},
 		Time: 1,
 		Done: make(chan error, 1), // Ignore the returned status
 	}
@@ -268,9 +268,9 @@ func (dlp *downloadTesterPeer) RequestReceipts(hashes []common.Hash, sink chan *
 		rlp.DecodeBytes(blob, &receipts[i])
 	}
 	hasher := trie.NewStackTrie(nil)
-	hashes = make([]common.Hash, len(receipts))
+	receiptHashes := make([]common.Hash512, len(receipts))
 	for i, receipt := range receipts {
-		hashes[i] = types.DeriveSha(types.Receipts(receipt), hasher)
+		receiptHashes[i] = types.DeriveSha(types.Receipts(receipt), hasher)
 	}
 	req := &qrlproto.Request{
 		Peer: dlp.id,
@@ -278,7 +278,7 @@ func (dlp *downloadTesterPeer) RequestReceipts(hashes []common.Hash, sink chan *
 	res := &qrlproto.Response{
 		Req:  req,
 		Res:  (*qrlproto.ReceiptsResponse)(&receipts),
-		Meta: hashes,
+		Meta: receiptHashes,
 		Time: 1,
 		Done: make(chan error, 1), // Ignore the returned status
 	}
@@ -295,7 +295,7 @@ func (dlp *downloadTesterPeer) ID() string {
 
 // RequestAccountRange fetches a batch of accounts rooted in a specific account
 // trie, starting with the origin.
-func (dlp *downloadTesterPeer) RequestAccountRange(id uint64, root, origin, limit common.Hash, bytes uint64) error {
+func (dlp *downloadTesterPeer) RequestAccountRange(id uint64, root, origin, limit common.Hash512, bytes uint64) error {
 	// Create the request and service it
 	req := &snap.GetAccountRangePacket{
 		ID:     id,
@@ -321,7 +321,7 @@ func (dlp *downloadTesterPeer) RequestAccountRange(id uint64, root, origin, limi
 // RequestStorageRanges fetches a batch of storage slots belonging to one or
 // more accounts. If slots from only one account is requested, an origin marker
 // may also be used to retrieve from there.
-func (dlp *downloadTesterPeer) RequestStorageRanges(id uint64, root common.Hash, accounts []common.Hash, origin, limit []byte, bytes uint64) error {
+func (dlp *downloadTesterPeer) RequestStorageRanges(id uint64, root common.Hash512, accounts []common.Hash512, origin, limit []byte, bytes uint64) error {
 	// Create the request and service it
 	req := &snap.GetStorageRangesPacket{
 		ID:       id,
@@ -346,7 +346,7 @@ func (dlp *downloadTesterPeer) RequestStorageRanges(id uint64, root common.Hash,
 }
 
 // RequestByteCodes fetches a batch of bytecodes by hash.
-func (dlp *downloadTesterPeer) RequestByteCodes(id uint64, hashes []common.Hash, bytes uint64) error {
+func (dlp *downloadTesterPeer) RequestByteCodes(id uint64, hashes []common.Hash512, bytes uint64) error {
 	req := &snap.GetByteCodesPacket{
 		ID:     id,
 		Hashes: hashes,
@@ -359,7 +359,7 @@ func (dlp *downloadTesterPeer) RequestByteCodes(id uint64, hashes []common.Hash,
 
 // RequestTrieNodes fetches a batch of account or storage trie nodes rooted in
 // a specific state trie.
-func (dlp *downloadTesterPeer) RequestTrieNodes(id uint64, root common.Hash, paths []snap.TrieNodePathSet, bytes uint64) error {
+func (dlp *downloadTesterPeer) RequestTrieNodes(id uint64, root common.Hash512, paths []snap.TrieNodePathSet, bytes uint64) error {
 	req := &snap.GetTrieNodesPacket{
 		ID:    id,
 		Root:  root,
@@ -394,8 +394,8 @@ func assertOwnChain(t *testing.T, tester *downloadTester, length int) {
 	}
 }
 
-func TestCanonicalSynchronisation1Full(t *testing.T) { testCanonSync(t, qrlproto.QRL1, FullSync) }
-func TestCanonicalSynchronisation1Snap(t *testing.T) { testCanonSync(t, qrlproto.QRL1, SnapSync) }
+func TestCanonicalSynchronisation1Full(t *testing.T) { testCanonSync(t, qrlproto.QRL2, FullSync) }
+func TestCanonicalSynchronisation1Snap(t *testing.T) { testCanonSync(t, qrlproto.QRL2, SnapSync) }
 
 func testCanonSync(t *testing.T, protocol uint, mode SyncMode) {
 	success := make(chan struct{})
@@ -422,9 +422,9 @@ func testCanonSync(t *testing.T, protocol uint, mode SyncMode) {
 
 // Tests that if a large batch of blocks are being downloaded, it is throttled
 // until the cached blocks are retrieved.
-func TestThrottling1Full(t *testing.T) { testThrottling(t, qrlproto.QRL1, FullSync) }
+func TestThrottling1Full(t *testing.T) { testThrottling(t, qrlproto.QRL2, FullSync) }
 
-func TestThrottling1Snap(t *testing.T) { testThrottling(t, qrlproto.QRL1, SnapSync) }
+func TestThrottling1Snap(t *testing.T) { testThrottling(t, qrlproto.QRL2, SnapSync) }
 
 func testThrottling(t *testing.T, protocol uint, mode SyncMode) {
 	tester := newTester(t)
@@ -501,8 +501,8 @@ func testThrottling(t *testing.T, protocol uint, mode SyncMode) {
 }
 
 // Tests that a canceled download wipes all previously accumulated state.
-func TestCancel1Full(t *testing.T) { testCancel(t, qrlproto.QRL1, FullSync) }
-func TestCancel1Snap(t *testing.T) { testCancel(t, qrlproto.QRL1, SnapSync) }
+func TestCancel1Full(t *testing.T) { testCancel(t, qrlproto.QRL2, FullSync) }
+func TestCancel1Snap(t *testing.T) { testCancel(t, qrlproto.QRL2, SnapSync) }
 
 func testCancel(t *testing.T, protocol uint, mode SyncMode) {
 	complete := make(chan struct{})
@@ -534,10 +534,10 @@ func testCancel(t *testing.T, protocol uint, mode SyncMode) {
 // Tests that synchronisations behave well in multi-version protocol environments
 // and not wreak havoc on other nodes in the network.
 func TestMultiProtoSynchronisation1Full(t *testing.T) {
-	testMultiProtoSync(t, qrlproto.QRL1, FullSync)
+	testMultiProtoSync(t, qrlproto.QRL2, FullSync)
 }
 func TestMultiProtoSynchronisation1Snap(t *testing.T) {
-	testMultiProtoSync(t, qrlproto.QRL1, SnapSync)
+	testMultiProtoSync(t, qrlproto.QRL2, SnapSync)
 }
 
 func testMultiProtoSync(t *testing.T, protocol uint, mode SyncMode) {
@@ -552,7 +552,7 @@ func testMultiProtoSync(t *testing.T, protocol uint, mode SyncMode) {
 	chain := testChainBase.shorten(blockCacheMaxItems - 15)
 
 	// Create peers of every type
-	tester.newPeer("peer 1", qrlproto.QRL1, chain.blocks[1:])
+	tester.newPeer("peer 1", qrlproto.QRL2, chain.blocks[1:])
 
 	if err := tester.downloader.BeaconSync(mode, chain.blocks[len(chain.blocks)-1].Header(), nil); err != nil {
 		t.Fatalf("failed to start beacon sync: #{err}")
@@ -576,8 +576,8 @@ func testMultiProtoSync(t *testing.T, protocol uint, mode SyncMode) {
 
 // Tests that if a block is empty (e.g. header only), no body request should be
 // made, and instead the header should be assembled into a whole block in itself.
-func TestEmptyShortCircuit1Full(t *testing.T) { testEmptyShortCircuit(t, qrlproto.QRL1, FullSync) }
-func TestEmptyShortCircuit1Snap(t *testing.T) { testEmptyShortCircuit(t, qrlproto.QRL1, SnapSync) }
+func TestEmptyShortCircuit1Full(t *testing.T) { testEmptyShortCircuit(t, qrlproto.QRL2, FullSync) }
+func TestEmptyShortCircuit1Snap(t *testing.T) { testEmptyShortCircuit(t, qrlproto.QRL2, SnapSync) }
 
 func testEmptyShortCircuit(t *testing.T, protocol uint, mode SyncMode) {
 	success := make(chan struct{})
@@ -645,8 +645,8 @@ func checkProgress(t *testing.T, d *Downloader, stage string, want qrl.SyncProgr
 
 // Tests that peers below a pre-configured checkpoint block are prevented from
 // being fast-synced from, avoiding potential cheap eclipse attacks.
-func TestBeaconSync1Full(t *testing.T) { testBeaconSync(t, qrlproto.QRL1, FullSync) }
-func TestBeaconSync1Snap(t *testing.T) { testBeaconSync(t, qrlproto.QRL1, SnapSync) }
+func TestBeaconSync1Full(t *testing.T) { testBeaconSync(t, qrlproto.QRL2, FullSync) }
+func TestBeaconSync1Snap(t *testing.T) { testBeaconSync(t, qrlproto.QRL2, SnapSync) }
 
 func testBeaconSync(t *testing.T, protocol uint, mode SyncMode) {
 	var cases = []struct {
@@ -691,8 +691,8 @@ func testBeaconSync(t *testing.T, protocol uint, mode SyncMode) {
 
 // Tests that synchronisation progress (origin block number, current block number
 // and highest block number) is tracked and updated correctly.
-func TestSyncProgress1Full(t *testing.T) { testSyncProgress(t, qrlproto.QRL1, FullSync) }
-func TestSyncProgress1Snap(t *testing.T) { testSyncProgress(t, qrlproto.QRL1, SnapSync) }
+func TestSyncProgress1Full(t *testing.T) { testSyncProgress(t, qrlproto.QRL2, FullSync) }
+func TestSyncProgress1Snap(t *testing.T) { testSyncProgress(t, qrlproto.QRL2, SnapSync) }
 
 func testSyncProgress(t *testing.T, protocol uint, mode SyncMode) {
 	success := make(chan struct{})
@@ -708,7 +708,7 @@ func testSyncProgress(t *testing.T, protocol uint, mode SyncMode) {
 	// Connect to peer that provides all headers and part of the bodies
 	faultyPeer := tester.newPeer("peer-half", protocol, shortChain)
 	for _, header := range shortChain {
-		faultyPeer.withholdBodies[header.Hash()] = struct{}{}
+		faultyPeer.withholdBodies[common.BytesToHash512(header.Hash().Bytes())] = struct{}{}
 	}
 
 	if err := tester.downloader.BeaconSync(mode, chain.blocks[len(chain.blocks)/2-1].Header(), nil); err != nil {

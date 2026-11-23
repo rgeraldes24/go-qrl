@@ -70,7 +70,7 @@ func TestMissingRoot(t *testing.T) {
 }
 
 func testMissingRoot(t *testing.T, scheme string) {
-	root := common.HexToHash("0beec7b5ea3f0fdbc95d0dd47f3c5bc275da8a33")
+	root := common.HexToHash512("0beec7b5ea3f0fdbc95d0dd47f3c5bc275da8a33")
 	trie, err := New(TrieID(root), newTestDatabase(rawdb.NewMemoryDatabase(), scheme))
 	if trie != nil {
 		t.Error("New returned non-nil trie for invalid root")
@@ -92,8 +92,8 @@ func testMissingNode(t *testing.T, memonly bool, scheme string) {
 	triedb := newTestDatabase(diskdb, scheme)
 
 	trie := NewEmpty(triedb)
-	updateString(trie, "120000", "qwerqwerqwerqwerqwerqwerqwerqwer")
-	updateString(trie, "123456", "asdfasdfasdfasdfasdfasdfasdfasdf")
+	updateString(trie, "120000", string(bytes.Repeat([]byte("qwer"), 16)))
+	updateString(trie, "123456", string(bytes.Repeat([]byte("asdf"), 16)))
 	root, nodes, _ := trie.Commit(false)
 	triedb.Update(root, types.EmptyRootHash, 0, trienode.NewWithNodeSet(nodes), nil)
 
@@ -129,19 +129,21 @@ func testMissingNode(t *testing.T, memonly bool, scheme string) {
 
 	var (
 		path []byte
-		hash = common.HexToHash("0xe1d943cc8f061a0c0b98162830b970395ac9315654824bf21b73b891365262f9")
+		hash common.Hash512
 	)
 	for p, n := range nodes.Nodes {
-		if n.Hash == hash {
-			path = common.CopyBytes([]byte(p))
-			break
+		if len(p) > len(path) && bytes.HasPrefix(keybytesToHex([]byte("120000")), []byte(p)) {
+			path, hash = []byte(p), n.Hash
 		}
+	}
+	if len(path) == 0 {
+		t.Fatal("missing hashed child in fixture")
 	}
 	trie, _ = New(TrieID(root), triedb)
 	if memonly {
 		trie.reader.banned = map[string]struct{}{string(path): {}}
 	} else {
-		rawdb.DeleteTrieNode(diskdb, common.Hash{}, path, hash, scheme)
+		rawdb.DeleteTrieNode(diskdb, common.Hash512{}, path, hash, scheme)
 	}
 
 	_, err = trie.Get([]byte("120000"))
@@ -173,7 +175,7 @@ func TestInsert(t *testing.T) {
 	updateString(trie, "dog", "puppy")
 	updateString(trie, "dogglesworth", "cat")
 
-	exp := common.HexToHash("8aad789dff2f538bca5d8ea56e8abe10f4c7ba3a5dea95fea4cd6e7c3a1168d3")
+	exp := common.HexToHash512("f8c2fe0631ab51dcc797fa89bcd8cde60837a33687ba5c2ed0cb41d927fbc5f69ef8354eb912e07bcbb7659bb94d59ba20de819f4e22e87a1c4c63a706622eee")
 	root := trie.Hash()
 	if root != exp {
 		t.Errorf("case 1: exp %x got %x", exp, root)
@@ -182,7 +184,7 @@ func TestInsert(t *testing.T) {
 	trie = NewEmpty(NewDatabase(rawdb.NewMemoryDatabase(), nil))
 	updateString(trie, "A", "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
 
-	exp = common.HexToHash("d23786fb4a010da3ce639d66d5e904a11dbc02746d1ce25029e53290cabf28ab")
+	exp = common.HexToHash512("f0ba707bc92a37a9408fc8295621d090686ff3c73025a751755f00657a27ce84c29d61572cc00fa25adbd65725a6be4f6e5263ddcdfa71f03a3561e9aac0f664")
 	root, _, _ = trie.Commit(false)
 	if root != exp {
 		t.Errorf("case 2: exp %x got %x", exp, root)
@@ -235,7 +237,7 @@ func TestDelete(t *testing.T) {
 	}
 
 	hash := trie.Hash()
-	exp := common.HexToHash("5991bb8c6514148a29db676a14ac506cd2cd5775ace63c30a4fe457715e9ac84")
+	exp := common.HexToHash512("fb5c11b9b15072fff5faa78c6266fd0b5f7fc3b60e096c3780469a09bd557dda0abd660837840a9d973e3394d9909f20814be368bc7350e1f30806b31992adec")
 	if hash != exp {
 		t.Errorf("expected %x got %x", exp, hash)
 	}
@@ -259,7 +261,7 @@ func TestEmptyValues(t *testing.T) {
 	}
 
 	hash := trie.Hash()
-	exp := common.HexToHash("5991bb8c6514148a29db676a14ac506cd2cd5775ace63c30a4fe457715e9ac84")
+	exp := common.HexToHash512("fb5c11b9b15072fff5faa78c6266fd0b5f7fc3b60e096c3780469a09bd557dda0abd660837840a9d973e3394d9909f20814be368bc7350e1f30806b31992adec")
 	if hash != exp {
 		t.Errorf("expected %x got %x", exp, hash)
 	}
@@ -675,11 +677,11 @@ func BenchmarkHash(b *testing.B) {
 	trie := NewEmpty(NewDatabase(rawdb.NewMemoryDatabase(), nil))
 	i := 0
 	for ; i < len(addresses)/2; i++ {
-		trie.MustUpdate(crypto.Keccak256(addresses[i][:]), accounts[i])
+		trie.MustUpdate(crypto.Keccak512(addresses[i][:]), accounts[i])
 	}
 	trie.Hash()
 	for ; i < len(addresses); i++ {
-		trie.MustUpdate(crypto.Keccak256(addresses[i][:]), accounts[i])
+		trie.MustUpdate(crypto.Keccak512(addresses[i][:]), accounts[i])
 	}
 	b.ResetTimer()
 	b.ReportAllocs()
@@ -705,7 +707,7 @@ func benchmarkCommitAfterHash(b *testing.B, collectLeaf bool) {
 	addresses, accounts := makeAccounts(b.N)
 	trie := NewEmpty(NewDatabase(rawdb.NewMemoryDatabase(), nil))
 	for i := range addresses {
-		trie.MustUpdate(crypto.Keccak256(addresses[i][:]), accounts[i])
+		trie.MustUpdate(crypto.Keccak512(addresses[i][:]), accounts[i])
 	}
 	// Insert the accounts into the trie and hash it
 	trie.Hash()
@@ -719,15 +721,15 @@ func TestTinyTrie(t *testing.T) {
 	_, accounts := makeAccounts(5)
 	trie := NewEmpty(NewDatabase(rawdb.NewMemoryDatabase(), nil))
 	trie.MustUpdate(common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000001337"), accounts[3])
-	if exp, root := common.HexToHash("f0ec73783c59c4e3f67c299f1c399588b36de9c6cd9063748a6066820b4175e3"), trie.Hash(); exp != root {
+	if exp, root := common.HexToHash512("a931fec4914dc138164e1d59456589f662dfb43609a2e903a844e5e2cd7c61db8a4840fba991538ce00fb1f798f499b5836a74b3c700c85c9591c7f527366ef2"), trie.Hash(); exp != root {
 		t.Errorf("1: got %x, exp %x", root, exp)
 	}
 	trie.MustUpdate(common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000001338"), accounts[4])
-	if exp, root := common.HexToHash("81dac7d1dec37df6413fb26994f53e027ddc4bacbb02f553a18bb805e438f228"), trie.Hash(); exp != root {
+	if exp, root := common.HexToHash512("3922243a7dcb2008af2d74f8722c01570a92f0403166a583a81894fb84c63ef3c6379e1caf27833b736f19f0b5e8546cee022c54373c3e13da40b13d1e3339e1"), trie.Hash(); exp != root {
 		t.Errorf("2: got %x, exp %x", root, exp)
 	}
 	trie.MustUpdate(common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000001339"), accounts[4])
-	if exp, root := common.HexToHash("2969bb273a50842b3c30421a6ed982aafe262eaafc97b93a53d7fd5afc3cd9a0"), trie.Hash(); exp != root {
+	if exp, root := common.HexToHash512("74d1b0828c9e01bb0faaa0658470808aa0f04d610478d28a11c7b680560a21162884ccd35276e668153ca7aa0801f9452f245422e45731f0825fc02a1ab7ea1a"), trie.Hash(); exp != root {
 		t.Errorf("3: got %x, exp %x", root, exp)
 	}
 	checktr := NewEmpty(NewDatabase(rawdb.NewMemoryDatabase(), nil))
@@ -745,13 +747,13 @@ func TestCommitAfterHash(t *testing.T) {
 	addresses, accounts := makeAccounts(1000)
 	trie := NewEmpty(NewDatabase(rawdb.NewMemoryDatabase(), nil))
 	for i := range addresses {
-		trie.MustUpdate(crypto.Keccak256(addresses[i][:]), accounts[i])
+		trie.MustUpdate(crypto.Keccak512(addresses[i][:]), accounts[i])
 	}
 	// Insert the accounts into the trie and hash it
 	trie.Hash()
 	trie.Commit(false)
 	root := trie.Hash()
-	exp := common.HexToHash("ac983053da3b8170be1b4272e53aa8f29f5c80a3f0c877fc95c5971b6c089d09")
+	exp := common.HexToHash512("7fd2088e64bca0bf76d2f2000ea0b8149fcdebe1d35994a2587937522af04b99fe3f08b648ae9e26999df7ceb74221692a6b6ce9a4b229db5465a602ffc593e1")
 	if exp != root {
 		t.Errorf("got %x, exp %x", root, exp)
 	}
@@ -774,7 +776,7 @@ func makeAccounts(size int) (addresses []common.Address, accounts [][]byte) {
 		var (
 			nonce = uint64(random.Int63())
 			root  = types.EmptyRootHash
-			code  = crypto.Keccak256(nil)
+			code  = crypto.Keccak512(nil)
 		)
 		// The big.Rand function is not deterministic with regards to 64 vs 32 bit systems,
 		// and will consume different amount of data from the rand source.
@@ -847,18 +849,18 @@ func TestCommitSequence(t *testing.T) {
 		count           int
 		expWriteSeqHash []byte
 	}{
-		{20, common.FromHex("04ee29cc9ace94774bcaac4aac03b0d8fe80c001fad14da66fe95ea04439b52d")},
-		{200, common.FromHex("a5bed49f30759b4b07df790d225f4b8f6034e37a28aaa2af90ddb5e0b0d4a5da")},
-		{2000, common.FromHex("dbd43b168e1a0a40c0afb68d8e8c9ac3f21a28733e5d63ddef1dadd90e91f0b9")},
+		{20, common.FromHex("510df58441013b44304e77d452d3a0384f02b7c00b1c2fefdfc40d2316fffc1467d427eaf9ac2b364535b47b5bc01caf5165f20fd5f02befed672e204906cf3c")},
+		{200, common.FromHex("7da085c3f0e7be944e9c64c00021f7126bfcefd278c2ac5f29d3a220eb6b9702724353dcd7654e776e66abd104b58281fcf2c497ed6b6fce65987b6fd1fda3fd")},
+		{2000, common.FromHex("0bff10395c5ff7efa41fc493f96474757b300262eb67c9ed4aeaacec8896c74f26a687ebf5f41d892154e3f88ac55fb858f8a7623b42b5a2699a35ee9ada7305")},
 	} {
 		addresses, accounts := makeAccounts(tc.count)
 		// This spongeDb is used to check the sequence of disk-db-writes
-		s := &spongeDb{sponge: sha3.NewLegacyKeccak256()}
+		s := &spongeDb{sponge: sha3.NewLegacyKeccak512()}
 		db := NewDatabase(rawdb.NewDatabase(s), nil)
 		trie := NewEmpty(db)
 		// Fill the trie with elements
 		for i := range tc.count {
-			trie.MustUpdate(crypto.Keccak256(addresses[i][:]), accounts[i])
+			trie.MustUpdate(crypto.Keccak512(addresses[i][:]), accounts[i])
 		}
 		// Flush trie -> database
 		root, nodes, _ := trie.Commit(false)
@@ -878,13 +880,13 @@ func TestCommitSequenceRandomBlobs(t *testing.T) {
 		count           int
 		expWriteSeqHash []byte
 	}{
-		{20, common.FromHex("8e4a01548551d139fa9e833ebc4e66fc1ba40a4b9b7259d80db32cff7b64ebbc")},
-		{200, common.FromHex("6869b4e7b95f3097a19ddb30ff735f922b915314047e041614df06958fc50554")},
-		{2000, common.FromHex("444200e6f4e2df49f77752f629a96ccf7445d4698c164f962bbd85a0526ef424")},
+		{20, common.FromHex("1ff35b8537413b8f8520f046428172499251aef13f5272f8455d1067de774653a5ba57c9f4d523f3a31d881e3a3f4d68bf8c390aabf130c6e3942878808794d8")},
+		{200, common.FromHex("45b021345bcdcd4e8891d9fe5bfb646ae26405f4141573baf6c76671cafa5362c4c884359f0089d31257c1308324e9d28ee6601b839c33f5ebc8e85cc89f226d")},
+		{2000, common.FromHex("75982c7a1157a301d2b7b2d174ba3c9fec737c4e93321674fbc3427c47ea6ec2df341bd7937bd366b9a86389c865fe4bc4cf53987f51d0a3fd5d2764183b9b6c")},
 	} {
 		prng := rand.New(rand.NewSource(int64(i)))
 		// This spongeDb is used to check the sequence of disk-db-writes
-		s := &spongeDb{sponge: sha3.NewLegacyKeccak256()}
+		s := &spongeDb{sponge: sha3.NewLegacyKeccak512()}
 		db := NewDatabase(rawdb.NewDatabase(s), nil)
 		trie := NewEmpty(db)
 		// Fill the trie with elements
@@ -907,7 +909,7 @@ func TestCommitSequenceRandomBlobs(t *testing.T) {
 		// Flush memdb -> disk (sponge)
 		db.Commit(root, false)
 		if got, exp := s.sponge.Sum(nil), tc.expWriteSeqHash; !bytes.Equal(got, exp) {
-			t.Fatalf("test %d, disk write sequence wrong:\ngot %x exp %x\n", i, got, exp)
+			t.Errorf("test %d, disk write sequence wrong:\ngot %x exp %x\n", i, got, exp)
 		}
 	}
 }
@@ -916,12 +918,12 @@ func TestCommitSequenceStackTrie(t *testing.T) {
 	for count := 1; count < 200; count++ {
 		prng := rand.New(rand.NewSource(int64(count)))
 		// This spongeDb is used to check the sequence of disk-db-writes
-		s := &spongeDb{sponge: sha3.NewLegacyKeccak256(), id: "a"}
+		s := &spongeDb{sponge: sha3.NewLegacyKeccak512(), id: "a"}
 		db := NewDatabase(rawdb.NewDatabase(s), nil)
 		trie := NewEmpty(db)
 		// Another sponge is used for the stacktrie commits
-		stackTrieSponge := &spongeDb{sponge: sha3.NewLegacyKeccak256(), id: "b"}
-		stTrie := NewStackTrie(func(owner common.Hash, path []byte, hash common.Hash, blob []byte) {
+		stackTrieSponge := &spongeDb{sponge: sha3.NewLegacyKeccak512(), id: "b"}
+		stTrie := NewStackTrie(func(owner common.Hash512, path []byte, hash common.Hash512, blob []byte) {
 			rawdb.WriteTrieNode(stackTrieSponge, owner, path, hash, blob, db.Scheme())
 		})
 		// Fill the trie with elements
@@ -963,7 +965,7 @@ func TestCommitSequenceStackTrie(t *testing.T) {
 			for i, v := range stackTrieSponge.journal {
 				t.Logf("op %d: %v", i, v)
 			}
-			t.Fatalf("test %d, disk write sequence wrong:\ngot %x exp %x\n", count, got, exp)
+			t.Errorf("test %d, disk write sequence wrong:\ngot %x exp %x\n", count, got, exp)
 		}
 	}
 }
@@ -975,12 +977,12 @@ func TestCommitSequenceStackTrie(t *testing.T) {
 // that even a small trie which contains a leaf will have an extension making it
 // not fit into 32 bytes, rlp-encoded. However, it's still the correct thing to do.
 func TestCommitSequenceSmallRoot(t *testing.T) {
-	s := &spongeDb{sponge: sha3.NewLegacyKeccak256(), id: "a"}
+	s := &spongeDb{sponge: sha3.NewLegacyKeccak512(), id: "a"}
 	db := NewDatabase(rawdb.NewDatabase(s), nil)
 	trie := NewEmpty(db)
 	// Another sponge is used for the stacktrie commits
-	stackTrieSponge := &spongeDb{sponge: sha3.NewLegacyKeccak256(), id: "b"}
-	stTrie := NewStackTrie(func(owner common.Hash, path []byte, hash common.Hash, blob []byte) {
+	stackTrieSponge := &spongeDb{sponge: sha3.NewLegacyKeccak512(), id: "b"}
+	stTrie := NewStackTrie(func(owner common.Hash512, path []byte, hash common.Hash512, blob []byte) {
 		rawdb.WriteTrieNode(stackTrieSponge, owner, path, hash, blob, db.Scheme())
 	})
 	// Add a single small-element to the trie(s)
@@ -1055,7 +1057,7 @@ func benchmarkHashFixedSize(b *testing.B, addresses []common.Address, accounts [
 	b.ReportAllocs()
 	trie := NewEmpty(NewDatabase(rawdb.NewMemoryDatabase(), nil))
 	for i := range addresses {
-		trie.MustUpdate(crypto.Keccak256(addresses[i][:]), accounts[i])
+		trie.MustUpdate(crypto.Keccak512(addresses[i][:]), accounts[i])
 	}
 	// Insert the accounts into the trie and hash it
 	b.StartTimer()
@@ -1106,7 +1108,7 @@ func benchmarkCommitAfterHashFixedSize(b *testing.B, addresses []common.Address,
 	b.ReportAllocs()
 	trie := NewEmpty(NewDatabase(rawdb.NewMemoryDatabase(), nil))
 	for i := range addresses {
-		trie.MustUpdate(crypto.Keccak256(addresses[i][:]), accounts[i])
+		trie.MustUpdate(crypto.Keccak512(addresses[i][:]), accounts[i])
 	}
 	// Insert the accounts into the trie and hash it
 	trie.Hash()
@@ -1159,7 +1161,7 @@ func benchmarkDerefRootFixedSize(b *testing.B, addresses []common.Address, accou
 	triedb := NewDatabase(rawdb.NewMemoryDatabase(), nil)
 	trie := NewEmpty(triedb)
 	for i := range addresses {
-		trie.MustUpdate(crypto.Keccak256(addresses[i][:]), accounts[i])
+		trie.MustUpdate(crypto.Keccak512(addresses[i][:]), accounts[i])
 	}
 	h := trie.Hash()
 	root, nodes, _ := trie.Commit(false)
@@ -1185,8 +1187,8 @@ func TestDecodeNode(t *testing.T) {
 	t.Parallel()
 
 	var (
-		hash  = make([]byte, common.HashLength)
-		elems = make([]byte, common.HashLength)
+		hash  = make([]byte, common.Hash512Length)
+		elems = make([]byte, common.Hash512Length)
 	)
 	for range 5000000 {
 		prng.Read(hash)

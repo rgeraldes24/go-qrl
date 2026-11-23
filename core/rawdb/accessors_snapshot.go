@@ -46,17 +46,17 @@ func DeleteSnapshotDisabled(db qrldb.KeyValueWriter) {
 
 // ReadSnapshotRoot retrieves the root of the block whose state is contained in
 // the persisted snapshot.
-func ReadSnapshotRoot(db qrldb.KeyValueReader) common.Hash {
+func ReadSnapshotRoot(db qrldb.KeyValueReader) common.Hash512 {
 	data, _ := db.Get(SnapshotRootKey)
-	if len(data) != common.HashLength {
-		return common.Hash{}
+	if len(data) != common.Hash512Length {
+		return common.Hash512{}
 	}
-	return common.BytesToHash(data)
+	return common.BytesToHash512(data)
 }
 
 // WriteSnapshotRoot stores the root of the block whose state is contained in
 // the persisted snapshot.
-func WriteSnapshotRoot(db qrldb.KeyValueWriter, root common.Hash) {
+func WriteSnapshotRoot(db qrldb.KeyValueWriter, root common.Hash512) {
 	if err := db.Put(SnapshotRootKey, root[:]); err != nil {
 		log.Crit("Failed to store snapshot root", "err", err)
 	}
@@ -73,40 +73,40 @@ func DeleteSnapshotRoot(db qrldb.KeyValueWriter) {
 }
 
 // ReadAccountSnapshot retrieves the snapshot entry of an account trie leaf.
-func ReadAccountSnapshot(db qrldb.KeyValueReader, hash common.Hash) []byte {
+func ReadAccountSnapshot(db qrldb.KeyValueReader, hash common.Hash512) []byte {
 	data, _ := db.Get(accountSnapshotKey(hash))
 	return data
 }
 
 // WriteAccountSnapshot stores the snapshot entry of an account trie leaf.
-func WriteAccountSnapshot(db qrldb.KeyValueWriter, hash common.Hash, entry []byte) {
+func WriteAccountSnapshot(db qrldb.KeyValueWriter, hash common.Hash512, entry []byte) {
 	if err := db.Put(accountSnapshotKey(hash), entry); err != nil {
 		log.Crit("Failed to store account snapshot", "err", err)
 	}
 }
 
 // DeleteAccountSnapshot removes the snapshot entry of an account trie leaf.
-func DeleteAccountSnapshot(db qrldb.KeyValueWriter, hash common.Hash) {
+func DeleteAccountSnapshot(db qrldb.KeyValueWriter, hash common.Hash512) {
 	if err := db.Delete(accountSnapshotKey(hash)); err != nil {
 		log.Crit("Failed to delete account snapshot", "err", err)
 	}
 }
 
 // ReadStorageSnapshot retrieves the snapshot entry of an storage trie leaf.
-func ReadStorageSnapshot(db qrldb.KeyValueReader, accountHash, storageHash common.Hash) []byte {
+func ReadStorageSnapshot(db qrldb.KeyValueReader, accountHash, storageHash common.Hash512) []byte {
 	data, _ := db.Get(storageSnapshotKey(accountHash, storageHash))
 	return data
 }
 
 // WriteStorageSnapshot stores the snapshot entry of an storage trie leaf.
-func WriteStorageSnapshot(db qrldb.KeyValueWriter, accountHash, storageHash common.Hash, entry []byte) {
+func WriteStorageSnapshot(db qrldb.KeyValueWriter, accountHash, storageHash common.Hash512, entry []byte) {
 	if err := db.Put(storageSnapshotKey(accountHash, storageHash), entry); err != nil {
 		log.Crit("Failed to store storage snapshot", "err", err)
 	}
 }
 
 // DeleteStorageSnapshot removes the snapshot entry of an storage trie leaf.
-func DeleteStorageSnapshot(db qrldb.KeyValueWriter, accountHash, storageHash common.Hash) {
+func DeleteStorageSnapshot(db qrldb.KeyValueWriter, accountHash, storageHash common.Hash512) {
 	if err := db.Delete(storageSnapshotKey(accountHash, storageHash)); err != nil {
 		log.Crit("Failed to delete storage snapshot", "err", err)
 	}
@@ -114,8 +114,8 @@ func DeleteStorageSnapshot(db qrldb.KeyValueWriter, accountHash, storageHash com
 
 // IterateStorageSnapshots returns an iterator for walking the entire storage
 // space of a specific account.
-func IterateStorageSnapshots(db qrldb.Iteratee, accountHash common.Hash) qrldb.Iterator {
-	return NewKeyLengthIterator(db.NewIterator(storageSnapshotsKey(accountHash), nil), len(SnapshotStoragePrefix)+2*common.HashLength)
+func IterateStorageSnapshots(db qrldb.Iteratee, accountHash common.Hash512) qrldb.Iterator {
+	return NewKeyLengthIterator(db.NewIterator(storageSnapshotsKey(accountHash), nil), len(SnapshotStoragePrefix)+2*common.Hash512Length)
 }
 
 // ReadSnapshotJournal retrieves the serialized in-memory diff layers saved at

@@ -130,7 +130,7 @@ type ProofList []rlp.RawValue
 // Store writes the contents of the list to the given database
 func (n ProofList) Store(db qrldb.KeyValueWriter) {
 	for _, node := range n {
-		db.Put(crypto.Keccak256(node), node)
+		db.Put(crypto.Keccak512(node), node)
 	}
 }
 

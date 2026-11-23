@@ -18,18 +18,18 @@ func (h Header) MarshalJSON() ([]byte, error) {
 	type Header struct {
 		ParentHash      common.Hash    `json:"parentHash"       gencodec:"required"`
 		Coinbase        common.Address `json:"miner"`
-		Root            common.Hash    `json:"stateRoot"        gencodec:"required"`
-		TxHash          common.Hash    `json:"transactionsRoot" gencodec:"required"`
-		ReceiptHash     common.Hash    `json:"receiptsRoot"     gencodec:"required"`
+		Root            common.Hash512 `json:"stateRoot"        gencodec:"required"`
+		TxHash          common.Hash512 `json:"transactionsRoot" gencodec:"required"`
+		ReceiptHash     common.Hash512 `json:"receiptsRoot"     gencodec:"required"`
 		Bloom           Bloom          `json:"logsBloom"        gencodec:"required"`
 		Number          *hexutil.Big   `json:"number"           gencodec:"required"`
 		GasLimit        hexutil.Uint64 `json:"gasLimit"         gencodec:"required"`
 		GasUsed         hexutil.Uint64 `json:"gasUsed"          gencodec:"required"`
 		Time            hexutil.Uint64 `json:"timestamp"        gencodec:"required"`
 		Extra           hexutil.Bytes  `json:"extraData"        gencodec:"required"`
-		Random          common.Hash    `json:"prevRandao"`
-		BaseFee         *hexutil.Big   `json:"baseFeePerGas"`
-		WithdrawalsHash *common.Hash   `json:"withdrawalsRoot"`
+		Random          common.Hash    `json:"prevRandao"       gencodec:"required"`
+		BaseFee         *hexutil.Big   `json:"baseFeePerGas"    gencodec:"required"`
+		WithdrawalsHash common.Hash512 `json:"withdrawalsRoot"  gencodec:"required"`
 		Hash            common.Hash    `json:"hash"`
 	}
 	var enc Header
@@ -56,18 +56,18 @@ func (h *Header) UnmarshalJSON(input []byte) error {
 	type Header struct {
 		ParentHash      *common.Hash    `json:"parentHash"       gencodec:"required"`
 		Coinbase        *common.Address `json:"miner"`
-		Root            *common.Hash    `json:"stateRoot"        gencodec:"required"`
-		TxHash          *common.Hash    `json:"transactionsRoot" gencodec:"required"`
-		ReceiptHash     *common.Hash    `json:"receiptsRoot"     gencodec:"required"`
+		Root            *common.Hash512 `json:"stateRoot"        gencodec:"required"`
+		TxHash          *common.Hash512 `json:"transactionsRoot" gencodec:"required"`
+		ReceiptHash     *common.Hash512 `json:"receiptsRoot"     gencodec:"required"`
 		Bloom           *Bloom          `json:"logsBloom"        gencodec:"required"`
 		Number          *hexutil.Big    `json:"number"           gencodec:"required"`
 		GasLimit        *hexutil.Uint64 `json:"gasLimit"         gencodec:"required"`
 		GasUsed         *hexutil.Uint64 `json:"gasUsed"          gencodec:"required"`
 		Time            *hexutil.Uint64 `json:"timestamp"        gencodec:"required"`
 		Extra           *hexutil.Bytes  `json:"extraData"        gencodec:"required"`
-		Random          *common.Hash    `json:"prevRandao"`
-		BaseFee         *hexutil.Big    `json:"baseFeePerGas"`
-		WithdrawalsHash *common.Hash    `json:"withdrawalsRoot"`
+		Random          *common.Hash    `json:"prevRandao"       gencodec:"required"`
+		BaseFee         *hexutil.Big    `json:"baseFeePerGas"    gencodec:"required"`
+		WithdrawalsHash *common.Hash512 `json:"withdrawalsRoot"  gencodec:"required"`
 	}
 	var dec Header
 	if err := json.Unmarshal(input, &dec); err != nil {
@@ -116,14 +116,17 @@ func (h *Header) UnmarshalJSON(input []byte) error {
 		return errors.New("missing required field 'extraData' for Header")
 	}
 	h.Extra = *dec.Extra
-	if dec.Random != nil {
-		h.Random = *dec.Random
+	if dec.Random == nil {
+		return errors.New("missing required field 'prevRandao' for Header")
 	}
-	if dec.BaseFee != nil {
-		h.BaseFee = (*big.Int)(dec.BaseFee)
+	h.Random = *dec.Random
+	if dec.BaseFee == nil {
+		return errors.New("missing required field 'baseFeePerGas' for Header")
 	}
-	if dec.WithdrawalsHash != nil {
-		h.WithdrawalsHash = dec.WithdrawalsHash
+	h.BaseFee = (*big.Int)(dec.BaseFee)
+	if dec.WithdrawalsHash == nil {
+		return errors.New("missing required field 'withdrawalsRoot' for Header")
 	}
+	h.WithdrawalsHash = *dec.WithdrawalsHash
 	return nil
 }

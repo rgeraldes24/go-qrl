@@ -40,7 +40,7 @@ type Iterator interface {
 
 	// Hash returns the hash of the account or storage slot the iterator is
 	// currently at.
-	Hash() common.Hash
+	Hash() common.Hash512
 
 	// Release releases associated resources. Release should always succeed and
 	// can be called multiple times without causing error.
@@ -75,15 +75,15 @@ type diffAccountIterator struct {
 	// explicitly tracked since the referenced diff layer might go stale after
 	// the iterator was positioned and we don't want to fail accessing the old
 	// hash as long as the iterator is not touched any more.
-	curHash common.Hash
+	curHash common.Hash512
 
-	layer *diffLayer    // Live layer to retrieve values from
-	keys  []common.Hash // Keys left in the layer to iterate
-	fail  error         // Any failures encountered (stale)
+	layer *diffLayer       // Live layer to retrieve values from
+	keys  []common.Hash512 // Keys left in the layer to iterate
+	fail  error            // Any failures encountered (stale)
 }
 
 // AccountIterator creates an account iterator over a single diff layer.
-func (dl *diffLayer) AccountIterator(seek common.Hash) AccountIterator {
+func (dl *diffLayer) AccountIterator(seek common.Hash512) AccountIterator {
 	// Seek out the requested starting account
 	hashes := dl.AccountList()
 	index := sort.Search(len(hashes), func(i int) bool {
@@ -127,7 +127,7 @@ func (it *diffAccountIterator) Error() error {
 }
 
 // Hash returns the hash of the account the iterator is currently at.
-func (it *diffAccountIterator) Hash() common.Hash {
+func (it *diffAccountIterator) Hash() common.Hash512 {
 	return it.curHash
 }
 
@@ -167,7 +167,7 @@ type diskAccountIterator struct {
 }
 
 // AccountIterator creates an account iterator over a disk layer.
-func (dl *diskLayer) AccountIterator(seek common.Hash) AccountIterator {
+func (dl *diskLayer) AccountIterator(seek common.Hash512) AccountIterator {
 	pos := common.TrimRightZeroes(seek[:])
 	return &diskAccountIterator{
 		layer: dl,
@@ -188,7 +188,7 @@ func (it *diskAccountIterator) Next() bool {
 			it.it = nil
 			return false
 		}
-		if len(it.it.Key()) == len(rawdb.SnapshotAccountPrefix)+common.HashLength {
+		if len(it.it.Key()) == len(rawdb.SnapshotAccountPrefix)+common.Hash512Length {
 			break
 		}
 	}
@@ -208,8 +208,8 @@ func (it *diskAccountIterator) Error() error {
 }
 
 // Hash returns the hash of the account the iterator is currently at.
-func (it *diskAccountIterator) Hash() common.Hash {
-	return common.BytesToHash(it.it.Key()) // The prefix will be truncated
+func (it *diskAccountIterator) Hash() common.Hash512 {
+	return common.BytesToHash512(it.it.Key()) // The prefix will be truncated
 }
 
 // Account returns the RLP encoded slim account the iterator is currently at.
@@ -234,12 +234,12 @@ type diffStorageIterator struct {
 	// explicitly tracked since the referenced diff layer might go stale after
 	// the iterator was positioned and we don't want to fail accessing the old
 	// hash as long as the iterator is not touched any more.
-	curHash common.Hash
-	account common.Hash
+	curHash common.Hash512
+	account common.Hash512
 
-	layer *diffLayer    // Live layer to retrieve values from
-	keys  []common.Hash // Keys left in the layer to iterate
-	fail  error         // Any failures encountered (stale)
+	layer *diffLayer       // Live layer to retrieve values from
+	keys  []common.Hash512 // Keys left in the layer to iterate
+	fail  error            // Any failures encountered (stale)
 }
 
 // StorageIterator creates a storage iterator over a single diff layer.
@@ -247,7 +247,7 @@ type diffStorageIterator struct {
 // "destructed" returned. If it's true then it means the whole storage is
 // destructed in this layer(maybe recreated too), don't bother deeper layer
 // for storage retrieval.
-func (dl *diffLayer) StorageIterator(account common.Hash, seek common.Hash) (StorageIterator, bool) {
+func (dl *diffLayer) StorageIterator(account common.Hash512, seek common.Hash512) (StorageIterator, bool) {
 	// Create the storage for this account even it's marked
 	// as destructed. The iterator is for the new one which
 	// just has the same address as the deleted one.
@@ -294,7 +294,7 @@ func (it *diffStorageIterator) Error() error {
 }
 
 // Hash returns the hash of the storage slot the iterator is currently at.
-func (it *diffStorageIterator) Hash() common.Hash {
+func (it *diffStorageIterator) Hash() common.Hash512 {
 	return it.curHash
 }
 
@@ -331,7 +331,7 @@ func (it *diffStorageIterator) Release() {}
 // contained within a disk layer.
 type diskStorageIterator struct {
 	layer   *diskLayer
-	account common.Hash
+	account common.Hash512
 	it      qrldb.Iterator
 }
 
@@ -339,7 +339,7 @@ type diskStorageIterator struct {
 // If the whole storage is destructed, then all entries in the disk
 // layer are deleted already. So the "destructed" flag returned here
 // is always false.
-func (dl *diskLayer) StorageIterator(account common.Hash, seek common.Hash) (StorageIterator, bool) {
+func (dl *diskLayer) StorageIterator(account common.Hash512, seek common.Hash512) (StorageIterator, bool) {
 	pos := common.TrimRightZeroes(seek[:])
 	return &diskStorageIterator{
 		layer:   dl,
@@ -361,7 +361,7 @@ func (it *diskStorageIterator) Next() bool {
 			it.it = nil
 			return false
 		}
-		if len(it.it.Key()) == len(rawdb.SnapshotStoragePrefix)+common.HashLength+common.HashLength {
+		if len(it.it.Key()) == len(rawdb.SnapshotStoragePrefix)+common.Hash512Length+common.Hash512Length {
 			break
 		}
 	}
@@ -381,8 +381,8 @@ func (it *diskStorageIterator) Error() error {
 }
 
 // Hash returns the hash of the storage slot the iterator is currently at.
-func (it *diskStorageIterator) Hash() common.Hash {
-	return common.BytesToHash(it.it.Key()) // The prefix will be truncated
+func (it *diskStorageIterator) Hash() common.Hash512 {
+	return common.BytesToHash512(it.it.Key()) // The prefix will be truncated
 }
 
 // Slot returns the raw storage slot content the iterator is currently at.

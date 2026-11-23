@@ -170,13 +170,13 @@ func txLookupKey(hash common.Hash) []byte {
 }
 
 // accountSnapshotKey = SnapshotAccountPrefix + hash
-func accountSnapshotKey(hash common.Hash) []byte {
+func accountSnapshotKey(hash common.Hash512) []byte {
 	return append(SnapshotAccountPrefix, hash.Bytes()...)
 }
 
 // storageSnapshotKey = SnapshotStoragePrefix + account hash + storage hash
-func storageSnapshotKey(accountHash, storageHash common.Hash) []byte {
-	buf := make([]byte, len(SnapshotStoragePrefix)+common.HashLength+common.HashLength)
+func storageSnapshotKey(accountHash, storageHash common.Hash512) []byte {
+	buf := make([]byte, len(SnapshotStoragePrefix)+common.Hash512Length+common.Hash512Length)
 	n := copy(buf, SnapshotStoragePrefix)
 	n += copy(buf[n:], accountHash.Bytes())
 	copy(buf[n:], storageHash.Bytes())
@@ -184,7 +184,7 @@ func storageSnapshotKey(accountHash, storageHash common.Hash) []byte {
 }
 
 // storageSnapshotsKey = SnapshotStoragePrefix + account hash + storage hash
-func storageSnapshotsKey(accountHash common.Hash) []byte {
+func storageSnapshotsKey(accountHash common.Hash512) []byte {
 	return append(SnapshotStoragePrefix, accountHash.Bytes()...)
 }
 
@@ -204,19 +204,19 @@ func skeletonHeaderKey(number uint64) []byte {
 }
 
 // preimageKey = PreimagePrefix + hash
-func preimageKey(hash common.Hash) []byte {
+func preimageKey(hash common.Hash512) []byte {
 	return append(PreimagePrefix, hash.Bytes()...)
 }
 
 // codeKey = CodePrefix + hash
-func codeKey(hash common.Hash) []byte {
+func codeKey(hash common.Hash512) []byte {
 	return append(CodePrefix, hash.Bytes()...)
 }
 
 // IsCodeKey reports whether the given byte slice is the key of contract code,
 // if so return the raw code hash as well.
 func IsCodeKey(key []byte) (bool, []byte) {
-	if bytes.HasPrefix(key, CodePrefix) && len(key) == common.HashLength+len(CodePrefix) {
+	if bytes.HasPrefix(key, CodePrefix) && len(key) == common.Hash512Length+len(CodePrefix) {
 		return true, key[len(CodePrefix):]
 	}
 	return false, nil
@@ -232,8 +232,8 @@ func genesisStateSpecKey(hash common.Hash) []byte {
 	return append(genesisPrefix, hash.Bytes()...)
 }
 
-// stateIDKey = stateIDPrefix + root (32 bytes)
-func stateIDKey(root common.Hash) []byte {
+// stateIDKey = stateIDPrefix + root (64 bytes)
+func stateIDKey(root common.Hash512) []byte {
 	return append(stateIDPrefix, root.Bytes()...)
 }
 
@@ -243,8 +243,8 @@ func accountTrieNodeKey(path []byte) []byte {
 }
 
 // storageTrieNodeKey = trieNodeStoragePrefix + accountHash + nodePath.
-func storageTrieNodeKey(accountHash common.Hash, path []byte) []byte {
-	buf := make([]byte, len(trieNodeStoragePrefix)+common.HashLength+len(path))
+func storageTrieNodeKey(accountHash common.Hash512, path []byte) []byte {
+	buf := make([]byte, len(trieNodeStoragePrefix)+common.Hash512Length+len(path))
 	n := copy(buf, trieNodeStoragePrefix)
 	n += copy(buf[n:], accountHash.Bytes())
 	copy(buf[n:], path)
@@ -253,13 +253,13 @@ func storageTrieNodeKey(accountHash common.Hash, path []byte) []byte {
 
 // IsLegacyTrieNode reports whether a provided database entry is a legacy trie
 // node. The characteristics of legacy trie node are:
-// - the key length is 32 bytes
+// - the key length is 64 bytes
 // - the key is the hash of val
 func IsLegacyTrieNode(key []byte, val []byte) bool {
-	if len(key) != common.HashLength {
+	if len(key) != common.Hash512Length {
 		return false
 	}
-	return bytes.Equal(key, crypto.Keccak256(val))
+	return bytes.Equal(key, crypto.Keccak512(val))
 }
 
 // ResolveAccountTrieNodeKey reports whether a provided database entry is an
@@ -270,9 +270,9 @@ func ResolveAccountTrieNodeKey(key []byte) (bool, []byte) {
 		return false, nil
 	}
 	// The remaining key should only consist a hex node path
-	// whose length is in the range 0 to 64 (64 is excluded
+	// whose length is in the range 0 to 128 (128 is excluded
 	// since leaves are always wrapped with shortNode).
-	if len(key) >= len(trieNodeAccountPrefix)+common.HashLength*2 {
+	if len(key) >= len(trieNodeAccountPrefix)+common.Hash512Length*2 {
 		return false, nil
 	}
 	return true, key[len(trieNodeAccountPrefix):]
@@ -288,21 +288,21 @@ func IsAccountTrieNode(key []byte) bool {
 // ResolveStorageTrieNode reports whether a provided database entry is a storage
 // trie node in path-based state scheme, and returns the resolved account hash
 // and node path if so.
-func ResolveStorageTrieNode(key []byte) (bool, common.Hash, []byte) {
+func ResolveStorageTrieNode(key []byte) (bool, common.Hash512, []byte) {
 	if !bytes.HasPrefix(key, trieNodeStoragePrefix) {
-		return false, common.Hash{}, nil
+		return false, common.Hash512{}, nil
 	}
 	// The remaining key consists of 2 parts:
-	// - 32 bytes account hash
-	// - hex node path whose length is in the range 0 to 64
-	if len(key) < len(trieNodeStoragePrefix)+common.HashLength {
-		return false, common.Hash{}, nil
+	// - 64 bytes account hash
+	// - hex node path whose length is in the range 0 to 128
+	if len(key) < len(trieNodeStoragePrefix)+common.Hash512Length {
+		return false, common.Hash512{}, nil
 	}
-	if len(key) >= len(trieNodeStoragePrefix)+common.HashLength+common.HashLength*2 {
-		return false, common.Hash{}, nil
+	if len(key) >= len(trieNodeStoragePrefix)+common.Hash512Length+common.Hash512Length*2 {
+		return false, common.Hash512{}, nil
 	}
-	accountHash := common.BytesToHash(key[len(trieNodeStoragePrefix) : len(trieNodeStoragePrefix)+common.HashLength])
-	return true, accountHash, key[len(trieNodeStoragePrefix)+common.HashLength:]
+	accountHash := common.BytesToHash512(key[len(trieNodeStoragePrefix) : len(trieNodeStoragePrefix)+common.Hash512Length])
+	return true, accountHash, key[len(trieNodeStoragePrefix)+common.Hash512Length:]
 }
 
 // IsStorageTrieNode reports whether a provided database entry is a storage

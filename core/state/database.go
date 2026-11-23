@@ -41,19 +41,19 @@ const (
 // Database wraps access to tries and contract code.
 type Database interface {
 	// OpenTrie opens the main account trie.
-	OpenTrie(root common.Hash) (Trie, error)
+	OpenTrie(root common.Hash512) (Trie, error)
 
 	// OpenStorageTrie opens the storage trie of an account.
-	OpenStorageTrie(stateRoot common.Hash, address common.Address, root common.Hash) (Trie, error)
+	OpenStorageTrie(stateRoot common.Hash512, address common.Address, root common.Hash512) (Trie, error)
 
 	// CopyTrie returns an independent copy of the given trie.
 	CopyTrie(Trie) Trie
 
 	// ContractCode retrieves a particular contract's code.
-	ContractCode(addr common.Address, codeHash common.Hash) ([]byte, error)
+	ContractCode(addr common.Address, codeHash common.Hash512) ([]byte, error)
 
 	// ContractCodeSize retrieves a particular contracts code's size.
-	ContractCodeSize(addr common.Address, codeHash common.Hash) (int, error)
+	ContractCodeSize(addr common.Address, codeHash common.Hash512) (int, error)
 
 	// DiskDB returns the underlying key-value disk database.
 	DiskDB() qrldb.KeyValueStore
@@ -96,7 +96,7 @@ type Trie interface {
 
 	// UpdateContractCode abstracts code write to the trie. It is expected
 	// to be moved to the stateWriter interface when the latter is ready.
-	UpdateContractCode(address common.Address, codeHash common.Hash, code []byte) error
+	UpdateContractCode(address common.Address, codeHash common.Hash512, code []byte) error
 
 	// DeleteStorage removes any existing value for key from the trie. If a node
 	// was not found in the database, a trie.MissingNodeError is returned.
@@ -107,7 +107,7 @@ type Trie interface {
 
 	// Hash returns the root hash of the trie. It does not write to the database and
 	// can be used even if the trie doesn't have one.
-	Hash() common.Hash
+	Hash() common.Hash512
 
 	// Commit collects all dirty nodes in the trie and replace them with the
 	// corresponding node hash. All collected nodes(including dirty leaves if
@@ -115,7 +115,7 @@ type Trie interface {
 	// The returned nodeset can be nil if the trie is clean(nothing to commit).
 	// Once the trie is committed, it's not usable anymore. A new trie must
 	// be created with new root and updated trie database for following usage
-	Commit(collectLeaf bool) (common.Hash, *trienode.NodeSet, error)
+	Commit(collectLeaf bool) (common.Hash512, *trienode.NodeSet, error)
 
 	// NodeIterator returns an iterator that returns nodes of the trie. Iteration
 	// starts at the key after the given start key. And error will be returned
@@ -145,8 +145,8 @@ func NewDatabase(db qrldb.Database) Database {
 func NewDatabaseWithConfig(db qrldb.Database, config *trie.Config) Database {
 	return &cachingDB{
 		disk:          db,
-		codeSizeCache: lru.NewCache[common.Hash, int](codeSizeCacheSize),
-		codeCache:     lru.NewSizeConstrainedCache[common.Hash, []byte](codeCacheSize),
+		codeSizeCache: lru.NewCache[common.Hash512, int](codeSizeCacheSize),
+		codeCache:     lru.NewSizeConstrainedCache[common.Hash512, []byte](codeCacheSize),
 		triedb:        trie.NewDatabase(db, config),
 	}
 }
@@ -155,21 +155,21 @@ func NewDatabaseWithConfig(db qrldb.Database, config *trie.Config) Database {
 func NewDatabaseWithNodeDB(db qrldb.Database, triedb *trie.Database) Database {
 	return &cachingDB{
 		disk:          db,
-		codeSizeCache: lru.NewCache[common.Hash, int](codeSizeCacheSize),
-		codeCache:     lru.NewSizeConstrainedCache[common.Hash, []byte](codeCacheSize),
+		codeSizeCache: lru.NewCache[common.Hash512, int](codeSizeCacheSize),
+		codeCache:     lru.NewSizeConstrainedCache[common.Hash512, []byte](codeCacheSize),
 		triedb:        triedb,
 	}
 }
 
 type cachingDB struct {
 	disk          qrldb.KeyValueStore
-	codeSizeCache *lru.Cache[common.Hash, int]
-	codeCache     *lru.SizeConstrainedCache[common.Hash, []byte]
+	codeSizeCache *lru.Cache[common.Hash512, int]
+	codeCache     *lru.SizeConstrainedCache[common.Hash512, []byte]
 	triedb        *trie.Database
 }
 
 // OpenTrie opens the main account trie at a specific root hash.
-func (db *cachingDB) OpenTrie(root common.Hash) (Trie, error) {
+func (db *cachingDB) OpenTrie(root common.Hash512) (Trie, error) {
 	tr, err := trie.NewStateTrie(trie.StateTrieID(root), db.triedb)
 	if err != nil {
 		return nil, err
@@ -178,8 +178,8 @@ func (db *cachingDB) OpenTrie(root common.Hash) (Trie, error) {
 }
 
 // OpenStorageTrie opens the storage trie of an account.
-func (db *cachingDB) OpenStorageTrie(stateRoot common.Hash, address common.Address, root common.Hash) (Trie, error) {
-	tr, err := trie.NewStateTrie(trie.StorageTrieID(stateRoot, crypto.Keccak256Hash(address.Bytes()), root), db.triedb)
+func (db *cachingDB) OpenStorageTrie(stateRoot common.Hash512, address common.Address, root common.Hash512) (Trie, error) {
+	tr, err := trie.NewStateTrie(trie.StorageTrieID(stateRoot, crypto.Keccak512Hash(address.Bytes()), root), db.triedb)
 	if err != nil {
 		return nil, err
 	}
@@ -197,7 +197,7 @@ func (db *cachingDB) CopyTrie(t Trie) Trie {
 }
 
 // ContractCode retrieves a particular contract's code.
-func (db *cachingDB) ContractCode(address common.Address, codeHash common.Hash) ([]byte, error) {
+func (db *cachingDB) ContractCode(address common.Address, codeHash common.Hash512) ([]byte, error) {
 	code, _ := db.codeCache.Get(codeHash)
 	if len(code) > 0 {
 		return code, nil
@@ -214,7 +214,7 @@ func (db *cachingDB) ContractCode(address common.Address, codeHash common.Hash) 
 // ContractCodeWithPrefix retrieves a particular contract's code. If the
 // code can't be found in the cache, then check the existence with **new**
 // db scheme.
-func (db *cachingDB) ContractCodeWithPrefix(address common.Address, codeHash common.Hash) ([]byte, error) {
+func (db *cachingDB) ContractCodeWithPrefix(address common.Address, codeHash common.Hash512) ([]byte, error) {
 	code, _ := db.codeCache.Get(codeHash)
 	if len(code) > 0 {
 		return code, nil
@@ -229,7 +229,7 @@ func (db *cachingDB) ContractCodeWithPrefix(address common.Address, codeHash com
 }
 
 // ContractCodeSize retrieves a particular contracts code's size.
-func (db *cachingDB) ContractCodeSize(addr common.Address, codeHash common.Hash) (int, error) {
+func (db *cachingDB) ContractCodeSize(addr common.Address, codeHash common.Hash512) (int, error) {
 	if cached, ok := db.codeSizeCache.Get(codeHash); ok {
 		return cached, nil
 	}

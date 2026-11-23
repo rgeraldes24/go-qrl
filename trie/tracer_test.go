@@ -312,7 +312,7 @@ func forNodes(tr *Trie) map[string][]byte {
 	return nodes
 }
 
-func iterNodes(db *Database, root common.Hash) map[string][]byte {
+func iterNodes(db *Database, root common.Hash512) map[string][]byte {
 	tr, _ := New(TrieID(root), db)
 	return forNodes(tr)
 }
@@ -323,7 +323,7 @@ func forHashedNodes(tr *Trie) map[string][]byte {
 		nodes = make(map[string][]byte)
 	)
 	for it.Next(true) {
-		if it.Hash() == (common.Hash{}) {
+		if it.Hash() == (common.Hash512{}) {
 			continue
 		}
 		nodes[string(it.Path())] = common.CopyBytes(it.NodeBlob())

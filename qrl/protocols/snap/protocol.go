@@ -27,7 +27,7 @@ import (
 
 // Constants to match up protocol versions and messages
 const (
-	SNAP1 = 1
+	SNAP2 = 2
 )
 
 // ProtocolName is the official short name of the `snap` protocol used during
@@ -36,11 +36,11 @@ const ProtocolName = "snap"
 
 // ProtocolVersions are the supported versions of the `snap` protocol (first
 // is primary).
-var ProtocolVersions = []uint{SNAP1}
+var ProtocolVersions = []uint{SNAP2}
 
 // protocolLengths are the number of implemented message corresponding to
 // different protocol versions.
-var protocolLengths = map[uint]uint64{SNAP1: 8}
+var protocolLengths = map[uint]uint64{SNAP2: 8}
 
 // maxMessageSize is the maximum cap on the size of a protocol message.
 const maxMessageSize = 10 * 1024 * 1024
@@ -71,11 +71,11 @@ type Packet interface {
 
 // GetAccountRangePacket represents an account query.
 type GetAccountRangePacket struct {
-	ID     uint64      // Request ID to match up responses with
-	Root   common.Hash // Root hash of the account trie to serve
-	Origin common.Hash // Hash of the first account to retrieve
-	Limit  common.Hash // Hash of the last account to retrieve
-	Bytes  uint64      // Soft limit at which to stop returning data
+	ID     uint64         // Request ID to match up responses with
+	Root   common.Hash512 // Root hash of the account trie to serve
+	Origin common.Hash512 // Hash of the first account to retrieve
+	Limit  common.Hash512 // Hash of the last account to retrieve
+	Bytes  uint64         // Soft limit at which to stop returning data
 }
 
 // AccountRangePacket represents an account query response.
@@ -87,8 +87,8 @@ type AccountRangePacket struct {
 
 // AccountData represents a single account in a query response.
 type AccountData struct {
-	Hash common.Hash  // Hash of the account
-	Body rlp.RawValue // Account body in slim format
+	Hash common.Hash512 // Hash of the account
+	Body rlp.RawValue   // Account body in slim format
 }
 
 // Unpack retrieves the accounts from the range packet and converts from slim
@@ -98,9 +98,9 @@ type AccountData struct {
 // Note, this method does a round of RLP decoding and reencoding, so only use it
 // once and cache the results if need be. Ideally discard the packet afterwards
 // to not double the memory use.
-func (p *AccountRangePacket) Unpack() ([]common.Hash, [][]byte, error) {
+func (p *AccountRangePacket) Unpack() ([]common.Hash512, [][]byte, error) {
 	var (
-		hashes   = make([]common.Hash, len(p.Accounts))
+		hashes   = make([]common.Hash512, len(p.Accounts))
 		accounts = make([][]byte, len(p.Accounts))
 	)
 	for i, acc := range p.Accounts {
@@ -115,12 +115,12 @@ func (p *AccountRangePacket) Unpack() ([]common.Hash, [][]byte, error) {
 
 // GetStorageRangesPacket represents an storage slot query.
 type GetStorageRangesPacket struct {
-	ID       uint64        // Request ID to match up responses with
-	Root     common.Hash   // Root hash of the account trie to serve
-	Accounts []common.Hash // Account hashes of the storage tries to serve
-	Origin   []byte        // Hash of the first storage slot to retrieve (large contract mode)
-	Limit    []byte        // Hash of the last storage slot to retrieve (large contract mode)
-	Bytes    uint64        // Soft limit at which to stop returning data
+	ID       uint64           // Request ID to match up responses with
+	Root     common.Hash512   // Root hash of the account trie to serve
+	Accounts []common.Hash512 // Account hashes of the storage tries to serve
+	Origin   []byte           // Hash of the first storage slot to retrieve (large contract mode)
+	Limit    []byte           // Hash of the last storage slot to retrieve (large contract mode)
+	Bytes    uint64           // Soft limit at which to stop returning data
 }
 
 // StorageRangesPacket represents a storage slot query response.
@@ -132,19 +132,19 @@ type StorageRangesPacket struct {
 
 // StorageData represents a single storage slot in a query response.
 type StorageData struct {
-	Hash common.Hash // Hash of the storage slot
-	Body []byte      // Data content of the slot
+	Hash common.Hash512 // Hash of the storage slot
+	Body []byte         // Data content of the slot
 }
 
 // Unpack retrieves the storage slots from the range packet and returns them in
 // a split flat format that's more consistent with the internal data structures.
-func (p *StorageRangesPacket) Unpack() ([][]common.Hash, [][][]byte) {
+func (p *StorageRangesPacket) Unpack() ([][]common.Hash512, [][][]byte) {
 	var (
-		hashset = make([][]common.Hash, len(p.Slots))
+		hashset = make([][]common.Hash512, len(p.Slots))
 		slotset = make([][][]byte, len(p.Slots))
 	)
 	for i, slots := range p.Slots {
-		hashset[i] = make([]common.Hash, len(slots))
+		hashset[i] = make([]common.Hash512, len(slots))
 		slotset[i] = make([][]byte, len(slots))
 		for j, slot := range slots {
 			hashset[i][j] = slot.Hash
@@ -156,9 +156,9 @@ func (p *StorageRangesPacket) Unpack() ([][]common.Hash, [][][]byte) {
 
 // GetByteCodesPacket represents a contract bytecode query.
 type GetByteCodesPacket struct {
-	ID     uint64        // Request ID to match up responses with
-	Hashes []common.Hash // Code hashes to retrieve the code for
-	Bytes  uint64        // Soft limit at which to stop returning data
+	ID     uint64           // Request ID to match up responses with
+	Hashes []common.Hash512 // Code hashes to retrieve the code for
+	Bytes  uint64           // Soft limit at which to stop returning data
 }
 
 // ByteCodesPacket represents a contract bytecode query response.
@@ -170,7 +170,7 @@ type ByteCodesPacket struct {
 // GetTrieNodesPacket represents a state trie node query.
 type GetTrieNodesPacket struct {
 	ID    uint64            // Request ID to match up responses with
-	Root  common.Hash       // Root hash of the account trie to serve
+	Root  common.Hash512    // Root hash of the account trie to serve
 	Paths []TrieNodePathSet // Trie node hashes to retrieve the nodes for
 	Bytes uint64            // Soft limit at which to stop returning data
 }

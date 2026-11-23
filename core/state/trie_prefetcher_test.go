@@ -31,14 +31,14 @@ func filledStateDB() *StateDB {
 
 	// Create an account and check if the retrieved balance is correct
 	addr := common.MustParseAddress("Q00000000000000000000000000000000000000000000000000000000affeaffeaffeaffeaffeaffeaffeaffeaffeaffe99aabbccddeeff001122334455667788")
-	skey := common.HexToHash("aaa")
+	skey := common.HexToHash512("aaa")
 	sval := common.HexToStorageValue64("bbb")
 
 	state.SetBalance(addr, big.NewInt(42)) // Change the account trie
 	state.SetCode(addr, []byte("hello"))   // Change an external metadata
 	state.SetState(addr, skey, sval)       // Change the storage trie
 	for i := range 100 {
-		sk := common.BigToHash(big.NewInt(int64(i)))
+		sk := common.BigToHash512(big.NewInt(int64(i)))
 		state.SetState(addr, sk, common.BytesToStorageValue64(sk.Bytes())) // Change the storage trie
 	}
 	return state
@@ -47,21 +47,21 @@ func filledStateDB() *StateDB {
 func TestCopyAndClose(t *testing.T) {
 	db := filledStateDB()
 	prefetcher := newTriePrefetcher(db.db, db.originalRoot, "")
-	skey := common.HexToHash("aaa")
-	prefetcher.prefetch(common.Hash{}, db.originalRoot, common.Address{}, [][]byte{skey.Bytes()})
-	prefetcher.prefetch(common.Hash{}, db.originalRoot, common.Address{}, [][]byte{skey.Bytes()})
+	skey := common.HexToHash512("aaa")
+	prefetcher.prefetch(common.Hash512{}, db.originalRoot, common.Address{}, [][]byte{skey.Bytes()})
+	prefetcher.prefetch(common.Hash512{}, db.originalRoot, common.Address{}, [][]byte{skey.Bytes()})
 	time.Sleep(1 * time.Second)
-	a := prefetcher.trie(common.Hash{}, db.originalRoot)
-	prefetcher.prefetch(common.Hash{}, db.originalRoot, common.Address{}, [][]byte{skey.Bytes()})
-	b := prefetcher.trie(common.Hash{}, db.originalRoot)
+	a := prefetcher.trie(common.Hash512{}, db.originalRoot)
+	prefetcher.prefetch(common.Hash512{}, db.originalRoot, common.Address{}, [][]byte{skey.Bytes()})
+	b := prefetcher.trie(common.Hash512{}, db.originalRoot)
 	cpy := prefetcher.copy()
-	cpy.prefetch(common.Hash{}, db.originalRoot, common.Address{}, [][]byte{skey.Bytes()})
-	cpy.prefetch(common.Hash{}, db.originalRoot, common.Address{}, [][]byte{skey.Bytes()})
-	c := cpy.trie(common.Hash{}, db.originalRoot)
+	cpy.prefetch(common.Hash512{}, db.originalRoot, common.Address{}, [][]byte{skey.Bytes()})
+	cpy.prefetch(common.Hash512{}, db.originalRoot, common.Address{}, [][]byte{skey.Bytes()})
+	c := cpy.trie(common.Hash512{}, db.originalRoot)
 	prefetcher.close()
 	cpy2 := cpy.copy()
-	cpy2.prefetch(common.Hash{}, db.originalRoot, common.Address{}, [][]byte{skey.Bytes()})
-	d := cpy2.trie(common.Hash{}, db.originalRoot)
+	cpy2.prefetch(common.Hash512{}, db.originalRoot, common.Address{}, [][]byte{skey.Bytes()})
+	d := cpy2.trie(common.Hash512{}, db.originalRoot)
 	cpy.close()
 	cpy2.close()
 	if a.Hash() != b.Hash() || a.Hash() != c.Hash() || a.Hash() != d.Hash() {
@@ -72,11 +72,11 @@ func TestCopyAndClose(t *testing.T) {
 func TestUseAfterClose(t *testing.T) {
 	db := filledStateDB()
 	prefetcher := newTriePrefetcher(db.db, db.originalRoot, "")
-	skey := common.HexToHash("aaa")
-	prefetcher.prefetch(common.Hash{}, db.originalRoot, common.Address{}, [][]byte{skey.Bytes()})
-	a := prefetcher.trie(common.Hash{}, db.originalRoot)
+	skey := common.HexToHash512("aaa")
+	prefetcher.prefetch(common.Hash512{}, db.originalRoot, common.Address{}, [][]byte{skey.Bytes()})
+	a := prefetcher.trie(common.Hash512{}, db.originalRoot)
 	prefetcher.close()
-	b := prefetcher.trie(common.Hash{}, db.originalRoot)
+	b := prefetcher.trie(common.Hash512{}, db.originalRoot)
 	if a == nil {
 		t.Fatal("Prefetching before close should not return nil")
 	}
@@ -88,14 +88,14 @@ func TestUseAfterClose(t *testing.T) {
 func TestCopyClose(t *testing.T) {
 	db := filledStateDB()
 	prefetcher := newTriePrefetcher(db.db, db.originalRoot, "")
-	skey := common.HexToHash("aaa")
-	prefetcher.prefetch(common.Hash{}, db.originalRoot, common.Address{}, [][]byte{skey.Bytes()})
+	skey := common.HexToHash512("aaa")
+	prefetcher.prefetch(common.Hash512{}, db.originalRoot, common.Address{}, [][]byte{skey.Bytes()})
 	cpy := prefetcher.copy()
-	a := prefetcher.trie(common.Hash{}, db.originalRoot)
-	b := cpy.trie(common.Hash{}, db.originalRoot)
+	a := prefetcher.trie(common.Hash512{}, db.originalRoot)
+	b := cpy.trie(common.Hash512{}, db.originalRoot)
 	prefetcher.close()
-	c := prefetcher.trie(common.Hash{}, db.originalRoot)
-	d := cpy.trie(common.Hash{}, db.originalRoot)
+	c := prefetcher.trie(common.Hash512{}, db.originalRoot)
+	d := cpy.trie(common.Hash512{}, db.originalRoot)
 	if a == nil {
 		t.Fatal("Prefetching before close should not return nil")
 	}

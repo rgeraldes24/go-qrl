@@ -149,7 +149,7 @@ func (s *streamedGenesis) parse(input io.Reader) (*Genesis, error) {
 }
 
 func (s *streamedGenesis) parseAccount(d *json.Decoder, address common.Address) error {
-	owner := crypto.Keccak256Hash(address[:])
+	owner := crypto.Keccak512Hash(address[:])
 	key := append([]byte{'a'}, owner[:]...)
 	if exists, err := s.index.Has(key); err != nil {
 		return err
@@ -192,7 +192,7 @@ func (s *streamedGenesis) parseAccount(d *json.Decoder, address common.Address) 
 						return err
 					}
 				}
-				slotHash := crypto.Keccak256Hash(slot[:])
+				slotHash := crypto.Keccak512Hash(slot[:])
 				key := append(append([]byte{'s'}, owner[:]...), slotHash[:]...)
 				if exists, err := s.index.Has(key); err != nil {
 					return err

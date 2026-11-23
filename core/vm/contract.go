@@ -50,11 +50,11 @@ type Contract struct {
 	caller        ContractRef
 	self          ContractRef
 
-	jumpdests map[common.Hash]bitvec // Aggregated result of JUMPDEST analysis.
-	analysis  bitvec                 // Locally cached result of JUMPDEST analysis
+	jumpdests map[common.Hash512]bitvec // Aggregated result of JUMPDEST analysis.
+	analysis  bitvec                    // Locally cached result of JUMPDEST analysis
 
 	Code     []byte
-	CodeHash common.Hash
+	CodeHash common.Hash512
 	CodeAddr *common.Address
 	Input    []byte
 
@@ -70,7 +70,7 @@ func NewContract(caller ContractRef, object ContractRef, value *big.Int, gas uin
 		// Reuse JUMPDEST analysis from parent context if available.
 		c.jumpdests = parent.jumpdests
 	} else {
-		c.jumpdests = make(map[common.Hash]bitvec)
+		c.jumpdests = make(map[common.Hash512]bitvec)
 	}
 
 	// Gas should be a pointer so it can safely be reduced through the run
@@ -106,7 +106,7 @@ func (c *Contract) isCode(udest uint64) bool {
 	// Do we have a contract hash already?
 	// If we do have a hash, that means it's a 'regular' contract. For regular
 	// contracts ( not temporary initcode), we store the analysis in a map
-	if c.CodeHash != (common.Hash{}) {
+	if c.CodeHash != (common.Hash512{}) {
 		// Does parent context have the analysis?
 		analysis, exist := c.jumpdests[c.CodeHash]
 		if !exist {
@@ -179,7 +179,7 @@ func (c *Contract) Value() *big.Int {
 
 // SetCallCode sets the code of the contract and address of the backing data
 // object
-func (c *Contract) SetCallCode(addr *common.Address, hash common.Hash, code []byte) {
+func (c *Contract) SetCallCode(addr *common.Address, hash common.Hash512, code []byte) {
 	c.Code = code
 	c.CodeHash = hash
 	c.CodeAddr = addr

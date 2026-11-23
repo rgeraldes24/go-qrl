@@ -71,10 +71,10 @@ type stJSON struct {
 }
 
 type stPostState struct {
-	Root            common.UnprefixedHash `json:"hash"`
-	Logs            common.UnprefixedHash `json:"logs"`
-	TxBytes         hexutil.Bytes         `json:"txbytes"`
-	ExpectException string                `json:"expectException"`
+	Root            common.UnprefixedHash512 `json:"hash"`
+	Logs            common.UnprefixedHash    `json:"logs"`
+	TxBytes         hexutil.Bytes            `json:"txbytes"`
+	ExpectException string                   `json:"expectException"`
 	Indexes         struct {
 		Data  int `json:"data"`
 		Gas   int `json:"gas"`
@@ -209,7 +209,7 @@ func (t *StateTest) Run(subtest StateSubtest, vmconfig vm.Config, snapshotter bo
 	post := t.json.Post[subtest.Fork][subtest.Index]
 	// N.B: We need to do this in a two-step process, because the first Commit takes care
 	// of self-destructs, and we need to touch the coinbase _after_ it has potentially self-destructed.
-	if root != common.Hash(post.Root) {
+	if root != common.Hash512(post.Root) {
 		return fmt.Errorf("post state root mismatch: got %x, want %x", root, post.Root)
 	}
 	if logs := rlpHash(statedb.Logs()); logs != common.Hash(post.Logs) {
@@ -220,10 +220,10 @@ func (t *StateTest) Run(subtest StateSubtest, vmconfig vm.Config, snapshotter bo
 }
 
 // RunNoVerify runs a specific subtest and returns the statedb and post-state root
-func (t *StateTest) RunNoVerify(subtest StateSubtest, vmconfig vm.Config, snapshotter bool, scheme string) (*trie.Database, *snapshot.Tree, *state.StateDB, common.Hash, error) {
+func (t *StateTest) RunNoVerify(subtest StateSubtest, vmconfig vm.Config, snapshotter bool, scheme string) (*trie.Database, *snapshot.Tree, *state.StateDB, common.Hash512, error) {
 	config, qips, err := GetChainConfig(subtest.Fork)
 	if err != nil {
-		return nil, nil, nil, common.Hash{}, UnsupportedForkError{subtest.Fork}
+		return nil, nil, nil, common.Hash512{}, UnsupportedForkError{subtest.Fork}
 	}
 	vmconfig.ExtraQips = qips
 
@@ -242,7 +242,7 @@ func (t *StateTest) RunNoVerify(subtest StateSubtest, vmconfig vm.Config, snapsh
 	msg, err := t.json.Tx.toMessage(post, baseFee)
 	if err != nil {
 		triedb.Close()
-		return nil, nil, nil, common.Hash{}, err
+		return nil, nil, nil, common.Hash512{}, err
 	}
 
 	// Try to recover tx with current signer
@@ -251,12 +251,12 @@ func (t *StateTest) RunNoVerify(subtest StateSubtest, vmconfig vm.Config, snapsh
 		err := ttx.UnmarshalBinary(post.TxBytes)
 		if err != nil {
 			triedb.Close()
-			return nil, nil, nil, common.Hash{}, err
+			return nil, nil, nil, common.Hash512{}, err
 		}
 
 		if _, err := types.Sender(types.NewZondSigner(config.ChainID), &ttx); err != nil {
 			triedb.Close()
-			return nil, nil, nil, common.Hash{}, err
+			return nil, nil, nil, common.Hash512{}, err
 		}
 	}
 

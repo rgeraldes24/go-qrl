@@ -33,21 +33,21 @@ type Reader interface {
 	// storage.
 	//
 	// TODO(rjl493456442): remove the 'hash' parameter, it's redundant in PBSS.
-	Node(owner common.Hash, path []byte, hash common.Hash) ([]byte, error)
+	Node(owner common.Hash512, path []byte, hash common.Hash512) ([]byte, error)
 }
 
 // trieReader is a wrapper of the underlying node reader. It's not safe
 // for concurrent usage.
 type trieReader struct {
-	owner  common.Hash
+	owner  common.Hash512
 	reader Reader
 	banned map[string]struct{} // Marker to prevent node from being accessed, for tests
 }
 
 // newTrieReader initializes the trie reader with the given node reader.
-func newTrieReader(stateRoot, owner common.Hash, db *Database) (*trieReader, error) {
-	if stateRoot == (common.Hash{}) || stateRoot == types.EmptyRootHash {
-		if stateRoot == (common.Hash{}) {
+func newTrieReader(stateRoot, owner common.Hash512, db *Database) (*trieReader, error) {
+	if stateRoot == (common.Hash512{}) || stateRoot == types.EmptyRootHash {
+		if stateRoot == (common.Hash512{}) {
 			log.Error("Zero state root hash!")
 		}
 		return &trieReader{owner: owner}, nil
@@ -68,7 +68,7 @@ func newEmptyReader() *trieReader {
 // node retrieves the rlp-encoded trie node with the provided trie node
 // information. An MissingNodeError will be returned in case the node is
 // not found or any error is encountered.
-func (r *trieReader) node(path []byte, hash common.Hash) ([]byte, error) {
+func (r *trieReader) node(path []byte, hash common.Hash512) ([]byte, error) {
 	// Perform the logics in tests for preventing trie node access.
 	if r.banned != nil {
 		if _, ok := r.banned[string(path)]; ok {
@@ -91,11 +91,11 @@ type trieLoader struct {
 }
 
 // OpenTrie opens the main account trie.
-func (l *trieLoader) OpenTrie(root common.Hash) (triestate.Trie, error) {
+func (l *trieLoader) OpenTrie(root common.Hash512) (triestate.Trie, error) {
 	return New(TrieID(root), l.db)
 }
 
 // OpenStorageTrie opens the storage trie of an account.
-func (l *trieLoader) OpenStorageTrie(stateRoot common.Hash, addrHash, root common.Hash) (triestate.Trie, error) {
+func (l *trieLoader) OpenStorageTrie(stateRoot common.Hash512, addrHash, root common.Hash512) (triestate.Trie, error) {
 	return New(StorageTrieID(stateRoot, addrHash, root), l.db)
 }

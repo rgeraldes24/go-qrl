@@ -65,7 +65,7 @@ func makeProvers(trie *Trie) []func(key []byte) *memorydb.Database {
 		proof := memorydb.New()
 		if it := NewIterator(trie.MustNodeIterator(key)); it.Next() && bytes.Equal(key, it.Key) {
 			for _, p := range it.Prove() {
-				proof.Put(crypto.Keccak256(p), p)
+				proof.Put(crypto.Keccak512(p), p)
 			}
 		}
 		return proof
@@ -133,7 +133,7 @@ func TestBadProof(t *testing.T) {
 			it.Release()
 
 			mutateByte(val)
-			proof.Put(crypto.Keccak256(val), val)
+			proof.Put(crypto.Keccak512(val), val)
 
 			if _, err := VerifyProof(root, kv.k, proof); err == nil {
 				t.Fatalf("prover %d: expected proof to fail for key %x", i, kv.k)
@@ -249,8 +249,8 @@ func TestRangeProofWithNonExistentProof(t *testing.T) {
 	}
 	// Special case, two edge proofs for two edge key.
 	proof := memorydb.New()
-	first := common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000000").Bytes()
-	last := common.MaxHash.Bytes()
+	first := common.HexToHash512("0x0000000000000000000000000000000000000000000000000000000000000000").Bytes()
+	last := common.MaxHash512.Bytes()
 	if err := trie.Prove(first, proof); err != nil {
 		t.Fatalf("Failed to prove the first node %v", err)
 	}
@@ -396,10 +396,10 @@ func TestOneElementRangeProof(t *testing.T) {
 
 	// Test the mini trie with only a single element.
 	tinyTrie := NewEmpty(NewDatabase(rawdb.NewMemoryDatabase(), nil))
-	entry := &kv{randBytes(32), randBytes(20), false}
+	entry := &kv{randBytes(common.Hash512Length), randBytes(20), false}
 	tinyTrie.MustUpdate(entry.k, entry.v)
 
-	first = common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000000").Bytes()
+	first = common.HexToHash512("0x0000000000000000000000000000000000000000000000000000000000000000").Bytes()
 	last = entry.k
 	proof = memorydb.New()
 	if err := tinyTrie.Prove(first, proof); err != nil {
@@ -450,8 +450,8 @@ func TestAllElementsProof(t *testing.T) {
 
 	// Even with non-existent edge proofs, it should still work.
 	proof = memorydb.New()
-	first := common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000000").Bytes()
-	last := common.MaxHash.Bytes()
+	first := common.HexToHash512("0x0000000000000000000000000000000000000000000000000000000000000000").Bytes()
+	last := common.MaxHash512.Bytes()
 	if err := trie.Prove(first, proof); err != nil {
 		t.Fatalf("Failed to prove the first node %v", err)
 	}
@@ -470,7 +470,7 @@ func TestSingleSideRangeProof(t *testing.T) {
 		trie := NewEmpty(NewDatabase(rawdb.NewMemoryDatabase(), nil))
 		var entries []*kv
 		for range 4096 {
-			value := &kv{randBytes(32), randBytes(20), false}
+			value := &kv{randBytes(common.Hash512Length), randBytes(20), false}
 			trie.MustUpdate(value.k, value.v)
 			entries = append(entries, value)
 		}
@@ -479,7 +479,7 @@ func TestSingleSideRangeProof(t *testing.T) {
 		var cases = []int{0, 1, 50, 100, 1000, 2000, len(entries) - 1}
 		for _, pos := range cases {
 			proof := memorydb.New()
-			if err := trie.Prove(common.Hash{}.Bytes(), proof); err != nil {
+			if err := trie.Prove(common.Hash512{}.Bytes(), proof); err != nil {
 				t.Fatalf("Failed to prove the first node %v", err)
 			}
 			if err := trie.Prove(entries[pos].k, proof); err != nil {
@@ -491,7 +491,7 @@ func TestSingleSideRangeProof(t *testing.T) {
 				k = append(k, entries[i].k)
 				v = append(v, entries[i].v)
 			}
-			_, err := VerifyRangeProof(trie.Hash(), common.Hash{}.Bytes(), k[len(k)-1], k, v, proof)
+			_, err := VerifyRangeProof(trie.Hash(), common.Hash512{}.Bytes(), k[len(k)-1], k, v, proof)
 			if err != nil {
 				t.Fatalf("Expected no error, got %v", err)
 			}
@@ -505,7 +505,7 @@ func TestReverseSingleSideRangeProof(t *testing.T) {
 		trie := NewEmpty(NewDatabase(rawdb.NewMemoryDatabase(), nil))
 		var entries []*kv
 		for range 4096 {
-			value := &kv{randBytes(32), randBytes(20), false}
+			value := &kv{randBytes(common.Hash512Length), randBytes(20), false}
 			trie.MustUpdate(value.k, value.v)
 			entries = append(entries, value)
 		}
@@ -517,7 +517,7 @@ func TestReverseSingleSideRangeProof(t *testing.T) {
 			if err := trie.Prove(entries[pos].k, proof); err != nil {
 				t.Fatalf("Failed to prove the first node %v", err)
 			}
-			last := common.MaxHash
+			last := common.MaxHash512
 			if err := trie.Prove(last.Bytes(), proof); err != nil {
 				t.Fatalf("Failed to prove the last node %v", err)
 			}
@@ -568,7 +568,7 @@ func TestBadRangeProof(t *testing.T) {
 		case 0:
 			// Modified key
 			index = mrand.Intn(end - start)
-			keys[index] = randBytes(32) // In theory it can't be same
+			keys[index] = randBytes(common.Hash512Length) // In theory it can't be same
 		case 1:
 			// Modified val
 			index = mrand.Intn(end - start)
@@ -612,7 +612,7 @@ func TestGappedRangeProof(t *testing.T) {
 	trie := NewEmpty(NewDatabase(rawdb.NewMemoryDatabase(), nil))
 	var entries []*kv // Sorted entries
 	for i := range byte(10) {
-		value := &kv{common.LeftPadBytes([]byte{i}, 32), []byte{i}, false}
+		value := &kv{common.LeftPadBytes([]byte{i}, common.Hash512Length), []byte{i}, false}
 		trie.MustUpdate(value.k, value.v)
 		entries = append(entries, value)
 	}
@@ -686,7 +686,7 @@ func TestHasRightElement(t *testing.T) {
 	trie := NewEmpty(NewDatabase(rawdb.NewMemoryDatabase(), nil))
 	var entries []*kv
 	for range 4096 {
-		value := &kv{randBytes(32), randBytes(20), false}
+		value := &kv{randBytes(common.Hash512Length), randBytes(20), false}
 		trie.MustUpdate(value.k, value.v)
 		entries = append(entries, value)
 	}
@@ -717,7 +717,7 @@ func TestHasRightElement(t *testing.T) {
 			proof    = memorydb.New()
 		)
 		if c.start == -1 {
-			firstKey, start = common.Hash{}.Bytes(), 0
+			firstKey, start = common.Hash512{}.Bytes(), 0
 			if err := trie.Prove(firstKey, proof); err != nil {
 				t.Fatalf("Failed to prove the first node %v", err)
 			}
@@ -728,7 +728,7 @@ func TestHasRightElement(t *testing.T) {
 			}
 		}
 		if c.end == -1 {
-			lastKey, end = common.MaxHash.Bytes(), len(entries)
+			lastKey, end = common.MaxHash512.Bytes(), len(entries)
 			if err := trie.Prove(lastKey, proof); err != nil {
 				t.Fatalf("Failed to prove the first node %v", err)
 			}
@@ -1035,15 +1035,15 @@ func randomTrie(n int) (*Trie, map[string]*kv) {
 	trie := NewEmpty(NewDatabase(rawdb.NewMemoryDatabase(), nil))
 	vals := make(map[string]*kv)
 	for i := range byte(100) {
-		value := &kv{common.LeftPadBytes([]byte{i}, 32), []byte{i}, false}
-		value2 := &kv{common.LeftPadBytes([]byte{i + 10}, 32), []byte{i}, false}
+		value := &kv{common.LeftPadBytes([]byte{i}, common.Hash512Length), []byte{i}, false}
+		value2 := &kv{common.LeftPadBytes([]byte{i + 10}, common.Hash512Length), []byte{i}, false}
 		trie.MustUpdate(value.k, value.v)
 		trie.MustUpdate(value2.k, value2.v)
 		vals[string(value.k)] = value
 		vals[string(value2.k)] = value2
 	}
 	for range n {
-		value := &kv{randBytes(32), randBytes(20), false}
+		value := &kv{randBytes(common.Hash512Length), randBytes(20), false}
 		trie.MustUpdate(value.k, value.v)
 		vals[string(value.k)] = value
 	}
@@ -1056,10 +1056,10 @@ func nonRandomTrie(n int) (*Trie, map[string]*kv) {
 	max := uint64(0xffffffffffffffff)
 	for i := uint64(0); i < uint64(n); i++ {
 		value := make([]byte, 32)
-		key := make([]byte, 32)
+		key := make([]byte, common.Hash512Length)
 		binary.LittleEndian.PutUint64(key, i)
 		binary.LittleEndian.PutUint64(value, i-max)
-		//value := &kv{common.LeftPadBytes([]byte{i}, 32), []byte{i}, false}
+		//value := &kv{common.LeftPadBytes([]byte{i}, common.Hash512Length), []byte{i}, false}
 		elem := &kv{key, value, false}
 		trie.MustUpdate(elem.k, elem.v)
 		vals[string(elem.k)] = elem

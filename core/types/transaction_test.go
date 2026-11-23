@@ -107,9 +107,9 @@ func TestEIP2930Signer(t *testing.T) {
 			AccessList: []AccessTuple{
 				{
 					Address: to,
-					StorageKeys: []common.Hash{
-						common.HexToHash("0000000000000000000000000000000000000000000000000000000000000000"),
-						common.HexToHash("0000000000000000000000000000000000000000000000000000000000000001"),
+					StorageKeys: []common.StorageKey{
+						common.HexToHash512("0000000000000000000000000000000000000000000000000000000000000000"),
+						common.HexToHash512("0000000000000000000000000000000000000000000000000000000000000001"),
 					},
 				},
 			},
@@ -178,7 +178,7 @@ func TestEIP2930Signer(t *testing.T) {
 			// qrvmone example
 			tx:             tx3,
 			signer:         signer1,
-			wantSignerHash: common.HexToHash("aef4e74af00d23227a4107636688b7f0e5c9e6898e90706dd8be1f2dd9b8b443"),
+			wantSignerHash: common.HexToHash("aed868fad46e7f5d4509f4b53ffd5e30dbcb86b39c4dbee90060666ca8e73ffe"),
 		},
 		{
 			// qrvmone example
@@ -331,7 +331,7 @@ func TestTransactionCoding(t *testing.T) {
 		signer    = NewZondSigner(common.Big1)
 		addr      = common.MustParseAddress("Q00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000199aabbccddeeff001122334455667788")
 		recipient = common.MustParseAddress("Q00000000000000000000000000000000000000000000000000000000095e7baea6a6c7c4c2dfeb977efac326af552d8799aabbccddeeff001122334455667788")
-		accesses  = AccessList{{Address: addr, StorageKeys: []common.Hash{{0}}}}
+		accesses  = AccessList{{Address: addr, StorageKeys: []common.StorageKey{{0}}}}
 	)
 	for i := range uint64(500) {
 		var txdata TxData
@@ -467,7 +467,7 @@ func TestTransactionSizes(t *testing.T) {
 			AccessList: AccessList{
 				AccessTuple{
 					Address:     to,
-					StorageKeys: []common.Hash{common.HexToHash("0x01")},
+					StorageKeys: []common.StorageKey{common.HexToHash512("0x01")},
 				}},
 		},
 		&DynamicFeeTx{

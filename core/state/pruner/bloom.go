@@ -106,9 +106,9 @@ func (bloom *stateBloom) Commit(filename, tempname string) error {
 
 // Put implements the KeyValueWriter interface. But here only the key is needed.
 func (bloom *stateBloom) Put(key []byte, value []byte) error {
-	// If the key length is not 32bytes, ensure it's contract code
+	// If the key length is not 64 bytes, ensure it's contract code
 	// entry with new scheme.
-	if len(key) != common.HashLength {
+	if len(key) != common.Hash512Length {
 		isCode, codeKey := rawdb.IsCodeKey(key)
 		if !isCode {
 			return errors.New("invalid entry")

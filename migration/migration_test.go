@@ -291,6 +291,50 @@ func TestExportGenesisAndRedemption(t *testing.T) {
 	}
 }
 
+// Compiler-generated mapping getters must preserve high key bits as well as
+// the full intermediate hash of a nested mapping.
+func TestMappingKeys512(t *testing.T) {
+	path, _, _, _ := legacyFixture(t)
+	s, err := exportSnapshot(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	v := setupVM(t, s)
+	low := big.NewInt(123)
+	high := new(big.Int).Add(new(big.Int).Lsh(big.NewInt(1), 511), low)
+	for _, mapping := range []struct {
+		name   string
+		slot   uint64
+		nested bool
+	}{
+		{"remaining", 5, false},
+		{"accountKind", 6, false},
+		{"usedOTS", 7, true},
+		{"treeHeight", 8, false},
+		{"threshold", 9, false},
+		{"weight", 10, true},
+	} {
+		t.Run(mapping.name, func(t *testing.T) {
+			for i, key := range []*big.Int{low, high} {
+				location := mappingSlot(key, slot(mapping.slot))
+				if mapping.nested {
+					location = mappingSlot(high, location)
+				}
+				v.state.SetState(v.contract, location, common.StorageValue64{63: byte(i + 1)})
+			}
+			for i, key := range []*big.Int{low, high} {
+				args := []any{key}
+				if mapping.nested {
+					args = append(args, high)
+				}
+				if got := v.value(t, mapping.name, args...); got.Uint64() != uint64(i+1) {
+					t.Fatalf("mapping key %x: got %v", key, got)
+				}
+			}
+		})
+	}
+}
+
 func TestFailedPayoutDoesNotConsumeClaim(t *testing.T) {
 	path, owner, _, _ := legacyFixture(t)
 	s, err := exportSnapshot(path)

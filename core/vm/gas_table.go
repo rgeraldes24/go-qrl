@@ -62,6 +62,7 @@ func memoryGasCost(mem *Memory, newMemSize uint64) (uint64, error) {
 // as argument:
 // CALLDATACOPY (stack position 2)
 // CODECOPY (stack position 2)
+// MCOPY (stack position 2)
 // EXTCODECOPY (stack position 3)
 // RETURNDATACOPY (stack position 2)
 func memoryCopierGas(stackpos int) gasFunc {
@@ -91,6 +92,7 @@ func memoryCopierGas(stackpos int) gasFunc {
 var (
 	gasCallDataCopy   = memoryCopierGas(2)
 	gasCodeCopy       = memoryCopierGas(2)
+	gasMcopy          = memoryCopierGas(2)
 	gasExtCodeCopy    = memoryCopierGas(3)
 	gasReturnDataCopy = memoryCopierGas(2)
 )
@@ -126,6 +128,14 @@ func makeGasLog(n uint64) gasFunc {
 }
 
 func gasKeccak256(qrvm *QRVM, contract *Contract, stack *Stack, mem *Memory, memorySize uint64) (uint64, error) {
+	return gasKeccak(stack, mem, memorySize, params.Keccak256WordGas)
+}
+
+func gasKeccak512(qrvm *QRVM, contract *Contract, stack *Stack, mem *Memory, memorySize uint64) (uint64, error) {
+	return gasKeccak(stack, mem, memorySize, params.Keccak512WordGas)
+}
+
+func gasKeccak(stack *Stack, mem *Memory, memorySize, perWord uint64) (uint64, error) {
 	gas, err := memoryGasCost(mem, memorySize)
 	if err != nil {
 		return 0, err
@@ -134,7 +144,7 @@ func gasKeccak256(qrvm *QRVM, contract *Contract, stack *Stack, mem *Memory, mem
 	if overflow {
 		return 0, ErrGasUintOverflow
 	}
-	if wordGas, overflow = math.SafeMul(toWordSize(wordGas), params.Keccak256WordGas); overflow {
+	if wordGas, overflow = math.SafeMul(toWordSize(wordGas), perWord); overflow {
 		return 0, ErrGasUintOverflow
 	}
 	if gas, overflow = math.SafeAdd(gas, wordGas); overflow {
@@ -184,7 +194,7 @@ func gasCreate2Eip3860(qrvm *QRVM, contract *Contract, stack *Stack, mem *Memory
 		return 0, ErrGasUintOverflow
 	}
 	// Since size <= params.MaxInitCodeSize, these multiplication cannot overflow
-	moreGas := (params.InitCodeWordGas + params.Keccak256WordGas) * toWordSize(size)
+	moreGas := (params.InitCodeWordGas + params.Keccak512WordGas) * toWordSize(size)
 	if gas, overflow = math.SafeAdd(gas, moreGas); overflow {
 		return 0, ErrGasUintOverflow
 	}

@@ -36,7 +36,7 @@ import (
 type StateTrie struct {
 	trie             Trie
 	preimages        *preimageStore
-	hashKeyBuf       [common.HashLength]byte
+	hashKeyBuf       [common.Hash512Length]byte
 	secKeyCache      map[string][]byte
 	secKeyCacheOwner *StateTrie // Pointer to self, replace the key cache on mismatch
 }
@@ -95,7 +95,7 @@ func (t *StateTrie) GetAccount(address common.Address) (*types.StateAccount, err
 // GetAccountByHash does the same thing as GetAccount, however it expects an
 // account hash that is the hash of address. This constitutes an abstraction
 // leak, since the client code needs to know the key format.
-func (t *StateTrie) GetAccountByHash(addrHash common.Hash) (*types.StateAccount, error) {
+func (t *StateTrie) GetAccountByHash(addrHash common.Hash512) (*types.StateAccount, error) {
 	res, err := t.trie.Get(addrHash.Bytes())
 	if res == nil || err != nil {
 		return nil, err
@@ -161,7 +161,7 @@ func (t *StateTrie) UpdateAccount(address common.Address, acc *types.StateAccoun
 	return nil
 }
 
-func (t *StateTrie) UpdateContractCode(_ common.Address, _ common.Hash, _ []byte) error {
+func (t *StateTrie) UpdateContractCode(_ common.Address, _ common.Hash512, _ []byte) error {
 	return nil
 }
 
@@ -198,7 +198,7 @@ func (t *StateTrie) GetKey(shaKey []byte) []byte {
 	if t.preimages == nil {
 		return nil
 	}
-	return t.preimages.preimage(common.BytesToHash(shaKey))
+	return t.preimages.preimage(common.BytesToHash512(shaKey))
 }
 
 // Commit collects all dirty nodes in the trie and replaces them with the
@@ -208,13 +208,13 @@ func (t *StateTrie) GetKey(shaKey []byte) []byte {
 // All cached preimages will be also flushed if preimages recording is enabled.
 // Once the trie is committed, it's not usable anymore. A new trie must
 // be created with new root and updated trie database for following usage
-func (t *StateTrie) Commit(collectLeaf bool) (common.Hash, *trienode.NodeSet, error) {
+func (t *StateTrie) Commit(collectLeaf bool) (common.Hash512, *trienode.NodeSet, error) {
 	// Write all the pre-images to the actual disk database
 	if len(t.getSecKeyCache()) > 0 {
 		if t.preimages != nil {
-			preimages := make(map[common.Hash][]byte)
+			preimages := make(map[common.Hash512][]byte)
 			for hk, key := range t.secKeyCache {
-				preimages[common.BytesToHash([]byte(hk))] = key
+				preimages[common.BytesToHash512([]byte(hk))] = key
 			}
 			t.preimages.insertPreimage(preimages)
 		}
@@ -226,7 +226,7 @@ func (t *StateTrie) Commit(collectLeaf bool) (common.Hash, *trienode.NodeSet, er
 
 // Hash returns the root hash of StateTrie. It does not write to the
 // database and can be used even if the trie doesn't have one.
-func (t *StateTrie) Hash() common.Hash {
+func (t *StateTrie) Hash() common.Hash512 {
 	return t.trie.Hash()
 }
 

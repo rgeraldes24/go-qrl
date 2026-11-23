@@ -20,6 +20,7 @@ import (
 	"bytes"
 	"testing"
 
+	"github.com/theQRL/go-qrl/common"
 	"github.com/theQRL/go-qrl/crypto"
 	"github.com/theQRL/go-qrl/rlp"
 )
@@ -27,7 +28,7 @@ import (
 func newTestFullNode(v []byte) []any {
 	fullNodeData := []any{}
 	for i := range 16 {
-		k := bytes.Repeat([]byte{byte(i + 1)}, 32)
+		k := bytes.Repeat([]byte{byte(i + 1)}, common.Hash512Length)
 		fullNodeData = append(fullNodeData, k)
 	}
 	fullNodeData = append(fullNodeData, v)
@@ -94,6 +95,20 @@ func TestDecodeFullNode(t *testing.T) {
 	}
 }
 
+func TestEmbeddedNodeHash512Boundary(t *testing.T) {
+	for _, size := range []int{63, 64, 65} {
+		// One compact path byte, plus a long-string value and the list prefix.
+		encoded, err := rlp.EncodeToBytes([]any{[]byte{0x20}, bytes.Repeat([]byte{1}, size-5)})
+		if err != nil || len(encoded) != size {
+			t.Fatalf("invalid fixture size %d: %d, %v", size, len(encoded), err)
+		}
+		_, _, err = decodeRef(encoded)
+		if (err == nil) != (size < common.Hash512Length) {
+			t.Fatalf("embedded node size %d: %v", size, err)
+		}
+	}
+}
+
 // goos: darwin
 // goarch: arm64
 // pkg: github.com/theQRL/go-qrl/trie
@@ -102,7 +117,7 @@ func TestDecodeFullNode(t *testing.T) {
 func BenchmarkEncodeShortNode(b *testing.B) {
 	node := &shortNode{
 		Key: []byte{0x1, 0x2},
-		Val: hashNode(randBytes(32)),
+		Val: hashNode(randBytes(common.Hash512Length)),
 	}
 	b.ReportAllocs()
 
@@ -119,7 +134,7 @@ func BenchmarkEncodeShortNode(b *testing.B) {
 func BenchmarkEncodeFullNode(b *testing.B) {
 	node := &fullNode{}
 	for i := range 16 {
-		node.Children[i] = hashNode(randBytes(32))
+		node.Children[i] = hashNode(randBytes(common.Hash512Length))
 	}
 	b.ReportAllocs()
 
@@ -136,10 +151,10 @@ func BenchmarkEncodeFullNode(b *testing.B) {
 func BenchmarkDecodeShortNode(b *testing.B) {
 	node := &shortNode{
 		Key: []byte{0x1, 0x2},
-		Val: hashNode(randBytes(32)),
+		Val: hashNode(randBytes(common.Hash512Length)),
 	}
 	blob := nodeToBytes(node)
-	hash := crypto.Keccak256(blob)
+	hash := crypto.Keccak512(blob)
 
 	b.ReportAllocs()
 
@@ -156,10 +171,10 @@ func BenchmarkDecodeShortNode(b *testing.B) {
 func BenchmarkDecodeShortNodeUnsafe(b *testing.B) {
 	node := &shortNode{
 		Key: []byte{0x1, 0x2},
-		Val: hashNode(randBytes(32)),
+		Val: hashNode(randBytes(common.Hash512Length)),
 	}
 	blob := nodeToBytes(node)
-	hash := crypto.Keccak256(blob)
+	hash := crypto.Keccak512(blob)
 
 	b.ReportAllocs()
 
@@ -176,10 +191,10 @@ func BenchmarkDecodeShortNodeUnsafe(b *testing.B) {
 func BenchmarkDecodeFullNode(b *testing.B) {
 	node := &fullNode{}
 	for i := range 16 {
-		node.Children[i] = hashNode(randBytes(32))
+		node.Children[i] = hashNode(randBytes(common.Hash512Length))
 	}
 	blob := nodeToBytes(node)
-	hash := crypto.Keccak256(blob)
+	hash := crypto.Keccak512(blob)
 
 	b.ReportAllocs()
 
@@ -196,10 +211,10 @@ func BenchmarkDecodeFullNode(b *testing.B) {
 func BenchmarkDecodeFullNodeUnsafe(b *testing.B) {
 	node := &fullNode{}
 	for i := range 16 {
-		node.Children[i] = hashNode(randBytes(32))
+		node.Children[i] = hashNode(randBytes(common.Hash512Length))
 	}
 	blob := nodeToBytes(node)
-	hash := crypto.Keccak256(blob)
+	hash := crypto.Keccak512(blob)
 
 	b.ReportAllocs()
 

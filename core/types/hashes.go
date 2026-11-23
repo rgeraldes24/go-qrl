@@ -24,25 +24,25 @@ import (
 
 var (
 	// EmptyRootHash is the known root hash of an empty trie.
-	EmptyRootHash = common.HexToHash("56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421")
+	EmptyRootHash = crypto.Keccak512Hash([]byte{0x80})
 
 	// EmptyCodeHash is the known hash of the empty QRVM bytecode.
-	EmptyCodeHash = crypto.Keccak256Hash(nil) // c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470
+	EmptyCodeHash = crypto.Keccak512Hash(nil)
 
 	// EmptyTxsHash is the known hash of the empty transaction set.
-	EmptyTxsHash = common.HexToHash("56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421")
+	EmptyTxsHash = crypto.Keccak512Hash([]byte{0x80})
 
 	// EmptyReceiptsHash is the known hash of the empty receipt set.
-	EmptyReceiptsHash = common.HexToHash("56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421")
+	EmptyReceiptsHash = crypto.Keccak512Hash([]byte{0x80})
 
 	// EmptyWithdrawalsHash is the known hash of the empty withdrawal set.
-	EmptyWithdrawalsHash = common.HexToHash("56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421")
+	EmptyWithdrawalsHash = crypto.Keccak512Hash([]byte{0x80})
 )
 
 // TrieRootHash returns the hash itself if it's non-empty or the predefined
 // emptyHash one instead.
-func TrieRootHash(hash common.Hash) common.Hash {
-	if hash == (common.Hash{}) {
+func TrieRootHash(hash common.Hash512) common.Hash512 {
+	if hash == (common.Hash512{}) {
 		log.Error("Zero trie root hash!")
 		return EmptyRootHash
 	}

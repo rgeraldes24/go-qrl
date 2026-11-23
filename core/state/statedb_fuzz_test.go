@@ -74,7 +74,7 @@ func newStateTestAction(addr common.Address, r *rand.Rand, index int) testAction
 		{
 			name: "SetState",
 			fn: func(a testAction, s *StateDB) {
-				var key common.Hash
+				var key common.Hash512
 				var val common.StorageValue64
 				binary.BigEndian.PutUint16(key[:], uint16(a.args[0]))
 				binary.BigEndian.PutUint16(val[:], uint16(a.args[1]))
@@ -169,9 +169,9 @@ func (test *stateTest) String() string {
 
 func (test *stateTest) run() bool {
 	var (
-		roots       []common.Hash
+		roots       []common.Hash512
 		accountList []map[common.Address][]byte
-		storageList []map[common.Address]map[common.Hash][]byte
+		storageList []map[common.Address]map[common.Hash512][]byte
 		onCommit    = func(states *triestate.Set) {
 			accountList = append(accountList, copySet(states.Accounts))
 			storageList = append(storageList, copy2DSet(states.Storages))
@@ -248,9 +248,9 @@ func (test *stateTest) run() bool {
 // - the account was indeed not present in trie
 // - the account is present in new trie, nil->nil is regarded as invalid
 // - the slots transition is correct
-func (test *stateTest) verifyAccountCreation(next common.Hash, db *trie.Database, otr, ntr *trie.Trie, addr common.Address, slots map[common.Hash][]byte) error {
+func (test *stateTest) verifyAccountCreation(next common.Hash512, db *trie.Database, otr, ntr *trie.Trie, addr common.Address, slots map[common.Hash512][]byte) error {
 	// Verify account change
-	addrHash := crypto.Keccak256Hash(addr.Bytes())
+	addrHash := crypto.Keccak512Hash(addr.Bytes())
 	oBlob, err := otr.Get(addrHash.Bytes())
 	if err != nil {
 		return err
@@ -299,9 +299,9 @@ func (test *stateTest) verifyAccountCreation(next common.Hash, db *trie.Database
 // - the account was indeed present in trie
 // - the account in old trie matches the provided value
 // - the slots transition is correct
-func (test *stateTest) verifyAccountUpdate(next common.Hash, db *trie.Database, otr, ntr *trie.Trie, addr common.Address, origin []byte, slots map[common.Hash][]byte) error {
+func (test *stateTest) verifyAccountUpdate(next common.Hash512, db *trie.Database, otr, ntr *trie.Trie, addr common.Address, origin []byte, slots map[common.Hash512][]byte) error {
 	// Verify account change
-	addrHash := crypto.Keccak256Hash(addr.Bytes())
+	addrHash := crypto.Keccak512Hash(addr.Bytes())
 	oBlob, err := otr.Get(addrHash.Bytes())
 	if err != nil {
 		return err
@@ -325,7 +325,7 @@ func (test *stateTest) verifyAccountUpdate(next common.Hash, db *trie.Database, 
 	var (
 		oAcct types.StateAccount
 		nAcct types.StateAccount
-		nRoot common.Hash
+		nRoot common.Hash512
 	)
 	if err := rlp.DecodeBytes(oBlob, &oAcct); err != nil {
 		return err
@@ -353,7 +353,7 @@ func (test *stateTest) verifyAccountUpdate(next common.Hash, db *trie.Database, 
 	return nil
 }
 
-func (test *stateTest) verify(root common.Hash, next common.Hash, db *trie.Database, accountsOrigin map[common.Address][]byte, storagesOrigin map[common.Address]map[common.Hash][]byte) error {
+func (test *stateTest) verify(root common.Hash512, next common.Hash512, db *trie.Database, accountsOrigin map[common.Address][]byte, storagesOrigin map[common.Address]map[common.Hash512][]byte) error {
 	otr, err := trie.New(trie.StateTrieID(root), db)
 	if err != nil {
 		return err

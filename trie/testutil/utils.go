@@ -45,8 +45,8 @@ func RandBytes(n int) []byte {
 }
 
 // RandomHash generates a random blob of data and returns it as a hash.
-func RandomHash() common.Hash {
-	return common.BytesToHash(RandBytes(common.HashLength))
+func RandomHash() common.Hash512 {
+	return common.BytesToHash512(RandBytes(common.Hash512Length))
 }
 
 // RandomAddress generates a random blob of data and returns it as an address.
@@ -57,5 +57,5 @@ func RandomAddress() common.Address {
 // RandomNode generates a random node.
 func RandomNode() *trienode.Node {
 	val := RandBytes(100)
-	return trienode.New(crypto.Keccak256Hash(val), val)
+	return trienode.New(crypto.Keccak512Hash(val), val)
 }

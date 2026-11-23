@@ -50,7 +50,7 @@ type backend interface {
 
 	// Initialized returns an indicator if the state data is already initialized
 	// according to the state scheme.
-	Initialized(genesisRoot common.Hash) bool
+	Initialized(genesisRoot common.Hash512) bool
 
 	// Size returns the current storage size of the diff layers on top of the
 	// disk layer and the storage size of the nodes cached in the disk layer.
@@ -65,11 +65,11 @@ type backend interface {
 	//
 	// The passed in maps(nodes, states) will be retained to avoid copying
 	// everything. Therefore, these maps must not be changed afterwards.
-	Update(root common.Hash, parent common.Hash, block uint64, nodes *trienode.MergedNodeSet, states *triestate.Set) error
+	Update(root common.Hash512, parent common.Hash512, block uint64, nodes *trienode.MergedNodeSet, states *triestate.Set) error
 
 	// Commit writes all relevant trie nodes belonging to the specified state
 	// to disk. Report specifies whether logs will be displayed in info level.
-	Commit(root common.Hash, report bool) error
+	Commit(root common.Hash512, report bool) error
 
 	// Close closes the trie database backend and releases all held resources.
 	Close() error
@@ -114,7 +114,7 @@ func NewDatabase(diskdb qrldb.Database, config *Config) *Database {
 
 // Reader returns a reader for accessing all trie nodes with provided state root.
 // An error will be returned if the requested state is not available.
-func (db *Database) Reader(blockRoot common.Hash) (Reader, error) {
+func (db *Database) Reader(blockRoot common.Hash512) (Reader, error) {
 	switch b := db.backend.(type) {
 	case *hashdb.Database:
 		return b.Reader(blockRoot)
@@ -131,7 +131,7 @@ func (db *Database) Reader(blockRoot common.Hash) (Reader, error) {
 //
 // The passed in maps(nodes, states) will be retained to avoid copying everything.
 // Therefore, these maps must not be changed afterwards.
-func (db *Database) Update(root common.Hash, parent common.Hash, block uint64, nodes *trienode.MergedNodeSet, states *triestate.Set) error {
+func (db *Database) Update(root common.Hash512, parent common.Hash512, block uint64, nodes *trienode.MergedNodeSet, states *triestate.Set) error {
 	if db.preimages != nil {
 		db.preimages.commit(false)
 	}
@@ -141,7 +141,7 @@ func (db *Database) Update(root common.Hash, parent common.Hash, block uint64, n
 // Commit iterates over all the children of a particular node, writes them out
 // to disk. As a side effect, all pre-images accumulated up to this point are
 // also written.
-func (db *Database) Commit(root common.Hash, report bool) error {
+func (db *Database) Commit(root common.Hash512, report bool) error {
 	if db.preimages != nil {
 		db.preimages.commit(true)
 	}
@@ -165,7 +165,7 @@ func (db *Database) Size() (common.StorageSize, common.StorageSize, common.Stora
 
 // Initialized returns an indicator if the state data is already initialized
 // according to the state scheme.
-func (db *Database) Initialized(genesisRoot common.Hash) bool {
+func (db *Database) Initialized(genesisRoot common.Hash512) bool {
 	return db.backend.Initialized(genesisRoot)
 }
 
@@ -213,7 +213,7 @@ func (db *Database) Cap(limit common.StorageSize) error {
 // trie root), all internal trie nodes are referenced together by database itself.
 //
 // It's only supported by hash-based database and will return an error for others.
-func (db *Database) Reference(root common.Hash, parent common.Hash) error {
+func (db *Database) Reference(root common.Hash512, parent common.Hash512) error {
 	hdb, ok := db.backend.(*hashdb.Database)
 	if !ok {
 		return errors.New("not supported")
@@ -224,7 +224,7 @@ func (db *Database) Reference(root common.Hash, parent common.Hash) error {
 
 // Dereference removes an existing reference from a root node. It's only
 // supported by hash-based database and will return an error for others.
-func (db *Database) Dereference(root common.Hash) error {
+func (db *Database) Dereference(root common.Hash512) error {
 	hdb, ok := db.backend.(*hashdb.Database)
 	if !ok {
 		return errors.New("not supported")
@@ -235,7 +235,7 @@ func (db *Database) Dereference(root common.Hash) error {
 
 // Node retrieves the rlp-encoded node blob with provided node hash. It's
 // only supported by hash-based database and will return an error for others.
-func (db *Database) Node(hash common.Hash) ([]byte, error) {
+func (db *Database) Node(hash common.Hash512) ([]byte, error) {
 	hdb, ok := db.backend.(*hashdb.Database)
 	if !ok {
 		return nil, errors.New("not supported")
@@ -247,7 +247,7 @@ func (db *Database) Node(hash common.Hash) ([]byte, error) {
 // supported as the rollback destination only if it's canonical state and the
 // corresponding trie histories are existent. It's only supported by path-based
 // database and will return an error for others.
-func (db *Database) Recover(target common.Hash) error {
+func (db *Database) Recover(target common.Hash512) error {
 	pdb, ok := db.backend.(*pathdb.Database)
 	if !ok {
 		return errors.New("not supported")
@@ -258,7 +258,7 @@ func (db *Database) Recover(target common.Hash) error {
 // Recoverable returns the indicator if the specified state is enabled to be
 // recovered. It's only supported by path-based database and will return an
 // error for others.
-func (db *Database) Recoverable(root common.Hash) (bool, error) {
+func (db *Database) Recoverable(root common.Hash512) (bool, error) {
 	pdb, ok := db.backend.(*pathdb.Database)
 	if !ok {
 		return false, errors.New("not supported")
@@ -269,7 +269,7 @@ func (db *Database) Recoverable(root common.Hash) (bool, error) {
 // Reset wipes all available journal from the persistent database and discard
 // all caches and diff layers. Using the given root to create a new disk layer.
 // It's only supported by path-based database and will return an error for others.
-func (db *Database) Reset(root common.Hash) error {
+func (db *Database) Reset(root common.Hash512) error {
 	pdb, ok := db.backend.(*pathdb.Database)
 	if !ok {
 		return errors.New("not supported")
@@ -281,7 +281,7 @@ func (db *Database) Reset(root common.Hash) error {
 // This is meant to be used during shutdown to persist the snapshot without
 // flattening everything down (bad for reorgs). It's only supported by path-based
 // database and will return an error for others.
-func (db *Database) Journal(root common.Hash) error {
+func (db *Database) Journal(root common.Hash512) error {
 	pdb, ok := db.backend.(*pathdb.Database)
 	if !ok {
 		return errors.New("not supported")

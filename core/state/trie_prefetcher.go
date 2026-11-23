@@ -36,7 +36,7 @@ var (
 // Note, the prefetcher's API is not thread safe.
 type triePrefetcher struct {
 	db       Database               // Database to fetch trie nodes through
-	root     common.Hash            // Root hash of the account trie for metrics
+	root     common.Hash512         // Root hash of the account trie for metrics
 	fetches  map[string]Trie        // Partially or fully fetcher tries
 	fetchers map[string]*subfetcher // Subfetchers for each trie
 
@@ -51,7 +51,7 @@ type triePrefetcher struct {
 	storageWasteMeter metrics.Meter
 }
 
-func newTriePrefetcher(db Database, root common.Hash, namespace string) *triePrefetcher {
+func newTriePrefetcher(db Database, root common.Hash512, namespace string) *triePrefetcher {
 	prefix := triePrefetchMetricsPrefix + namespace
 	p := &triePrefetcher{
 		db:       db,
@@ -141,7 +141,7 @@ func (p *triePrefetcher) copy() *triePrefetcher {
 }
 
 // prefetch schedules a batch of trie items to prefetch.
-func (p *triePrefetcher) prefetch(owner common.Hash, root common.Hash, addr common.Address, keys [][]byte) {
+func (p *triePrefetcher) prefetch(owner common.Hash512, root common.Hash512, addr common.Address, keys [][]byte) {
 	// If the prefetcher is an inactive one, bail out
 	if p.fetches != nil {
 		return
@@ -158,7 +158,7 @@ func (p *triePrefetcher) prefetch(owner common.Hash, root common.Hash, addr comm
 
 // trie returns the trie matching the root hash, or nil if the prefetcher doesn't
 // have it.
-func (p *triePrefetcher) trie(owner common.Hash, root common.Hash) Trie {
+func (p *triePrefetcher) trie(owner common.Hash512, root common.Hash512) Trie {
 	// If the prefetcher is inactive, return from existing deep copies
 	id := p.trieID(owner, root)
 	if p.fetches != nil {
@@ -189,14 +189,14 @@ func (p *triePrefetcher) trie(owner common.Hash, root common.Hash) Trie {
 
 // used marks a batch of state items used to allow creating statistics as to
 // how useful or wasteful the prefetcher is.
-func (p *triePrefetcher) used(owner common.Hash, root common.Hash, used [][]byte) {
+func (p *triePrefetcher) used(owner common.Hash512, root common.Hash512, used [][]byte) {
 	if fetcher := p.fetchers[p.trieID(owner, root)]; fetcher != nil {
 		fetcher.used = used
 	}
 }
 
 // trieID returns an unique trie identifier consists the trie owner and root hash.
-func (p *triePrefetcher) trieID(owner common.Hash, root common.Hash) string {
+func (p *triePrefetcher) trieID(owner common.Hash512, root common.Hash512) string {
 	return string(append(owner.Bytes(), root.Bytes()...))
 }
 
@@ -206,9 +206,9 @@ func (p *triePrefetcher) trieID(owner common.Hash, root common.Hash) string {
 // the trie being worked on is retrieved from the prefetcher.
 type subfetcher struct {
 	db    Database       // Database to load trie nodes through
-	state common.Hash    // Root hash of the state to prefetch
-	owner common.Hash    // Owner of the trie, usually account hash
-	root  common.Hash    // Root hash of the trie to prefetch
+	state common.Hash512 // Root hash of the state to prefetch
+	owner common.Hash512 // Owner of the trie, usually account hash
+	root  common.Hash512 // Root hash of the trie to prefetch
 	addr  common.Address // Address of the account that the trie belongs to
 	trie  Trie           // Trie being populated with nodes
 
@@ -227,7 +227,7 @@ type subfetcher struct {
 
 // newSubfetcher creates a goroutine to prefetch state items belonging to a
 // particular root hash.
-func newSubfetcher(db Database, state common.Hash, owner common.Hash, root common.Hash, addr common.Address) *subfetcher {
+func newSubfetcher(db Database, state common.Hash512, owner common.Hash512, root common.Hash512, addr common.Address) *subfetcher {
 	sf := &subfetcher{
 		db:    db,
 		state: state,
@@ -294,7 +294,7 @@ func (sf *subfetcher) loop() {
 	defer close(sf.term)
 
 	// Start by opening the trie and stop processing if it fails
-	if sf.owner == (common.Hash{}) {
+	if sf.owner == (common.Hash512{}) {
 		trie, err := sf.db.OpenTrie(sf.root)
 		if err != nil {
 			log.Warn("Trie prefetcher failed opening trie", "root", sf.root, "err", err)

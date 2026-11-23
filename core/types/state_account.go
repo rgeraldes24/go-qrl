@@ -31,7 +31,7 @@ import (
 type StateAccount struct {
 	Nonce    uint64
 	Balance  *big.Int
-	Root     common.Hash // merkle root of the storage trie
+	Root     common.Hash512 // merkle root of the storage trie
 	CodeHash []byte
 }
 
@@ -101,7 +101,7 @@ func FullAccount(data []byte) (*StateAccount, error) {
 	if len(slim.Root) == 0 {
 		account.Root = EmptyRootHash
 	} else {
-		account.Root = common.BytesToHash(slim.Root)
+		account.Root = common.BytesToHash512(slim.Root)
 	}
 	if len(slim.CodeHash) == 0 {
 		account.CodeHash = EmptyCodeHash[:]

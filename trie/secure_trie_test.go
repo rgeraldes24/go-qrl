@@ -89,7 +89,7 @@ func TestSecureDelete(t *testing.T) {
 		}
 	}
 	hash := trie.Hash()
-	exp := common.HexToHash("29b235a58c3c25ab83010c327d5932bcf05324b7d6b1185e650798034783ca9d")
+	exp := common.HexToHash512("9c4ac4177b54d34539f523b7c3358b3f6b1a333053e11a21cfdaee8865af0948272374e17372d6bf2fd0c07fd84c02029c9fcb8e2f1ebcfbaf875a5cf1f11d4e")
 	if hash != exp {
 		t.Errorf("expected %x got %x", exp, hash)
 	}
@@ -101,7 +101,7 @@ func TestSecureGetKey(t *testing.T) {
 
 	key := []byte("foo")
 	value := []byte("bar")
-	seckey := crypto.Keccak256(key)
+	seckey := crypto.Keccak512(key)
 
 	if !bytes.Equal(trie.MustGet(key), value) {
 		t.Errorf("Get did not return bar")

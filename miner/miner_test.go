@@ -58,7 +58,7 @@ func (m *mockBackend) TxPool() *txpool.TxPool {
 }
 
 type testBlockChain struct {
-	root          common.Hash
+	root          common.Hash512
 	config        *params.ChainConfig
 	statedb       *state.StateDB
 	gasLimit      uint64
@@ -80,11 +80,11 @@ func (bc *testBlockChain) GetBlock(hash common.Hash, number uint64) *types.Block
 	return types.NewBlock(bc.CurrentBlock(), nil, nil, trie.NewStackTrie(nil))
 }
 
-func (bc *testBlockChain) StateAt(common.Hash) (*state.StateDB, error) {
+func (bc *testBlockChain) StateAt(common.Hash512) (*state.StateDB, error) {
 	return bc.statedb, nil
 }
 
-func (bc *testBlockChain) HasState(root common.Hash) bool {
+func (bc *testBlockChain) HasState(root common.Hash512) bool {
 	return bc.root == root
 }
 

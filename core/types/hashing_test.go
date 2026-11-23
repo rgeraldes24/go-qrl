@@ -70,7 +70,7 @@ func TestEIP2718DeriveSha(t *testing.T) {
 		AccessList: types.AccessList{
 			{
 				Address:     common.BytesToAddress(common.FromHex("010203")),
-				StorageKeys: []common.Hash{common.BytesToHash(common.FromHex("070809"))},
+				StorageKeys: []common.StorageKey{common.BytesToHash512(common.FromHex("070809"))},
 			},
 		},
 	})
@@ -104,8 +104,8 @@ func BenchmarkDeriveSha200(b *testing.B) {
 	if err != nil {
 		b.Fatal(err)
 	}
-	var exp common.Hash
-	var got common.Hash
+	var exp common.Hash512
+	var got common.Hash512
 	b.Run("std_trie", func(b *testing.B) {
 		b.ReportAllocs()
 		for b.Loop() {
@@ -252,6 +252,6 @@ func (d *hashToHumanReadable) Update(i []byte, i2 []byte) error {
 	return nil
 }
 
-func (d *hashToHumanReadable) Hash() common.Hash {
-	return common.Hash{}
+func (d *hashToHumanReadable) Hash() common.Hash512 {
+	return common.Hash512{}
 }

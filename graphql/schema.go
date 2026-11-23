@@ -55,8 +55,8 @@ const schema string = `
         # is a (non-self-destructed) contract.
         code: Bytes!
         # Storage provides access to the storage of a contract account, indexed
-        # by its 32 byte slot identifier.
-        storage(slot: Bytes32!): Bytes64!
+        # by its 64 byte slot identifier.
+        storage(slot: Bytes64!): Bytes64!
     }
 
     # Log is a QRL event log.
@@ -76,7 +76,7 @@ const schema string = `
 
     type AccessTuple {
         address: Address!
-        storageKeys : [Bytes32!]!
+        storageKeys : [Bytes64!]!
     }
 
     type Withdrawal {
@@ -108,9 +108,9 @@ const schema string = `
         # Value is the value, in planck, sent along with this transaction.
         value: BigInt!
         # MaxFeePerGas is the maximum fee per gas offered to include a transaction, in planck.
-        maxFeePerGas: BigInt
+        maxFeePerGas: BigInt!
         # MaxPriorityFeePerGas is the maximum miner tip per gas offered to include a transaction, in planck.
-        maxPriorityFeePerGas: BigInt
+        maxPriorityFeePerGas: BigInt!
         # EffectiveTip is the actual amount of reward going to miner after considering the max fee cap.
         effectiveTip: BigInt
         # Gas is the maximum amount of gas this transaction can consume.
@@ -149,8 +149,8 @@ const schema string = `
         signature: Bytes!
         publicKey: Bytes!
         # Envelope transaction support
-        type: Long
-        accessList: [AccessTuple!]
+        type: Long!
+        accessList: [AccessTuple!]!
         # Raw is the canonical encoding of the transaction: it returns the type and payload.
         raw: Bytes!
         # RawReceipt is the canonical encoding of the receipt: this is equivalent to 
@@ -186,15 +186,15 @@ const schema string = `
         hash: Bytes32!
         # Parent is the parent block of this block.
         parent: Block
-        # TransactionsRoot is the keccak256 hash of the root of the trie of transactions in this block.
-        transactionsRoot: Bytes32!
+        # TransactionsRoot is the keccak512 hash of the root of the trie of transactions in this block.
+        transactionsRoot: Bytes64!
         # TransactionCount is the number of transactions in this block. if
         # transactions are not available for this block, this field will be null.
         transactionCount: Long
-        # StateRoot is the keccak256 hash of the state trie after this block was processed.
-        stateRoot: Bytes32!
-        # ReceiptsRoot is the keccak256 hash of the trie of transaction receipts in this block.
-        receiptsRoot: Bytes32!
+        # StateRoot is the keccak512 hash of the state trie after this block was processed.
+        stateRoot: Bytes64!
+        # ReceiptsRoot is the keccak512 hash of the trie of transaction receipts in this block.
+        receiptsRoot: Bytes64!
         # Miner is the account that mined this block.
         miner(block: Long): Account!
         # ExtraData is an arbitrary data field supplied by the miner.
@@ -204,9 +204,9 @@ const schema string = `
         # GasUsed is the amount of gas that was used executing transactions in this block.
         gasUsed: Long!
         # BaseFeePerGas is the fee per unit of gas burned by the protocol in this block.
-        baseFeePerGas: BigInt
+        baseFeePerGas: BigInt!
         # NextBaseFeePerGas is the fee per unit of gas which needs to be burned in the next block.
-        nextBaseFeePerGas: BigInt
+        nextBaseFeePerGas: BigInt!
         # Timestamp is the unix timestamp at which this block was mined.
         timestamp: Long!
         # LogsBloom is a bloom filter that can be used to check if a block may
@@ -235,8 +235,7 @@ const schema string = `
         # Raw is the RLP encoding of the block.
         raw: Bytes!
         # WithdrawalsRoot is the withdrawals trie root in this block.
-        # If withdrawals are unavailable for this block, this field will be null.
-        withdrawalsRoot: Bytes32
+        withdrawalsRoot: Bytes64!
         # Withdrawals is a list of withdrawals associated with this block. If
         # withdrawals are unavailable for this block, this field will be null.
         withdrawals: [Withdrawal!]

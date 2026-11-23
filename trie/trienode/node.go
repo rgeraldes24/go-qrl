@@ -28,38 +28,38 @@ import (
 // node hash. It is general enough that can be used to represent trie node
 // corresponding to different trie implementations.
 type Node struct {
-	Hash common.Hash // Node hash, empty for deleted node
-	Blob []byte      // Encoded node blob, nil for the deleted node
+	Hash common.Hash512 // Node hash, empty for deleted node
+	Blob []byte         // Encoded node blob, nil for the deleted node
 }
 
 // Size returns the total memory size used by this node.
 func (n *Node) Size() int {
-	return len(n.Blob) + common.HashLength
+	return len(n.Blob) + common.Hash512Length
 }
 
 // IsDeleted returns the indicator if the node is marked as deleted.
 func (n *Node) IsDeleted() bool {
-	return n.Hash == (common.Hash{})
+	return n.Hash == (common.Hash512{})
 }
 
 // New constructs a node with provided node information.
-func New(hash common.Hash, blob []byte) *Node {
+func New(hash common.Hash512, blob []byte) *Node {
 	return &Node{Hash: hash, Blob: blob}
 }
 
 // NewDeleted constructs a node which is deleted.
-func NewDeleted() *Node { return New(common.Hash{}, nil) }
+func NewDeleted() *Node { return New(common.Hash512{}, nil) }
 
 // leaf represents a trie leaf node
 type leaf struct {
-	Blob   []byte      // raw blob of leaf
-	Parent common.Hash // the hash of parent node
+	Blob   []byte         // raw blob of leaf
+	Parent common.Hash512 // the hash of parent node
 }
 
 // NodeSet contains a set of nodes collected during the commit operation.
 // Each node is keyed by path. It's not thread-safe to use.
 type NodeSet struct {
-	Owner   common.Hash
+	Owner   common.Hash512
 	Leaves  []*leaf
 	Nodes   map[string]*Node
 	updates int // the count of updated and inserted nodes
@@ -68,7 +68,7 @@ type NodeSet struct {
 
 // NewNodeSet initializes a node set. The owner is zero for the account trie and
 // the owning account address hash for storage tries.
-func NewNodeSet(owner common.Hash) *NodeSet {
+func NewNodeSet(owner common.Hash512) *NodeSet {
 	return &NodeSet{
 		Owner: owner,
 		Nodes: make(map[string]*Node),
@@ -100,7 +100,7 @@ func (set *NodeSet) AddNode(path []byte, n *Node) {
 }
 
 // Merge adds a set of nodes into the set.
-func (set *NodeSet) Merge(owner common.Hash, nodes map[string]*Node) error {
+func (set *NodeSet) Merge(owner common.Hash512, nodes map[string]*Node) error {
 	if set.Owner != owner {
 		return fmt.Errorf("nodesets belong to different owner are not mergeable %x-%x", set.Owner, owner)
 	}
@@ -121,7 +121,7 @@ func (set *NodeSet) Merge(owner common.Hash, nodes map[string]*Node) error {
 
 // AddLeaf adds the provided leaf node into set. TODO(rjl493456442) how can
 // we get rid of it?
-func (set *NodeSet) AddLeaf(parent common.Hash, blob []byte) {
+func (set *NodeSet) AddLeaf(parent common.Hash512, blob []byte) {
 	set.Leaves = append(set.Leaves, &leaf{Blob: blob, Parent: parent})
 }
 
@@ -132,8 +132,8 @@ func (set *NodeSet) Size() (int, int) {
 
 // Hashes returns the hashes of all updated nodes. TODO(rjl493456442) how can
 // we get rid of it?
-func (set *NodeSet) Hashes() []common.Hash {
-	var ret []common.Hash
+func (set *NodeSet) Hashes() []common.Hash512 {
+	var ret []common.Hash512
 	for _, node := range set.Nodes {
 		ret = append(ret, node.Hash)
 	}
@@ -163,12 +163,12 @@ func (set *NodeSet) Summary() string {
 
 // MergedNodeSet represents a merged node set for a group of tries.
 type MergedNodeSet struct {
-	Sets map[common.Hash]*NodeSet
+	Sets map[common.Hash512]*NodeSet
 }
 
 // NewMergedNodeSet initializes an empty merged set.
 func NewMergedNodeSet() *MergedNodeSet {
-	return &MergedNodeSet{Sets: make(map[common.Hash]*NodeSet)}
+	return &MergedNodeSet{Sets: make(map[common.Hash512]*NodeSet)}
 }
 
 // NewWithNodeSet constructs a merged nodeset with the provided single set.
@@ -190,8 +190,8 @@ func (set *MergedNodeSet) Merge(other *NodeSet) error {
 }
 
 // Flatten returns a two-dimensional map for internal nodes.
-func (set *MergedNodeSet) Flatten() map[common.Hash]map[string]*Node {
-	nodes := make(map[common.Hash]map[string]*Node)
+func (set *MergedNodeSet) Flatten() map[common.Hash512]map[string]*Node {
+	nodes := make(map[common.Hash512]map[string]*Node)
 	for owner, set := range set.Sets {
 		nodes[owner] = set.Nodes
 	}

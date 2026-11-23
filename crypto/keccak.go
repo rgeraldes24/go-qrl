@@ -28,6 +28,31 @@ func NewKeccakState() KeccakState {
 	return sha3.NewLegacyKeccak256().(KeccakState)
 }
 
+// NewKeccak512State creates the hasher used for state commitments and storage.
+func NewKeccak512State() KeccakState {
+	return sha3.NewLegacyKeccak512().(KeccakState)
+}
+
+// HashData512 hashes data with a Keccak-512 state, resetting it before use.
+func HashData512(kh KeccakState, data []byte) (h common.Hash512) {
+	kh.Reset()
+	kh.Write(data)
+	kh.Read(h[:])
+	return h
+}
+
+// Keccak512Hash computes a full-width state digest.
+func Keccak512Hash(data ...[]byte) (h common.Hash512) {
+	d := hasherPool512.Get().(KeccakState)
+	defer hasherPool512.Put(d)
+	d.Reset()
+	for _, b := range data {
+		d.Write(b)
+	}
+	d.Read(h[:])
+	return h
+}
+
 var hasherPool = sync.Pool{
 	New: func() any {
 		return sha3.NewLegacyKeccak256().(KeccakState)

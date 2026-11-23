@@ -52,7 +52,7 @@ func TestMemoryGasCost(t *testing.T) {
 }
 
 // Gas expectations reflect the 64-byte VM word: CREATE / CREATE2 initcode
-// charges use half as many words as the original 32-byte-word values.
+// charges use 64-byte words, and CREATE2 hashes them with Keccak-512.
 var createGasTests = []struct {
 	code       string
 	gasUsed    uint64
@@ -64,7 +64,7 @@ var createGasTests = []struct {
 	{"0x600061C00160006000f5" + "600052" + "60406000F3", 32012, 100_000},
 	// create2(0, 0, 0xc000, 0)
 	// This case is trying to deploy code at (within) the limit
-	{"0x600061C00060006000f5" + "600052" + "60406000F3", 41624, 41624},
+	{"0x600061C00060006000f5" + "600052" + "60406000F3", 46232, 46232},
 	// create2(0, 0, 0xc001, 0)
 	// This case is trying to deploy code exceeding the limit
 	{"0x600061C00160006000f5" + "600052" + "60406000F3", 32024, 100000},

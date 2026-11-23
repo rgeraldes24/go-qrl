@@ -239,7 +239,15 @@ not a fixed memory ceiling; database metadata, caches and individual code or
 header fields also consume memory.
 
 The genesis builder uses the verified full-word storage layout. Mapping locations
-hash two **64-byte** words, while QRVM storage keys themselves are 32 bytes.
+use Keccak-512 over two **64-byte** words and retain the full **64-byte** digest.
+The artifact builder adapts this contract’s compiler-generated mapping hashes to
+`KECCAK512` (`0x21`) and widens the reviewed slot-cleanup masks. It preserves
+instruction lengths, jump offsets and compiler metadata, and refuses unknown
+compiler output until that output has been reviewed.
+This adaptation is specific to this contract, which uses SHA-256 for its explicit
+hash operations. General Hyperion compiler integrations must emit `KECCAK512`
+for mapping and dynamic-array slot derivation and retain all 512 bits of every
+intermediate slot.
 The artifact builder checks every top-level storage slot. Integration tests load
 the generated genesis JSON and execute the actual compiled contract in QRVM.
 

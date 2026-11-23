@@ -20,9 +20,9 @@ func (h header) MarshalJSON() ([]byte, error) {
 	type header struct {
 		ParentHash      common.Hash           `json:"parentHash"`
 		Coinbase        *common.Address       `json:"miner"`
-		Root            common.Hash           `json:"stateRoot"        gencodec:"required"`
-		TxHash          *common.Hash          `json:"transactionsRoot"`
-		ReceiptHash     *common.Hash          `json:"receiptsRoot"`
+		Root            common.Hash512        `json:"stateRoot"        gencodec:"required"`
+		TxHash          *common.Hash512       `json:"transactionsRoot"`
+		ReceiptHash     *common.Hash512       `json:"receiptsRoot"`
 		Bloom           types.Bloom           `json:"logsBloom"`
 		Number          *math.HexOrDecimal256 `json:"number"           gencodec:"required"`
 		GasLimit        math.HexOrDecimal64   `json:"gasLimit"         gencodec:"required"`
@@ -30,8 +30,8 @@ func (h header) MarshalJSON() ([]byte, error) {
 		Time            math.HexOrDecimal64   `json:"timestamp"        gencodec:"required"`
 		Extra           hexutil.Bytes         `json:"extraData"`
 		Random          common.Hash           `json:"prevRandao"`
-		BaseFee         *math.HexOrDecimal256 `json:"baseFeePerGas" rlp:"optional"`
-		WithdrawalsHash *common.Hash          `json:"withdrawalsRoot" rlp:"optional"`
+		BaseFee         *math.HexOrDecimal256 `json:"baseFeePerGas"    gencodec:"required"`
+		WithdrawalsHash *common.Hash512       `json:"withdrawalsRoot"`
 	}
 	var enc header
 	enc.ParentHash = h.ParentHash
@@ -56,9 +56,9 @@ func (h *header) UnmarshalJSON(input []byte) error {
 	type header struct {
 		ParentHash      *common.Hash          `json:"parentHash"`
 		Coinbase        *common.Address       `json:"miner"`
-		Root            *common.Hash          `json:"stateRoot"        gencodec:"required"`
-		TxHash          *common.Hash          `json:"transactionsRoot"`
-		ReceiptHash     *common.Hash          `json:"receiptsRoot"`
+		Root            *common.Hash512       `json:"stateRoot"        gencodec:"required"`
+		TxHash          *common.Hash512       `json:"transactionsRoot"`
+		ReceiptHash     *common.Hash512       `json:"receiptsRoot"`
 		Bloom           *types.Bloom          `json:"logsBloom"`
 		Number          *math.HexOrDecimal256 `json:"number"           gencodec:"required"`
 		GasLimit        *math.HexOrDecimal64  `json:"gasLimit"         gencodec:"required"`
@@ -66,8 +66,8 @@ func (h *header) UnmarshalJSON(input []byte) error {
 		Time            *math.HexOrDecimal64  `json:"timestamp"        gencodec:"required"`
 		Extra           *hexutil.Bytes        `json:"extraData"`
 		Random          *common.Hash          `json:"prevRandao"`
-		BaseFee         *math.HexOrDecimal256 `json:"baseFeePerGas" rlp:"optional"`
-		WithdrawalsHash *common.Hash          `json:"withdrawalsRoot" rlp:"optional"`
+		BaseFee         *math.HexOrDecimal256 `json:"baseFeePerGas"    gencodec:"required"`
+		WithdrawalsHash *common.Hash512       `json:"withdrawalsRoot"`
 	}
 	var dec header
 	if err := json.Unmarshal(input, &dec); err != nil {
@@ -113,9 +113,10 @@ func (h *header) UnmarshalJSON(input []byte) error {
 	if dec.Random != nil {
 		h.Random = *dec.Random
 	}
-	if dec.BaseFee != nil {
-		h.BaseFee = (*big.Int)(dec.BaseFee)
+	if dec.BaseFee == nil {
+		return errors.New("missing required field 'baseFeePerGas' for header")
 	}
+	h.BaseFee = (*big.Int)(dec.BaseFee)
 	if dec.WithdrawalsHash != nil {
 		h.WithdrawalsHash = dec.WithdrawalsHash
 	}

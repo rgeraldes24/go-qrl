@@ -51,7 +51,7 @@ func TestDump(t *testing.T) {
 	obj1 := s.state.GetOrNewStateObject(common.BytesToAddress([]byte{0x01}))
 	obj1.AddBalance(big.NewInt(22))
 	obj2 := s.state.GetOrNewStateObject(common.BytesToAddress([]byte{0x01, 0x02}))
-	obj2.SetCode(crypto.Keccak256Hash([]byte{3, 3, 3, 3, 3, 3, 3}), []byte{3, 3, 3, 3, 3, 3, 3})
+	obj2.SetCode(crypto.Keccak512Hash([]byte{3, 3, 3, 3, 3, 3, 3}), []byte{3, 3, 3, 3, 3, 3, 3})
 	obj3 := s.state.GetOrNewStateObject(common.BytesToAddress([]byte{0x02}))
 	obj3.SetBalance(big.NewInt(44))
 
@@ -64,29 +64,29 @@ func TestDump(t *testing.T) {
 	s.state, _ = New(root, tdb, nil)
 	got := string(s.state.Dump(nil))
 	want := `{
-    "root": "ea8552c57078a86cf6a10b821bf70417a32562ab74f21f370340e411ffa30f2a",
+    "root": "0117d7e2fced3478dcac83c7fe6ebc1361b01750114fb260684eca4941f974be892fb31416c3ceee4e7f1ec15ad596fcf27373e08dedcda1836850f7463d7f0b",
     "accounts": {
         "Q00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001": {
             "balance": "22",
             "nonce": 0,
-            "root": "0x56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421",
-            "codeHash": "0xc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470",
-            "key": "0xa6eef7e35abe7026729641147f7915573c7e97b47efa546f5f6e3230263bcb49"
+            "root": "0xa088c353acbb4ba1d73c451acd04ce0c09dc20b5991305555c66d143aa763dc629084179101f69d2fef68731dd99c81a8357595303d53eace341a141df4cb52e",
+            "codeHash": "0x0eab42de4c3ceb9235fc91acffe746b29c29a8c366b7c60e4e67c466f36a4304c00fa9caf9d87976ba469bcbe06713b435f091ef2769fb160cdab33d3670680e",
+            "key": "0xf9f9eb9ec7d3702a99c3fc3b833198efecb2b9a79b8767a5be54677c7d792b475c53b915275dd885297f70c1b2786ecfdef744fe4f467412cf13578bdfcf2253"
         },
         "Q00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000002": {
             "balance": "44",
             "nonce": 0,
-            "root": "0x56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421",
-            "codeHash": "0xc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470",
-            "key": "0xac33ff75c19e70fe83507db0d683fd3465c996598dc972688b7ace676c89077b"
+            "root": "0xa088c353acbb4ba1d73c451acd04ce0c09dc20b5991305555c66d143aa763dc629084179101f69d2fef68731dd99c81a8357595303d53eace341a141df4cb52e",
+            "codeHash": "0x0eab42de4c3ceb9235fc91acffe746b29c29a8c366b7c60e4e67c466f36a4304c00fa9caf9d87976ba469bcbe06713b435f091ef2769fb160cdab33d3670680e",
+            "key": "0x313afc48e961fe7c11204f3e10097ce9e53b17998614717ab19066874b400d5785b42327ba0eaed7336b06c7e36a472d9186bd86c90edd87a910c739d421b60e"
         },
         "Q00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000102": {
             "balance": "0",
             "nonce": 0,
-            "root": "0x56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421",
-            "codeHash": "0x87874902497a5bb968da31a2998d8f22e949d1ef6214bcdedd8bae24cca4b9e3",
+            "root": "0xa088c353acbb4ba1d73c451acd04ce0c09dc20b5991305555c66d143aa763dc629084179101f69d2fef68731dd99c81a8357595303d53eace341a141df4cb52e",
+            "codeHash": "0xfa8bf5899d2d8e5861752987c14275e5f4a07d117bfed0cde4da98e290766a5896f730257962b0f23dba44b0c07544c3ef30c400aa4e94bee4b4997c85f5bc3a",
             "code": "0x03030303030303",
-            "key": "0x565a22c1af7fcc038f06206699a6bd0ad8c85d23dafe9aebac3e0df68e8fb320"
+            "key": "0x82031ff34c79fb3dbb85b0ed3e7ac22ea265287ed60b3b4ee58ba01a2af820bad1acba2446792e714fc9eb64e837485e26d6ec4e209d220cde34ac4fcf2cd682"
         }
     }
 }`
@@ -105,7 +105,7 @@ func TestIterativeDump(t *testing.T) {
 	obj1 := s.state.GetOrNewStateObject(common.BytesToAddress([]byte{0x01}))
 	obj1.AddBalance(big.NewInt(22))
 	obj2 := s.state.GetOrNewStateObject(common.BytesToAddress([]byte{0x01, 0x02}))
-	obj2.SetCode(crypto.Keccak256Hash([]byte{3, 3, 3, 3, 3, 3, 3}), []byte{3, 3, 3, 3, 3, 3, 3})
+	obj2.SetCode(crypto.Keccak512Hash([]byte{3, 3, 3, 3, 3, 3, 3}), []byte{3, 3, 3, 3, 3, 3, 3})
 	obj3 := s.state.GetOrNewStateObject(common.BytesToAddress([]byte{0x02}))
 	obj3.SetBalance(big.NewInt(44))
 	obj4 := s.state.GetOrNewStateObject(common.BytesToAddress([]byte{0x00}))
@@ -121,11 +121,11 @@ func TestIterativeDump(t *testing.T) {
 	s.state.IterativeDump(nil, json.NewEncoder(b))
 	// check that DumpToCollector contains the state objects that are in trie
 	got := b.String()
-	want := `{"root":"0x9d1c7e1352115a1f6b0f2e10117ae5bdd96217c56aa008b23381a2b6f658a1f0"}
-{"balance":"0","nonce":0,"root":"0x56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421","codeHash":"0x87874902497a5bb968da31a2998d8f22e949d1ef6214bcdedd8bae24cca4b9e3","code":"0x03030303030303","address":"Q00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000102","key":"0x565a22c1af7fcc038f06206699a6bd0ad8c85d23dafe9aebac3e0df68e8fb320"}
-{"balance":"22","nonce":0,"root":"0x56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421","codeHash":"0xc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470","address":"Q00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001","key":"0xa6eef7e35abe7026729641147f7915573c7e97b47efa546f5f6e3230263bcb49"}
-{"balance":"44","nonce":0,"root":"0x56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421","codeHash":"0xc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470","address":"Q00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000002","key":"0xac33ff75c19e70fe83507db0d683fd3465c996598dc972688b7ace676c89077b"}
-{"balance":"1337","nonce":0,"root":"0x56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421","codeHash":"0xc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470","address":"Q00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000","key":"0xad3228b676f7d3cd4284a5443f17f1962b36e491b30a40b2405849e597ba5fb5"}
+	want := `{"root":"0x653c28c5861f202130bac9569e9c89fd616adb4336d8d13c092056c7dcdb34eb0c2bdb4039487be51b273c751f589e482b9398645cce41ef71505165fa4db41e"}
+{"balance":"44","nonce":0,"root":"0xa088c353acbb4ba1d73c451acd04ce0c09dc20b5991305555c66d143aa763dc629084179101f69d2fef68731dd99c81a8357595303d53eace341a141df4cb52e","codeHash":"0x0eab42de4c3ceb9235fc91acffe746b29c29a8c366b7c60e4e67c466f36a4304c00fa9caf9d87976ba469bcbe06713b435f091ef2769fb160cdab33d3670680e","address":"Q00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000002","key":"0x313afc48e961fe7c11204f3e10097ce9e53b17998614717ab19066874b400d5785b42327ba0eaed7336b06c7e36a472d9186bd86c90edd87a910c739d421b60e"}
+{"balance":"0","nonce":0,"root":"0xa088c353acbb4ba1d73c451acd04ce0c09dc20b5991305555c66d143aa763dc629084179101f69d2fef68731dd99c81a8357595303d53eace341a141df4cb52e","codeHash":"0xfa8bf5899d2d8e5861752987c14275e5f4a07d117bfed0cde4da98e290766a5896f730257962b0f23dba44b0c07544c3ef30c400aa4e94bee4b4997c85f5bc3a","code":"0x03030303030303","address":"Q00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000102","key":"0x82031ff34c79fb3dbb85b0ed3e7ac22ea265287ed60b3b4ee58ba01a2af820bad1acba2446792e714fc9eb64e837485e26d6ec4e209d220cde34ac4fcf2cd682"}
+{"balance":"1337","nonce":0,"root":"0xa088c353acbb4ba1d73c451acd04ce0c09dc20b5991305555c66d143aa763dc629084179101f69d2fef68731dd99c81a8357595303d53eace341a141df4cb52e","codeHash":"0x0eab42de4c3ceb9235fc91acffe746b29c29a8c366b7c60e4e67c466f36a4304c00fa9caf9d87976ba469bcbe06713b435f091ef2769fb160cdab33d3670680e","address":"Q00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000","key":"0xa8620b2ebeca41fbc773bb837b5e724d6eb2de570d99858df0d7d97067fb8103b21757873b735097b35d3bea8fd1c359a9e8a63c1540c76c9784cf8d975e995c"}
+{"balance":"22","nonce":0,"root":"0xa088c353acbb4ba1d73c451acd04ce0c09dc20b5991305555c66d143aa763dc629084179101f69d2fef68731dd99c81a8357595303d53eace341a141df4cb52e","codeHash":"0x0eab42de4c3ceb9235fc91acffe746b29c29a8c366b7c60e4e67c466f36a4304c00fa9caf9d87976ba469bcbe06713b435f091ef2769fb160cdab33d3670680e","address":"Q00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001","key":"0xf9f9eb9ec7d3702a99c3fc3b833198efecb2b9a79b8767a5be54677c7d792b475c53b915275dd885297f70c1b2786ecfdef744fe4f467412cf13578bdfcf2253"}
 `
 	if got != want {
 		t.Errorf("DumpToCollector mismatch:\ngot: %s\nwant: %s\n", got, want)
@@ -139,20 +139,20 @@ func TestNull(t *testing.T) {
 	//value := common.FromHex("0x823140710bf13990e4500136726d8b55")
 	var value common.StorageValue64
 
-	s.state.SetState(address, common.Hash{}, value)
+	s.state.SetState(address, common.Hash512{}, value)
 	s.state.Commit(0, false)
 
-	if value := s.state.GetState(address, common.Hash{}); value != (common.StorageValue64{}) {
+	if value := s.state.GetState(address, common.Hash512{}); value != (common.StorageValue64{}) {
 		t.Errorf("expected empty current value, got %x", value)
 	}
-	if value := s.state.GetCommittedState(address, common.Hash{}); value != (common.StorageValue64{}) {
+	if value := s.state.GetCommittedState(address, common.Hash512{}); value != (common.StorageValue64{}) {
 		t.Errorf("expected empty committed value, got %x", value)
 	}
 }
 
 func TestSnapshot(t *testing.T) {
 	stateobjaddr := common.BytesToAddress([]byte("aa"))
-	var storageaddr common.Hash
+	var storageaddr common.Hash512
 	data1 := common.BytesToStorageValue64([]byte{42})
 	data2 := common.BytesToStorageValue64([]byte{43})
 	s := newStateEnv()
@@ -195,7 +195,7 @@ func TestSnapshot2(t *testing.T) {
 
 	stateobjaddr0 := common.BytesToAddress([]byte("so0"))
 	stateobjaddr1 := common.BytesToAddress([]byte("so1"))
-	var storageaddr common.Hash
+	var storageaddr common.Hash512
 
 	data0 := common.BytesToStorageValue64([]byte{17})
 	data1 := common.BytesToStorageValue64([]byte{18})
@@ -207,7 +207,7 @@ func TestSnapshot2(t *testing.T) {
 	so0 := state.getStateObject(stateobjaddr0)
 	so0.SetBalance(big.NewInt(42))
 	so0.SetNonce(43)
-	so0.SetCode(crypto.Keccak256Hash([]byte{'c', 'a', 'f', 'e'}), []byte{'c', 'a', 'f', 'e'})
+	so0.SetCode(crypto.Keccak512Hash([]byte{'c', 'a', 'f', 'e'}), []byte{'c', 'a', 'f', 'e'})
 	so0.deleted = false
 	state.setStateObject(so0)
 
@@ -218,7 +218,7 @@ func TestSnapshot2(t *testing.T) {
 	so1 := state.getStateObject(stateobjaddr1)
 	so1.SetBalance(big.NewInt(52))
 	so1.SetNonce(53)
-	so1.SetCode(crypto.Keccak256Hash([]byte{'c', 'a', 'f', 'e', '2'}), []byte{'c', 'a', 'f', 'e', '2'})
+	so1.SetCode(crypto.Keccak512Hash([]byte{'c', 'a', 'f', 'e', '2'}), []byte{'c', 'a', 'f', 'e', '2'})
 	so1.deleted = true
 	state.setStateObject(so1)
 

@@ -233,6 +233,14 @@ func opSAR(pc *uint64, interpreter *QRVMInterpreter, scope *ScopeContext) ([]byt
 	return nil, nil
 }
 
+// opCLZ implements the CLZ opcode (https://eips.ethereum.org/EIPS/eip-7939).
+// It counts the leading zero bits of the 512-bit VM word, so zero yields 512.
+func opCLZ(pc *uint64, interpreter *QRVMInterpreter, scope *ScopeContext) ([]byte, error) {
+	x := scope.Stack.peek()
+	x.SetUint64(uint64(WordBits - x.BitLen()))
+	return nil, nil
+}
+
 func opKeccak256(pc *uint64, interpreter *QRVMInterpreter, scope *ScopeContext) ([]byte, error) {
 	offset, size := scope.Stack.pop(), scope.Stack.peek()
 	data := scope.Memory.GetPtr(int64(offset.Uint64()), int64(size.Uint64()))
@@ -247,12 +255,28 @@ func opKeccak256(pc *uint64, interpreter *QRVMInterpreter, scope *ScopeContext) 
 
 	qrvm := interpreter.qrvm
 	if qrvm.Config.EnablePreimageRecording {
-		qrvm.StateDB.AddPreimage(interpreter.hasherBuf, data)
+		qrvm.StateDB.AddPreimage(common.BytesToHash512(interpreter.hasherBuf[:]), data)
 	}
 
 	size.SetBytes(interpreter.hasherBuf[:])
 	return nil, nil
 }
+
+// opKeccak512 derives full-width hashes for mapping slots and other VM data.
+func opKeccak512(pc *uint64, interpreter *QRVMInterpreter, scope *ScopeContext) ([]byte, error) {
+	offset, size := scope.Stack.pop(), scope.Stack.peek()
+	data := scope.Memory.GetPtr(int64(offset.Uint64()), int64(size.Uint64()))
+	if interpreter.hasher512 == nil {
+		interpreter.hasher512 = crypto.NewKeccak512State()
+	}
+	interpreter.hasherBuf512 = crypto.HashData512(interpreter.hasher512, data)
+	if interpreter.qrvm.Config.EnablePreimageRecording {
+		interpreter.qrvm.StateDB.AddPreimage(interpreter.hasherBuf512, data)
+	}
+	size.SetBytes(interpreter.hasherBuf512[:])
+	return nil, nil
+}
+
 func opAddress(pc *uint64, interpreter *QRVMInterpreter, scope *ScopeContext) ([]byte, error) {
 	scope.Stack.push(new(uint512.Int).SetBytes(scope.Contract.Address().Bytes()))
 	return nil, nil
@@ -506,9 +530,22 @@ func opMstore8(pc *uint64, interpreter *QRVMInterpreter, scope *ScopeContext) ([
 	return nil, nil
 }
 
+// opMcopy implements the MCOPY opcode (https://eips.ethereum.org/EIPS/eip-5656)
+func opMcopy(pc *uint64, interpreter *QRVMInterpreter, scope *ScopeContext) ([]byte, error) {
+	var (
+		dst    = scope.Stack.pop()
+		src    = scope.Stack.pop()
+		length = scope.Stack.pop()
+	)
+	// These values are checked for overflow during memory expansion calculation
+	// (the memorySize function on the opcode).
+	scope.Memory.Copy(dst.Uint64(), src.Uint64(), length.Uint64())
+	return nil, nil
+}
+
 func opSload(pc *uint64, interpreter *QRVMInterpreter, scope *ScopeContext) ([]byte, error) {
 	loc := scope.Stack.peek()
-	hash := common.Hash(loc.Bytes32())
+	hash := common.StorageKey(loc.Bytes64())
 	val := interpreter.qrvm.StateDB.GetState(scope.Contract.Address(), hash)
 	loc.SetBytes(val.Bytes())
 	return nil, nil
@@ -520,7 +557,27 @@ func opSstore(pc *uint64, interpreter *QRVMInterpreter, scope *ScopeContext) ([]
 	}
 	loc := scope.Stack.pop()
 	val := scope.Stack.pop()
-	interpreter.qrvm.StateDB.SetState(scope.Contract.Address(), loc.Bytes32(), common.StorageValue64(val.Bytes64()))
+	interpreter.qrvm.StateDB.SetState(scope.Contract.Address(), loc.Bytes64(), common.StorageValue64(val.Bytes64()))
+	return nil, nil
+}
+
+// opTload implements TLOAD opcode
+func opTload(pc *uint64, interpreter *QRVMInterpreter, scope *ScopeContext) ([]byte, error) {
+	loc := scope.Stack.peek()
+	hash := common.StorageKey(loc.Bytes64())
+	val := interpreter.qrvm.StateDB.GetTransientState(scope.Contract.Address(), hash)
+	loc.SetBytes(val.Bytes())
+	return nil, nil
+}
+
+// opTstore implements TSTORE opcode
+func opTstore(pc *uint64, interpreter *QRVMInterpreter, scope *ScopeContext) ([]byte, error) {
+	if interpreter.readOnly {
+		return nil, ErrWriteProtection
+	}
+	loc := scope.Stack.pop()
+	val := scope.Stack.pop()
+	interpreter.qrvm.StateDB.SetTransientState(scope.Contract.Address(), loc.Bytes64(), common.StorageValue64(val.Bytes64()))
 	return nil, nil
 }
 

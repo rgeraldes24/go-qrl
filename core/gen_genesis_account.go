@@ -54,9 +54,9 @@ func (g *GenesisAccount) UnmarshalJSON(input []byte) error {
 		g.Code = *dec.Code
 	}
 	if dec.Storage != nil {
-		g.Storage = make(map[common.Hash]common.StorageValue64, len(dec.Storage))
+		g.Storage = make(map[common.Hash512]common.StorageValue64, len(dec.Storage))
 		for k, v := range dec.Storage {
-			g.Storage[common.Hash(k)] = common.StorageValue64(v)
+			g.Storage[common.Hash512(k)] = common.StorageValue64(v)
 		}
 	}
 	if dec.Balance == nil {

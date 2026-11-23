@@ -18,7 +18,6 @@
 package types
 
 import (
-	"fmt"
 	"io"
 	"math/big"
 	"reflect"
@@ -37,18 +36,18 @@ import (
 type Header struct {
 	ParentHash      common.Hash    `json:"parentHash"       gencodec:"required"`
 	Coinbase        common.Address `json:"miner"`
-	Root            common.Hash    `json:"stateRoot"        gencodec:"required"`
-	TxHash          common.Hash    `json:"transactionsRoot" gencodec:"required"`
-	ReceiptHash     common.Hash    `json:"receiptsRoot"     gencodec:"required"`
+	Root            common.Hash512 `json:"stateRoot"        gencodec:"required"`
+	TxHash          common.Hash512 `json:"transactionsRoot" gencodec:"required"`
+	ReceiptHash     common.Hash512 `json:"receiptsRoot"     gencodec:"required"`
 	Bloom           Bloom          `json:"logsBloom"        gencodec:"required"`
 	Number          *big.Int       `json:"number"           gencodec:"required"`
 	GasLimit        uint64         `json:"gasLimit"         gencodec:"required"`
 	GasUsed         uint64         `json:"gasUsed"          gencodec:"required"`
 	Time            uint64         `json:"timestamp"        gencodec:"required"`
 	Extra           []byte         `json:"extraData"        gencodec:"required"`
-	Random          common.Hash    `json:"prevRandao"`
-	BaseFee         *big.Int       `json:"baseFeePerGas"`
-	WithdrawalsHash *common.Hash   `json:"withdrawalsRoot"`
+	Random          common.Hash    `json:"prevRandao"       gencodec:"required"`
+	BaseFee         *big.Int       `json:"baseFeePerGas"    gencodec:"required"`
+	WithdrawalsHash common.Hash512 `json:"withdrawalsRoot"  gencodec:"required"`
 }
 
 // field type overrides for gencodec
@@ -80,32 +79,10 @@ func (h *Header) Size() common.StorageSize {
 	return headerSize + common.StorageSize(len(h.Extra)+(h.Number.BitLen()+baseFeeBits)/8)
 }
 
-// SanityCheck checks a few basic things -- these checks are way beyond what
-// any 'sane' production values should hold, and can mainly be used to prevent
-// that the unbounded fields are stuffed with junk data to add processing
-// overhead
-func (h *Header) SanityCheck() error {
-	if h.Number != nil && !h.Number.IsUint64() {
-		return fmt.Errorf("too large block number: bitlen %d", h.Number.BitLen())
-	}
-	if eLen := len(h.Extra); eLen > 100*1024 {
-		return fmt.Errorf("too large block extradata: size %d", eLen)
-	}
-	if h.BaseFee != nil {
-		if bfLen := h.BaseFee.BitLen(); bfLen > 256 {
-			return fmt.Errorf("too large base fee: bitlen %d", bfLen)
-		}
-	}
-	return nil
-}
-
 // EmptyBody returns true if there is no additional 'body' to complete the header
 // that is: no transactions and no withdrawals.
 func (h *Header) EmptyBody() bool {
-	var (
-		emptyWithdrawals = h.WithdrawalsHash == nil || *h.WithdrawalsHash == EmptyWithdrawalsHash
-	)
-	return h.TxHash == EmptyTxsHash && emptyWithdrawals
+	return h.TxHash == EmptyTxsHash && h.WithdrawalsHash == EmptyWithdrawalsHash
 }
 
 // EmptyReceipts returns true if there are no receipts for this header/block.
@@ -117,7 +94,7 @@ func (h *Header) EmptyReceipts() bool {
 // a block's data contents (transactions) together.
 type Body struct {
 	Transactions []*Transaction
-	Withdrawals  []*Withdrawal `rlp:"optional"`
+	Withdrawals  []*Withdrawal
 }
 
 // Block represents a QRL block.
@@ -151,7 +128,7 @@ type Block struct {
 type extblock struct {
 	Header      *Header
 	Txs         []*Transaction
-	Withdrawals []*Withdrawal `rlp:"optional"`
+	Withdrawals []*Withdrawal
 }
 
 // NewBlock creates a new block. The input data is copied, changes to header and to the
@@ -185,14 +162,11 @@ func NewBlock(header *Header, body *Body, receipts []*Receipt, hasher TrieHasher
 		b.header.Bloom = CreateBloom(receipts)
 	}
 
-	if withdrawals == nil {
-		b.header.WithdrawalsHash = nil
-	} else if len(withdrawals) == 0 {
-		b.header.WithdrawalsHash = &EmptyWithdrawalsHash
+	if len(withdrawals) == 0 {
+		b.header.WithdrawalsHash = EmptyWithdrawalsHash
 		b.withdrawals = Withdrawals{}
 	} else {
-		hash := DeriveSha(Withdrawals(withdrawals), hasher)
-		b.header.WithdrawalsHash = &hash
+		b.header.WithdrawalsHash = DeriveSha(Withdrawals(withdrawals), hasher)
 		b.withdrawals = slices.Clone(withdrawals)
 	}
 
@@ -211,10 +185,6 @@ func CopyHeader(h *Header) *Header {
 	if len(h.Extra) > 0 {
 		cpy.Extra = make([]byte, len(h.Extra))
 		copy(cpy.Extra, h.Extra)
-	}
-	if h.WithdrawalsHash != nil {
-		cpy.WithdrawalsHash = new(common.Hash)
-		*cpy.WithdrawalsHash = *h.WithdrawalsHash
 	}
 	return &cpy
 }
@@ -273,15 +243,15 @@ func (b *Block) GasLimit() uint64 { return b.header.GasLimit }
 func (b *Block) GasUsed() uint64  { return b.header.GasUsed }
 func (b *Block) Time() uint64     { return b.header.Time }
 
-func (b *Block) NumberU64() uint64        { return b.header.Number.Uint64() }
-func (b *Block) Random() common.Hash      { return b.header.Random }
-func (b *Block) Bloom() Bloom             { return b.header.Bloom }
-func (b *Block) Coinbase() common.Address { return b.header.Coinbase }
-func (b *Block) Root() common.Hash        { return b.header.Root }
-func (b *Block) ParentHash() common.Hash  { return b.header.ParentHash }
-func (b *Block) TxHash() common.Hash      { return b.header.TxHash }
-func (b *Block) ReceiptHash() common.Hash { return b.header.ReceiptHash }
-func (b *Block) Extra() []byte            { return common.CopyBytes(b.header.Extra) }
+func (b *Block) NumberU64() uint64           { return b.header.Number.Uint64() }
+func (b *Block) Random() common.Hash         { return b.header.Random }
+func (b *Block) Bloom() Bloom                { return b.header.Bloom }
+func (b *Block) Coinbase() common.Address    { return b.header.Coinbase }
+func (b *Block) Root() common.Hash512        { return b.header.Root }
+func (b *Block) ParentHash() common.Hash     { return b.header.ParentHash }
+func (b *Block) TxHash() common.Hash512      { return b.header.TxHash }
+func (b *Block) ReceiptHash() common.Hash512 { return b.header.ReceiptHash }
+func (b *Block) Extra() []byte               { return common.CopyBytes(b.header.Extra) }
 
 func (b *Block) BaseFee() *big.Int {
 	if b.header.BaseFee == nil {
@@ -300,12 +270,6 @@ func (b *Block) Size() uint64 {
 	rlp.Encode(&c, b)
 	b.size.Store(uint64(c))
 	return uint64(c)
-}
-
-// SanityCheck can be used to prevent that unbounded fields are
-// stuffed with junk data to add processing overhead
-func (b *Block) SanityCheck() error {
-	return b.header.SanityCheck()
 }
 
 type writeCounter uint64

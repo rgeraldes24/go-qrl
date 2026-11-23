@@ -101,7 +101,7 @@ func (c *Chain) AccountsInHashOrder() []state.DumpAccount {
 	for addr, acc := range c.state {
 		list[i] = acc
 		list[i].Address = &addr
-		if len(acc.SecureKey) != 32 {
+		if len(acc.SecureKey) != common.Hash512Length {
 			panic(fmt.Errorf("missing/invalid SecureKey in dump account %v", addr))
 		}
 		i++
@@ -113,19 +113,19 @@ func (c *Chain) AccountsInHashOrder() []state.DumpAccount {
 }
 
 // CodeHashes returns all bytecode hashes contained in the head state.
-func (c *Chain) CodeHashes() []common.Hash {
-	var hashes []common.Hash
-	seen := make(map[common.Hash]struct{})
+func (c *Chain) CodeHashes() []common.Hash512 {
+	var hashes []common.Hash512
+	seen := make(map[common.Hash512]struct{})
 	seen[types.EmptyCodeHash] = struct{}{}
 	for _, acc := range c.state {
-		h := common.BytesToHash(acc.CodeHash)
+		h := common.BytesToHash512(acc.CodeHash)
 		if _, ok := seen[h]; ok {
 			continue
 		}
 		hashes = append(hashes, h)
 		seen[h] = struct{}{}
 	}
-	slices.SortFunc(hashes, (common.Hash).Cmp)
+	slices.SortFunc(hashes, (common.Hash512).Cmp)
 	return hashes
 }
 
@@ -145,11 +145,11 @@ func (c *Chain) GetBlock(number int) *types.Block {
 }
 
 // RootAt returns the state root for the block at the given height.
-func (c *Chain) RootAt(height int) common.Hash {
+func (c *Chain) RootAt(height int) common.Hash512 {
 	if height < c.Len() {
 		return c.blocks[height].Root()
 	}
-	return common.Hash{}
+	return common.Hash512{}
 }
 
 // GetSender returns the address associated with account at the index in the

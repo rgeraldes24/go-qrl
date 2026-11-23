@@ -39,9 +39,9 @@ var stPool = sync.Pool{
 
 // NodeWriteFunc is used to provide all information of a dirty node for committing
 // so that callers can flush nodes into database with desired scheme.
-type NodeWriteFunc = func(owner common.Hash, path []byte, hash common.Hash, blob []byte)
+type NodeWriteFunc = func(owner common.Hash512, path []byte, hash common.Hash512, blob []byte)
 
-func stackTrieFromPool(writeFn NodeWriteFunc, owner common.Hash) *StackTrie {
+func stackTrieFromPool(writeFn NodeWriteFunc, owner common.Hash512) *StackTrie {
 	st := stPool.Get().(*StackTrie)
 	st.owner = owner
 	st.writeFn = writeFn
@@ -57,7 +57,7 @@ func returnToPool(st *StackTrie) {
 // in order. Once it determines that a subtree will no longer be inserted
 // into, it will hash it and free up the memory it uses.
 type StackTrie struct {
-	owner    common.Hash    // the owner of the trie
+	owner    common.Hash512 // the owner of the trie
 	nodeType uint8          // node type (as in branch, ext, leaf)
 	val      []byte         // value contained by this node if it's a leaf
 	key      []byte         // key chunk covered by this (leaf|ext) node
@@ -75,7 +75,7 @@ func NewStackTrie(writeFn NodeWriteFunc) *StackTrie {
 
 // NewStackTrieWithOwner allocates and initializes an empty trie, but with
 // the additional owner field.
-func NewStackTrieWithOwner(writeFn NodeWriteFunc, owner common.Hash) *StackTrie {
+func NewStackTrieWithOwner(writeFn NodeWriteFunc, owner common.Hash512) *StackTrie {
 	return &StackTrie{
 		owner:    owner,
 		nodeType: emptyNode,
@@ -103,7 +103,7 @@ func (st *StackTrie) MarshalBinary() (data []byte, err error) {
 		w = bufio.NewWriter(&b)
 	)
 	if err := gob.NewEncoder(w).Encode(struct {
-		Owner    common.Hash
+		Owner    common.Hash512
 		NodeType uint8
 		Val      []byte
 		Key      []byte
@@ -139,7 +139,7 @@ func (st *StackTrie) UnmarshalBinary(data []byte) error {
 
 func (st *StackTrie) unmarshalBinary(r io.Reader) error {
 	var dec struct {
-		Owner    common.Hash
+		Owner    common.Hash512
 		NodeType uint8
 		Val      []byte
 		Key      []byte
@@ -177,7 +177,7 @@ func (st *StackTrie) setWriter(writeFn NodeWriteFunc) {
 	}
 }
 
-func newLeaf(owner common.Hash, key, val []byte, writeFn NodeWriteFunc) *StackTrie {
+func newLeaf(owner common.Hash512, key, val []byte, writeFn NodeWriteFunc) *StackTrie {
 	st := stackTrieFromPool(writeFn, owner)
 	st.nodeType = leafNode
 	st.key = append(st.key, key...)
@@ -185,7 +185,7 @@ func newLeaf(owner common.Hash, key, val []byte, writeFn NodeWriteFunc) *StackTr
 	return st
 }
 
-func newExt(owner common.Hash, key []byte, child *StackTrie, writeFn NodeWriteFunc) *StackTrie {
+func newExt(owner common.Hash512, key []byte, child *StackTrie, writeFn NodeWriteFunc) *StackTrie {
 	st := stackTrieFromPool(writeFn, owner)
 	st.nodeType = extNode
 	st.key = append(st.key, key...)
@@ -221,7 +221,7 @@ func (st *StackTrie) MustUpdate(key, value []byte) {
 }
 
 func (st *StackTrie) Reset() {
-	st.owner = common.Hash{}
+	st.owner = common.Hash512{}
 	st.writeFn = nil
 	st.key = st.key[:0]
 	st.val = nil
@@ -389,12 +389,12 @@ func (st *StackTrie) insert(key, value []byte, prefix []byte) {
 
 // hash converts st into a 'hashedNode', if possible. Possible outcomes:
 //
-// 1. The rlp-encoded value was >= 32 bytes:
-//   - Then the 32-byte `hash` will be accessible in `st.val`.
+// 1. The rlp-encoded value was >= 64 bytes:
+//   - Then the 64-byte `hash` will be accessible in `st.val`.
 //   - And the 'st.type' will be 'hashedNode'
 //
-// 2. The rlp-encoded value was < 32 bytes
-//   - Then the <32 byte rlp-encoded value will be accessible in 'st.val'.
+// 2. The rlp-encoded value was < 64 bytes
+//   - Then the <64 byte rlp-encoded value will be accessible in 'st.val'.
 //   - And the 'st.type' will be 'hashedNode' AGAIN
 //
 // This method also sets 'st.type' to hashedNode, and clears 'st.key'.
@@ -427,7 +427,7 @@ func (st *StackTrie) hashRec(hasher *hasher, path []byte) {
 				continue
 			}
 			child.hashRec(hasher, append(path, byte(i)))
-			if len(child.val) < 32 {
+			if len(child.val) < common.Hash512Length {
 				nodes.Children[i] = rawNode(child.val)
 			} else {
 				nodes.Children[i] = hashNode(child.val)
@@ -445,7 +445,7 @@ func (st *StackTrie) hashRec(hasher *hasher, path []byte) {
 		st.children[0].hashRec(hasher, append(path, st.key...))
 
 		n := shortNode{Key: hexToCompactInPlace(st.key)}
-		if len(st.children[0].val) < 32 {
+		if len(st.children[0].val) < common.Hash512Length {
 			n.Val = rawNode(st.children[0].val)
 		} else {
 			n.Val = hashNode(st.children[0].val)
@@ -471,7 +471,7 @@ func (st *StackTrie) hashRec(hasher *hasher, path []byte) {
 
 	st.nodeType = hashedNode
 	st.key = st.key[:0]
-	if len(encodedNode) < 32 {
+	if len(encodedNode) < common.Hash512Length {
 		st.val = common.CopyBytes(encodedNode)
 		return
 	}
@@ -480,21 +480,21 @@ func (st *StackTrie) hashRec(hasher *hasher, path []byte) {
 	// input values
 	st.val = hasher.hashData(encodedNode)
 	if st.writeFn != nil {
-		st.writeFn(st.owner, path, common.BytesToHash(st.val), encodedNode)
+		st.writeFn(st.owner, path, common.BytesToHash512(st.val), encodedNode)
 	}
 }
 
 // Hash returns the hash of the current node.
-func (st *StackTrie) Hash() (h common.Hash) {
+func (st *StackTrie) Hash() (h common.Hash512) {
 	hasher := newHasher(false)
 	defer returnHasherToPool(hasher)
 
 	st.hashRec(hasher, nil)
-	if len(st.val) == 32 {
+	if len(st.val) == common.Hash512Length {
 		copy(h[:], st.val)
 		return h
 	}
-	// If the node's RLP isn't 32 bytes long, the node will not
+	// If the node's RLP isn't 64 bytes long, the node will not
 	// be hashed, and instead contain the  rlp-encoding of the
 	// node. For the top level node, we need to force the hashing.
 	hasher.sha.Reset()
@@ -510,19 +510,19 @@ func (st *StackTrie) Hash() (h common.Hash) {
 //
 // The associated database is expected, otherwise the whole commit
 // functionality should be disabled.
-func (st *StackTrie) Commit() (h common.Hash, err error) {
+func (st *StackTrie) Commit() (h common.Hash512, err error) {
 	if st.writeFn == nil {
-		return common.Hash{}, ErrCommitDisabled
+		return common.Hash512{}, ErrCommitDisabled
 	}
 	hasher := newHasher(false)
 	defer returnHasherToPool(hasher)
 
 	st.hashRec(hasher, nil)
-	if len(st.val) == 32 {
+	if len(st.val) == common.Hash512Length {
 		copy(h[:], st.val)
 		return h, nil
 	}
-	// If the node's RLP isn't 32 bytes long, the node will not
+	// If the node's RLP isn't 64 bytes long, the node will not
 	// be hashed (and committed), and instead contain the rlp-encoding of the
 	// node. For the top level node, we need to force the hashing+commit.
 	hasher.sha.Reset()

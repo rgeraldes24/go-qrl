@@ -65,9 +65,9 @@ type AccountResult struct {
 	Address      common.Address  `json:"address"`
 	AccountProof []string        `json:"accountProof"`
 	Balance      *big.Int        `json:"balance"`
-	CodeHash     common.Hash     `json:"codeHash"`
+	CodeHash     common.Hash512  `json:"codeHash"`
 	Nonce        uint64          `json:"nonce"`
-	StorageHash  common.Hash     `json:"storageHash"`
+	StorageHash  common.Hash512  `json:"storageHash"`
 	StorageProof []StorageResult `json:"storageProof"`
 }
 
@@ -91,9 +91,9 @@ func (qc *Client) GetProof(ctx context.Context, account common.Address, keys []s
 		Address      common.Address  `json:"address"`
 		AccountProof []string        `json:"accountProof"`
 		Balance      *hexutil.Big    `json:"balance"`
-		CodeHash     common.Hash     `json:"codeHash"`
+		CodeHash     common.Hash512  `json:"codeHash"`
 		Nonce        hexutil.Uint64  `json:"nonce"`
-		StorageHash  common.Hash     `json:"storageHash"`
+		StorageHash  common.Hash512  `json:"storageHash"`
 		StorageProof []storageResult `json:"storageProof"`
 	}
 
@@ -265,19 +265,19 @@ type OverrideAccount struct {
 	// State sets the complete storage. The override will be applied
 	// when the given map is non-nil. Using an empty map wipes the
 	// entire contract storage during the call.
-	State map[common.Hash]common.StorageValue64
+	State map[common.StorageKey]common.StorageValue64
 
 	// StateDiff allows overriding individual storage slots.
-	StateDiff map[common.Hash]common.StorageValue64
+	StateDiff map[common.StorageKey]common.StorageValue64
 }
 
 func (a OverrideAccount) MarshalJSON() ([]byte, error) {
 	type acc struct {
-		Nonce     hexutil.Uint64                        `json:"nonce,omitempty"`
-		Code      string                                `json:"code,omitempty"`
-		Balance   *hexutil.Big                          `json:"balance,omitempty"`
-		State     any                                   `json:"state,omitempty"`
-		StateDiff map[common.Hash]common.StorageValue64 `json:"stateDiff,omitempty"`
+		Nonce     hexutil.Uint64                              `json:"nonce,omitempty"`
+		Code      string                                      `json:"code,omitempty"`
+		Balance   *hexutil.Big                                `json:"balance,omitempty"`
+		State     any                                         `json:"state,omitempty"`
+		StateDiff map[common.StorageKey]common.StorageValue64 `json:"stateDiff,omitempty"`
 	}
 
 	output := acc{

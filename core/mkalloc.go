@@ -50,7 +50,7 @@ type allocItemMisc struct {
 }
 
 type allocItemStorageItem struct {
-	Key common.Hash
+	Key common.StorageKey
 	Val common.StorageValue64
 }
 

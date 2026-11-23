@@ -52,7 +52,7 @@ func (qrl *QRL) hashState(ctx context.Context, block *types.Block, reexec uint64
 		// on top to prevent garbage collection and return a release
 		// function to deref it.
 		if statedb, err = qrl.blockchain.StateAt(block.Root()); err == nil {
-			qrl.blockchain.TrieDB().Reference(block.Root(), common.Hash{})
+			qrl.blockchain.TrieDB().Reference(block.Root(), common.Hash512{})
 			return statedb, func() {
 				qrl.blockchain.TrieDB().Dereference(block.Root())
 			}, nil
@@ -129,7 +129,7 @@ func (qrl *QRL) hashState(ctx context.Context, block *types.Block, reexec uint64
 	var (
 		start  = time.Now()
 		logged time.Time
-		parent common.Hash
+		parent common.Hash512
 	)
 	for current.NumberU64() < origin {
 		if err := ctx.Err(); err != nil {
@@ -161,8 +161,8 @@ func (qrl *QRL) hashState(ctx context.Context, block *types.Block, reexec uint64
 		}
 		// Hold the state reference and also drop the parent state
 		// to prevent accumulating too many nodes in memory.
-		triedb.Reference(root, common.Hash{})
-		if parent != (common.Hash{}) {
+		triedb.Reference(root, common.Hash512{})
+		if parent != (common.Hash512{}) {
 			triedb.Dereference(parent)
 		}
 		parent = root

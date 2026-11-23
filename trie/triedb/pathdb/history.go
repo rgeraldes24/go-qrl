@@ -64,11 +64,11 @@ import (
 // current disk layer.
 
 const (
-	accountIndexSize = common.AddressLength + 13 // The length of encoded account index
-	slotIndexSize    = common.HashLength + 5     // The length of encoded slot index
-	historyMetaSize  = 9 + 2*common.HashLength   // The length of fixed size part of meta object
+	accountIndexSize = common.AddressLength + 13  // The length of encoded account index
+	slotIndexSize    = common.Hash512Length + 5   // The length of encoded slot index
+	historyMetaSize  = 9 + 2*common.Hash512Length // The length of fixed size part of meta object
 
-	stateHistoryVersion = uint8(0) // initial version of state history structure.
+	stateHistoryVersion = uint8(1) // 512-bit state history structure.
 )
 
 // Each state history entry is consisted of five elements:
@@ -169,32 +169,32 @@ func (i *accountIndex) decode(blob []byte) {
 
 // slotIndex describes the metadata belonging to a storage slot.
 type slotIndex struct {
-	hash   common.Hash // The hash of slot key
-	length uint8       // The length of storage slot, up to 32 bytes defined in protocol
-	offset uint32      // The offset of item in storage slot data table
+	hash   common.Hash512 // The hash of slot key
+	length uint8          // The length of storage slot, up to 64 bytes defined in protocol
+	offset uint32         // The offset of item in storage slot data table
 }
 
 // encode packs slot index into byte stream.
 func (i *slotIndex) encode() []byte {
 	var buf [slotIndexSize]byte
-	copy(buf[:common.HashLength], i.hash.Bytes())
-	buf[common.HashLength] = i.length
-	binary.BigEndian.PutUint32(buf[common.HashLength+1:], i.offset)
+	copy(buf[:common.Hash512Length], i.hash.Bytes())
+	buf[common.Hash512Length] = i.length
+	binary.BigEndian.PutUint32(buf[common.Hash512Length+1:], i.offset)
 	return buf[:]
 }
 
 // decode unpack slot index from the byte stream.
 func (i *slotIndex) decode(blob []byte) {
-	i.hash = common.BytesToHash(blob[:common.HashLength])
-	i.length = blob[common.HashLength]
-	i.offset = binary.BigEndian.Uint32(blob[common.HashLength+1:])
+	i.hash = common.BytesToHash512(blob[:common.Hash512Length])
+	i.length = blob[common.Hash512Length]
+	i.offset = binary.BigEndian.Uint32(blob[common.Hash512Length+1:])
 }
 
 // meta describes the meta data of state history object.
 type meta struct {
 	version    uint8            // version tag of history object
-	parent     common.Hash      // prev-state root before the state transition
-	root       common.Hash      // post-state root after the state transition
+	parent     common.Hash512   // prev-state root before the state transition
+	root       common.Hash512   // post-state root after the state transition
 	block      uint64           // associated block number
 	incomplete []common.Address // list of address whose storage set is incomplete
 }
@@ -203,9 +203,9 @@ type meta struct {
 func (m *meta) encode() []byte {
 	buf := make([]byte, historyMetaSize+len(m.incomplete)*common.AddressLength)
 	buf[0] = m.version
-	copy(buf[1:1+common.HashLength], m.parent.Bytes())
-	copy(buf[1+common.HashLength:1+2*common.HashLength], m.root.Bytes())
-	binary.BigEndian.PutUint64(buf[1+2*common.HashLength:historyMetaSize], m.block)
+	copy(buf[1:1+common.Hash512Length], m.parent.Bytes())
+	copy(buf[1+common.Hash512Length:1+2*common.Hash512Length], m.root.Bytes())
+	binary.BigEndian.PutUint64(buf[1+2*common.Hash512Length:historyMetaSize], m.block)
 	for i, h := range m.incomplete {
 		copy(buf[i*common.AddressLength+historyMetaSize:], h.Bytes())
 	}
@@ -226,9 +226,9 @@ func (m *meta) decode(blob []byte) error {
 			return fmt.Errorf("corrupted state history meta, len: %d", len(blob))
 		}
 		m.version = blob[0]
-		m.parent = common.BytesToHash(blob[1 : 1+common.HashLength])
-		m.root = common.BytesToHash(blob[1+common.HashLength : 1+2*common.HashLength])
-		m.block = binary.BigEndian.Uint64(blob[1+2*common.HashLength : historyMetaSize])
+		m.parent = common.BytesToHash512(blob[1 : 1+common.Hash512Length])
+		m.root = common.BytesToHash512(blob[1+common.Hash512Length : 1+2*common.Hash512Length])
+		m.block = binary.BigEndian.Uint64(blob[1+2*common.Hash512Length : historyMetaSize])
 		for pos := historyMetaSize; pos < len(blob); {
 			m.incomplete = append(m.incomplete, common.BytesToAddress(blob[pos:pos+common.AddressLength]))
 			pos += common.AddressLength
@@ -245,18 +245,18 @@ func (m *meta) decode(blob []byte) error {
 // (8-bytes integer), the oldest state history object can be pruned on demand
 // in order to control the storage size.
 type history struct {
-	meta        *meta                                     // Meta data of history
-	accounts    map[common.Address][]byte                 // Account data keyed by its address hash
-	accountList []common.Address                          // Sorted account hash list
-	storages    map[common.Address]map[common.Hash][]byte // Storage data keyed by its address hash and slot hash
-	storageList map[common.Address][]common.Hash          // Sorted slot hash list
+	meta        *meta                                        // Meta data of history
+	accounts    map[common.Address][]byte                    // Account data keyed by its address hash
+	accountList []common.Address                             // Sorted account hash list
+	storages    map[common.Address]map[common.Hash512][]byte // Storage data keyed by its address hash and slot hash
+	storageList map[common.Address][]common.Hash512          // Sorted slot hash list
 }
 
 // newHistory constructs the state history object with provided state change set.
-func newHistory(root common.Hash, parent common.Hash, block uint64, states *triestate.Set) *history {
+func newHistory(root common.Hash512, parent common.Hash512, block uint64, states *triestate.Set) *history {
 	var (
 		accountList []common.Address
-		storageList = make(map[common.Address][]common.Hash)
+		storageList = make(map[common.Address][]common.Hash512)
 		incomplete  []common.Address
 	)
 	for addr := range states.Accounts {
@@ -265,11 +265,11 @@ func newHistory(root common.Hash, parent common.Hash, block uint64, states *trie
 	slices.SortFunc(accountList, common.Address.Cmp)
 
 	for addr, slots := range states.Storages {
-		slist := make([]common.Hash, 0, len(slots))
+		slist := make([]common.Hash512, 0, len(slots))
 		for slotHash := range slots {
 			slist = append(slist, slotHash)
 		}
-		slices.SortFunc(slist, common.Hash.Cmp)
+		slices.SortFunc(slist, common.Hash512.Cmp)
 		storageList[addr] = slist
 	}
 	for addr := range states.Incomplete {
@@ -399,11 +399,11 @@ func (r *decoder) readAccount(pos int) (accountIndex, []byte, error) {
 }
 
 // readStorage parses the storage slots from the byte stream with specified account.
-func (r *decoder) readStorage(accIndex accountIndex) ([]common.Hash, map[common.Hash][]byte, error) {
+func (r *decoder) readStorage(accIndex accountIndex) ([]common.Hash512, map[common.Hash512][]byte, error) {
 	var (
-		last    common.Hash
-		list    []common.Hash
-		storage = make(map[common.Hash][]byte)
+		last    common.Hash512
+		list    []common.Hash512
+		storage = make(map[common.Hash512][]byte)
 	)
 	for j := 0; j < int(accIndex.storageSlots); j++ {
 		var (
@@ -449,9 +449,9 @@ func (r *decoder) readStorage(accIndex accountIndex) ([]common.Hash, map[common.
 func (h *history) decode(accountData, storageData, accountIndexes, storageIndexes []byte) error {
 	var (
 		accounts    = make(map[common.Address][]byte)
-		storages    = make(map[common.Address]map[common.Hash][]byte)
+		storages    = make(map[common.Address]map[common.Hash512][]byte)
 		accountList []common.Address
-		storageList = make(map[common.Address][]common.Hash)
+		storageList = make(map[common.Address][]common.Hash512)
 
 		r = &decoder{
 			accountData:    accountData,

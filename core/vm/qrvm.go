@@ -327,12 +327,12 @@ func (qrvm *QRVM) StaticCall(caller ContractRef, addr common.Address, input []by
 
 type codeAndHash struct {
 	code []byte
-	hash common.Hash
+	hash common.Hash512
 }
 
-func (c *codeAndHash) Hash() common.Hash {
-	if c.hash == (common.Hash{}) {
-		c.hash = crypto.Keccak256Hash(c.code)
+func (c *codeAndHash) Hash() common.Hash512 {
+	if c.hash == (common.Hash512{}) {
+		c.hash = crypto.Keccak512Hash(c.code)
 	}
 	return c.hash
 }
@@ -357,7 +357,7 @@ func (qrvm *QRVM) create(caller ContractRef, codeAndHash *codeAndHash, gas uint6
 	qrvm.StateDB.AddAddressToAccessList(address)
 	// Ensure there's no existing contract already at the designated address
 	contractHash := qrvm.StateDB.GetCodeHash(address)
-	if qrvm.StateDB.GetNonce(address) != 0 || (contractHash != (common.Hash{}) && contractHash != types.EmptyCodeHash) {
+	if qrvm.StateDB.GetNonce(address) != 0 || (contractHash != (common.Hash512{}) && contractHash != types.EmptyCodeHash) {
 		return nil, common.Address{}, 0, ErrContractAddressCollision
 	}
 	// Create a new account on the state
@@ -435,7 +435,7 @@ func (qrvm *QRVM) Create(caller ContractRef, code []byte, gas uint64, value *big
 // instead of the usual sender-and-nonce-hash as the address where the contract is initialized at.
 func (qrvm *QRVM) Create2(caller ContractRef, code []byte, gas uint64, endowment *big.Int, salt *uint512.Int) (ret []byte, contractAddr common.Address, leftOverGas uint64, err error) {
 	codeAndHash := &codeAndHash{code: code}
-	contractAddr = crypto.CreateAddress2(caller.Address(), salt.Bytes64(), codeAndHash.Hash().Bytes())
+	contractAddr = crypto.CreateAddress2(caller.Address(), salt.Bytes64(), codeAndHash.Hash())
 	return qrvm.create(caller, codeAndHash, gas, endowment, contractAddr, CREATE2)
 }
 

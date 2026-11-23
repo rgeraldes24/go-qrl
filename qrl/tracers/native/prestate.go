@@ -39,10 +39,10 @@ func init() {
 type state = map[common.Address]*account
 
 type account struct {
-	Balance *big.Int                              `json:"balance,omitempty"`
-	Code    []byte                                `json:"code,omitempty"`
-	Nonce   uint64                                `json:"nonce,omitempty"`
-	Storage map[common.Hash]common.StorageValue64 `json:"storage,omitempty"`
+	Balance *big.Int                                 `json:"balance,omitempty"`
+	Code    []byte                                   `json:"code,omitempty"`
+	Nonce   uint64                                   `json:"nonce,omitempty"`
+	Storage map[common.Hash512]common.StorageValue64 `json:"storage,omitempty"`
 }
 
 func (a *account) exists() bool {
@@ -148,7 +148,7 @@ func (t *prestateTracer) CaptureState(pc uint64, op vm.OpCode, gas, cost uint64,
 	caller := scope.Contract.Address()
 	switch {
 	case stackLen >= 1 && (op == vm.SLOAD || op == vm.SSTORE):
-		slot := common.Hash(stackData[stackLen-1].Bytes32())
+		slot := common.Hash512(stackData[stackLen-1].Bytes64())
 		t.lookupStorage(caller, slot)
 	case stackLen >= 1 && (op == vm.EXTCODECOPY || op == vm.EXTCODEHASH || op == vm.EXTCODESIZE || op == vm.BALANCE):
 		b1 := stackData[stackLen-1].Bytes64()
@@ -171,7 +171,7 @@ func (t *prestateTracer) CaptureState(pc uint64, op vm.OpCode, gas, cost uint64,
 			log.Warn("failed to copy CREATE2 input", "err", err, "tracer", "prestateTracer", "offset", offset, "size", size)
 			return
 		}
-		inithash := crypto.Keccak256(init)
+		inithash := crypto.Keccak512Hash(init)
 		salt := stackData[stackLen-4]
 		addr := crypto.CreateAddress2(caller, salt.Bytes64(), inithash)
 		t.lookupAccount(addr)
@@ -190,7 +190,7 @@ func (t *prestateTracer) CaptureTxEnd(restGas uint64) {
 
 	for addr, state := range t.pre {
 		modified := false
-		postAccount := &account{Storage: make(map[common.Hash]common.StorageValue64)}
+		postAccount := &account{Storage: make(map[common.StorageKey]common.StorageValue64)}
 		newBalance := t.env.StateDB.GetBalance(addr)
 		newNonce := t.env.StateDB.GetNonce(addr)
 		newCode := t.env.StateDB.GetCode(addr)
@@ -278,14 +278,14 @@ func (t *prestateTracer) lookupAccount(addr common.Address) {
 		Balance: t.env.StateDB.GetBalance(addr),
 		Nonce:   t.env.StateDB.GetNonce(addr),
 		Code:    t.env.StateDB.GetCode(addr),
-		Storage: make(map[common.Hash]common.StorageValue64),
+		Storage: make(map[common.StorageKey]common.StorageValue64),
 	}
 }
 
 // lookupStorage fetches the requested storage slot and adds
 // it to the prestate of the given contract. It assumes `lookupAccount`
 // has been performed on the contract before.
-func (t *prestateTracer) lookupStorage(addr common.Address, key common.Hash) {
+func (t *prestateTracer) lookupStorage(addr common.Address, key common.Hash512) {
 	if _, ok := t.pre[addr].Storage[key]; ok {
 		return
 	}

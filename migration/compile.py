@@ -6,6 +6,43 @@ import json
 from pathlib import Path
 import subprocess
 
+
+def widen_mapping_hashes(runtime):
+    """Adapt this contract's compiler-generated slot hashes to KECCAK512.
+
+    The source uses SHA-256 explicitly; every KECCAK256 instruction emitted
+    by the pinned compiler is a mapping-slot calculation. Keep PUSH data,
+    jump offsets, and the compiler's trailing CBOR metadata unchanged.
+    """
+    code = bytearray.fromhex(runtime)
+    # This adaptation is deliberately limited to the reviewed pinned runtime.
+    # Compiler upgrades must review both slot hashing and uint256 cleanup masks.
+    if hashlib.sha256(code).hexdigest() != "5f39ec4e020fc3613128d2128d68ded8c7e5cf23dbcbb8125ac2750529314b10":
+        raise ValueError("unreviewed compiler runtime; review the 512-bit storage adaptation")
+    # Mapping getters (including nested getters), nested weight lookup,
+    # and usedOTS read/write mask slots to 256 bits in this compiler.
+    # Replace their (1 << 256) - 1 masks with (1 << 512) - 1, preserving
+    # instruction lengths and all jump destinations. Other uint256 masks
+    # belong to the explicit legacy SHA-256/ABI operations and stay intact.
+    for pc in (392, 448, 489, 566, 618, 674, 2680, 3574, 3848):
+        if code[pc - 4:pc + 5] != bytes.fromhex("600160016101001b03"):
+            raise ValueError("unrecognized mapping mask")
+        code[pc + 1] = 0x02
+    metadata_size = int.from_bytes(code[-2:], "big")
+    end = len(code) - metadata_size - 2
+    if end < 1 or code[end - 1] != 0xFE or code[end] != 0xA1:
+        raise ValueError("unrecognized compiler metadata; review mapping hash adaptation")
+    pc = 0
+    while pc < end:
+        opcode = code[pc]
+        if opcode == 0x20:
+            code[pc] = 0x21
+        pc += 1 + (opcode - 0x5F if 0x60 <= opcode <= 0x9F else 0)
+    if pc != end:
+        raise ValueError("truncated PUSH in contract runtime")
+    return code.hex()
+
+
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument("--hypc", required=True, help="path to Hyperion hypc")
 args = parser.parse_args()
@@ -58,7 +95,8 @@ artifact = {
     "source_sha256": hashlib.sha256(source.encode()).hexdigest(),
     "settings": request["settings"],
     "abi": contract["abi"],
-    "runtime": contract["qrvm"]["deployedBytecode"]["object"],
+    "runtime": widen_mapping_hashes(contract["qrvm"]["deployedBytecode"]["object"]),
+    "storage_hash": "keccak512",
     "storageLayout": contract["storageLayout"],
 }
 (directory / "LegacyQRLMigration.json").write_text(json.dumps(artifact, indent=2) + "\n")

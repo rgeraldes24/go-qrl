@@ -85,11 +85,23 @@ func (qc *Client) BlockByHash(ctx context.Context, hash common.Hash) (*types.Blo
 	return qc.getBlock(ctx, "qrl_getBlockByHash", hash, true)
 }
 
-// BlockByNumber returns a block from the current canonical chain. If number is nil, the
-// latest known block is returned.
+// BlockByNumber returns a block from the current canonical chain.
+// If `number` is nil, the latest known block is returned.
 //
-// Note that loading full blocks requires two requests. Use HeaderByNumber
-// if you don't need all transactions.
+// Use `HeaderByNumber` if you don't need full transaction data.
+//
+// Supported special block number tags:
+// - `earliest`  : The genesis (earliest) block
+// - `latest`    : The most recently included block
+// - `safe`      : The latest safe head block
+// - `finalized` : The latest finalized block
+// - `pending`   : The pending block
+//
+// Example usage:
+//
+// ```go
+// BlockByNumber(context.Background(), big.NewInt(int64(rpc.LatestBlockNumber)))
+// ```
 func (qc *Client) BlockByNumber(ctx context.Context, number *big.Int) (*types.Block, error) {
 	return qc.getBlock(ctx, "qrl_getBlockByNumber", toBlockNumArg(number), true)
 }
@@ -108,7 +120,7 @@ func (qc *Client) PeerCount(ctx context.Context) (uint64, error) {
 	return uint64(result), err
 }
 
-// BlockReceipts returns the receipts of a given block number or hash
+// BlockReceipts returns the receipts of a given block number or hash.
 func (qc *Client) BlockReceipts(ctx context.Context, blockNrOrHash rpc.BlockNumberOrHash) ([]*types.Receipt, error) {
 	var r []*types.Receipt
 	err := qc.c.CallContext(ctx, &r, "qrl_getBlockReceipts", blockNrOrHash)
@@ -119,9 +131,9 @@ func (qc *Client) BlockReceipts(ctx context.Context, blockNrOrHash rpc.BlockNumb
 }
 
 type rpcBlock struct {
-	Hash         common.Hash         `json:"hash"`
+	Hash         *common.Hash        `json:"hash"`
 	Transactions []rpcTransaction    `json:"transactions"`
-	Withdrawals  []*types.Withdrawal `json:"withdrawals,omitempty"`
+	Withdrawals  []*types.Withdrawal `json:"withdrawals"`
 }
 
 func (qc *Client) getBlock(ctx context.Context, method string, args ...any) (*types.Block, error) {
@@ -145,6 +157,11 @@ func (qc *Client) getBlock(ctx context.Context, method string, args ...any) (*ty
 	if err := json.Unmarshal(raw, &body); err != nil {
 		return nil, err
 	}
+	// Pending blocks don't return a block hash, compute it for sender caching.
+	if body.Hash == nil {
+		tmp := head.Hash()
+		body.Hash = &tmp
+	}
 	// Quick-verify transaction list. This mostly helps with debugging the server.
 	if head.TxHash == types.EmptyTxsHash && len(body.Transactions) > 0 {
 		return nil, errors.New("server returned non-empty transaction list but block header indicates no transactions")
@@ -156,7 +173,7 @@ func (qc *Client) getBlock(ctx context.Context, method string, args ...any) (*ty
 	txs := make([]*types.Transaction, len(body.Transactions))
 	for i, tx := range body.Transactions {
 		if tx.From != nil {
-			setSenderFromServer(tx.tx, *tx.From, body.Hash)
+			setSenderFromServer(tx.tx, *tx.From, *body.Hash)
 		}
 		txs[i] = tx.tx
 	}
@@ -177,8 +194,21 @@ func (qc *Client) HeaderByHash(ctx context.Context, hash common.Hash) (*types.He
 	return head, err
 }
 
-// HeaderByNumber returns a block header from the current canonical chain. If number is
-// nil, the latest known header is returned.
+// HeaderByNumber returns a block header from the current canonical chain.
+// If `number` is nil, the latest known block header is returned.
+//
+// Supported special block number tags:
+// - `earliest`  : The genesis (earliest) block
+// - `latest`    : The most recently included block
+// - `safe`      : The latest safe head block
+// - `finalized` : The latest finalized block
+// - `pending`   : The pending block
+//
+// Example usage:
+//
+// ```go
+// HeaderByNumber(context.Background(), big.NewInt(int64(rpc.LatestBlockNumber)))
+// ```
 func (qc *Client) HeaderByNumber(ctx context.Context, number *big.Int) (*types.Header, error) {
 	var head *types.Header
 	err := qc.c.CallContext(ctx, &head, "qrl_getBlockByNumber", toBlockNumArg(number), false)
@@ -252,9 +282,15 @@ func (qc *Client) TransactionSender(ctx context.Context, tx *types.Transaction, 
 
 // TransactionCount returns the total number of transactions in the given block.
 func (qc *Client) TransactionCount(ctx context.Context, blockHash common.Hash) (uint, error) {
-	var num hexutil.Uint
+	var num *hexutil.Uint
 	err := qc.c.CallContext(ctx, &num, "qrl_getBlockTransactionCountByHash", blockHash)
-	return uint(num), err
+	if err != nil {
+		return 0, err
+	}
+	if num == nil {
+		return 0, qrl.NotFound
+	}
+	return uint(*num), err
 }
 
 // TransactionInBlock returns a single transaction at index in the given block.
@@ -343,7 +379,7 @@ func (qc *Client) BalanceAt(ctx context.Context, account common.Address, blockNu
 
 // StorageAt returns the value of key in the contract storage of the given account.
 // The block number can be nil, in which case the value is taken from the latest known block.
-func (qc *Client) StorageAt(ctx context.Context, account common.Address, key common.Hash, blockNumber *big.Int) ([]byte, error) {
+func (qc *Client) StorageAt(ctx context.Context, account common.Address, key common.StorageKey, blockNumber *big.Int) ([]byte, error) {
 	var result hexutil.Bytes
 	err := qc.c.CallContext(ctx, &result, "qrl_getStorageAt", account, key, toBlockNumArg(blockNumber))
 	return result, err
@@ -428,7 +464,7 @@ func (qc *Client) PendingBalanceAt(ctx context.Context, account common.Address) 
 }
 
 // PendingStorageAt returns the value of key in the contract storage of the given account in the pending state.
-func (qc *Client) PendingStorageAt(ctx context.Context, account common.Address, key common.Hash) ([]byte, error) {
+func (qc *Client) PendingStorageAt(ctx context.Context, account common.Address, key common.StorageKey) ([]byte, error) {
 	var result hexutil.Bytes
 	err := qc.c.CallContext(ctx, &result, "qrl_getStorageAt", account, key, "pending")
 	return result, err
@@ -548,9 +584,13 @@ func (qc *Client) FeeHistory(ctx context.Context, blockCount uint64, lastBlock *
 }
 
 // EstimateGas tries to estimate the gas needed to execute a specific transaction based on
-// the current pending state of the backend blockchain. There is no guarantee that this is
-// the true gas limit requirement as other transactions may be added or removed by miners,
-// but it should provide a basis for setting a reasonable default.
+// the current state of the backend blockchain. There is no guarantee that this is the
+// true gas limit requirement as other transactions may be added or removed by miners, but
+// it should provide a basis for setting a reasonable default.
+//
+// Note that the state used by this method is implementation-defined by the remote RPC
+// server, but it's reasonable to assume that it will either be the pending or latest
+// state.
 func (qc *Client) EstimateGas(ctx context.Context, msg qrl.CallMsg) (uint64, error) {
 	var hex hexutil.Uint64
 	err := qc.c.CallContext(ctx, &hex, "qrl_estimateGas", toCallArg(msg))

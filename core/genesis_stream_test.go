@@ -41,14 +41,14 @@ import (
 )
 
 func streamGenesisFixture() *Genesis {
-	storage := make(map[common.Hash]common.StorageValue64)
+	storage := make(map[common.StorageKey]common.StorageValue64)
 	for i := 0; i < 2048; i++ {
-		key := crypto.Keccak256Hash([]byte(fmt.Sprint(i)))
+		key := crypto.Keccak512Hash([]byte(fmt.Sprint(i)))
 		value := common.BytesToStorageValue64(key[:])
 		value[0] = 0xab // Verify all 512 bits are retained.
 		storage[key] = value
 	}
-	storage[common.Hash{}] = common.StorageValue64{}
+	storage[common.Hash512{}] = common.StorageValue64{}
 	return &Genesis{
 		Config: params.TestChainConfig, Timestamp: 12345, GasLimit: 30_000_000,
 		ExtraData: []byte{1, 2, 3},
@@ -105,11 +105,11 @@ func TestStreamGenesisMatchesLegacy(t *testing.T) {
 			}
 			assertStreamedState(t, db, tdb, g)
 			address := common.Address{1}
-			if got := rawdb.ReadPreimage(db, crypto.Keccak256Hash(address[:])); !bytes.Equal(got, address[:]) {
+			if got := rawdb.ReadPreimage(db, crypto.Keccak512Hash(address[:])); !bytes.Equal(got, address[:]) {
 				t.Fatal("missing account preimage")
 			}
 			for key, value := range g.Alloc[address].Storage {
-				if value != (common.StorageValue64{}) && !bytes.Equal(rawdb.ReadPreimage(db, crypto.Keccak256Hash(key[:])), key[:]) {
+				if value != (common.StorageValue64{}) && !bytes.Equal(rawdb.ReadPreimage(db, crypto.Keccak512Hash(key[:])), key[:]) {
 					t.Fatal("missing storage preimage")
 				}
 			}
@@ -337,7 +337,7 @@ func TestStreamGenesisLarge(t *testing.T) {
 		if i != count-1 {
 			w.WriteByte(',')
 		}
-		key := common.BigToHash(big.NewInt(int64(i)))
+		key := common.BigToHash512(big.NewInt(int64(i)))
 		fmt.Fprintf(w, `%q:%q`, key.Hex(), valueFor(i).Hex())
 	}
 	fmt.Fprint(w, `}}`)
@@ -387,7 +387,7 @@ func TestStreamGenesisLarge(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, i := range []int{0, count / 2, count - 1} {
-		key := common.BigToHash(big.NewInt(int64(i)))
+		key := common.BigToHash512(big.NewInt(int64(i)))
 		if s.GetState(contract, key) != valueFor(i) {
 			t.Fatalf("lost storage slot %d", i)
 		}

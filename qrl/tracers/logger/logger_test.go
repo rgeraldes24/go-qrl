@@ -34,10 +34,10 @@ type dummyContractRef struct {
 	calledForEach bool
 }
 
-func (dummyContractRef) Address() common.Address     { return common.Address{} }
-func (dummyContractRef) Value() *big.Int             { return new(big.Int) }
-func (dummyContractRef) SetCode(common.Hash, []byte) {}
-func (d *dummyContractRef) ForEachStorage(callback func(key, value common.Hash) bool) {
+func (dummyContractRef) Address() common.Address        { return common.Address{} }
+func (dummyContractRef) Value() *big.Int                { return new(big.Int) }
+func (dummyContractRef) SetCode(common.Hash512, []byte) {}
+func (d *dummyContractRef) ForEachStorage(callback func(key, value common.Hash512) bool) {
 	d.calledForEach = true
 }
 func (d *dummyContractRef) SubBalance(amount *big.Int) {}
@@ -51,10 +51,10 @@ type dummyStatedb struct {
 }
 
 func (*dummyStatedb) GetRefund() uint64 { return 1337 }
-func (*dummyStatedb) GetState(_ common.Address, _ common.Hash) common.StorageValue64 {
+func (*dummyStatedb) GetState(_ common.Address, _ common.Hash512) common.StorageValue64 {
 	return common.StorageValue64{}
 }
-func (*dummyStatedb) SetState(_ common.Address, _ common.Hash, _ common.StorageValue64) {}
+func (*dummyStatedb) SetState(_ common.Address, _ common.Hash512, _ common.StorageValue64) {}
 
 func TestStoreCapture(t *testing.T) {
 	var (
@@ -65,7 +65,7 @@ func TestStoreCapture(t *testing.T) {
 	)
 	statedb.AddAddressToAccessList(contract.Address())
 	contract.Code = []byte{byte(vm.PUSH1), 0x1, byte(vm.PUSH1), 0x0, byte(vm.SSTORE)}
-	var index common.Hash
+	var index common.Hash512
 	logger.CaptureStart(env, common.Address{}, contract.Address(), false, nil, 0, nil)
 	_, err := env.Interpreter().Run(contract, []byte{}, false)
 	if err != nil {
@@ -75,7 +75,7 @@ func TestStoreCapture(t *testing.T) {
 		t.Fatalf("expected exactly 1 changed value on address %x, got %d", contract.Address(),
 			len(logger.storage[contract.Address()]))
 	}
-	exp := common.BytesToStorageValue64(common.BigToHash(big.NewInt(1)).Bytes())
+	exp := common.BytesToStorageValue64(common.BigToHash512(big.NewInt(1)).Bytes())
 	if logger.storage[contract.Address()][index] != exp {
 		t.Errorf("expected %x, got %x", exp, logger.storage[contract.Address()][index])
 	}

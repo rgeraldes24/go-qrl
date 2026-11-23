@@ -15,8 +15,8 @@ import (
 // walkStorage emits each nonzero contract slot exactly once. In particular,
 // separated OTS ranges within one 512-bit word are merged before emitting it.
 // No map containing the complete migration storage is allocated.
-func walkStorage(s *Snapshot, chainID *big.Int, walk func(func(Account) error) error, visit func(common.Hash, common.StorageValue64) error) error {
-	put := func(key common.Hash, value *big.Int) error {
+func walkStorage(s *Snapshot, chainID *big.Int, walk func(func(Account) error) error, visit func(common.Hash512, common.StorageValue64) error) error {
+	put := func(key common.Hash512, value *big.Int) error {
 		if value.Sign() == 0 {
 			return nil
 		}
@@ -163,7 +163,7 @@ func (s *SnapshotStore) WriteGenesis(output io.Writer, genesis *core.Genesis, co
 		return w.err
 	}
 	first := true
-	if err := walkStorage(&s.metadata, genesis.Config.ChainID, s.Walk, func(key common.Hash, value common.StorageValue64) error {
+	if err := walkStorage(&s.metadata, genesis.Config.ChainID, s.Walk, func(key common.Hash512, value common.StorageValue64) error {
 		if !first {
 			w.text(",")
 		}

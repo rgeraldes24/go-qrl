@@ -223,7 +223,7 @@ func (bc *BlockChain) GetAncestor(hash common.Hash, number, ancestor uint64, max
 }
 
 // HasState checks if state trie is fully present in the database or not.
-func (bc *BlockChain) HasState(hash common.Hash) bool {
+func (bc *BlockChain) HasState(hash common.Hash512) bool {
 	_, err := bc.stateCache.OpenTrie(hash)
 	return err == nil
 }
@@ -243,7 +243,7 @@ func (bc *BlockChain) HasBlockAndState(hash common.Hash, number uint64) bool {
 // Note, this function assumes the state is not present, because
 // state is not treated as recoverable if it's available, thus
 // false will be returned in this case.
-func (bc *BlockChain) stateRecoverable(root common.Hash) bool {
+func (bc *BlockChain) stateRecoverable(root common.Hash512) bool {
 	if bc.triedb.Scheme() == rawdb.HashScheme {
 		return false
 	}
@@ -256,9 +256,9 @@ func (bc *BlockChain) stateRecoverable(root common.Hash) bool {
 //
 // If the code doesn't exist in the in-memory cache, check the storage with
 // new code scheme.
-func (bc *BlockChain) ContractCodeWithPrefix(hash common.Hash) ([]byte, error) {
+func (bc *BlockChain) ContractCodeWithPrefix(hash common.Hash512) ([]byte, error) {
 	type codeReader interface {
-		ContractCodeWithPrefix(address common.Address, codeHash common.Hash) ([]byte, error)
+		ContractCodeWithPrefix(address common.Address, codeHash common.Hash512) ([]byte, error)
 	}
 	// TODO(rjl493456442) The associated account address is also required
 	// in Verkle scheme. Fix it once snap-sync is supported for Verkle.
@@ -271,7 +271,7 @@ func (bc *BlockChain) State() (*state.StateDB, error) {
 }
 
 // StateAt returns a new mutable state based on a particular point in time.
-func (bc *BlockChain) StateAt(root common.Hash) (*state.StateDB, error) {
+func (bc *BlockChain) StateAt(root common.Hash512) (*state.StateDB, error) {
 	return state.New(root, bc.stateCache, bc.snaps)
 }
 

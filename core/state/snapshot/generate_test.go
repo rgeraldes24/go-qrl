@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"math/big"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -36,9 +37,9 @@ import (
 	"golang.org/x/crypto/sha3"
 )
 
-func hashData(input []byte) common.Hash {
-	var hasher = sha3.NewLegacyKeccak256()
-	var hash common.Hash
+func hashData(input []byte) common.Hash512 {
+	var hasher = sha3.NewLegacyKeccak512()
+	var hash common.Hash512
 	hasher.Reset()
 	hasher.Write(input)
 	hasher.Sum(hash[:0])
@@ -56,7 +57,7 @@ func testGeneration(t *testing.T, scheme string) {
 	// a fake one manually. We're going with a small account trie of 3 accounts,
 	// two of which also has the same 3-slot storage trie attached.
 	var helper = newHelper(scheme)
-	stRoot := helper.makeStorageTrie(common.Hash{}, []string{"key-1", "key-2", "key-3"}, []string{"val-1", "val-2", "val-3"}, false)
+	stRoot := helper.makeStorageTrie(common.Hash512{}, []string{"key-1", "key-2", "key-3"}, []string{"val-1", "val-2", "val-3"}, false)
 
 	helper.addTrieAccount("acc-1", &types.StateAccount{Balance: big.NewInt(1), Root: stRoot, CodeHash: types.EmptyCodeHash.Bytes()})
 	helper.addTrieAccount("acc-2", &types.StateAccount{Balance: big.NewInt(2), Root: types.EmptyRootHash, CodeHash: types.EmptyCodeHash.Bytes()})
@@ -66,7 +67,7 @@ func testGeneration(t *testing.T, scheme string) {
 	helper.makeStorageTrie(hashData([]byte("acc-3")), []string{"key-1", "key-2", "key-3"}, []string{"val-1", "val-2", "val-3"}, true)
 
 	root, snap := helper.CommitAndGenerate()
-	if have, want := root, common.HexToHash("0xe3712f1a226f3782caca78ca770ccc19ee000552813a9f59d479f8611db9b1fd"); have != want {
+	if have, want := root, common.HexToHash512("0xad92c3daf150d05ceaf62cfdcbe97b5626360274b34120aaab74eaad0490b605a34a6e3f574b1399561c2941815c86fe34065a0a9dcfdf99b5047bc9f313ca2c"); have != want {
 		t.Fatalf("have %#x want %#x", have, want)
 	}
 	select {
@@ -125,20 +126,20 @@ func testGenerateExistentState(t *testing.T, scheme string) {
 	<-stop
 }
 
-func checkSnapRoot(t *testing.T, snap *diskLayer, trieRoot common.Hash) {
+func checkSnapRoot(t *testing.T, snap *diskLayer, trieRoot common.Hash512) {
 	t.Helper()
 
-	accIt := snap.AccountIterator(common.Hash{})
+	accIt := snap.AccountIterator(common.Hash512{})
 	defer accIt.Release()
 
-	snapRoot, err := generateTrieRoot(nil, "", accIt, common.Hash{}, stackTrieGenerate,
-		func(db qrldb.KeyValueWriter, accountHash, codeHash common.Hash, stat *generateStats) (common.Hash, error) {
-			storageIt, _ := snap.StorageIterator(accountHash, common.Hash{})
+	snapRoot, err := generateTrieRoot(nil, "", accIt, common.Hash512{}, stackTrieGenerate,
+		func(db qrldb.KeyValueWriter, accountHash, codeHash common.Hash512, stat *generateStats) (common.Hash512, error) {
+			storageIt, _ := snap.StorageIterator(accountHash, common.Hash512{})
 			defer storageIt.Release()
 
 			hash, err := generateTrieRoot(nil, "", storageIt, accountHash, stackTrieGenerate, nil, stat, false)
 			if err != nil {
-				return common.Hash{}, err
+				return common.Hash512{}, err
 			}
 			return hash, nil
 		}, newGenerateStats(), true)
@@ -200,7 +201,7 @@ func (t *testHelper) addSnapStorage(accKey string, keys []string, vals []string)
 	}
 }
 
-func (t *testHelper) makeStorageTrie(owner common.Hash, keys []string, vals []string, commit bool) common.Hash {
+func (t *testHelper) makeStorageTrie(owner common.Hash512, keys []string, vals []string, commit bool) common.Hash512 {
 	id := trie.StorageTrieID(types.EmptyRootHash, owner, types.EmptyRootHash)
 	stTrie, _ := trie.NewStateTrie(id, t.triedb)
 	for i, k := range keys {
@@ -216,7 +217,7 @@ func (t *testHelper) makeStorageTrie(owner common.Hash, keys []string, vals []st
 	return root
 }
 
-func (t *testHelper) Commit() common.Hash {
+func (t *testHelper) Commit() common.Hash512 {
 	root, nodes, _ := t.accTrie.Commit(true)
 	if nodes != nil {
 		t.nodes.Merge(nodes)
@@ -226,7 +227,7 @@ func (t *testHelper) Commit() common.Hash {
 	return root
 }
 
-func (t *testHelper) CommitAndGenerate() (common.Hash, *diskLayer) {
+func (t *testHelper) CommitAndGenerate() (common.Hash512, *diskLayer) {
 	root := t.Commit()
 	snap := generateSnapshot(t.diskdb, t.triedb, 16, root)
 	return root, snap
@@ -425,10 +426,9 @@ func testGenerateCorruptAccountTrie(t *testing.T, scheme string) {
 	root := helper.Commit() // Root: 0xa04693ea110a31037fb5ee814308a6f1d76bdab0b11676bdf4541d2de55ba978
 
 	// Delete an account trie node and ensure the generator chokes
-	targetPath := []byte{0xc}
-	targetHash := common.HexToHash("0x65145f923027566669a1ae5ccac66f945b55ff6eaeb17d2ea8e048b7d381f2d7")
+	targetPath, targetHash := nonRootNode(t, helper.nodes.Sets[common.Hash512{}])
 
-	rawdb.DeleteTrieNode(helper.diskdb, common.Hash{}, targetPath, targetHash, scheme)
+	rawdb.DeleteTrieNode(helper.diskdb, common.Hash512{}, targetPath, targetHash, scheme)
 
 	snap := generateSnapshot(helper.diskdb, helper.triedb, 16, root)
 	select {
@@ -502,17 +502,16 @@ func testGenerateCorruptStorageTrie(t *testing.T, scheme string) {
 	// two of which also has the same 3-slot storage trie attached.
 	helper := newHelper(scheme)
 
-	stRoot := helper.makeStorageTrie(hashData([]byte("acc-1")), []string{"key-1", "key-2", "key-3"}, []string{"val-1", "val-2", "val-3"}, true)   // 0xddefcd9376dd029653ef384bd2f0a126bb755fe84fdcc9e7cf421ba454f2bc67
-	helper.addTrieAccount("acc-1", &types.StateAccount{Balance: big.NewInt(1), Root: stRoot, CodeHash: types.EmptyCodeHash.Bytes()})              // 0x9250573b9c18c664139f3b6a7a8081b7d8f8916a8fcc5d94feec6c29f5fd4e9e
-	helper.addTrieAccount("acc-2", &types.StateAccount{Balance: big.NewInt(2), Root: types.EmptyRootHash, CodeHash: types.EmptyCodeHash.Bytes()}) // 0x65145f923027566669a1ae5ccac66f945b55ff6eaeb17d2ea8e048b7d381f2d7
-	stRoot = helper.makeStorageTrie(hashData([]byte("acc-3")), []string{"key-1", "key-2", "key-3"}, []string{"val-1", "val-2", "val-3"}, true)
+	stRoot := helper.makeStorageTrie(hashData([]byte("acc-1")), []string{"key-1", "key-2", "key-3"}, []string{strings.Repeat("val-1", 16), strings.Repeat("val-2", 16), strings.Repeat("val-3", 16)}, true) // 0xddefcd9376dd029653ef384bd2f0a126bb755fe84fdcc9e7cf421ba454f2bc67
+	helper.addTrieAccount("acc-1", &types.StateAccount{Balance: big.NewInt(1), Root: stRoot, CodeHash: types.EmptyCodeHash.Bytes()})                                                                        // 0x9250573b9c18c664139f3b6a7a8081b7d8f8916a8fcc5d94feec6c29f5fd4e9e
+	helper.addTrieAccount("acc-2", &types.StateAccount{Balance: big.NewInt(2), Root: types.EmptyRootHash, CodeHash: types.EmptyCodeHash.Bytes()})                                                           // 0x65145f923027566669a1ae5ccac66f945b55ff6eaeb17d2ea8e048b7d381f2d7
+	stRoot = helper.makeStorageTrie(hashData([]byte("acc-3")), []string{"key-1", "key-2", "key-3"}, []string{strings.Repeat("val-1", 16), strings.Repeat("val-2", 16), strings.Repeat("val-3", 16)}, true)
 	helper.addTrieAccount("acc-3", &types.StateAccount{Balance: big.NewInt(3), Root: stRoot, CodeHash: types.EmptyCodeHash.Bytes()}) // 0x50815097425d000edfc8b3a4a13e175fc2bdcfee8bdfbf2d1ff61041d3c235b2
 
 	root := helper.Commit()
 
 	// Delete a node in the storage trie.
-	targetPath := []byte{0x4}
-	targetHash := common.HexToHash("0x18a0f4d79cff4459642dd7604f303886ad9d77c30cf3d7d7cedb3a693ab6d371")
+	targetPath, targetHash := nonRootNode(t, helper.nodes.Sets[hashData([]byte("acc-1"))])
 	rawdb.DeleteTrieNode(helper.diskdb, hashData([]byte("acc-1")), targetPath, targetHash, scheme)
 	rawdb.DeleteTrieNode(helper.diskdb, hashData([]byte("acc-3")), targetPath, targetHash, scheme)
 
@@ -680,16 +679,16 @@ func testGenerateWithExtraBeforeAndAfter(t *testing.T, scheme string) {
 	{
 		acc := &types.StateAccount{Balance: big.NewInt(1), Root: types.EmptyRootHash, CodeHash: types.EmptyCodeHash.Bytes()}
 		val, _ := rlp.EncodeToBytes(acc)
-		helper.accTrie.MustUpdate(common.HexToHash("0x03").Bytes(), val)
-		helper.accTrie.MustUpdate(common.HexToHash("0x07").Bytes(), val)
+		helper.accTrie.MustUpdate(common.HexToHash512("0x03").Bytes(), val)
+		helper.accTrie.MustUpdate(common.HexToHash512("0x07").Bytes(), val)
 
-		rawdb.WriteAccountSnapshot(helper.diskdb, common.HexToHash("0x01"), val)
-		rawdb.WriteAccountSnapshot(helper.diskdb, common.HexToHash("0x02"), val)
-		rawdb.WriteAccountSnapshot(helper.diskdb, common.HexToHash("0x03"), val)
-		rawdb.WriteAccountSnapshot(helper.diskdb, common.HexToHash("0x04"), val)
-		rawdb.WriteAccountSnapshot(helper.diskdb, common.HexToHash("0x05"), val)
-		rawdb.WriteAccountSnapshot(helper.diskdb, common.HexToHash("0x06"), val)
-		rawdb.WriteAccountSnapshot(helper.diskdb, common.HexToHash("0x07"), val)
+		rawdb.WriteAccountSnapshot(helper.diskdb, common.HexToHash512("0x01"), val)
+		rawdb.WriteAccountSnapshot(helper.diskdb, common.HexToHash512("0x02"), val)
+		rawdb.WriteAccountSnapshot(helper.diskdb, common.HexToHash512("0x03"), val)
+		rawdb.WriteAccountSnapshot(helper.diskdb, common.HexToHash512("0x04"), val)
+		rawdb.WriteAccountSnapshot(helper.diskdb, common.HexToHash512("0x05"), val)
+		rawdb.WriteAccountSnapshot(helper.diskdb, common.HexToHash512("0x06"), val)
+		rawdb.WriteAccountSnapshot(helper.diskdb, common.HexToHash512("0x07"), val)
 	}
 	root, snap := helper.CommitAndGenerate()
 	select {
@@ -722,14 +721,14 @@ func testGenerateWithMalformedSnapdata(t *testing.T, scheme string) {
 	{
 		acc := &types.StateAccount{Balance: big.NewInt(1), Root: types.EmptyRootHash, CodeHash: types.EmptyCodeHash.Bytes()}
 		val, _ := rlp.EncodeToBytes(acc)
-		helper.accTrie.MustUpdate(common.HexToHash("0x03").Bytes(), val)
+		helper.accTrie.MustUpdate(common.HexToHash512("0x03").Bytes(), val)
 
 		junk := make([]byte, 100)
 		copy(junk, []byte{0xde, 0xad})
-		rawdb.WriteAccountSnapshot(helper.diskdb, common.HexToHash("0x02"), junk)
-		rawdb.WriteAccountSnapshot(helper.diskdb, common.HexToHash("0x03"), junk)
-		rawdb.WriteAccountSnapshot(helper.diskdb, common.HexToHash("0x04"), junk)
-		rawdb.WriteAccountSnapshot(helper.diskdb, common.HexToHash("0x05"), junk)
+		rawdb.WriteAccountSnapshot(helper.diskdb, common.HexToHash512("0x02"), junk)
+		rawdb.WriteAccountSnapshot(helper.diskdb, common.HexToHash512("0x03"), junk)
+		rawdb.WriteAccountSnapshot(helper.diskdb, common.HexToHash512("0x04"), junk)
+		rawdb.WriteAccountSnapshot(helper.diskdb, common.HexToHash512("0x05"), junk)
 	}
 	root, snap := helper.CommitAndGenerate()
 	select {
@@ -855,34 +854,34 @@ func decKey(key []byte) []byte {
 }
 
 func populateDangling(disk qrldb.KeyValueStore) {
-	populate := func(accountHash common.Hash, keys []string, vals []string) {
+	populate := func(accountHash common.Hash512, keys []string, vals []string) {
 		for i, key := range keys {
 			rawdb.WriteStorageSnapshot(disk, accountHash, hashData([]byte(key)), []byte(vals[i]))
 		}
 	}
 	// Dangling storages of the "first" account
-	populate(common.Hash{}, []string{"key-1", "key-2", "key-3"}, []string{"val-1", "val-2", "val-3"})
+	populate(common.Hash512{}, []string{"key-1", "key-2", "key-3"}, []string{"val-1", "val-2", "val-3"})
 
 	// Dangling storages of the "last" account
-	populate(common.HexToHash("ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"), []string{"key-1", "key-2", "key-3"}, []string{"val-1", "val-2", "val-3"})
+	populate(common.HexToHash512("ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"), []string{"key-1", "key-2", "key-3"}, []string{"val-1", "val-2", "val-3"})
 
 	// Dangling storages around the account 1
 	hash := decKey(hashData([]byte("acc-1")).Bytes())
-	populate(common.BytesToHash(hash), []string{"key-1", "key-2", "key-3"}, []string{"val-1", "val-2", "val-3"})
+	populate(common.BytesToHash512(hash), []string{"key-1", "key-2", "key-3"}, []string{"val-1", "val-2", "val-3"})
 	hash = incKey(hashData([]byte("acc-1")).Bytes())
-	populate(common.BytesToHash(hash), []string{"key-1", "key-2", "key-3"}, []string{"val-1", "val-2", "val-3"})
+	populate(common.BytesToHash512(hash), []string{"key-1", "key-2", "key-3"}, []string{"val-1", "val-2", "val-3"})
 
 	// Dangling storages around the account 2
 	hash = decKey(hashData([]byte("acc-2")).Bytes())
-	populate(common.BytesToHash(hash), []string{"key-1", "key-2", "key-3"}, []string{"val-1", "val-2", "val-3"})
+	populate(common.BytesToHash512(hash), []string{"key-1", "key-2", "key-3"}, []string{"val-1", "val-2", "val-3"})
 	hash = incKey(hashData([]byte("acc-2")).Bytes())
-	populate(common.BytesToHash(hash), []string{"key-1", "key-2", "key-3"}, []string{"val-1", "val-2", "val-3"})
+	populate(common.BytesToHash512(hash), []string{"key-1", "key-2", "key-3"}, []string{"val-1", "val-2", "val-3"})
 
 	// Dangling storages around the account 3
 	hash = decKey(hashData([]byte("acc-3")).Bytes())
-	populate(common.BytesToHash(hash), []string{"key-1", "key-2", "key-3"}, []string{"val-1", "val-2", "val-3"})
+	populate(common.BytesToHash512(hash), []string{"key-1", "key-2", "key-3"}, []string{"val-1", "val-2", "val-3"})
 	hash = incKey(hashData([]byte("acc-3")).Bytes())
-	populate(common.BytesToHash(hash), []string{"key-1", "key-2", "key-3"}, []string{"val-1", "val-2", "val-3"})
+	populate(common.BytesToHash512(hash), []string{"key-1", "key-2", "key-3"}, []string{"val-1", "val-2", "val-3"})
 
 	// Dangling storages of the random account
 	populate(randomHash(), []string{"key-1", "key-2", "key-3"}, []string{"val-1", "val-2", "val-3"})
@@ -965,4 +964,17 @@ func testGenerateBrokenSnapshotWithDanglingStorage(t *testing.T, scheme string) 
 	stop := make(chan *generatorStats)
 	snap.genAbort <- stop
 	<-stop
+}
+
+// nonRootNode selects an actual hashed child, so corruption tests stay valid
+// when the hash width or embedded-node threshold changes.
+func nonRootNode(t *testing.T, nodes *trienode.NodeSet) ([]byte, common.Hash512) {
+	t.Helper()
+	for path, node := range nodes.Nodes {
+		if len(path) > 0 {
+			return []byte(path), node.Hash
+		}
+	}
+	t.Fatal("fixture has no hashed child")
+	return nil, common.Hash512{}
 }

@@ -29,7 +29,7 @@ import (
 
 // Constants to match up protocol versions and messages
 const (
-	QRL1 = 1
+	QRL2 = 2
 )
 
 // ProtocolName is the official short name of the `qrl` protocol used during
@@ -38,11 +38,11 @@ const ProtocolName = "qrl"
 
 // ProtocolVersions are the supported versions of the `qrl` protocol (first
 // is primary).
-var ProtocolVersions = []uint{QRL1}
+var ProtocolVersions = []uint{QRL2}
 
 // protocolLengths are the number of implemented message corresponding to
 // different protocol versions.
-var protocolLengths = map[uint]uint64{QRL1: 17}
+var protocolLengths = map[uint]uint64{QRL2: 17}
 
 // maxMessageSize is the maximum cap on the size of a protocol message.
 const maxMessageSize = 10 * 1024 * 1024
@@ -192,7 +192,7 @@ type BlockBodiesRLPPacket struct {
 // BlockBody represents the data content of a single block.
 type BlockBody struct {
 	Transactions []*types.Transaction // Transactions contained within a block
-	Withdrawals  []*types.Withdrawal  `rlp:"optional"` // Withdrawals contained within a block
+	Withdrawals  []*types.Withdrawal  // Withdrawals contained within a block
 }
 
 // Unpack retrieves the transactions from the range packet and returns

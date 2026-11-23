@@ -41,7 +41,7 @@ var (
 	errUnmatchedJournal  = errors.New("unmatched journal")
 )
 
-const journalVersion uint64 = 0
+const journalVersion uint64 = 1
 
 // journalNode represents a trie node persisted in the journal.
 type journalNode struct {
@@ -52,7 +52,7 @@ type journalNode struct {
 // journalNodes represents a list trie nodes belong to a single account
 // or the main account trie.
 type journalNodes struct {
-	Owner common.Hash
+	Owner common.Hash512
 	Nodes []journalNode
 }
 
@@ -66,12 +66,12 @@ type journalAccounts struct {
 type journalStorage struct {
 	Incomplete bool
 	Account    common.Address
-	Hashes     []common.Hash
+	Hashes     []common.Hash512
 	Slots      [][]byte
 }
 
 // loadJournal tries to parse the layer journal from the disk.
-func (db *Database) loadJournal(diskRoot common.Hash) (layer, error) {
+func (db *Database) loadJournal(diskRoot common.Hash512) (layer, error) {
 	journal := rawdb.ReadTrieJournal(db.diskdb)
 	if len(journal) == 0 {
 		return nil, errMissJournal
@@ -89,7 +89,7 @@ func (db *Database) loadJournal(diskRoot common.Hash) (layer, error) {
 	// Secondly, resolve the disk layer root, ensure it's continuous
 	// with disk layer. Note now we can ensure it's the layer journal
 	// correct version, so we expect everything can be resolved properly.
-	var root common.Hash
+	var root common.Hash512
 	if err := r.Decode(&root); err != nil {
 		return nil, errMissDiskRoot
 	}
@@ -137,7 +137,7 @@ func (db *Database) loadLayers() layer {
 // a new disk layer on it.
 func (db *Database) loadDiskLayer(r *rlp.Stream) (layer, error) {
 	// Resolve disk layer root
-	var root common.Hash
+	var root common.Hash512
 	if err := r.Decode(&root); err != nil {
 		return nil, fmt.Errorf("load disk root: %v", err)
 	}
@@ -157,12 +157,12 @@ func (db *Database) loadDiskLayer(r *rlp.Stream) (layer, error) {
 	if err := r.Decode(&encoded); err != nil {
 		return nil, fmt.Errorf("load disk nodes: %v", err)
 	}
-	nodes := make(map[common.Hash]map[string]*trienode.Node)
+	nodes := make(map[common.Hash512]map[string]*trienode.Node)
 	for _, entry := range encoded {
 		subset := make(map[string]*trienode.Node)
 		for _, n := range entry.Nodes {
 			if len(n.Blob) > 0 {
-				subset[string(n.Path)] = trienode.New(crypto.Keccak256Hash(n.Blob), n.Blob)
+				subset[string(n.Path)] = trienode.New(crypto.Keccak512Hash(n.Blob), n.Blob)
 			} else {
 				subset[string(n.Path)] = trienode.NewDeleted()
 			}
@@ -178,7 +178,7 @@ func (db *Database) loadDiskLayer(r *rlp.Stream) (layer, error) {
 // diff and verifying that it can be linked to the requested parent.
 func (db *Database) loadDiffLayer(parent layer, r *rlp.Stream) (layer, error) {
 	// Read the next diff journal entry
-	var root common.Hash
+	var root common.Hash512
 	if err := r.Decode(&root); err != nil {
 		// The first read may fail with EOF, marking the end of the journal
 		if err == io.EOF {
@@ -195,12 +195,12 @@ func (db *Database) loadDiffLayer(parent layer, r *rlp.Stream) (layer, error) {
 	if err := r.Decode(&encoded); err != nil {
 		return nil, fmt.Errorf("load diff nodes: %v", err)
 	}
-	nodes := make(map[common.Hash]map[string]*trienode.Node)
+	nodes := make(map[common.Hash512]map[string]*trienode.Node)
 	for _, entry := range encoded {
 		subset := make(map[string]*trienode.Node)
 		for _, n := range entry.Nodes {
 			if len(n.Blob) > 0 {
-				subset[string(n.Path)] = trienode.New(crypto.Keccak256Hash(n.Blob), n.Blob)
+				subset[string(n.Path)] = trienode.New(crypto.Keccak512Hash(n.Blob), n.Blob)
 			} else {
 				subset[string(n.Path)] = trienode.NewDeleted()
 			}
@@ -212,7 +212,7 @@ func (db *Database) loadDiffLayer(parent layer, r *rlp.Stream) (layer, error) {
 		jaccounts  journalAccounts
 		jstorages  []journalStorage
 		accounts   = make(map[common.Address][]byte)
-		storages   = make(map[common.Address]map[common.Hash][]byte)
+		storages   = make(map[common.Address]map[common.Hash512][]byte)
 		incomplete = make(map[common.Address]struct{})
 	)
 	if err := r.Decode(&jaccounts); err != nil {
@@ -225,7 +225,7 @@ func (db *Database) loadDiffLayer(parent layer, r *rlp.Stream) (layer, error) {
 		return nil, fmt.Errorf("load diff storages: %v", err)
 	}
 	for _, entry := range jstorages {
-		set := make(map[common.Hash][]byte)
+		set := make(map[common.Hash512][]byte)
 		for i, h := range entry.Hashes {
 			if len(entry.Slots[i]) > 0 {
 				set[h] = entry.Slots[i]
@@ -336,7 +336,7 @@ func (dl *diffLayer) journal(w io.Writer) error {
 // This is meant to be used during shutdown to persist the layer without
 // flattening everything down (bad for reorgs). And this function will mark the
 // database as read-only to prevent all following mutation to disk.
-func (db *Database) Journal(root common.Hash) error {
+func (db *Database) Journal(root common.Hash512) error {
 	// Retrieve the head layer to journal from.
 	l := db.tree.get(root)
 	if l == nil {

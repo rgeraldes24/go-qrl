@@ -63,7 +63,7 @@ type Alloc map[common.Address]Account
 // Genesis account. Each field is optional.
 type Account struct {
     Code    []byte                                `json:"code"`
-    Storage map[common.Hash]common.StorageValue64 `json:"storage"`
+    Storage map[common.StorageKey]common.StorageValue64 `json:"storage"`
     Balance *big.Int                              `json:"balance"`
     Nonce   uint64                                `json:"nonce"`
     Seed    []byte                                `json:"seed"`
@@ -107,7 +107,7 @@ The `txs` object is an array of any of the transaction types: `DynamicFeeTx`.
 type AccessList []AccessTuple
 type AccessTuple struct {
 	Address     common.Address `json:"address"        gencodec:"required"`
-	StorageKeys []common.Hash  `json:"storageKeys"    gencodec:"required"`
+	StorageKeys []common.StorageKey  `json:"storageKeys"    gencodec:"required"`
 }
 type DynamicFeeTx struct {
 	ChainID    *big.Int        `json:"chainId"`
@@ -132,9 +132,9 @@ information about the post-transition environment.
 
 ```go
 type ExecutionResult struct {
-    StateRoot   common.Hash    `json:"stateRoot"`
-    TxRoot      common.Hash    `json:"txRoot"`
-    ReceiptRoot common.Hash    `json:"receiptsRoot"`
+    StateRoot   common.Hash512    `json:"stateRoot"`
+    TxRoot      common.Hash512    `json:"txRoot"`
+    ReceiptRoot common.Hash512    `json:"receiptsRoot"`
     LogsHash    common.Hash    `json:"logsHash"`
     Bloom       types.Bloom    `json:"logsBloom"`
     Receipts    types.Receipts `json:"receipts"`
@@ -215,7 +215,7 @@ Two resulting files:
       "transactionHash": "0x6973b7b3c04e2bd83821853ea3022a57604d903dd644f4a6289555a8c886c21d",
       "contractAddress": "Q00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
       "gasUsed": "0x5208",
-      "effectiveGasPrice": null,
+      "effectiveGasPrice": "0x1",
       "blockHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
       "transactionIndex": "0x0"
     }
@@ -433,9 +433,9 @@ The `header` object is a consensus header.
 type Header struct {
         ParentHash      common.Hash     `json:"parentHash"`
         Coinbase        *common.Address `json:"miner"`
-        Root            common.Hash     `json:"stateRoot"        gencodec:"required"`
-        TxHash          *common.Hash    `json:"transactionsRoot"`
-        ReceiptHash     *common.Hash    `json:"receiptsRoot"`
+        Root            common.Hash512     `json:"stateRoot"        gencodec:"required"`
+        TxHash          *common.Hash512    `json:"transactionsRoot"`
+        ReceiptHash     *common.Hash512    `json:"receiptsRoot"`
         Bloom           types.Bloom     `json:"logsBloom"`
         Number          *big.Int        `json:"number"           gencodec:"required"`
         GasLimit        uint64          `json:"gasLimit"         gencodec:"required"`
@@ -444,7 +444,7 @@ type Header struct {
         Extra           []byte          `json:"extraData"`
         Random          common.Hash     `json:"prevRandao"`
         BaseFee         *big.Int        `json:"baseFeePerGas"`
-        WithdrawalsHash *common.Hash    `json:"withdrawalsRoot"`
+        WithdrawalsHash *common.Hash512    `json:"withdrawalsRoot"`
 }
 ```
 #### `txs`
@@ -473,8 +473,40 @@ generally supports hex-encoded or decimal-encoded numeric values, and
 hex-encoded byte values where applicable. Numeric and generic hex encodings may
 follow the [`execution-apis`](https://github.com/ethereum/execution-apis)
 conventions where they still apply, but VM64 fixed-width fields must use QRL
-widths: Q-prefixed 64-byte addresses, 64-byte topics/storage values, and
-32-byte hashes/storage keys.
+widths: Q-prefixed 64-byte addresses; 64-byte topics, storage keys, storage
+values, code hashes and trie roots; and 32-byte block and transaction identifiers.
+
+## 512-bit state format
+
+This protocol format starts at fresh genesis. Existing chain databases and state
+roots must be rebuilt; it does not implement an in-place migration or fork.
+The database version is 9, and compatible peers negotiate `qrl/2` and `snap/2`.
+
+`SLOAD`, `SSTORE`, `TLOAD` and `TSTORE` use all 512 bits of their slot operand.
+Keys differing above bit 255 address distinct slots and have independent access
+list warmth. Access-list keys are encoded as exactly 64 bytes. Storage RPC
+queries accept quantities up to 512 bits; fixed-width proof keys use 64 bytes.
+
+`KECCAK512` (`0x21`) takes the same offset and length operands as `KECCAK256`,
+and returns the full legacy Keccak-512 digest. It costs 60 gas plus 12 gas per
+64-byte input word, plus normal memory expansion. `KECCAK256` remains `0x20`.
+Compilers targeting this format must derive mapping slots with
+`Keccak512(encode64(key) || encode64(slot))`, recursively retaining 64 bytes for
+nested mappings. Dynamic-array bases must likewise use Keccak-512, with slot
+arithmetic modulo 2^512. Updating the VM alone does not change old bytecode's
+explicit `KECCAK256` operations.
+
+Account trie paths hash the complete 64-byte address with Keccak-512. Storage
+trie paths hash the complete 64-byte slot identifier with Keccak-512. Trie node
+commitments are Keccak-512 of the node's RLP; embedded nodes must be shorter than
+64 bytes, and hash references are exactly 64 bytes. The empty root is
+`Keccak512(0x80)`. Transaction, receipt and withdrawal trie roots use this same
+trie format. Code commitments, `EXTCODEHASH`, and `CREATE2`'s init-code digest
+also use Keccak-512. CREATE2 charges 12 hash gas per 64-byte init-code word.
+
+Block and transaction identifiers and signing digests retain their current
+formats. This change strengthens state hashing; it is not a claim that every
+cryptographic component in the protocol has the same quantum security level.
 
 ## Testing
 

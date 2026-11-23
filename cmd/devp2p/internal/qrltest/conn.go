@@ -66,20 +66,20 @@ func (s *Suite) dialAs(key *ecdsa.PrivateKey) (*Conn, error) {
 		return nil, err
 	}
 	conn.caps = []p2p.Cap{
-		{Name: "qrl", Version: 1},
+		{Name: "qrl", Version: qrl.QRL2},
 	}
-	conn.ourHighestProtoVersion = 1
+	conn.ourHighestProtoVersion = qrl.QRL2
 	return &conn, nil
 }
 
-// dialSnap creates a connection with snap/1 capability.
+// dialSnap creates a connection with snap/2 capability.
 func (s *Suite) dialSnap() (*Conn, error) {
 	conn, err := s.dial()
 	if err != nil {
 		return nil, fmt.Errorf("dial failed: %v", err)
 	}
-	conn.caps = append(conn.caps, p2p.Cap{Name: "snap", Version: 1})
-	conn.ourHighestSnapProtoVersion = 1
+	conn.caps = append(conn.caps, p2p.Cap{Name: "snap", Version: snap.SNAP2})
+	conn.ourHighestSnapProtoVersion = snap.SNAP2
 	return conn, nil
 }
 
@@ -182,7 +182,7 @@ func (c *Conn) ReadQRL() (any, error) {
 	}
 }
 
-// ReadSnap reads a snap/1 response with the given id from the connection.
+// ReadSnap reads a snap/2 response with the given id from the connection.
 func (c *Conn) ReadSnap() (any, error) {
 	c.SetReadDeadline(time.Now().Add(timeout))
 	for {

@@ -35,16 +35,16 @@ import (
 // the concatenated bytes. Except the root hash, a nodeset will be returned
 // once Commit is called, which contains all the changes made to hasher.
 type testHasher struct {
-	owner   common.Hash            // owner identifier
-	root    common.Hash            // original root
-	dirties map[common.Hash][]byte // dirty states
-	cleans  map[common.Hash][]byte // clean states
+	owner   common.Hash512            // owner identifier
+	root    common.Hash512            // original root
+	dirties map[common.Hash512][]byte // dirty states
+	cleans  map[common.Hash512][]byte // clean states
 }
 
 // newTestHasher constructs a hasher object with provided states.
-func newTestHasher(owner common.Hash, root common.Hash, cleans map[common.Hash][]byte) (*testHasher, error) {
+func newTestHasher(owner common.Hash512, root common.Hash512, cleans map[common.Hash512][]byte) (*testHasher, error) {
 	if cleans == nil {
-		cleans = make(map[common.Hash][]byte)
+		cleans = make(map[common.Hash512][]byte)
 	}
 	if got, _ := hash(cleans); got != root {
 		return nil, fmt.Errorf("state root mismatched, want: %x, got: %x", root, got)
@@ -52,14 +52,14 @@ func newTestHasher(owner common.Hash, root common.Hash, cleans map[common.Hash][
 	return &testHasher{
 		owner:   owner,
 		root:    root,
-		dirties: make(map[common.Hash][]byte),
+		dirties: make(map[common.Hash512][]byte),
 		cleans:  cleans,
 	}, nil
 }
 
 // Get returns the value for key stored in the trie.
 func (h *testHasher) Get(key []byte) ([]byte, error) {
-	hash := common.BytesToHash(key)
+	hash := common.BytesToHash512(key)
 	val, ok := h.dirties[hash]
 	if ok {
 		return val, nil
@@ -69,21 +69,21 @@ func (h *testHasher) Get(key []byte) ([]byte, error) {
 
 // Update associates key with value in the trie.
 func (h *testHasher) Update(key, value []byte) error {
-	h.dirties[common.BytesToHash(key)] = common.CopyBytes(value)
+	h.dirties[common.BytesToHash512(key)] = common.CopyBytes(value)
 	return nil
 }
 
 // Delete removes any existing value for key from the trie.
 func (h *testHasher) Delete(key []byte) error {
-	h.dirties[common.BytesToHash(key)] = nil
+	h.dirties[common.BytesToHash512(key)] = nil
 	return nil
 }
 
 // Commit computes the new hash of the states and returns the set with all
 // state changes.
-func (h *testHasher) Commit(collectLeaf bool) (common.Hash, *trienode.NodeSet, error) {
+func (h *testHasher) Commit(collectLeaf bool) (common.Hash512, *trienode.NodeSet, error) {
 	var (
-		nodes = make(map[common.Hash][]byte)
+		nodes = make(map[common.Hash512][]byte)
 		set   = trienode.NewNodeSet(h.owner)
 	)
 	maps.Copy(nodes, h.cleans)
@@ -95,7 +95,7 @@ func (h *testHasher) Commit(collectLeaf bool) (common.Hash, *trienode.NodeSet, e
 		if len(val) == 0 {
 			set.AddNode(hash.Bytes(), trienode.NewDeleted())
 		} else {
-			set.AddNode(hash.Bytes(), trienode.New(crypto.Keccak256Hash(val), val))
+			set.AddNode(hash.Bytes(), trienode.New(crypto.Keccak512Hash(val), val))
 		}
 	}
 	root, blob := hash(nodes)
@@ -111,12 +111,12 @@ func (h *testHasher) Commit(collectLeaf bool) (common.Hash, *trienode.NodeSet, e
 }
 
 // hash performs the hash computation upon the provided states.
-func hash(states map[common.Hash][]byte) (common.Hash, []byte) {
-	var hs []common.Hash
+func hash(states map[common.Hash512][]byte) (common.Hash512, []byte) {
+	var hs []common.Hash512
 	for hash := range states {
 		hs = append(hs, hash)
 	}
-	slices.SortFunc(hs, common.Hash.Cmp)
+	slices.SortFunc(hs, common.Hash512.Cmp)
 
 	var input []byte
 	for _, hash := range hs {
@@ -129,15 +129,15 @@ func hash(states map[common.Hash][]byte) (common.Hash, []byte) {
 	if len(input) == 0 {
 		return types.EmptyRootHash, nil
 	}
-	return crypto.Keccak256Hash(input), input
+	return crypto.Keccak512Hash(input), input
 }
 
 type hashLoader struct {
-	accounts map[common.Hash][]byte
-	storages map[common.Hash]map[common.Hash][]byte
+	accounts map[common.Hash512][]byte
+	storages map[common.Hash512]map[common.Hash512][]byte
 }
 
-func newHashLoader(accounts map[common.Hash][]byte, storages map[common.Hash]map[common.Hash][]byte) *hashLoader {
+func newHashLoader(accounts map[common.Hash512][]byte, storages map[common.Hash512]map[common.Hash512][]byte) *hashLoader {
 	return &hashLoader{
 		accounts: accounts,
 		storages: storages,
@@ -145,11 +145,11 @@ func newHashLoader(accounts map[common.Hash][]byte, storages map[common.Hash]map
 }
 
 // OpenTrie opens the main account trie.
-func (l *hashLoader) OpenTrie(root common.Hash) (triestate.Trie, error) {
-	return newTestHasher(common.Hash{}, root, l.accounts)
+func (l *hashLoader) OpenTrie(root common.Hash512) (triestate.Trie, error) {
+	return newTestHasher(common.Hash512{}, root, l.accounts)
 }
 
 // OpenStorageTrie opens the storage trie of an account.
-func (l *hashLoader) OpenStorageTrie(stateRoot common.Hash, addrHash, root common.Hash) (triestate.Trie, error) {
+func (l *hashLoader) OpenStorageTrie(stateRoot common.Hash512, addrHash, root common.Hash512) (triestate.Trie, error) {
 	return newTestHasher(addrHash, root, l.storages[addrHash])
 }

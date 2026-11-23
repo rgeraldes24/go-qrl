@@ -2299,8 +2299,8 @@ func testInitThenFailCreateContract(t *testing.T, scheme string) {
 		byte(vm.CREATE2),
 	}...)
 
-	initHash := crypto.Keccak256Hash(initCode)
-	aa := crypto.CreateAddress2(bb, [64]byte{}, initHash[:])
+	initHash := crypto.Keccak512Hash(initCode)
+	aa := crypto.CreateAddress2(bb, [64]byte{}, initHash)
 	t.Logf("Destination address: %x\n", aa)
 
 	gspec := &Genesis{
@@ -2417,7 +2417,7 @@ func testAccessListGas(t *testing.T, scheme string) {
 			GasTipCap: big.NewInt(0),
 			AccessList: types.AccessList{{
 				Address:     aa,
-				StorageKeys: []common.Hash{{0}},
+				StorageKeys: []common.StorageKey{{0}},
 			}},
 		})
 		b.AddTx(tx)
@@ -2497,7 +2497,7 @@ func testDynamicFeeTxAccounting(t *testing.T, scheme string) {
 		// One transaction to 0xAAAA
 		accesses := types.AccessList{types.AccessTuple{
 			Address:     aa,
-			StorageKeys: []common.Hash{{0}},
+			StorageKeys: []common.StorageKey{{0}},
 		}}
 
 		txdata := &types.DynamicFeeTx{
@@ -3123,5 +3123,89 @@ func TestEIP3651(t *testing.T) {
 	expected = new(big.Int).SetUint64(block.GasUsed() * (block.Transactions()[0].GasTipCap().Uint64() + block.BaseFee().Uint64()))
 	if actual.Cmp(expected) != 0 {
 		t.Fatalf("sender balance incorrect: expected %d, got %d", expected, actual)
+	}
+}
+
+// TestTransientStorageReset ensures the transient storage is wiped correctly
+// between transactions.
+func TestTransientStorageReset(t *testing.T) {
+	var (
+		aa     = common.BytesToAddress([]byte{0xaa, 0xaa})
+		engine = beacon.NewFaker()
+		wallet = testutil.LoadAccount(t, "alice").Wallet(t)
+		funds  = new(big.Int).Mul(common.Big1, big.NewInt(params.Quanta))
+		config = *params.AllBeaconProtocolChanges
+		gspec  = &Genesis{
+			Config: &config,
+			Alloc: GenesisAlloc{
+				wallet.GetAddress(): {Balance: funds},
+				aa: {
+					Code: []byte{
+						// SSTORE 1: the transient value at 1, left over from
+						// any earlier transaction
+						byte(vm.PUSH1), 0x1,
+						byte(vm.TLOAD),
+						byte(vm.PUSH1), 0x1,
+						byte(vm.SSTORE),
+
+						// TSTORE 1:1
+						byte(vm.PUSH1), 0x1,
+						byte(vm.PUSH1), 0x1,
+						byte(vm.TSTORE),
+
+						// SSTORE 2: the transient value at 1, as just written
+						byte(vm.PUSH1), 0x1,
+						byte(vm.TLOAD),
+						byte(vm.PUSH1), 0x2,
+						byte(vm.SSTORE),
+					},
+					Nonce:   0,
+					Balance: big.NewInt(0),
+				},
+			},
+		}
+	)
+	signer := types.NewZondSigner(gspec.Config.ChainID)
+
+	// Call the contract twice in the same block.
+	_, blocks, _ := GenerateChainWithGenesis(gspec, engine, 1, func(i int, b *BlockGen) {
+		b.SetCoinbase(common.Address{1})
+		for nonce := uint64(0); nonce < 2; nonce++ {
+			tx, _ := types.SignTx(types.NewTx(&types.DynamicFeeTx{
+				ChainID:   gspec.Config.ChainID,
+				Nonce:     nonce,
+				To:        &aa,
+				Gas:       100000,
+				GasFeeCap: newShor(500),
+				GasTipCap: big.NewInt(2),
+			}), signer, wallet)
+			b.AddTx(tx)
+		}
+	})
+	chain, err := NewBlockChain(rawdb.NewMemoryDatabase(), nil, gspec, engine, vm.Config{}, nil)
+	if err != nil {
+		t.Fatalf("failed to create tester chain: %v", err)
+	}
+	defer chain.Stop()
+	if n, err := chain.InsertChain(blocks); err != nil {
+		t.Fatalf("block %d: failed to insert into chain: %v", n, err)
+	}
+	for i, receipt := range chain.GetReceiptsByHash(blocks[0].Hash()) {
+		if receipt.Status != types.ReceiptStatusSuccessful {
+			t.Fatalf("transaction %d failed", i)
+		}
+	}
+
+	state, err := chain.State()
+	if err != nil {
+		t.Fatalf("failed to load state: %v", err)
+	}
+	// The value written by TSTORE is readable within the same transaction.
+	if slot := state.GetState(aa, common.BytesToHash512([]byte{2})); slot != common.BytesToStorageValue64([]byte{1}) {
+		t.Fatalf("transient value not readable in the same transaction: have %v", slot)
+	}
+	// The second transaction must not see the first one's transient value.
+	if slot := state.GetState(aa, common.BytesToHash512([]byte{1})); slot != (common.StorageValue64{}) {
+		t.Fatalf("transient storage leaked between transactions: have %v", slot)
 	}
 }

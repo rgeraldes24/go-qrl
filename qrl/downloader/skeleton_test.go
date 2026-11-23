@@ -840,7 +840,7 @@ func TestSkeletonSyncRetrievals(t *testing.T) {
 		// Create a peer set to feed headers through
 		peerset := newPeerSet()
 		for _, peer := range tt.peers {
-			peerset.Register(newPeerConnection(peer.id, qrl.QRL1, peer, log.New("id", peer.id)))
+			peerset.Register(newPeerConnection(peer.id, qrl.QRL2, peer, log.New("id", peer.id)))
 		}
 		// Create a peer dropper to track malicious peers
 		dropped := make(map[string]int)
@@ -907,7 +907,7 @@ func TestSkeletonSyncRetrievals(t *testing.T) {
 		// Apply the post-init events if there's any
 		endpeers := tt.peers
 		if tt.newPeer != nil {
-			if err := peerset.Register(newPeerConnection(tt.newPeer.id, qrl.QRL1, tt.newPeer, log.New("id", tt.newPeer.id))); err != nil {
+			if err := peerset.Register(newPeerConnection(tt.newPeer.id, qrl.QRL2, tt.newPeer, log.New("id", tt.newPeer.id))); err != nil {
 				t.Errorf("test %d: failed to register new peer: %v", i, err)
 			}
 			time.Sleep(time.Millisecond * 50) // given time for peer registration

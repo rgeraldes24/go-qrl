@@ -132,13 +132,13 @@ func (ga *GenesisAlloc) UnmarshalJSON(data []byte) error {
 }
 
 // deriveHash computes the state root according to the genesis specification.
-func (ga *GenesisAlloc) deriveHash() (common.Hash, error) {
+func (ga *GenesisAlloc) deriveHash() (common.Hash512, error) {
 	// Create an ephemeral in-memory database for computing hash,
 	// all the derived states will be discarded to not pollute disk.
 	db := state.NewDatabase(rawdb.NewMemoryDatabase())
 	statedb, err := state.New(types.EmptyRootHash, db, nil)
 	if err != nil {
-		return common.Hash{}, err
+		return common.Hash512{}, err
 	}
 	for addr, account := range *ga {
 		if account.Balance != nil {
@@ -242,11 +242,11 @@ func CommitGenesisState(db qrldb.Database, triedb *trie.Database, blockhash comm
 
 // GenesisAccount is an account in the state of the genesis block.
 type GenesisAccount struct {
-	Code    []byte                                `json:"code,omitempty"`
-	Storage map[common.Hash]common.StorageValue64 `json:"storage,omitempty"`
-	Balance *big.Int                              `json:"balance" gencodec:"required"`
-	Nonce   uint64                                `json:"nonce,omitempty"`
-	Seed    []byte                                `json:"seed,omitempty"` // for tests
+	Code    []byte                                   `json:"code,omitempty"`
+	Storage map[common.Hash512]common.StorageValue64 `json:"storage,omitempty"`
+	Balance *big.Int                                 `json:"balance" gencodec:"required"`
+	Nonce   uint64                                   `json:"nonce,omitempty"`
+	Seed    []byte                                   `json:"seed,omitempty"` // for tests
 }
 
 // field type overrides for gencodec
@@ -268,13 +268,13 @@ type genesisAccountMarshaling struct {
 	Seed    hexutil.Bytes
 }
 
-// storageJSON represents a 256-bit byte array (storage key) that allows less
-// than 256 bits when unmarshaling from hex.
-type storageJSON common.Hash
+// storageJSON represents a 512-bit byte array (storage key) that allows less
+// than 512 bits when unmarshaling from hex.
+type storageJSON common.StorageKey
 
 func (h *storageJSON) UnmarshalText(text []byte) error {
 	text = bytes.TrimPrefix(text, []byte("0x"))
-	if len(text) > 64 {
+	if len(text) > 128 {
 		return fmt.Errorf("too many hex characters in storage key %q", text)
 	}
 	offset := len(h) - len(text)/2 // pad on the left
@@ -335,9 +335,24 @@ func SetupGenesisBlock(db qrldb.Database, triedb *trie.Database, genesis *Genesi
 	return SetupGenesisBlockWithOverride(db, triedb, genesis)
 }
 
+// CheckStateFormat rejects databases from before the fresh-genesis 512-bit
+// state format. They cannot be upgraded by changing the database version tag.
+func CheckStateFormat(db qrldb.Database) error {
+	if version := rawdb.ReadDatabaseVersion(db); version != nil && *version < 9 {
+		return fmt.Errorf("database version %d uses the old state format; 512-bit state requires a fresh genesis and chain database", *version)
+	}
+	if genesis := rawdb.ReadCanonicalHash(db, 0); genesis != (common.Hash{}) && rawdb.ReadHeader(db, genesis, 0) == nil {
+		return errors.New("genesis header is incompatible or corrupt; 512-bit state requires a fresh genesis and chain database")
+	}
+	return nil
+}
+
 func SetupGenesisBlockWithOverride(db qrldb.Database, triedb *trie.Database, genesis *Genesis) (*params.ChainConfig, common.Hash, error) {
 	if genesis != nil && genesis.Config == nil {
 		return params.AllBeaconProtocolChanges, common.Hash{}, errGenesisNoConfig
+	}
+	if err := CheckStateFormat(db); err != nil {
+		return params.AllBeaconProtocolChanges, common.Hash{}, err
 	}
 	// Just commit the new block if there is no stored genesis block.
 	stored := rawdb.ReadCanonicalHash(db, 0)
@@ -464,7 +479,7 @@ func (g *Genesis) configOrDefault(ghash common.Hash) *params.ChainConfig {
 
 // ToBlock returns the genesis block according to genesis specification.
 func (g *Genesis) ToBlock() *types.Block {
-	var root common.Hash
+	var root common.Hash512
 	if g.stream != nil {
 		root = g.stream.root
 	} else {
@@ -498,7 +513,7 @@ func (g *Genesis) ToBlock() *types.Block {
 	}
 	var withdrawals []*types.Withdrawal
 	if conf := g.Config; conf != nil {
-		head.WithdrawalsHash = &types.EmptyWithdrawalsHash
+		head.WithdrawalsHash = types.EmptyWithdrawalsHash
 		withdrawals = make([]*types.Withdrawal, 0)
 	}
 	return types.NewBlock(head, &types.Body{Withdrawals: withdrawals}, nil, trie.NewStackTrie(nil))
@@ -622,7 +637,7 @@ func decodePrealloc(data string) GenesisAlloc {
 			Nonce uint64
 			Code  []byte
 			Slots []struct {
-				Key common.Hash
+				Key common.StorageKey
 				Val []byte
 			}
 		} `rlp:"optional"`
@@ -637,7 +652,7 @@ func decodePrealloc(data string) GenesisAlloc {
 			acc.Nonce = account.Misc.Nonce
 			acc.Code = account.Misc.Code
 
-			acc.Storage = make(map[common.Hash]common.StorageValue64)
+			acc.Storage = make(map[common.StorageKey]common.StorageValue64)
 			for _, slot := range account.Misc.Slots {
 				acc.Storage[slot.Key] = common.BytesToStorageValue64(slot.Val)
 			}

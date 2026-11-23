@@ -32,10 +32,10 @@ var ErrCommitted = errors.New("trie is already committed")
 // in the case where a trie node is not present in the local database. It contains
 // information necessary for retrieving the missing node.
 type MissingNodeError struct {
-	Owner    common.Hash // owner of the trie if it's 2-layered trie
-	NodeHash common.Hash // hash of the missing node
-	Path     []byte      // hex-encoded path to the missing node
-	err      error       // concrete error for missing trie node
+	Owner    common.Hash512 // owner of the trie if it's 2-layered trie
+	NodeHash common.Hash512 // hash of the missing node
+	Path     []byte         // hex-encoded path to the missing node
+	err      error          // concrete error for missing trie node
 }
 
 // Unwrap returns the concrete error for missing trie node which
@@ -45,7 +45,7 @@ func (err *MissingNodeError) Unwrap() error {
 }
 
 func (err *MissingNodeError) Error() string {
-	if err.Owner == (common.Hash{}) {
+	if err.Owner == (common.Hash512{}) {
 		return fmt.Sprintf("missing trie node %x (path %x) %v", err.NodeHash, err.Path, err.err)
 	}
 	return fmt.Sprintf("missing trie node %x (owner %x) (path %x) %v", err.NodeHash, err.Owner, err.Path, err.err)

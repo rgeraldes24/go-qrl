@@ -89,7 +89,7 @@ func (q *receiptQueue) request(peer *peerConnection, req *fetchRequest, resCh ch
 // fetcher, unpacking the receipt data and delivering it to the downloader's queue.
 func (q *receiptQueue) deliver(peer *peerConnection, packet *qrl.Response) (int, error) {
 	receipts := *packet.Res.(*qrl.ReceiptsResponse)
-	hashes := packet.Meta.([]common.Hash) // {receipt hashes}
+	hashes := packet.Meta.([]common.Hash512) // {receipt hashes}
 
 	accepted, err := q.queue.DeliverReceipts(peer.id, receipts, hashes)
 	switch {

@@ -87,8 +87,8 @@ Remove blockchain and state databases`,
 		ArgsUsage: "<start (optional)>",
 		Flags:     slices.Concat(utils.NetworkFlags, utils.DatabasePathFlags),
 		Usage:     "Verify that state data is cryptographically correct",
-		Description: `This command iterates the entire database for 32-byte keys, looking for rlp-encoded trie nodes.
-For each trie node encountered, it checks that the key corresponds to the keccak256(value). If this is not true, this indicates
+		Description: `This command iterates the entire database for 64-byte keys, looking for rlp-encoded trie nodes.
+For each trie node encountered, it checks that the key corresponds to the keccak512(value). If this is not true, this indicates
 a data corruption.`,
 	}
 	dbStatCmd = &cli.Command{
@@ -301,9 +301,9 @@ func checkStateContent(ctx *cli.Context) error {
 	db := utils.MakeChainDatabase(ctx, stack, true)
 	defer db.Close()
 	var (
-		it        = rawdb.NewKeyLengthIterator(db.NewIterator(prefix, start), 32)
-		hasher    = crypto.NewKeccakState()
-		got       = make([]byte, 32)
+		it        = rawdb.NewKeyLengthIterator(db.NewIterator(prefix, start), common.Hash512Length)
+		hasher    = crypto.NewKeccak512State()
+		got       = make([]byte, common.Hash512Length)
 		errs      int
 		count     int
 		startTime = time.Now()
@@ -511,7 +511,7 @@ func dbDumpTrie(ctx *cli.Context) error {
 			return err
 		}
 	}
-	id := trie.StorageTrieID(common.BytesToHash(state), common.BytesToHash(account), common.BytesToHash(storage))
+	id := trie.StorageTrieID(common.BytesToHash512(state), common.BytesToHash512(account), common.BytesToHash512(storage))
 	theTrie, err := trie.New(id, triedb)
 	if err != nil {
 		return err
@@ -598,7 +598,7 @@ type preimageIterator struct {
 func (iter *preimageIterator) Next() (byte, []byte, []byte, bool) {
 	for iter.iter.Next() {
 		key := iter.iter.Key()
-		if bytes.HasPrefix(key, rawdb.PreimagePrefix) && len(key) == (len(rawdb.PreimagePrefix)+common.HashLength) {
+		if bytes.HasPrefix(key, rawdb.PreimagePrefix) && len(key) == (len(rawdb.PreimagePrefix)+common.Hash512Length) {
 			return utils.OpBatchAdd, key, iter.iter.Value(), true
 		}
 	}
@@ -622,13 +622,13 @@ func (iter *snapshotIterator) Next() (byte, []byte, []byte, bool) {
 	}
 	for iter.account.Next() {
 		key := iter.account.Key()
-		if bytes.HasPrefix(key, rawdb.SnapshotAccountPrefix) && len(key) == (len(rawdb.SnapshotAccountPrefix)+common.HashLength) {
+		if bytes.HasPrefix(key, rawdb.SnapshotAccountPrefix) && len(key) == (len(rawdb.SnapshotAccountPrefix)+common.Hash512Length) {
 			return utils.OpBatchAdd, key, iter.account.Value(), true
 		}
 	}
 	for iter.storage.Next() {
 		key := iter.storage.Key()
-		if bytes.HasPrefix(key, rawdb.SnapshotStoragePrefix) && len(key) == (len(rawdb.SnapshotStoragePrefix)+2*common.HashLength) {
+		if bytes.HasPrefix(key, rawdb.SnapshotStoragePrefix) && len(key) == (len(rawdb.SnapshotStoragePrefix)+2*common.Hash512Length) {
 			return utils.OpBatchAdd, key, iter.storage.Value(), true
 		}
 	}

@@ -40,16 +40,16 @@ func testNodeIteratorCoverage(t *testing.T, scheme string) {
 		t.Fatalf("failed to create state trie at %x: %v", root, err)
 	}
 	// Gather all the node hashes found by the iterator
-	hashes := make(map[common.Hash]struct{})
+	hashes := make(map[common.Hash512]struct{})
 	for it := newNodeIterator(state); it.Next(); {
-		if it.Hash != (common.Hash{}) {
+		if it.Hash != (common.Hash512{}) {
 			hashes[it.Hash] = struct{}{}
 		}
 	}
 	// Check in-disk nodes
 	var (
-		seenNodes = make(map[common.Hash]struct{})
-		seenCodes = make(map[common.Hash]struct{})
+		seenNodes = make(map[common.Hash512]struct{})
+		seenCodes = make(map[common.Hash512]struct{})
 	)
 	it := db.NewIterator(nil, nil)
 	for it.Next() {
@@ -68,10 +68,10 @@ func testNodeIteratorCoverage(t *testing.T, scheme string) {
 		if !ok {
 			continue
 		}
-		if _, ok := hashes[common.BytesToHash(hash)]; !ok {
+		if _, ok := hashes[common.BytesToHash512(hash)]; !ok {
 			t.Errorf("state entry not reported %x", it.Key())
 		}
-		seenCodes[common.BytesToHash(hash)] = struct{}{}
+		seenCodes[common.BytesToHash512(hash)] = struct{}{}
 	}
 	it.Release()
 
@@ -89,20 +89,20 @@ func testNodeIteratorCoverage(t *testing.T, scheme string) {
 
 // isTrieNode is a helper function which reports if the provided
 // database entry belongs to a trie node or not.
-func isTrieNode(scheme string, key, val []byte) (bool, common.Hash) {
+func isTrieNode(scheme string, key, val []byte) (bool, common.Hash512) {
 	if scheme == rawdb.HashScheme {
 		if rawdb.IsLegacyTrieNode(key, val) {
-			return true, common.BytesToHash(key)
+			return true, common.BytesToHash512(key)
 		}
 	} else {
 		ok := rawdb.IsAccountTrieNode(key)
 		if ok {
-			return true, crypto.Keccak256Hash(val)
+			return true, crypto.Keccak512Hash(val)
 		}
 		ok = rawdb.IsStorageTrieNode(key)
 		if ok {
-			return true, crypto.Keccak256Hash(val)
+			return true, crypto.Keccak512Hash(val)
 		}
 	}
-	return false, common.Hash{}
+	return false, common.Hash512{}
 }

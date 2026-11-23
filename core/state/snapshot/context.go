@@ -48,19 +48,19 @@ type generatorStats struct {
 
 // Log creates an contextual log with the given message and the context pulled
 // from the internally maintained statistics.
-func (gs *generatorStats) Log(msg string, root common.Hash, marker []byte) {
+func (gs *generatorStats) Log(msg string, root common.Hash512, marker []byte) {
 	var ctx []any
-	if root != (common.Hash{}) {
+	if root != (common.Hash512{}) {
 		ctx = append(ctx, []any{"root", root}...)
 	}
 	// Figure out whether we're after or within an account
 	switch len(marker) {
-	case common.HashLength:
-		ctx = append(ctx, []any{"at", common.BytesToHash(marker)}...)
-	case 2 * common.HashLength:
+	case common.Hash512Length:
+		ctx = append(ctx, []any{"at", common.BytesToHash512(marker)}...)
+	case 2 * common.Hash512Length:
 		ctx = append(ctx, []any{
-			"in", common.BytesToHash(marker[:common.HashLength]),
-			"at", common.BytesToHash(marker[common.HashLength:]),
+			"in", common.BytesToHash512(marker[:common.Hash512Length]),
+			"at", common.BytesToHash512(marker[common.Hash512Length:]),
 		}...)
 	}
 	// Add the usual measurements
@@ -114,11 +114,11 @@ func newGeneratorContext(stats *generatorStats, db qrldb.KeyValueStore, accMarke
 func (ctx *generatorContext) openIterator(kind string, start []byte) {
 	if kind == snapAccount {
 		iter := ctx.db.NewIterator(rawdb.SnapshotAccountPrefix, start)
-		ctx.account = newHoldableIterator(rawdb.NewKeyLengthIterator(iter, 1+common.HashLength))
+		ctx.account = newHoldableIterator(rawdb.NewKeyLengthIterator(iter, 1+common.Hash512Length))
 		return
 	}
 	iter := ctx.db.NewIterator(rawdb.SnapshotStoragePrefix, start)
-	ctx.storage = newHoldableIterator(rawdb.NewKeyLengthIterator(iter, 1+2*common.HashLength))
+	ctx.storage = newHoldableIterator(rawdb.NewKeyLengthIterator(iter, 1+2*common.Hash512Length))
 }
 
 // reopenIterator releases the specified snapshot iterator and re-open it
@@ -164,7 +164,7 @@ func (ctx *generatorContext) iterator(kind string) *holdableIterator {
 // the specified account. When the iterator touches the storage entry which
 // is located in or outside the given account, it stops and holds the current
 // iterated element locally.
-func (ctx *generatorContext) removeStorageBefore(account common.Hash) {
+func (ctx *generatorContext) removeStorageBefore(account common.Hash512) {
 	var (
 		count uint64
 		start = time.Now()
@@ -172,7 +172,7 @@ func (ctx *generatorContext) removeStorageBefore(account common.Hash) {
 	)
 	for iter.Next() {
 		key := iter.Key()
-		if bytes.Compare(key[1:1+common.HashLength], account.Bytes()) >= 0 {
+		if bytes.Compare(key[1:1+common.Hash512Length], account.Bytes()) >= 0 {
 			iter.Hold()
 			break
 		}
@@ -191,7 +191,7 @@ func (ctx *generatorContext) removeStorageBefore(account common.Hash) {
 // account. When the iterator touches the storage entry which is outside the given
 // account, it stops and holds the current iterated element locally. An error will
 // be returned if the initial position of iterator is not in the given account.
-func (ctx *generatorContext) removeStorageAt(account common.Hash) error {
+func (ctx *generatorContext) removeStorageAt(account common.Hash512) error {
 	var (
 		count int64
 		start = time.Now()
@@ -199,7 +199,7 @@ func (ctx *generatorContext) removeStorageAt(account common.Hash) error {
 	)
 	for iter.Next() {
 		key := iter.Key()
-		cmp := bytes.Compare(key[1:1+common.HashLength], account.Bytes())
+		cmp := bytes.Compare(key[1:1+common.Hash512Length], account.Bytes())
 		if cmp < 0 {
 			return errors.New("invalid iterator position")
 		}

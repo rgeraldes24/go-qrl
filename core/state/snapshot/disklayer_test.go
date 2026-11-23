@@ -44,28 +44,28 @@ func TestDiskMerge(t *testing.T) {
 	db := memorydb.New()
 
 	var (
-		accNoModNoCache     = common.Hash{0x1}
-		accNoModCache       = common.Hash{0x2}
-		accModNoCache       = common.Hash{0x3}
-		accModCache         = common.Hash{0x4}
-		accDelNoCache       = common.Hash{0x5}
-		accDelCache         = common.Hash{0x6}
-		conNoModNoCache     = common.Hash{0x7}
-		conNoModNoCacheSlot = common.Hash{0x70}
-		conNoModCache       = common.Hash{0x8}
-		conNoModCacheSlot   = common.Hash{0x80}
-		conModNoCache       = common.Hash{0x9}
-		conModNoCacheSlot   = common.Hash{0x90}
-		conModCache         = common.Hash{0xa}
-		conModCacheSlot     = common.Hash{0xa0}
-		conDelNoCache       = common.Hash{0xb}
-		conDelNoCacheSlot   = common.Hash{0xb0}
-		conDelCache         = common.Hash{0xc}
-		conDelCacheSlot     = common.Hash{0xc0}
-		conNukeNoCache      = common.Hash{0xd}
-		conNukeNoCacheSlot  = common.Hash{0xd0}
-		conNukeCache        = common.Hash{0xe}
-		conNukeCacheSlot    = common.Hash{0xe0}
+		accNoModNoCache     = common.Hash512{0x1}
+		accNoModCache       = common.Hash512{0x2}
+		accModNoCache       = common.Hash512{0x3}
+		accModCache         = common.Hash512{0x4}
+		accDelNoCache       = common.Hash512{0x5}
+		accDelCache         = common.Hash512{0x6}
+		conNoModNoCache     = common.Hash512{0x7}
+		conNoModNoCacheSlot = common.Hash512{0x70}
+		conNoModCache       = common.Hash512{0x8}
+		conNoModCacheSlot   = common.Hash512{0x80}
+		conModNoCache       = common.Hash512{0x9}
+		conModNoCacheSlot   = common.Hash512{0x90}
+		conModCache         = common.Hash512{0xa}
+		conModCacheSlot     = common.Hash512{0xa0}
+		conDelNoCache       = common.Hash512{0xb}
+		conDelNoCacheSlot   = common.Hash512{0xb0}
+		conDelCache         = common.Hash512{0xc}
+		conDelCacheSlot     = common.Hash512{0xc0}
+		conNukeNoCache      = common.Hash512{0xd}
+		conNukeNoCacheSlot  = common.Hash512{0xd0}
+		conNukeCache        = common.Hash512{0xe}
+		conNukeCacheSlot    = common.Hash512{0xe0}
 		baseRoot            = randomHash()
 		diffRoot            = randomHash()
 	)
@@ -99,7 +99,7 @@ func TestDiskMerge(t *testing.T) {
 
 	// Create a disk layer based on the above and cache in some data
 	snaps := &Tree{
-		layers: map[common.Hash]snapshot{
+		layers: map[common.Hash512]snapshot{
 			baseRoot: &diskLayer{
 				diskdb: db,
 				cache:  fastcache.New(500 * 1024),
@@ -117,15 +117,15 @@ func TestDiskMerge(t *testing.T) {
 	base.Storage(conNukeCache, conNukeCacheSlot)
 
 	// Modify or delete some accounts, flatten everything onto disk
-	if err := snaps.Update(diffRoot, baseRoot, map[common.Hash]struct{}{
+	if err := snaps.Update(diffRoot, baseRoot, map[common.Hash512]struct{}{
 		accDelNoCache:  {},
 		accDelCache:    {},
 		conNukeNoCache: {},
 		conNukeCache:   {},
-	}, map[common.Hash][]byte{
+	}, map[common.Hash512][]byte{
 		accModNoCache: reverse(accModNoCache[:]),
 		accModCache:   reverse(accModCache[:]),
-	}, map[common.Hash]map[common.Hash][]byte{
+	}, map[common.Hash512]map[common.Hash512][]byte{
 		conModNoCache: {conModNoCacheSlot: reverse(conModNoCacheSlot[:])},
 		conModCache:   {conModCacheSlot: reverse(conModCacheSlot[:])},
 		conDelNoCache: {conDelNoCacheSlot: nil},
@@ -143,7 +143,7 @@ func TestDiskMerge(t *testing.T) {
 	}
 
 	// assertAccount ensures that an account matches the given blob.
-	assertAccount := func(account common.Hash, data []byte) {
+	assertAccount := func(account common.Hash512, data []byte) {
 		t.Helper()
 		blob, err := base.AccountRLP(account)
 		if err != nil {
@@ -160,7 +160,7 @@ func TestDiskMerge(t *testing.T) {
 	assertAccount(accDelCache, nil)
 
 	// assertStorage ensures that a storage slot matches the given blob.
-	assertStorage := func(account common.Hash, slot common.Hash, data []byte) {
+	assertStorage := func(account common.Hash512, slot common.Hash512, data []byte) {
 		t.Helper()
 		blob, err := base.Storage(account, slot)
 		if err != nil {
@@ -181,7 +181,7 @@ func TestDiskMerge(t *testing.T) {
 	// Retrieve all the data directly from the database and validate it
 
 	// assertDatabaseAccount ensures that an account from the database matches the given blob.
-	assertDatabaseAccount := func(account common.Hash, data []byte) {
+	assertDatabaseAccount := func(account common.Hash512, data []byte) {
 		t.Helper()
 		if blob := rawdb.ReadAccountSnapshot(db, account); !bytes.Equal(blob, data) {
 			t.Errorf("account database access (%x) mismatch: have %x, want %x", account, blob, data)
@@ -195,7 +195,7 @@ func TestDiskMerge(t *testing.T) {
 	assertDatabaseAccount(accDelCache, nil)
 
 	// assertDatabaseStorage ensures that a storage slot from the database matches the given blob.
-	assertDatabaseStorage := func(account common.Hash, slot common.Hash, data []byte) {
+	assertDatabaseStorage := func(account common.Hash512, slot common.Hash512, data []byte) {
 		t.Helper()
 		if blob := rawdb.ReadStorageSnapshot(db, account, slot); !bytes.Equal(blob, data) {
 			t.Errorf("storage database access (%x:%x) mismatch: have %x, want %x", account, slot, blob, data)
@@ -252,7 +252,7 @@ func TestDiskPartialMerge(t *testing.T) {
 		// insertAccount injects an account into the database if it's after the
 		// generator marker, drops the op otherwise. This is needed to seed the
 		// database with a valid starting snapshot.
-		insertAccount := func(account common.Hash, data []byte) {
+		insertAccount := func(account common.Hash512, data []byte) {
 			if bytes.Compare(account[:], genMarker) <= 0 {
 				rawdb.WriteAccountSnapshot(db, account, data[:])
 			}
@@ -267,7 +267,7 @@ func TestDiskPartialMerge(t *testing.T) {
 		// insertStorage injects a storage slot into the database if it's after
 		// the  generator marker, drops the op otherwise. This is needed to seed
 		// the  database with a valid starting snapshot.
-		insertStorage := func(account common.Hash, slot common.Hash, data []byte) {
+		insertStorage := func(account common.Hash512, slot common.Hash512, data []byte) {
 			if bytes.Compare(append(account[:], slot[:]...), genMarker) <= 0 {
 				rawdb.WriteStorageSnapshot(db, account, slot, data[:])
 			}
@@ -295,7 +295,7 @@ func TestDiskPartialMerge(t *testing.T) {
 		// Create a disk layer based on the above using a random progress marker
 		// and cache in some data.
 		snaps := &Tree{
-			layers: map[common.Hash]snapshot{
+			layers: map[common.Hash512]snapshot{
 				baseRoot: &diskLayer{
 					diskdb: db,
 					cache:  fastcache.New(500 * 1024),
@@ -308,7 +308,7 @@ func TestDiskPartialMerge(t *testing.T) {
 
 		// assertAccount ensures that an account matches the given blob if it's
 		// already covered by the disk snapshot, and errors out otherwise.
-		assertAccount := func(account common.Hash, data []byte) {
+		assertAccount := func(account common.Hash512, data []byte) {
 			t.Helper()
 			blob, err := base.AccountRLP(account)
 			if bytes.Compare(account[:], genMarker) > 0 && err != ErrNotCoveredYet {
@@ -324,7 +324,7 @@ func TestDiskPartialMerge(t *testing.T) {
 
 		// assertStorage ensures that a storage slot matches the given blob if
 		// it's already covered by the disk snapshot, and errors out otherwise.
-		assertStorage := func(account common.Hash, slot common.Hash, data []byte) {
+		assertStorage := func(account common.Hash512, slot common.Hash512, data []byte) {
 			t.Helper()
 			blob, err := base.Storage(account, slot)
 			if bytes.Compare(append(account[:], slot[:]...), genMarker) > 0 && err != ErrNotCoveredYet {
@@ -340,15 +340,15 @@ func TestDiskPartialMerge(t *testing.T) {
 		assertStorage(conNukeCache, conNukeCacheSlot, conNukeCacheSlot[:])
 
 		// Modify or delete some accounts, flatten everything onto disk
-		if err := snaps.Update(diffRoot, baseRoot, map[common.Hash]struct{}{
+		if err := snaps.Update(diffRoot, baseRoot, map[common.Hash512]struct{}{
 			accDelNoCache:  {},
 			accDelCache:    {},
 			conNukeNoCache: {},
 			conNukeCache:   {},
-		}, map[common.Hash][]byte{
+		}, map[common.Hash512][]byte{
 			accModNoCache: reverse(accModNoCache[:]),
 			accModCache:   reverse(accModCache[:]),
-		}, map[common.Hash]map[common.Hash][]byte{
+		}, map[common.Hash512]map[common.Hash512][]byte{
 			conModNoCache: {conModNoCacheSlot: reverse(conModNoCacheSlot[:])},
 			conModCache:   {conModCacheSlot: reverse(conModCacheSlot[:])},
 			conDelNoCache: {conDelNoCacheSlot: nil},
@@ -385,7 +385,7 @@ func TestDiskPartialMerge(t *testing.T) {
 		// assertDatabaseAccount ensures that an account inside the database matches
 		// the given blob if it's already covered by the disk snapshot, and does not
 		// exist otherwise.
-		assertDatabaseAccount := func(account common.Hash, data []byte) {
+		assertDatabaseAccount := func(account common.Hash512, data []byte) {
 			t.Helper()
 			blob := rawdb.ReadAccountSnapshot(db, account)
 			if bytes.Compare(account[:], genMarker) > 0 && blob != nil {
@@ -405,7 +405,7 @@ func TestDiskPartialMerge(t *testing.T) {
 		// assertDatabaseStorage ensures that a storage slot inside the database
 		// matches the given blob if it's already covered by the disk snapshot,
 		// and does not exist otherwise.
-		assertDatabaseStorage := func(account common.Hash, slot common.Hash, data []byte) {
+		assertDatabaseStorage := func(account common.Hash512, slot common.Hash512, data []byte) {
 			t.Helper()
 			blob := rawdb.ReadStorageSnapshot(db, account, slot)
 			if bytes.Compare(append(account[:], slot[:]...), genMarker) > 0 && blob != nil {
@@ -452,7 +452,7 @@ func TestDiskGeneratorPersistence(t *testing.T) {
 
 	// Create a disk layer based on all above updates
 	snaps := &Tree{
-		layers: map[common.Hash]snapshot{
+		layers: map[common.Hash512]snapshot{
 			baseRoot: &diskLayer{
 				diskdb:    db,
 				cache:     fastcache.New(500 * 1024),
@@ -462,7 +462,7 @@ func TestDiskGeneratorPersistence(t *testing.T) {
 		},
 	}
 	// Modify or delete some accounts, flatten everything onto disk
-	if err := snaps.Update(diffRoot, baseRoot, nil, map[common.Hash][]byte{
+	if err := snaps.Update(diffRoot, baseRoot, nil, map[common.Hash512][]byte{
 		accTwo: accTwo[:],
 	}, nil); err != nil {
 		t.Fatalf("failed to update snapshot tree: %v", err)
@@ -480,9 +480,9 @@ func TestDiskGeneratorPersistence(t *testing.T) {
 	}
 	// Test scenario 2, the disk layer is fully generated
 	// Modify or delete some accounts, flatten everything onto disk
-	if err := snaps.Update(diffTwoRoot, diffRoot, nil, map[common.Hash][]byte{
+	if err := snaps.Update(diffTwoRoot, diffRoot, nil, map[common.Hash512][]byte{
 		accThree: accThree.Bytes(),
-	}, map[common.Hash]map[common.Hash][]byte{
+	}, map[common.Hash512]map[common.Hash512][]byte{
 		accThree: {accThreeSlot: accThreeSlot.Bytes()},
 	}); err != nil {
 		t.Fatalf("failed to update snapshot tree: %v", err)
@@ -519,7 +519,7 @@ func TestDiskSeek(t *testing.T) {
 
 	// Fill even keys [0,2,4...]
 	for i := 0; i < 0xff; i += 2 {
-		acc := common.Hash{byte(i)}
+		acc := common.Hash512{byte(i)}
 		rawdb.WriteAccountSnapshot(db, acc, acc[:])
 	}
 	// Add an 'higher' key, with incorrect (higher) prefix
@@ -530,7 +530,7 @@ func TestDiskSeek(t *testing.T) {
 	rawdb.WriteSnapshotRoot(db, baseRoot)
 
 	snaps := &Tree{
-		layers: map[common.Hash]snapshot{
+		layers: map[common.Hash512]snapshot{
 			baseRoot: &diskLayer{
 				diskdb: db,
 				cache:  fastcache.New(500 * 1024),
@@ -551,7 +551,7 @@ func TestDiskSeek(t *testing.T) {
 		{0x00, 0x00},
 	}
 	for i, tc := range cases {
-		it, err := snaps.AccountIterator(baseRoot, common.Hash{tc.pos})
+		it, err := snaps.AccountIterator(baseRoot, common.Hash512{tc.pos})
 		if err != nil {
 			t.Fatalf("case %d, error: %v", i, err)
 		}

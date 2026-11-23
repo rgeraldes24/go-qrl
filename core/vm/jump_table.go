@@ -217,6 +217,14 @@ func newZondInstructionSet() JumpTable {
 			maxStack:    maxStack(2, 1),
 			memorySize:  memoryKeccak256,
 		},
+		KECCAK512: {
+			execute:     opKeccak512,
+			constantGas: params.Keccak512Gas,
+			dynamicGas:  gasKeccak512,
+			minStack:    minStack(2, 1),
+			maxStack:    maxStack(2, 1),
+			memorySize:  memoryKeccak256,
+		},
 		ADDRESS: {
 			execute:     opAddress,
 			constantGas: GasQuickStep,
@@ -411,6 +419,32 @@ func newZondInstructionSet() JumpTable {
 			constantGas: params.JumpdestGas,
 			minStack:    minStack(0, 0),
 			maxStack:    maxStack(0, 0),
+		},
+		TLOAD: {
+			execute:     opTload,
+			constantGas: params.WarmStorageReadCostEIP2929,
+			minStack:    minStack(1, 1),
+			maxStack:    maxStack(1, 1),
+		},
+		TSTORE: {
+			execute:     opTstore,
+			constantGas: params.WarmStorageReadCostEIP2929,
+			minStack:    minStack(2, 0),
+			maxStack:    maxStack(2, 0),
+		},
+		MCOPY: {
+			execute:     opMcopy,
+			constantGas: GasFastestStep,
+			dynamicGas:  gasMcopy,
+			minStack:    minStack(3, 0),
+			maxStack:    maxStack(3, 0),
+			memorySize:  memoryMcopy,
+		},
+		PUSH0: {
+			execute:     opPush0,
+			constantGas: GasQuickStep,
+			minStack:    minStack(0, 1),
+			maxStack:    maxStack(0, 1),
 		},
 		PUSH1: {
 			execute:     opPush1,
@@ -1101,6 +1135,12 @@ func newZondInstructionSet() JumpTable {
 			minStack:    minStack(2, 1),
 			maxStack:    maxStack(2, 1),
 		},
+		CLZ: {
+			execute:     opCLZ,
+			constantGas: GasFastStep,
+			minStack:    minStack(1, 1),
+			maxStack:    maxStack(1, 1),
+		},
 		EXTCODEHASH: {
 			execute:     opExtCodeHash,
 			constantGas: params.WarmStorageReadCostEIP2929,
@@ -1136,12 +1176,6 @@ func newZondInstructionSet() JumpTable {
 		},
 		PREVRANDAO: {
 			execute:     opRandom,
-			constantGas: GasQuickStep,
-			minStack:    minStack(0, 1),
-			maxStack:    maxStack(0, 1),
-		},
-		PUSH0: {
-			execute:     opPush0,
 			constantGas: GasQuickStep,
 			minStack:    minStack(0, 1),
 			maxStack:    maxStack(0, 1),

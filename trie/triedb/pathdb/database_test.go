@@ -34,7 +34,7 @@ import (
 	"github.com/theQRL/go-qrl/trie/triestate"
 )
 
-func updateTrie(addrHash common.Hash, root common.Hash, dirties, cleans map[common.Hash][]byte) (common.Hash, *trienode.NodeSet) {
+func updateTrie(addrHash common.Hash512, root common.Hash512, dirties, cleans map[common.Hash512][]byte) (common.Hash512, *trienode.NodeSet) {
 	h, err := newTestHasher(addrHash, root, cleans)
 	if err != nil {
 		panic(fmt.Errorf("failed to create hasher, err: %w", err))
@@ -50,7 +50,7 @@ func updateTrie(addrHash common.Hash, root common.Hash, dirties, cleans map[comm
 	return root, nodes
 }
 
-func generateAccount(storageRoot common.Hash) types.StateAccount {
+func generateAccount(storageRoot common.Hash512) types.StateAccount {
 	return types.StateAccount{
 		Nonce:    uint64(rand.Intn(100)),
 		Balance:  big.NewInt(rand.Int63()),
@@ -67,33 +67,33 @@ const (
 )
 
 type genctx struct {
-	accounts      map[common.Hash][]byte
-	storages      map[common.Hash]map[common.Hash][]byte
+	accounts      map[common.Hash512][]byte
+	storages      map[common.Hash512]map[common.Hash512][]byte
 	accountOrigin map[common.Address][]byte
-	storageOrigin map[common.Address]map[common.Hash][]byte
+	storageOrigin map[common.Address]map[common.Hash512][]byte
 	nodes         *trienode.MergedNodeSet
 }
 
 func newCtx() *genctx {
 	return &genctx{
-		accounts:      make(map[common.Hash][]byte),
-		storages:      make(map[common.Hash]map[common.Hash][]byte),
+		accounts:      make(map[common.Hash512][]byte),
+		storages:      make(map[common.Hash512]map[common.Hash512][]byte),
 		accountOrigin: make(map[common.Address][]byte),
-		storageOrigin: make(map[common.Address]map[common.Hash][]byte),
+		storageOrigin: make(map[common.Address]map[common.Hash512][]byte),
 		nodes:         trienode.NewMergedNodeSet(),
 	}
 }
 
 type tester struct {
 	db        *Database
-	roots     []common.Hash
-	preimages map[common.Hash]common.Address
-	accounts  map[common.Hash][]byte
-	storages  map[common.Hash]map[common.Hash][]byte
+	roots     []common.Hash512
+	preimages map[common.Hash512]common.Address
+	accounts  map[common.Hash512][]byte
+	storages  map[common.Hash512]map[common.Hash512][]byte
 
 	// state snapshots
-	snapAccounts map[common.Hash]map[common.Hash][]byte
-	snapStorages map[common.Hash]map[common.Hash]map[common.Hash][]byte
+	snapAccounts map[common.Hash512]map[common.Hash512][]byte
+	snapStorages map[common.Hash512]map[common.Hash512]map[common.Hash512][]byte
 }
 
 func newTester(t *testing.T) *tester {
@@ -102,11 +102,11 @@ func newTester(t *testing.T) *tester {
 		db      = New(disk, &Config{CleanCacheSize: 256 * 1024, DirtyCacheSize: 256 * 1024})
 		obj     = &tester{
 			db:           db,
-			preimages:    make(map[common.Hash]common.Address),
-			accounts:     make(map[common.Hash][]byte),
-			storages:     make(map[common.Hash]map[common.Hash][]byte),
-			snapAccounts: make(map[common.Hash]map[common.Hash][]byte),
-			snapStorages: make(map[common.Hash]map[common.Hash]map[common.Hash][]byte),
+			preimages:    make(map[common.Hash512]common.Address),
+			accounts:     make(map[common.Hash512][]byte),
+			storages:     make(map[common.Hash512]map[common.Hash512][]byte),
+			snapAccounts: make(map[common.Hash512]map[common.Hash512][]byte),
+			snapStorages: make(map[common.Hash512]map[common.Hash512]map[common.Hash512][]byte),
 		}
 	)
 	for i := range 2 * 128 {
@@ -135,11 +135,11 @@ func (t *tester) randAccount() (common.Address, []byte) {
 	return common.Address{}, nil
 }
 
-func (t *tester) generateStorage(ctx *genctx, addr common.Address) common.Hash {
+func (t *tester) generateStorage(ctx *genctx, addr common.Address) common.Hash512 {
 	var (
-		addrHash = crypto.Keccak256Hash(addr.Bytes())
-		storage  = make(map[common.Hash][]byte)
-		origin   = make(map[common.Hash][]byte)
+		addrHash = crypto.Keccak512Hash(addr.Bytes())
+		storage  = make(map[common.Hash512][]byte)
+		origin   = make(map[common.Hash512][]byte)
 	)
 	for range 10 {
 		v, _ := rlp.EncodeToBytes(common.TrimLeftZeroes(testutil.RandBytes(32)))
@@ -156,11 +156,11 @@ func (t *tester) generateStorage(ctx *genctx, addr common.Address) common.Hash {
 	return root
 }
 
-func (t *tester) mutateStorage(ctx *genctx, addr common.Address, root common.Hash) common.Hash {
+func (t *tester) mutateStorage(ctx *genctx, addr common.Address, root common.Hash512) common.Hash512 {
 	var (
-		addrHash = crypto.Keccak256Hash(addr.Bytes())
-		storage  = make(map[common.Hash][]byte)
-		origin   = make(map[common.Hash][]byte)
+		addrHash = crypto.Keccak512Hash(addr.Bytes())
+		storage  = make(map[common.Hash512][]byte)
+		origin   = make(map[common.Hash512][]byte)
 	)
 	for hash, val := range t.storages[addrHash] {
 		origin[hash] = val
@@ -177,7 +177,7 @@ func (t *tester) mutateStorage(ctx *genctx, addr common.Address, root common.Has
 		storage[hash] = v
 		origin[hash] = nil
 	}
-	root, set := updateTrie(crypto.Keccak256Hash(addr.Bytes()), root, storage, t.storages[addrHash])
+	root, set := updateTrie(crypto.Keccak512Hash(addr.Bytes()), root, storage, t.storages[addrHash])
 
 	ctx.storages[addrHash] = storage
 	ctx.storageOrigin[addr] = origin
@@ -185,11 +185,11 @@ func (t *tester) mutateStorage(ctx *genctx, addr common.Address, root common.Has
 	return root
 }
 
-func (t *tester) clearStorage(ctx *genctx, addr common.Address, root common.Hash) common.Hash {
+func (t *tester) clearStorage(ctx *genctx, addr common.Address, root common.Hash512) common.Hash512 {
 	var (
-		addrHash = crypto.Keccak256Hash(addr.Bytes())
-		storage  = make(map[common.Hash][]byte)
-		origin   = make(map[common.Hash][]byte)
+		addrHash = crypto.Keccak512Hash(addr.Bytes())
+		storage  = make(map[common.Hash512][]byte)
+		origin   = make(map[common.Hash512][]byte)
 	)
 	for hash, val := range t.storages[addrHash] {
 		origin[hash] = val
@@ -205,17 +205,17 @@ func (t *tester) clearStorage(ctx *genctx, addr common.Address, root common.Hash
 	return root
 }
 
-func (t *tester) generate(parent common.Hash) (common.Hash, *trienode.MergedNodeSet, *triestate.Set) {
+func (t *tester) generate(parent common.Hash512) (common.Hash512, *trienode.MergedNodeSet, *triestate.Set) {
 	var (
 		ctx     = newCtx()
-		dirties = make(map[common.Hash]struct{})
+		dirties = make(map[common.Hash512]struct{})
 	)
 	for range 20 {
 		switch rand.Intn(opLen) {
 		case createAccountOp:
 			// account creation
 			addr := testutil.RandomAddress()
-			addrHash := crypto.Keccak256Hash(addr.Bytes())
+			addrHash := crypto.Keccak512Hash(addr.Bytes())
 			if _, ok := t.accounts[addrHash]; ok {
 				continue
 			}
@@ -235,7 +235,7 @@ func (t *tester) generate(parent common.Hash) (common.Hash, *trienode.MergedNode
 			if addr == (common.Address{}) {
 				continue
 			}
-			addrHash := crypto.Keccak256Hash(addr.Bytes())
+			addrHash := crypto.Keccak512Hash(addr.Bytes())
 			if _, ok := dirties[addrHash]; ok {
 				continue
 			}
@@ -254,7 +254,7 @@ func (t *tester) generate(parent common.Hash) (common.Hash, *trienode.MergedNode
 			if addr == (common.Address{}) {
 				continue
 			}
-			addrHash := crypto.Keccak256Hash(addr.Bytes())
+			addrHash := crypto.Keccak512Hash(addr.Bytes())
 			if _, ok := dirties[addrHash]; ok {
 				continue
 			}
@@ -268,7 +268,7 @@ func (t *tester) generate(parent common.Hash) (common.Hash, *trienode.MergedNode
 			ctx.accountOrigin[addr] = account
 		}
 	}
-	root, set := updateTrie(common.Hash{}, parent, ctx.accounts, t.accounts)
+	root, set := updateTrie(common.Hash512{}, parent, ctx.accounts, t.accounts)
 	ctx.nodes.Merge(set)
 
 	// Save state snapshot before commit
@@ -285,7 +285,7 @@ func (t *tester) generate(parent common.Hash) (common.Hash, *trienode.MergedNode
 	}
 	for addrHash, slots := range ctx.storages {
 		if _, ok := t.storages[addrHash]; !ok {
-			t.storages[addrHash] = make(map[common.Hash][]byte)
+			t.storages[addrHash] = make(map[common.Hash512][]byte)
 		}
 		for sHash, slot := range slots {
 			if len(slot) == 0 {
@@ -299,31 +299,31 @@ func (t *tester) generate(parent common.Hash) (common.Hash, *trienode.MergedNode
 }
 
 // lastRoot returns the latest root hash, or empty if nothing is cached.
-func (t *tester) lastHash() common.Hash {
+func (t *tester) lastHash() common.Hash512 {
 	if len(t.roots) == 0 {
-		return common.Hash{}
+		return common.Hash512{}
 	}
 	return t.roots[len(t.roots)-1]
 }
 
-func (t *tester) verifyState(root common.Hash) error {
+func (t *tester) verifyState(root common.Hash512) error {
 	reader, err := t.db.Reader(root)
 	if err != nil {
 		return err
 	}
-	_, err = reader.Node(common.Hash{}, nil, root)
+	_, err = reader.Node(common.Hash512{}, nil, root)
 	if err != nil {
 		return errors.New("root node is not available")
 	}
 	for addrHash, account := range t.snapAccounts[root] {
-		blob, err := reader.Node(common.Hash{}, addrHash.Bytes(), crypto.Keccak256Hash(account))
+		blob, err := reader.Node(common.Hash512{}, addrHash.Bytes(), crypto.Keccak512Hash(account))
 		if err != nil || !bytes.Equal(blob, account) {
 			return fmt.Errorf("account is mismatched: %w", err)
 		}
 	}
 	for addrHash, slots := range t.snapStorages[root] {
 		for hash, slot := range slots {
-			blob, err := reader.Node(addrHash, hash.Bytes(), crypto.Keccak256Hash(slot))
+			blob, err := reader.Node(addrHash, hash.Bytes(), crypto.Keccak512Hash(slot))
 			if err != nil || !bytes.Equal(blob, slot) {
 				return fmt.Errorf("slot is mismatched: %w", err)
 			}
@@ -408,17 +408,17 @@ func TestDatabaseRecoverable(t *testing.T) {
 	defer tester.release()
 
 	var cases = []struct {
-		root   common.Hash
+		root   common.Hash512
 		expect bool
 	}{
 		// Unknown state should be unrecoverable
-		{common.Hash{0x1}, false},
+		{common.Hash512{0x1}, false},
 
 		// Initial state should be recoverable
 		{types.EmptyRootHash, true},
 
 		// Initial state should be recoverable
-		{common.Hash{}, true},
+		{common.Hash512{}, true},
 
 		// Layers below current disk layer are recoverable
 		{tester.roots[index-1], true},
@@ -534,7 +534,7 @@ func TestCorruptedJournal(t *testing.T) {
 
 	// Mutate the journal in disk, it should be regarded as invalid
 	blob := rawdb.ReadTrieJournal(tester.db.diskdb)
-	blob[0] = 1
+	blob[0] = byte(journalVersion + 1)
 	rawdb.WriteTrieJournal(tester.db.diskdb, blob)
 
 	// Verify states, all not-yet-written states should be discarded
@@ -553,8 +553,8 @@ func TestCorruptedJournal(t *testing.T) {
 }
 
 // copyAccounts returns a deep-copied account set of the provided one.
-func copyAccounts(set map[common.Hash][]byte) map[common.Hash][]byte {
-	copied := make(map[common.Hash][]byte, len(set))
+func copyAccounts(set map[common.Hash512][]byte) map[common.Hash512][]byte {
+	copied := make(map[common.Hash512][]byte, len(set))
 	for key, val := range set {
 		copied[key] = common.CopyBytes(val)
 	}
@@ -562,10 +562,10 @@ func copyAccounts(set map[common.Hash][]byte) map[common.Hash][]byte {
 }
 
 // copyStorages returns a deep-copied storage set of the provided one.
-func copyStorages(set map[common.Hash]map[common.Hash][]byte) map[common.Hash]map[common.Hash][]byte {
-	copied := make(map[common.Hash]map[common.Hash][]byte, len(set))
+func copyStorages(set map[common.Hash512]map[common.Hash512][]byte) map[common.Hash512]map[common.Hash512][]byte {
+	copied := make(map[common.Hash512]map[common.Hash512][]byte, len(set))
 	for addrHash, subset := range set {
-		copied[addrHash] = make(map[common.Hash][]byte, len(subset))
+		copied[addrHash] = make(map[common.Hash512][]byte, len(subset))
 		for key, val := range subset {
 			copied[addrHash][key] = common.CopyBytes(val)
 		}

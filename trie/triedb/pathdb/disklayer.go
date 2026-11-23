@@ -33,7 +33,7 @@ import (
 
 // diskLayer is a low level persistent layer built on top of a key-value store.
 type diskLayer struct {
-	root   common.Hash      // Immutable, root hash to which this layer was made for
+	root   common.Hash512   // Immutable, root hash to which this layer was made for
 	id     uint64           // Immutable, corresponding state id
 	db     *Database        // Path-based trie database
 	cleans *fastcache.Cache // GC friendly memory cache of clean node RLPs
@@ -43,7 +43,7 @@ type diskLayer struct {
 }
 
 // newDiskLayer creates a new disk layer based on the passing arguments.
-func newDiskLayer(root common.Hash, id uint64, db *Database, cleans *fastcache.Cache, buffer *nodebuffer) *diskLayer {
+func newDiskLayer(root common.Hash512, id uint64, db *Database, cleans *fastcache.Cache, buffer *nodebuffer) *diskLayer {
 	// Initialize a clean cache if the memory allowance is not zero
 	// or reuse the provided cache if it is not nil (inherited from
 	// the original disk layer).
@@ -60,7 +60,7 @@ func newDiskLayer(root common.Hash, id uint64, db *Database, cleans *fastcache.C
 }
 
 // root implements the layer interface, returning root hash of corresponding state.
-func (dl *diskLayer) rootHash() common.Hash {
+func (dl *diskLayer) rootHash() common.Hash512 {
 	return dl.root
 }
 
@@ -97,7 +97,7 @@ func (dl *diskLayer) markStale() {
 
 // Node implements the layer interface, retrieving the trie node with the
 // provided node info. No error will be returned if the node is not found.
-func (dl *diskLayer) Node(owner common.Hash, path []byte, hash common.Hash) ([]byte, error) {
+func (dl *diskLayer) Node(owner common.Hash512, path []byte, hash common.Hash512) ([]byte, error) {
 	dl.lock.RLock()
 	defer dl.lock.RUnlock()
 
@@ -140,9 +140,9 @@ func (dl *diskLayer) Node(owner common.Hash, path []byte, hash common.Hash) ([]b
 	// Try to retrieve the trie node from the disk.
 	var (
 		nBlob []byte
-		nHash common.Hash
+		nHash common.Hash512
 	)
-	if owner == (common.Hash{}) {
+	if owner == (common.Hash512{}) {
 		nBlob, nHash = rawdb.ReadAccountTrieNode(dl.db.diskdb, path)
 	} else {
 		nBlob, nHash = rawdb.ReadStorageTrieNode(dl.db.diskdb, owner, path)
@@ -161,7 +161,7 @@ func (dl *diskLayer) Node(owner common.Hash, path []byte, hash common.Hash) ([]b
 
 // update implements the layer interface, returning a new diff layer on top
 // with the given state set.
-func (dl *diskLayer) update(root common.Hash, id uint64, block uint64, nodes map[common.Hash]map[string]*trienode.Node, states *triestate.Set) *diffLayer {
+func (dl *diskLayer) update(root common.Hash512, id uint64, block uint64, nodes map[common.Hash512]map[string]*trienode.Node, states *triestate.Set) *diffLayer {
 	return newDiffLayer(dl, root, id, block, nodes, states)
 }
 
@@ -294,15 +294,15 @@ func (dl *diskLayer) resetCache() {
 type hasher struct{ sha crypto.KeccakState }
 
 var hasherPool = sync.Pool{
-	New: func() any { return &hasher{sha: sha3.NewLegacyKeccak256().(crypto.KeccakState)} },
+	New: func() any { return &hasher{sha: sha3.NewLegacyKeccak512().(crypto.KeccakState)} },
 }
 
 func newHasher() *hasher {
 	return hasherPool.Get().(*hasher)
 }
 
-func (h *hasher) hash(data []byte) common.Hash {
-	return crypto.HashData(h.sha, data)
+func (h *hasher) hash(data []byte) common.Hash512 {
+	return crypto.HashData512(h.sha, data)
 }
 
 func (h *hasher) release() {

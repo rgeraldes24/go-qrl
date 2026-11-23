@@ -30,7 +30,7 @@ type accessList map[common.Address]accessListSlots
 
 // accessListSlots is an accumulator for the set of storage slots within a single
 // contract that a QRVM contract execution touches.
-type accessListSlots map[common.Hash]struct{}
+type accessListSlots map[common.Hash512]struct{}
 
 // newAccessList creates a new accessList.
 func newAccessList() accessList {
@@ -41,12 +41,12 @@ func newAccessList() accessList {
 func (al accessList) addAddress(address common.Address) {
 	// Set address if not previously present
 	if _, present := al[address]; !present {
-		al[address] = make(map[common.Hash]struct{})
+		al[address] = make(map[common.Hash512]struct{})
 	}
 }
 
 // addSlot adds a storage slot to the accesslist.
-func (al accessList) addSlot(address common.Address, slot common.Hash) {
+func (al accessList) addSlot(address common.Address, slot common.Hash512) {
 	// Set address if not previously present
 	al.addAddress(address)
 
@@ -91,7 +91,7 @@ func (al accessList) equal(other accessList) bool {
 func (al accessList) accessList() types.AccessList {
 	acl := make(types.AccessList, 0, len(al))
 	for addr, slots := range al {
-		tuple := types.AccessTuple{Address: addr, StorageKeys: []common.Hash{}}
+		tuple := types.AccessTuple{Address: addr, StorageKeys: []common.Hash512{}}
 		for slot := range slots {
 			tuple.StorageKeys = append(tuple.StorageKeys, slot)
 		}
@@ -142,7 +142,7 @@ func (a *AccessListTracer) CaptureState(pc uint64, op vm.OpCode, gas, cost uint6
 	stackData := stack.Data()
 	stackLen := len(stackData)
 	if (op == vm.SLOAD || op == vm.SSTORE) && stackLen >= 1 {
-		slot := common.Hash(stackData[stackLen-1].Bytes32())
+		slot := common.Hash512(stackData[stackLen-1].Bytes64())
 		a.list.addSlot(scope.Contract.Address(), slot)
 	}
 	if (op == vm.EXTCODECOPY || op == vm.EXTCODEHASH || op == vm.EXTCODESIZE || op == vm.BALANCE) && stackLen >= 1 {

@@ -482,7 +482,7 @@ func (api *API) StandardTraceBlockToFile(ctx context.Context, hash common.Hash, 
 
 // IntermediateRoots executes a block (bad- or canon- or side-), and returns a list
 // of intermediate roots: the stateroot after each transaction.
-func (api *API) IntermediateRoots(ctx context.Context, hash common.Hash, config *TraceConfig) ([]common.Hash, error) {
+func (api *API) IntermediateRoots(ctx context.Context, hash common.Hash, config *TraceConfig) ([]common.Hash512, error) {
 	block, _ := api.blockByHash(ctx, hash)
 	if block == nil {
 		// Check in the bad blocks
@@ -509,7 +509,7 @@ func (api *API) IntermediateRoots(ctx context.Context, hash common.Hash, config 
 	defer release()
 
 	var (
-		roots              []common.Hash
+		roots              []common.Hash512
 		signer             = types.NewZondSigner(api.backend.ChainConfig().ChainID)
 		chainConfig        = api.backend.ChainConfig()
 		vmctx              = core.NewQRVMBlockContext(block.Header(), api.chainContext(ctx), nil)

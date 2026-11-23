@@ -37,7 +37,7 @@ import (
 // Trie is not safe for concurrent use.
 type Trie struct {
 	root  node
-	owner common.Hash
+	owner common.Hash512
 
 	// Flag whether the commit operation is already performed. If so the
 	// trie is not usable(latest states is invisible).
@@ -89,7 +89,7 @@ func New(id *ID, db *Database) (*Trie, error) {
 		reader: reader,
 		tracer: newTracer(),
 	}
-	if id.Root != (common.Hash{}) && id.Root != types.EmptyRootHash {
+	if id.Root != (common.Hash512{}) && id.Root != types.EmptyRootHash {
 		rootnode, err := trie.resolveAndTrack(id.Root[:], nil)
 		if err != nil {
 			return nil, err
@@ -240,7 +240,7 @@ func (t *Trie) getNode(origNode node, path []byte, pos int) (item []byte, newnod
 		if hash == nil {
 			return nil, origNode, 0, errors.New("non-consensus node")
 		}
-		blob, err := t.reader.node(path, common.BytesToHash(hash))
+		blob, err := t.reader.node(path, common.BytesToHash512(hash))
 		return blob, origNode, 1, err
 	}
 	// Path still needs to be traversed, descend into children
@@ -585,7 +585,7 @@ func (t *Trie) resolve(n node, prefix []byte) (node, error) {
 // node's original value. The rlp-encoded blob is preferred to be loaded from
 // database because it's easy to decode node while complex to encode node to blob.
 func (t *Trie) resolveAndTrack(n hashNode, prefix []byte) (node, error) {
-	blob, err := t.reader.node(prefix, common.BytesToHash(n))
+	blob, err := t.reader.node(prefix, common.BytesToHash512(n))
 	if err != nil {
 		return nil, err
 	}
@@ -595,10 +595,10 @@ func (t *Trie) resolveAndTrack(n hashNode, prefix []byte) (node, error) {
 
 // Hash returns the root hash of the trie. It does not write to the
 // database and can be used even if the trie doesn't have one.
-func (t *Trie) Hash() common.Hash {
+func (t *Trie) Hash() common.Hash512 {
 	hash, cached := t.hashRoot()
 	t.root = cached
-	return common.BytesToHash(hash.(hashNode))
+	return common.BytesToHash512(hash.(hashNode))
 }
 
 // Commit collects all dirty nodes in the trie and replaces them with the
@@ -607,7 +607,7 @@ func (t *Trie) Hash() common.Hash {
 // The returned nodeset can be nil if the trie is clean (nothing to commit).
 // Once the trie is committed, it's not usable anymore. A new trie must
 // be created with new root and updated trie database for following usage
-func (t *Trie) Commit(collectLeaf bool) (common.Hash, *trienode.NodeSet, error) {
+func (t *Trie) Commit(collectLeaf bool) (common.Hash512, *trienode.NodeSet, error) {
 	defer t.tracer.reset()
 	defer func() {
 		t.committed = true
@@ -665,7 +665,7 @@ func (t *Trie) hashRoot() (node, node) {
 // Reset drops the referenced root node and cleans all internal state.
 func (t *Trie) Reset() {
 	t.root = nil
-	t.owner = common.Hash{}
+	t.owner = common.Hash512{}
 	t.unhashed = 0
 	t.tracer.reset()
 	t.committed = false

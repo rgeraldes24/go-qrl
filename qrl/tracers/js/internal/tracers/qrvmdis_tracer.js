@@ -20,7 +20,7 @@
 	stack: [{ops: []}],
 
 	// Sparse non-range opcodes that leave one stack result.
-	singleResultOps: {0x20: true, 0x38: true, 0x3a: true, 0x3b: true, 0x3d: true, 0x3f: true, 0x51: true, 0x54: true, 0x58: true, 0x59: true, 0x5a: true, 0xf0: true, 0xf1: true, 0xf4: true, 0xf5: true, 0xfa: true},
+	singleResultOps: {0x20: true, 0x21: true, 0x38: true, 0x3a: true, 0x3b: true, 0x3d: true, 0x3f: true, 0x51: true, 0x54: true, 0x58: true, 0x59: true, 0x5a: true, 0x5c: true, 0xf0: true, 0xf1: true, 0xf4: true, 0xf5: true, 0xfa: true},
 
 	// Number of top stack entries to record as the previous opcode's result.
 	resultCount: function(op) {
@@ -29,7 +29,7 @@
 			return 1;
 		}
 		// Comparison, bitwise, and shift.
-		if (op >= 0x10 && op <= 0x1d) {
+		if (op >= 0x10 && op <= 0x1e) {
 			return 1;
 		}
 		// Address and call data reads.

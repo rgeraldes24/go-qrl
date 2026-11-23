@@ -73,7 +73,7 @@ func TestEIP1559BlockEncoding(t *testing.T) {
 			AccessList: AccessList{
 				AccessTuple{
 					Address:     to,
-					StorageKeys: []common.Hash{{}},
+					StorageKeys: []common.StorageKey{{}},
 				},
 			},
 		})
@@ -119,7 +119,7 @@ func roundTripBlockEncoding(t *testing.T, makeTx func(Signer, wallet.Wallet) *Tr
 	header := &Header{
 		ParentHash:      common.Hash{},
 		Coinbase:        common.Address{},
-		Root:            common.HexToHash("0xe0d841b3f9f2ca592e4075480aeb7d434a94dc45270d855afe432764d83eaec9"),
+		Root:            common.HexToHash512("0xe0d841b3f9f2ca592e4075480aeb7d434a94dc45270d855afe432764d83eaec9"),
 		TxHash:          EmptyTxsHash,
 		ReceiptHash:     EmptyReceiptsHash,
 		Number:          big.NewInt(1),
@@ -128,7 +128,7 @@ func roundTripBlockEncoding(t *testing.T, makeTx func(Signer, wallet.Wallet) *Tr
 		Time:            9150,
 		Extra:           []byte{},
 		BaseFee:         big.NewInt(0),
-		WithdrawalsHash: &EmptyWithdrawalsHash,
+		WithdrawalsHash: EmptyWithdrawalsHash,
 	}
 
 	// Pass an empty Withdrawals slice (not nil) so NewBlock keeps
@@ -335,7 +335,7 @@ func TestMaxBlockSize(t *testing.T) {
 	}
 	// Block layout widened for 64-byte addresses (Coinbase, tx To fields,
 	// bloom topic words). Re-run the test and print if that ever changes again.
-	const expectedBlockSize = uint64(6967856)
+	const expectedBlockSize = uint64(6968021)
 	if blockSize != expectedBlockSize {
 		t.Errorf("block size mismatch: got %d, want %d", blockSize, expectedBlockSize)
 	}

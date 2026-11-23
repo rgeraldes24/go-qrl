@@ -44,6 +44,7 @@ type environment struct {
 	signer   types.Signer
 	state    *state.StateDB // apply state changes here
 	tcount   int            // tx count in cycle
+	size     uint64         // size of the block we are building
 	gasPool  *core.GasPool  // available gas used to pack transactions
 	coinbase common.Address
 
@@ -52,9 +53,22 @@ type environment struct {
 	receipts []*types.Receipt
 }
 
+// txFitsSize reports whether the transaction fits into the block size limit.
+func (env *environment) txFitsSize(tx *types.Transaction) bool {
+	return env.size+tx.Size() < maxBuildBlockSize
+}
+
 const (
 	commitInterruptNone int32 = iota
 	commitInterruptTimeout
+)
+
+// Block size is capped by the protocol at params.MaxBlockSize. When producing blocks, we
+// try to stay below the size including a buffer zone, this is to avoid going over the
+// maximum size with auxiliary data added into the block.
+const (
+	maxBlockSizeBufferZone = 100_000
+	maxBuildBlockSize      = params.MaxBlockSize - maxBlockSizeBufferZone
 )
 
 // newPayloadResult is the result of payload generation.
@@ -83,6 +97,16 @@ func (miner *Miner) generateWork(params *generateParams) *newPayloadResult {
 	if err != nil {
 		return &newPayloadResult{err: err}
 	}
+
+	// Check withdrawals fit max block size.
+	// The consensus layer caps the withdrawal count, so this can never happen, but we
+	// still need to check to ensure the CL notices there's a problem if that cap is ever lifted.
+	if params.withdrawals.Size() > maxBuildBlockSize {
+		return &newPayloadResult{err: errors.New("withdrawals exceed max block size")}
+	}
+	// Also add size of withdrawals to work block size.
+	work.size += uint64(params.withdrawals.Size())
+
 	if !params.noTxs {
 		interrupt := new(atomic.Int32)
 		timer := time.AfterFunc(miner.config.Recommit, func() {
@@ -173,6 +197,7 @@ func (miner *Miner) makeEnv(parent *types.Header, header *types.Header, coinbase
 		signer:   types.NewZondSigner(miner.chainConfig.ChainID),
 		state:    state,
 		coinbase: coinbase,
+		size:     uint64(header.Size()),
 		header:   header,
 	}, nil
 }
@@ -184,6 +209,7 @@ func (miner *Miner) commitTransaction(env *environment, tx *types.Transaction) e
 	}
 	env.txs = append(env.txs, tx)
 	env.receipts = append(env.receipts, receipt)
+	env.size += tx.Size()
 	env.tcount++
 	return nil
 }
@@ -238,6 +264,12 @@ func (miner *Miner) commitTransactions(env *environment, txs *transactionsByPric
 			log.Trace("Ignoring evicted transaction", "hash", ltx.Hash)
 			txs.Pop()
 			continue
+		}
+
+		// if inclusion of the transaction would put the block size over the
+		// maximum we allow, don't add any more txs to the payload.
+		if !env.txFitsSize(tx) {
+			break
 		}
 
 		// Error may be ignored here. The error has already been checked

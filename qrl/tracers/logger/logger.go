@@ -36,7 +36,7 @@ import (
 )
 
 // Storage represents a contract's storage.
-type Storage map[common.Hash]common.StorageValue64
+type Storage map[common.Hash512]common.StorageValue64
 
 // Copy duplicates the current storage.
 func (s Storage) Copy() Storage {
@@ -62,18 +62,18 @@ type Config struct {
 // StructLog is emitted to the QRVM each cycle and lists information about the current internal state
 // prior to the execution of the statement.
 type StructLog struct {
-	Pc            uint64                                `json:"pc"`
-	Op            vm.OpCode                             `json:"op"`
-	Gas           uint64                                `json:"gas"`
-	GasCost       uint64                                `json:"gasCost"`
-	Memory        []byte                                `json:"memory,omitempty"`
-	MemorySize    int                                   `json:"memSize"`
-	Stack         []uint512.Int                         `json:"stack"`
-	ReturnData    []byte                                `json:"returnData,omitempty"`
-	Storage       map[common.Hash]common.StorageValue64 `json:"-"`
-	Depth         int                                   `json:"depth"`
-	RefundCounter uint64                                `json:"refund"`
-	Err           error                                 `json:"-"`
+	Pc            uint64                                   `json:"pc"`
+	Op            vm.OpCode                                `json:"op"`
+	Gas           uint64                                   `json:"gas"`
+	GasCost       uint64                                   `json:"gasCost"`
+	Memory        []byte                                   `json:"memory,omitempty"`
+	MemorySize    int                                      `json:"memSize"`
+	Stack         []uint512.Int                            `json:"stack"`
+	ReturnData    []byte                                   `json:"returnData,omitempty"`
+	Storage       map[common.Hash512]common.StorageValue64 `json:"-"`
+	Depth         int                                      `json:"depth"`
+	RefundCounter uint64                                   `json:"refund"`
+	Err           error                                    `json:"-"`
 }
 
 // overrides for gencodec
@@ -186,7 +186,7 @@ func (l *StructLogger) CaptureState(pc uint64, op vm.OpCode, gas, cost uint64, s
 		// capture SLOAD opcodes and record the read entry in the local storage
 		if op == vm.SLOAD && stackLen >= 1 {
 			var (
-				address = common.Hash(stackData[stackLen-1].Bytes32())
+				address = common.Hash512(stackData[stackLen-1].Bytes64())
 				value   = l.env.StateDB.GetState(contract.Address(), address)
 			)
 			l.storage[contract.Address()][address] = value
@@ -195,7 +195,7 @@ func (l *StructLogger) CaptureState(pc uint64, op vm.OpCode, gas, cost uint64, s
 			// capture SSTORE opcodes and record the written entry in the local storage.
 			var (
 				value   = common.StorageValue64(stackData[stackLen-2].Bytes64())
-				address = common.Hash(stackData[stackLen-1].Bytes32())
+				address = common.Hash512(stackData[stackLen-1].Bytes64())
 			)
 			l.storage[contract.Address()][address] = value
 			storage = l.storage[contract.Address()].Copy()

@@ -36,61 +36,61 @@ import (
 
 // trieKV represents a trie key-value pair
 type trieKV struct {
-	key   common.Hash
+	key   common.Hash512
 	value []byte
 }
 
 type (
 	// trieGeneratorFn is the interface of trie generation which can
 	// be implemented by different trie algorithm.
-	trieGeneratorFn func(db qrldb.KeyValueWriter, scheme string, owner common.Hash, in chan (trieKV), out chan (common.Hash))
+	trieGeneratorFn func(db qrldb.KeyValueWriter, scheme string, owner common.Hash512, in chan (trieKV), out chan (common.Hash512))
 
 	// leafCallbackFn is the callback invoked at the leaves of the trie,
 	// returns the subtrie root with the specified subtrie identifier.
-	leafCallbackFn func(db qrldb.KeyValueWriter, accountHash, codeHash common.Hash, stat *generateStats) (common.Hash, error)
+	leafCallbackFn func(db qrldb.KeyValueWriter, accountHash, codeHash common.Hash512, stat *generateStats) (common.Hash512, error)
 )
 
 // GenerateAccountTrieRoot takes an account iterator and reproduces the root hash.
-func GenerateAccountTrieRoot(it AccountIterator) (common.Hash, error) {
-	return generateTrieRoot(nil, "", it, common.Hash{}, stackTrieGenerate, nil, newGenerateStats(), true)
+func GenerateAccountTrieRoot(it AccountIterator) (common.Hash512, error) {
+	return generateTrieRoot(nil, "", it, common.Hash512{}, stackTrieGenerate, nil, newGenerateStats(), true)
 }
 
 // GenerateStorageTrieRoot takes a storage iterator and reproduces the root hash.
-func GenerateStorageTrieRoot(account common.Hash, it StorageIterator) (common.Hash, error) {
+func GenerateStorageTrieRoot(account common.Hash512, it StorageIterator) (common.Hash512, error) {
 	return generateTrieRoot(nil, "", it, account, stackTrieGenerate, nil, newGenerateStats(), true)
 }
 
 // GenerateTrie takes the whole snapshot tree as the input, traverses all the
 // accounts as well as the corresponding storages and regenerate the whole state
 // (account trie + all storage tries).
-func GenerateTrie(snaptree *Tree, root common.Hash, src qrldb.Database, dst qrldb.KeyValueWriter) error {
+func GenerateTrie(snaptree *Tree, root common.Hash512, src qrldb.Database, dst qrldb.KeyValueWriter) error {
 	// Traverse all state by snapshot, re-generate the whole state trie
-	acctIt, err := snaptree.AccountIterator(root, common.Hash{})
+	acctIt, err := snaptree.AccountIterator(root, common.Hash512{})
 	if err != nil {
 		return err // The required snapshot might not exist.
 	}
 	defer acctIt.Release()
 
 	scheme := snaptree.triedb.Scheme()
-	got, err := generateTrieRoot(dst, scheme, acctIt, common.Hash{}, stackTrieGenerate, func(dst qrldb.KeyValueWriter, accountHash, codeHash common.Hash, stat *generateStats) (common.Hash, error) {
+	got, err := generateTrieRoot(dst, scheme, acctIt, common.Hash512{}, stackTrieGenerate, func(dst qrldb.KeyValueWriter, accountHash, codeHash common.Hash512, stat *generateStats) (common.Hash512, error) {
 		// Migrate the code first, commit the contract code into the tmp db.
 		if codeHash != types.EmptyCodeHash {
 			code := rawdb.ReadCode(src, codeHash)
 			if len(code) == 0 {
-				return common.Hash{}, errors.New("failed to read contract code")
+				return common.Hash512{}, errors.New("failed to read contract code")
 			}
 			rawdb.WriteCode(dst, codeHash, code)
 		}
 		// Then migrate all storage trie nodes into the tmp db.
-		storageIt, err := snaptree.StorageIterator(root, accountHash, common.Hash{})
+		storageIt, err := snaptree.StorageIterator(root, accountHash, common.Hash512{})
 		if err != nil {
-			return common.Hash{}, err
+			return common.Hash512{}, err
 		}
 		defer storageIt.Release()
 
 		hash, err := generateTrieRoot(dst, scheme, storageIt, accountHash, stackTrieGenerate, nil, stat, false)
 		if err != nil {
-			return common.Hash{}, err
+			return common.Hash512{}, err
 		}
 		return hash, nil
 	}, newGenerateStats(), true)
@@ -107,14 +107,14 @@ func GenerateTrie(snaptree *Tree, root common.Hash, src qrldb.Database, dst qrld
 // generateStats is a collection of statistics gathered by the trie generator
 // for logging purposes.
 type generateStats struct {
-	head  common.Hash
+	head  common.Hash512
 	start time.Time
 
 	accounts uint64 // Number of accounts done (including those being crawled)
 	slots    uint64 // Number of storage slots done (including those being crawled)
 
-	slotsStart map[common.Hash]time.Time   // Start time for account slot crawling
-	slotsHead  map[common.Hash]common.Hash // Slot head for accounts being crawled
+	slotsStart map[common.Hash512]time.Time      // Start time for account slot crawling
+	slotsHead  map[common.Hash512]common.Hash512 // Slot head for accounts being crawled
 
 	lock sync.RWMutex
 }
@@ -122,14 +122,14 @@ type generateStats struct {
 // newGenerateStats creates a new generator stats.
 func newGenerateStats() *generateStats {
 	return &generateStats{
-		slotsStart: make(map[common.Hash]time.Time),
-		slotsHead:  make(map[common.Hash]common.Hash),
+		slotsStart: make(map[common.Hash512]time.Time),
+		slotsHead:  make(map[common.Hash512]common.Hash512),
 		start:      time.Now(),
 	}
 }
 
 // progressAccounts updates the generator stats for the account range.
-func (stat *generateStats) progressAccounts(account common.Hash, done uint64) {
+func (stat *generateStats) progressAccounts(account common.Hash512, done uint64) {
 	stat.lock.Lock()
 	defer stat.lock.Unlock()
 
@@ -146,7 +146,7 @@ func (stat *generateStats) finishAccounts(done uint64) {
 }
 
 // progressContract updates the generator stats for a specific in-progress contract.
-func (stat *generateStats) progressContract(account common.Hash, slot common.Hash, done uint64) {
+func (stat *generateStats) progressContract(account common.Hash512, slot common.Hash512, done uint64) {
 	stat.lock.Lock()
 	defer stat.lock.Unlock()
 
@@ -158,7 +158,7 @@ func (stat *generateStats) progressContract(account common.Hash, slot common.Has
 }
 
 // finishContract updates the generator stats for a specific just-finished contract.
-func (stat *generateStats) finishContract(account common.Hash, done uint64) {
+func (stat *generateStats) finishContract(account common.Hash512, done uint64) {
 	stat.lock.Lock()
 	defer stat.lock.Unlock()
 
@@ -243,11 +243,11 @@ func runReport(stats *generateStats, stop chan bool) {
 // generateTrieRoot generates the trie hash based on the snapshot iterator.
 // It can be used for generating account trie, storage trie or even the
 // whole state which connects the accounts and the corresponding storages.
-func generateTrieRoot(db qrldb.KeyValueWriter, scheme string, it Iterator, account common.Hash, generatorFn trieGeneratorFn, leafCallback leafCallbackFn, stats *generateStats, report bool) (common.Hash, error) {
+func generateTrieRoot(db qrldb.KeyValueWriter, scheme string, it Iterator, account common.Hash512, generatorFn trieGeneratorFn, leafCallback leafCallbackFn, stats *generateStats, report bool) (common.Hash512, error) {
 	var (
-		in      = make(chan trieKV)         // chan to pass leaves
-		out     = make(chan common.Hash, 1) // chan to collect result
-		stoplog = make(chan bool, 1)        // 1-size buffer, works when logging is not enabled
+		in      = make(chan trieKV)            // chan to pass leaves
+		out     = make(chan common.Hash512, 1) // chan to collect result
+		stoplog = make(chan bool, 1)           // 1-size buffer, works when logging is not enabled
 		wg      sync.WaitGroup
 	)
 	// Spin up a go-routine for trie hash re-generation
@@ -270,7 +270,7 @@ func generateTrieRoot(db qrldb.KeyValueWriter, scheme string, it Iterator, accou
 	}
 	// stop is a helper function to shutdown the background threads
 	// and return the re-generated trie hash.
-	stop := func(fail error) (common.Hash, error) {
+	stop := func(fail error) (common.Hash512, error) {
 		close(in)
 		result := <-out
 		for range threads {
@@ -290,7 +290,7 @@ func generateTrieRoot(db qrldb.KeyValueWriter, scheme string, it Iterator, accou
 	)
 	// Start to feed leaves
 	for it.Next() {
-		if account == (common.Hash{}) {
+		if account == (common.Hash512{}) {
 			var (
 				err      error
 				fullData []byte
@@ -312,8 +312,8 @@ func generateTrieRoot(db qrldb.KeyValueWriter, scheme string, it Iterator, accou
 				if err != nil {
 					return stop(err)
 				}
-				go func(hash common.Hash) {
-					subroot, err := leafCallback(db, hash, common.BytesToHash(account.CodeHash), stats)
+				go func(hash common.Hash512) {
+					subroot, err := leafCallback(db, hash, common.BytesToHash512(account.CodeHash), stats)
 					if err != nil {
 						results <- err
 						return
@@ -338,7 +338,7 @@ func generateTrieRoot(db qrldb.KeyValueWriter, scheme string, it Iterator, accou
 		// Accumulate the generation statistic if it's required.
 		processed++
 		if time.Since(logged) > 3*time.Second && stats != nil {
-			if account == (common.Hash{}) {
+			if account == (common.Hash512{}) {
 				stats.progressAccounts(it.Hash(), processed)
 			} else {
 				stats.progressContract(account, it.Hash(), processed)
@@ -348,7 +348,7 @@ func generateTrieRoot(db qrldb.KeyValueWriter, scheme string, it Iterator, accou
 	}
 	// Commit the last part statistic.
 	if processed > 0 && stats != nil {
-		if account == (common.Hash{}) {
+		if account == (common.Hash512{}) {
 			stats.finishAccounts(processed)
 		} else {
 			stats.finishContract(account, processed)
@@ -357,10 +357,10 @@ func generateTrieRoot(db qrldb.KeyValueWriter, scheme string, it Iterator, accou
 	return stop(nil)
 }
 
-func stackTrieGenerate(db qrldb.KeyValueWriter, scheme string, owner common.Hash, in chan trieKV, out chan common.Hash) {
+func stackTrieGenerate(db qrldb.KeyValueWriter, scheme string, owner common.Hash512, in chan trieKV, out chan common.Hash512) {
 	var nodeWriter trie.NodeWriteFunc
 	if db != nil {
-		nodeWriter = func(owner common.Hash, path []byte, hash common.Hash, blob []byte) {
+		nodeWriter = func(owner common.Hash512, path []byte, hash common.Hash512, blob []byte) {
 			rawdb.WriteTrieNode(db, owner, path, hash, blob, scheme)
 		}
 	}
@@ -368,7 +368,7 @@ func stackTrieGenerate(db qrldb.KeyValueWriter, scheme string, owner common.Hash
 	for leaf := range in {
 		t.Update(leaf.key[:], leaf.value)
 	}
-	var root common.Hash
+	var root common.Hash512
 	if db == nil {
 		root = t.Hash()
 	} else {

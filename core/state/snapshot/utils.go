@@ -44,14 +44,14 @@ func checkDanglingDiskStorage(chaindb qrldb.KeyValueStore) error {
 		lastReport = time.Now()
 		start      = time.Now()
 		lastKey    []byte
-		it         = rawdb.NewKeyLengthIterator(chaindb.NewIterator(rawdb.SnapshotStoragePrefix, nil), 1+2*common.HashLength)
+		it         = rawdb.NewKeyLengthIterator(chaindb.NewIterator(rawdb.SnapshotStoragePrefix, nil), 1+2*common.Hash512Length)
 	)
 	log.Info("Checking dangling snapshot disk storage")
 
 	defer it.Release()
 	for it.Next() {
 		k := it.Key()
-		accKey := k[1:33]
+		accKey := k[1 : 1+common.Hash512Length]
 		if bytes.Equal(accKey, lastKey) {
 			// No need to look up for every slot
 			continue
@@ -61,7 +61,7 @@ func checkDanglingDiskStorage(chaindb qrldb.KeyValueStore) error {
 			log.Info("Iterating snap storage", "at", fmt.Sprintf("%#x", accKey), "elapsed", common.PrettyDuration(time.Since(start)))
 			lastReport = time.Now()
 		}
-		if data := rawdb.ReadAccountSnapshot(chaindb, common.BytesToHash(accKey)); len(data) == 0 {
+		if data := rawdb.ReadAccountSnapshot(chaindb, common.BytesToHash512(accKey)); len(data) == 0 {
 			log.Warn("Dangling storage - missing account", "account", fmt.Sprintf("%#x", accKey), "storagekey", fmt.Sprintf("%#x", k))
 			return fmt.Errorf("dangling snapshot storage account %#x", accKey)
 		}
@@ -75,7 +75,7 @@ func checkDanglingDiskStorage(chaindb qrldb.KeyValueStore) error {
 func checkDanglingMemStorage(db qrldb.KeyValueStore) error {
 	start := time.Now()
 	log.Info("Checking dangling journalled storage")
-	err := iterateJournal(db, func(pRoot, root common.Hash, destructs map[common.Hash]struct{}, accounts map[common.Hash][]byte, storage map[common.Hash]map[common.Hash][]byte) error {
+	err := iterateJournal(db, func(pRoot, root common.Hash512, destructs map[common.Hash512]struct{}, accounts map[common.Hash512][]byte, storage map[common.Hash512]map[common.Hash512][]byte) error {
 		for accHash := range storage {
 			if _, ok := accounts[accHash]; !ok {
 				log.Error("Dangling storage - missing account", "account", fmt.Sprintf("%#x", accHash), "root", root)
@@ -93,7 +93,7 @@ func checkDanglingMemStorage(db qrldb.KeyValueStore) error {
 
 // CheckJournalAccount shows information about an account, from the disk layer and
 // up through the diff layers.
-func CheckJournalAccount(db qrldb.KeyValueStore, hash common.Hash) error {
+func CheckJournalAccount(db qrldb.KeyValueStore, hash common.Hash512) error {
 	// Look up the disk layer first
 	baseRoot := rawdb.ReadSnapshotRoot(db)
 	fmt.Printf("Disklayer: Root: %x\n", baseRoot)
@@ -109,17 +109,17 @@ func CheckJournalAccount(db qrldb.KeyValueStore, hash common.Hash) error {
 	}
 	// Check storage
 	{
-		it := rawdb.NewKeyLengthIterator(db.NewIterator(append(rawdb.SnapshotStoragePrefix, hash.Bytes()...), nil), 1+2*common.HashLength)
+		it := rawdb.NewKeyLengthIterator(db.NewIterator(append(rawdb.SnapshotStoragePrefix, hash.Bytes()...), nil), 1+2*common.Hash512Length)
 		fmt.Printf("\tStorage:\n")
 		for it.Next() {
-			slot := it.Key()[33:]
+			slot := it.Key()[1+common.Hash512Length:]
 			fmt.Printf("\t\t%x: %x\n", slot, it.Value())
 		}
 		it.Release()
 	}
 	var depth = 0
 
-	return iterateJournal(db, func(pRoot, root common.Hash, destructs map[common.Hash]struct{}, accounts map[common.Hash][]byte, storage map[common.Hash]map[common.Hash][]byte) error {
+	return iterateJournal(db, func(pRoot, root common.Hash512, destructs map[common.Hash512]struct{}, accounts map[common.Hash512][]byte, storage map[common.Hash512]map[common.Hash512][]byte) error {
 		_, a := accounts[hash]
 		_, b := destructs[hash]
 		_, c := storage[hash]

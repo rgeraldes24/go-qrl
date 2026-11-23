@@ -33,7 +33,7 @@ import (
 	"github.com/theQRL/go-qrl/trie"
 )
 
-const journalVersion uint64 = 0
+const journalVersion uint64 = 1
 
 // journalGenerator is a disk layer entry containing the generator progress marker.
 type journalGenerator struct {
@@ -50,19 +50,19 @@ type journalGenerator struct {
 
 // journalDestruct is an account deletion entry in a diffLayer's disk journal.
 type journalDestruct struct {
-	Hash common.Hash
+	Hash common.Hash512
 }
 
 // journalAccount is an account entry in a diffLayer's disk journal.
 type journalAccount struct {
-	Hash common.Hash
+	Hash common.Hash512
 	Blob []byte
 }
 
 // journalStorage is an account's storage map in a diffLayer's disk journal.
 type journalStorage struct {
-	Hash common.Hash
-	Keys []common.Hash
+	Hash common.Hash512
+	Keys []common.Hash512
 	Vals [][]byte
 }
 
@@ -78,10 +78,10 @@ func ParseGeneratorStatus(generatorBlob []byte) string {
 	// Figure out whether we're after or within an account
 	var m string
 	switch marker := generator.Marker; len(marker) {
-	case common.HashLength:
+	case common.Hash512Length:
 		m = fmt.Sprintf("at %#x", marker)
-	case 2 * common.HashLength:
-		m = fmt.Sprintf("in %#x at %#x", marker[:common.HashLength], marker[common.HashLength:])
+	case 2 * common.Hash512Length:
+		m = fmt.Sprintf("in %#x at %#x", marker[:common.Hash512Length], marker[common.Hash512Length:])
 	default:
 		m = fmt.Sprintf("%#x", marker)
 	}
@@ -109,7 +109,7 @@ func loadAndParseJournal(db qrldb.KeyValueStore, base *diskLayer) (snapshot, jou
 	// is not matched with disk layer; or the it's the legacy-format journal,
 	// etc.), we just discard all diffs and try to recover them later.
 	var current snapshot = base
-	err := iterateJournal(db, func(parent common.Hash, root common.Hash, destructSet map[common.Hash]struct{}, accountData map[common.Hash][]byte, storageData map[common.Hash]map[common.Hash][]byte) error {
+	err := iterateJournal(db, func(parent common.Hash512, root common.Hash512, destructSet map[common.Hash512]struct{}, accountData map[common.Hash512][]byte, storageData map[common.Hash512]map[common.Hash512][]byte) error {
 		current = newDiffLayer(current, root, destructSet, accountData, storageData)
 		return nil
 	})
@@ -120,7 +120,7 @@ func loadAndParseJournal(db qrldb.KeyValueStore, base *diskLayer) (snapshot, jou
 }
 
 // loadSnapshot loads a pre-existing state snapshot backed by a key-value store.
-func loadSnapshot(diskdb qrldb.KeyValueStore, triedb *trie.Database, root common.Hash, cache int, recovery bool, noBuild bool) (snapshot, bool, error) {
+func loadSnapshot(diskdb qrldb.KeyValueStore, triedb *trie.Database, root common.Hash512, cache int, recovery bool, noBuild bool) (snapshot, bool, error) {
 	// If snapshotting is disabled (initial sync in progress), don't do anything,
 	// wait for the chain to permit us to do something meaningful
 	if rawdb.ReadSnapshotDisabled(diskdb) {
@@ -129,7 +129,7 @@ func loadSnapshot(diskdb qrldb.KeyValueStore, triedb *trie.Database, root common
 	// Retrieve the block number and hash of the snapshot, failing if no snapshot
 	// is present in the database (or crashed mid-update).
 	baseRoot := rawdb.ReadSnapshotRoot(diskdb)
-	if baseRoot == (common.Hash{}) {
+	if baseRoot == (common.Hash512{}) {
 		return nil, false, errors.New("missing or corrupted snapshot")
 	}
 	base := &diskLayer{
@@ -194,7 +194,7 @@ func loadSnapshot(diskdb qrldb.KeyValueStore, triedb *trie.Database, root common
 
 // Journal terminates any in-progress snapshot generation, also implicitly pushing
 // the progress into the database.
-func (dl *diskLayer) Journal(buffer *bytes.Buffer) (common.Hash, error) {
+func (dl *diskLayer) Journal(buffer *bytes.Buffer) (common.Hash512, error) {
 	// If the snapshot is currently being generated, abort it
 	var stats *generatorStats
 	if dl.genAbort != nil {
@@ -210,7 +210,7 @@ func (dl *diskLayer) Journal(buffer *bytes.Buffer) (common.Hash, error) {
 	defer dl.lock.RUnlock()
 
 	if dl.stale {
-		return common.Hash{}, ErrSnapshotStale
+		return common.Hash512{}, ErrSnapshotStale
 	}
 	// Ensure the generator stats is written even if none was ran this cycle
 	journalProgress(dl.diskdb, dl.genMarker, stats)
@@ -221,40 +221,40 @@ func (dl *diskLayer) Journal(buffer *bytes.Buffer) (common.Hash, error) {
 
 // Journal writes the memory layer contents into a buffer to be stored in the
 // database as the snapshot journal.
-func (dl *diffLayer) Journal(buffer *bytes.Buffer) (common.Hash, error) {
+func (dl *diffLayer) Journal(buffer *bytes.Buffer) (common.Hash512, error) {
 	// Journal the parent first
 	base, err := dl.parent.Journal(buffer)
 	if err != nil {
-		return common.Hash{}, err
+		return common.Hash512{}, err
 	}
 	// Ensure the layer didn't get stale
 	dl.lock.RLock()
 	defer dl.lock.RUnlock()
 
 	if dl.Stale() {
-		return common.Hash{}, ErrSnapshotStale
+		return common.Hash512{}, ErrSnapshotStale
 	}
 	// Everything below was journalled, persist this layer too
 	if err := rlp.Encode(buffer, dl.root); err != nil {
-		return common.Hash{}, err
+		return common.Hash512{}, err
 	}
 	destructs := make([]journalDestruct, 0, len(dl.destructSet))
 	for hash := range dl.destructSet {
 		destructs = append(destructs, journalDestruct{Hash: hash})
 	}
 	if err := rlp.Encode(buffer, destructs); err != nil {
-		return common.Hash{}, err
+		return common.Hash512{}, err
 	}
 	accounts := make([]journalAccount, 0, len(dl.accountData))
 	for hash, blob := range dl.accountData {
 		accounts = append(accounts, journalAccount{Hash: hash, Blob: blob})
 	}
 	if err := rlp.Encode(buffer, accounts); err != nil {
-		return common.Hash{}, err
+		return common.Hash512{}, err
 	}
 	storage := make([]journalStorage, 0, len(dl.storageData))
 	for hash, slots := range dl.storageData {
-		keys := make([]common.Hash, 0, len(slots))
+		keys := make([]common.Hash512, 0, len(slots))
 		vals := make([][]byte, 0, len(slots))
 		for key, val := range slots {
 			keys = append(keys, key)
@@ -263,7 +263,7 @@ func (dl *diffLayer) Journal(buffer *bytes.Buffer) (common.Hash, error) {
 		storage = append(storage, journalStorage{Hash: hash, Keys: keys, Vals: vals})
 	}
 	if err := rlp.Encode(buffer, storage); err != nil {
-		return common.Hash{}, err
+		return common.Hash512{}, err
 	}
 	log.Debug("Journalled diff layer", "root", dl.root, "parent", dl.parent.Root())
 	return base, nil
@@ -271,7 +271,7 @@ func (dl *diffLayer) Journal(buffer *bytes.Buffer) (common.Hash, error) {
 
 // journalCallback is a function which is invoked by iterateJournal, every
 // time a difflayer is loaded from disk.
-type journalCallback = func(parent common.Hash, root common.Hash, destructs map[common.Hash]struct{}, accounts map[common.Hash][]byte, storage map[common.Hash]map[common.Hash][]byte) error
+type journalCallback = func(parent common.Hash512, root common.Hash512, destructs map[common.Hash512]struct{}, accounts map[common.Hash512][]byte, storage map[common.Hash512]map[common.Hash512][]byte) error
 
 // iterateJournal iterates through the journalled difflayers, loading them from
 // the database, and invoking the callback for each loaded layer.
@@ -299,7 +299,7 @@ func iterateJournal(db qrldb.KeyValueReader, callback journalCallback) error {
 	// Secondly, resolve the disk layer root, ensure it's continuous
 	// with disk layer. Note now we can ensure it's the snapshot journal
 	// correct version, so we expect everything can be resolved properly.
-	var parent common.Hash
+	var parent common.Hash512
 	if err := r.Decode(&parent); err != nil {
 		return errors.New("missing disk layer root")
 	}
@@ -309,13 +309,13 @@ func iterateJournal(db qrldb.KeyValueReader, callback journalCallback) error {
 	}
 	for {
 		var (
-			root        common.Hash
+			root        common.Hash512
 			destructs   []journalDestruct
 			accounts    []journalAccount
 			storage     []journalStorage
-			destructSet = make(map[common.Hash]struct{})
-			accountData = make(map[common.Hash][]byte)
-			storageData = make(map[common.Hash]map[common.Hash][]byte)
+			destructSet = make(map[common.Hash512]struct{})
+			accountData = make(map[common.Hash512][]byte)
+			storageData = make(map[common.Hash512]map[common.Hash512][]byte)
 		)
 		// Read the next diff journal entry
 		if err := r.Decode(&root); err != nil {
@@ -345,7 +345,7 @@ func iterateJournal(db qrldb.KeyValueReader, callback journalCallback) error {
 			}
 		}
 		for _, entry := range storage {
-			slots := make(map[common.Hash][]byte)
+			slots := make(map[common.Hash512][]byte)
 			for i, key := range entry.Keys {
 				if len(entry.Vals[i]) > 0 { // RLP loses nil-ness, but `[]byte{}` is not a valid item, so reinterpret that
 					slots[key] = entry.Vals[i]

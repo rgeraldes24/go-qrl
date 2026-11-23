@@ -24,7 +24,7 @@ import (
 )
 
 // syncState starts downloading state with the given root hash.
-func (d *Downloader) syncState(root common.Hash) *stateSync {
+func (d *Downloader) syncState(root common.Hash512) *stateSync {
 	// Create the state sync
 	s := newStateSync(d, root)
 	select {
@@ -77,8 +77,8 @@ func (d *Downloader) runStateSync(s *stateSync) *stateSync {
 // stateSync schedules requests for downloading a particular state trie defined
 // by a given state root.
 type stateSync struct {
-	d    *Downloader // Downloader instance to access and manage current peerset
-	root common.Hash // State root currently being synced
+	d    *Downloader    // Downloader instance to access and manage current peerset
+	root common.Hash512 // State root currently being synced
 
 	started    chan struct{} // Started is signalled once the sync loop starts
 	cancel     chan struct{} // Channel to signal a termination request
@@ -89,7 +89,7 @@ type stateSync struct {
 
 // newStateSync creates a new state trie download scheduler. This method does not
 // yet start the sync. The user needs to call run to initiate.
-func newStateSync(d *Downloader, root common.Hash) *stateSync {
+func newStateSync(d *Downloader, root common.Hash512) *stateSync {
 	return &stateSync{
 		d:       d,
 		root:    root,

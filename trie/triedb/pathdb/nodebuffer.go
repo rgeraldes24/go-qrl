@@ -33,16 +33,16 @@ import (
 // write. The content of the nodebuffer must be checked before diving into
 // disk (since it basically is not-yet-written data).
 type nodebuffer struct {
-	layers uint64                                    // The number of diff layers aggregated inside
-	size   uint64                                    // The size of aggregated writes
-	limit  uint64                                    // The maximum memory allowance in bytes
-	nodes  map[common.Hash]map[string]*trienode.Node // The dirty node set, mapped by owner and path
+	layers uint64                                       // The number of diff layers aggregated inside
+	size   uint64                                       // The size of aggregated writes
+	limit  uint64                                       // The maximum memory allowance in bytes
+	nodes  map[common.Hash512]map[string]*trienode.Node // The dirty node set, mapped by owner and path
 }
 
 // newNodeBuffer initializes the node buffer with the provided nodes.
-func newNodeBuffer(limit int, nodes map[common.Hash]map[string]*trienode.Node, layers uint64) *nodebuffer {
+func newNodeBuffer(limit int, nodes map[common.Hash512]map[string]*trienode.Node, layers uint64) *nodebuffer {
 	if nodes == nil {
-		nodes = make(map[common.Hash]map[string]*trienode.Node)
+		nodes = make(map[common.Hash512]map[string]*trienode.Node)
 	}
 	var size uint64
 	for _, subset := range nodes {
@@ -59,7 +59,7 @@ func newNodeBuffer(limit int, nodes map[common.Hash]map[string]*trienode.Node, l
 }
 
 // node retrieves the trie node with given node info.
-func (b *nodebuffer) node(owner common.Hash, path []byte, hash common.Hash) (*trienode.Node, error) {
+func (b *nodebuffer) node(owner common.Hash512, path []byte, hash common.Hash512) (*trienode.Node, error) {
 	subset, ok := b.nodes[owner]
 	if !ok {
 		return nil, nil
@@ -80,7 +80,7 @@ func (b *nodebuffer) node(owner common.Hash, path []byte, hash common.Hash) (*tr
 // the ownership of the nodes map which belongs to the bottom-most diff layer.
 // It will just hold the node references from the given map which are safe to
 // copy.
-func (b *nodebuffer) commit(nodes map[common.Hash]map[string]*trienode.Node) *nodebuffer {
+func (b *nodebuffer) commit(nodes map[common.Hash512]map[string]*trienode.Node) *nodebuffer {
 	var (
 		delta         int64
 		overwrite     int64
@@ -124,7 +124,7 @@ func (b *nodebuffer) commit(nodes map[common.Hash]map[string]*trienode.Node) *no
 // revert is the reverse operation of commit. It also merges the provided nodes
 // into the nodebuffer, the difference is that the provided node set should
 // revert the changes made by the last state transition.
-func (b *nodebuffer) revert(db qrldb.KeyValueReader, nodes map[common.Hash]map[string]*trienode.Node) error {
+func (b *nodebuffer) revert(db qrldb.KeyValueReader, nodes map[common.Hash512]map[string]*trienode.Node) error {
 	// Short circuit if no embedded state transition to revert.
 	if b.layers == 0 {
 		return errStateUnrecoverable
@@ -153,8 +153,8 @@ func (b *nodebuffer) revert(db qrldb.KeyValueReader, nodes map[common.Hash]map[s
 				//
 				// In case of database rollback, don't panic if this "clean"
 				// node occurs which is not present in buffer.
-				var nhash common.Hash
-				if owner == (common.Hash{}) {
+				var nhash common.Hash512
+				if owner == (common.Hash512{}) {
 					_, nhash = rawdb.ReadAccountTrieNode(db, []byte(path))
 				} else {
 					_, nhash = rawdb.ReadStorageTrieNode(db, owner, []byte(path))
@@ -163,7 +163,7 @@ func (b *nodebuffer) revert(db qrldb.KeyValueReader, nodes map[common.Hash]map[s
 				if nhash == n.Hash {
 					continue
 				}
-				panic(fmt.Sprintf("non-existent node (%x %v) blob: %v", owner, path, crypto.Keccak256Hash(n.Blob).Hex()))
+				panic(fmt.Sprintf("non-existent node (%x %v) blob: %v", owner, path, crypto.Keccak512Hash(n.Blob).Hex()))
 			}
 			current[path] = n
 			delta += int64(len(n.Blob)) - int64(len(orig.Blob))
@@ -189,7 +189,7 @@ func (b *nodebuffer) updateSize(delta int64) {
 func (b *nodebuffer) reset() {
 	b.layers = 0
 	b.size = 0
-	b.nodes = make(map[common.Hash]map[string]*trienode.Node)
+	b.nodes = make(map[common.Hash512]map[string]*trienode.Node)
 }
 
 // empty returns an indicator if nodebuffer contains any state transition inside.
@@ -238,11 +238,11 @@ func (b *nodebuffer) flush(db qrldb.KeyValueStore, clean *fastcache.Cache, id ui
 // writeNodes writes the trie nodes into the provided database batch.
 // Note this function will also inject all the newly written nodes
 // into clean cache.
-func writeNodes(batch qrldb.Batch, nodes map[common.Hash]map[string]*trienode.Node, clean *fastcache.Cache) (total int) {
+func writeNodes(batch qrldb.Batch, nodes map[common.Hash512]map[string]*trienode.Node, clean *fastcache.Cache) (total int) {
 	for owner, subset := range nodes {
 		for path, n := range subset {
 			if n.IsDeleted() {
-				if owner == (common.Hash{}) {
+				if owner == (common.Hash512{}) {
 					rawdb.DeleteAccountTrieNode(batch, []byte(path))
 				} else {
 					rawdb.DeleteStorageTrieNode(batch, owner, []byte(path))
@@ -251,7 +251,7 @@ func writeNodes(batch qrldb.Batch, nodes map[common.Hash]map[string]*trienode.No
 					clean.Del(cacheKey(owner, []byte(path)))
 				}
 			} else {
-				if owner == (common.Hash{}) {
+				if owner == (common.Hash512{}) {
 					rawdb.WriteAccountTrieNode(batch, []byte(path), n.Blob)
 				} else {
 					rawdb.WriteStorageTrieNode(batch, owner, []byte(path), n.Blob)
@@ -267,8 +267,8 @@ func writeNodes(batch qrldb.Batch, nodes map[common.Hash]map[string]*trienode.No
 }
 
 // cacheKey constructs the unique key of clean cache.
-func cacheKey(owner common.Hash, path []byte) []byte {
-	if owner == (common.Hash{}) {
+func cacheKey(owner common.Hash512, path []byte) []byte {
+	if owner == (common.Hash512{}) {
 		return path
 	}
 	return append(owner.Bytes(), path...)

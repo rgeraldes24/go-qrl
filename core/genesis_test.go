@@ -36,13 +36,32 @@ func TestSetupGenesis(t *testing.T) {
 	testSetupGenesis(t, rawdb.PathScheme)
 }
 
+func TestRejectOldStateFormat(t *testing.T) {
+	db := rawdb.NewMemoryDatabase()
+	defer db.Close()
+	rawdb.WriteDatabaseVersion(db, 8)
+	tdb := trie.NewDatabase(db, nil)
+	defer tdb.Close()
+	if _, _, err := SetupGenesisBlock(db, tdb, DefaultGenesisBlock()); err == nil {
+		t.Fatal("accepted a pre-512-bit database")
+	}
+	if rawdb.ReadCanonicalHash(db, 0) != (common.Hash{}) || *rawdb.ReadDatabaseVersion(db) != 8 {
+		t.Fatal("changed an incompatible database")
+	}
+	rawdb.WriteDatabaseVersion(db, BlockChainVersion)
+	rawdb.WriteCanonicalHash(db, common.Hash{1}, 0)
+	if _, _, err := SetupGenesisBlock(db, tdb, nil); err == nil {
+		t.Fatal("accepted an undecodable genesis header")
+	}
+}
+
 func testSetupGenesis(t *testing.T, scheme string) {
 	var (
-		customghash = common.HexToHash("0x1856ad799c28a5f8f726255d7fe1e02648749baa6a2194836756a63e1e24f463")
+		customghash = common.HexToHash("0x93af057ff87cecb21ad4e125d8b2487358af8693d2f34126758395f074d744a2")
 		customg     = Genesis{
 			Config: &params.ChainConfig{},
 			Alloc: GenesisAlloc{
-				{1}: {Balance: big.NewInt(1), Storage: map[common.Hash]common.StorageValue64{{1}: {1}}},
+				{1}: {Balance: big.NewInt(1), Storage: map[common.StorageKey]common.StorageValue64{{1}: {1}}},
 			},
 		}
 		oldcustomg = customg
@@ -248,10 +267,10 @@ func TestReadWriteGenesisAlloc(t *testing.T) {
 	var (
 		db    = rawdb.NewMemoryDatabase()
 		alloc = &GenesisAlloc{
-			{1}: {Balance: big.NewInt(1), Storage: map[common.Hash]common.StorageValue64{{1}: {1}}},
-			{2}: {Balance: big.NewInt(2), Storage: map[common.Hash]common.StorageValue64{{2}: {2}}},
+			{1}: {Balance: big.NewInt(1), Storage: map[common.StorageKey]common.StorageValue64{{1}: {1}}},
+			{2}: {Balance: big.NewInt(2), Storage: map[common.StorageKey]common.StorageValue64{{2}: {2}}},
 		}
-		hash, _ = alloc.deriveHash()
+		hash = (&Genesis{Alloc: *alloc}).ToBlock().Hash()
 	)
 	blob, _ := json.Marshal(alloc)
 	rawdb.WriteGenesisStateSpec(db, hash, blob)

@@ -340,16 +340,16 @@ func applyRandomChecks(env *stEnv, chainConfig *params.ChainConfig) error {
 
 type Alloc map[common.Address]core.GenesisAccount
 
-func (g Alloc) OnRoot(common.Hash) {}
+func (g Alloc) OnRoot(common.Hash512) {}
 
 func (g Alloc) OnAccount(addr *common.Address, dumpAccount state.DumpAccount) {
 	if addr == nil {
 		return
 	}
 	balance, _ := new(big.Int).SetString(dumpAccount.Balance, 10)
-	var storage map[common.Hash]common.StorageValue64
+	var storage map[common.StorageKey]common.StorageValue64
 	if dumpAccount.Storage != nil {
-		storage = make(map[common.Hash]common.StorageValue64)
+		storage = make(map[common.StorageKey]common.StorageValue64)
 		for k, v := range dumpAccount.Storage {
 			storage[k] = common.HexToStorageValue64(v)
 		}

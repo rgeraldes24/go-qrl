@@ -41,7 +41,7 @@ type testAccount struct {
 }
 
 // makeTestState create a sample test state to test node-wise reconstruction.
-func makeTestState(scheme string) (qrldb.Database, Database, *trie.Database, common.Hash, []*testAccount) {
+func makeTestState(scheme string) (qrldb.Database, Database, *trie.Database, common.Hash512, []*testAccount) {
 	// Create an empty state
 	config := &trie.Config{Preimages: true}
 	if scheme == rawdb.PathScheme {
@@ -67,12 +67,12 @@ func makeTestState(scheme string) (qrldb.Database, Database, *trie.Database, com
 		acc.nonce = uint64(42 * i)
 
 		if i%3 == 0 {
-			obj.SetCode(crypto.Keccak256Hash([]byte{i, i, i, i, i}), []byte{i, i, i, i, i})
+			obj.SetCode(crypto.Keccak512Hash([]byte{i, i, i, i, i}), []byte{i, i, i, i, i})
 			acc.code = []byte{i, i, i, i, i}
 		}
 		if i%5 == 0 {
 			for j := range byte(5) {
-				hash := crypto.Keccak256Hash([]byte{i, i, i, i, i, j, j})
+				hash := crypto.Keccak512Hash([]byte{i, i, i, i, i, j, j})
 				obj.SetState(hash, common.BytesToStorageValue64(hash.Bytes()))
 			}
 		}
@@ -86,7 +86,7 @@ func makeTestState(scheme string) (qrldb.Database, Database, *trie.Database, com
 
 // checkStateAccounts cross references a reconstructed state with an expected
 // account array.
-func checkStateAccounts(t *testing.T, db qrldb.Database, scheme string, root common.Hash, accounts []*testAccount) {
+func checkStateAccounts(t *testing.T, db qrldb.Database, scheme string, root common.Hash512, accounts []*testAccount) {
 	var config trie.Config
 	if scheme == rawdb.PathScheme {
 		config.PathDB = pathdb.Defaults
@@ -113,7 +113,7 @@ func checkStateAccounts(t *testing.T, db qrldb.Database, scheme string, root com
 }
 
 // checkStateConsistency checks that all data of a state root is present.
-func checkStateConsistency(db qrldb.Database, scheme string, root common.Hash) error {
+func checkStateConsistency(db qrldb.Database, scheme string, root common.Hash512) error {
 	config := &trie.Config{Preimages: true}
 	if scheme == rawdb.PathScheme {
 		config.PathDB = pathdb.Defaults
@@ -173,8 +173,8 @@ func TestIterativeStateSyncBatchedByPath(t *testing.T) {
 // stateElement represents the element in the state trie(bytecode or trie node).
 type stateElement struct {
 	path     string
-	hash     common.Hash
-	code     common.Hash
+	hash     common.Hash512
+	code     common.Hash512
 	syncPath trie.SyncPath
 }
 
@@ -234,7 +234,7 @@ func testIterativeStateSync(t *testing.T, count int, commit bool, bypath bool, s
 					if err := rlp.DecodeBytes(srcTrie.MustGet(node.syncPath[0]), &acc); err != nil {
 						t.Fatalf("failed to decode account on path %x: %v", node.syncPath[0], err)
 					}
-					id := trie.StorageTrieID(srcRoot, common.BytesToHash(node.syncPath[0]), acc.Root)
+					id := trie.StorageTrieID(srcRoot, common.BytesToHash512(node.syncPath[0]), acc.Root)
 					stTrie, err := trie.New(id, ndb)
 					if err != nil {
 						t.Fatalf("failed to retriev storage trie for path %x: %v", node.syncPath[1], err)
@@ -416,7 +416,7 @@ func testIterativeRandomStateSync(t *testing.T, count int, scheme string) {
 	sched := NewStateSync(srcRoot, dstDb, nil, ndb.Scheme())
 
 	nodeQueue := make(map[string]stateElement)
-	codeQueue := make(map[common.Hash]struct{})
+	codeQueue := make(map[common.Hash512]struct{})
 	paths, nodes, codes := sched.Missing(count)
 	for i, path := range paths {
 		nodeQueue[path] = stateElement{
@@ -472,7 +472,7 @@ func testIterativeRandomStateSync(t *testing.T, count int, scheme string) {
 		batch.Write()
 
 		nodeQueue = make(map[string]stateElement)
-		codeQueue = make(map[common.Hash]struct{})
+		codeQueue = make(map[common.Hash512]struct{})
 		paths, nodes, codes := sched.Missing(count)
 		for i, path := range paths {
 			nodeQueue[path] = stateElement{
@@ -509,7 +509,7 @@ func testIterativeRandomDelayedStateSync(t *testing.T, scheme string) {
 	sched := NewStateSync(srcRoot, dstDb, nil, ndb.Scheme())
 
 	nodeQueue := make(map[string]stateElement)
-	codeQueue := make(map[common.Hash]struct{})
+	codeQueue := make(map[common.Hash512]struct{})
 	paths, nodes, codes := sched.Missing(0)
 	for i, path := range paths {
 		nodeQueue[path] = stateElement{
@@ -609,10 +609,10 @@ func testIncompleteStateSync(t *testing.T, scheme string) {
 	db, srcDb, ndb, srcRoot, srcAccounts := makeTestState(scheme)
 
 	// isCodeLookup to save some hashing
-	var isCode = make(map[common.Hash]struct{})
+	var isCode = make(map[common.Hash512]struct{})
 	for _, acc := range srcAccounts {
 		if len(acc.code) > 0 {
-			isCode[crypto.Keccak256Hash(acc.code)] = struct{}{}
+			isCode[crypto.Keccak512Hash(acc.code)] = struct{}{}
 		}
 	}
 	isCode[types.EmptyCodeHash] = struct{}{}
@@ -622,16 +622,16 @@ func testIncompleteStateSync(t *testing.T, scheme string) {
 	sched := NewStateSync(srcRoot, dstDb, nil, ndb.Scheme())
 
 	var (
-		addedCodes  []common.Hash
+		addedCodes  []common.Hash512
 		addedPaths  []string
-		addedHashes []common.Hash
+		addedHashes []common.Hash512
 	)
 	reader, err := ndb.Reader(srcRoot)
 	if err != nil {
 		t.Fatalf("state is not available %x", srcRoot)
 	}
 	nodeQueue := make(map[string]stateElement)
-	codeQueue := make(map[common.Hash]struct{})
+	codeQueue := make(map[common.Hash512]struct{})
 	paths, nodes, codes := sched.Missing(1)
 	for i, path := range paths {
 		nodeQueue[path] = stateElement{
@@ -692,7 +692,7 @@ func testIncompleteStateSync(t *testing.T, scheme string) {
 
 		// Fetch the next batch to retrieve
 		nodeQueue = make(map[string]stateElement)
-		codeQueue = make(map[common.Hash]struct{})
+		codeQueue = make(map[common.Hash512]struct{})
 		paths, nodes, codes := sched.Missing(1)
 		for i, path := range paths {
 			nodeQueue[path] = stateElement{
@@ -737,10 +737,10 @@ func copyPreimages(srcDb, dstDb qrldb.Database) {
 	it := srcDb.NewIterator(rawdb.PreimagePrefix, nil)
 	defer it.Release()
 
-	preimages := make(map[common.Hash][]byte)
+	preimages := make(map[common.Hash512][]byte)
 	for it.Next() {
 		hash := it.Key()[len(rawdb.PreimagePrefix):]
-		preimages[common.BytesToHash(hash)] = common.CopyBytes(it.Value())
+		preimages[common.BytesToHash512(hash)] = common.CopyBytes(it.Value())
 	}
 	rawdb.WritePreimages(dstDb, preimages)
 }

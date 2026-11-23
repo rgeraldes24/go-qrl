@@ -30,6 +30,29 @@ import (
 	"github.com/theQRL/go-qrl/trie/trienode"
 )
 
+func TestSyncFullWidthPathPriority(t *testing.T) {
+	syncer := NewSync(types.EmptyRootHash, memorydb.New(), nil, rawdb.HashScheme)
+	for _, depth := range []int{1, 127, 128, 255} {
+		path := bytes.Repeat([]byte{1}, depth)
+		syncer.scheduleNodeRequest(&nodeRequest{path: path, hash: common.Hash512{63: byte(depth)}})
+	}
+	for _, depth := range []int{255, 128, 127, 1} {
+		paths, hashes, _ := syncer.Missing(1)
+		if len(paths) != 1 || len(paths[0]) != depth || hashes[0][63] != byte(depth) {
+			t.Fatalf("wrong request order at depth %d: %x, %x", depth, paths, hashes)
+		}
+		if syncer.fetches[depth] != 1 {
+			t.Fatalf("request charged to wrong depth: %v", syncer.fetches)
+		}
+	}
+	path := bytes.Repeat([]byte{2}, 255)
+	syncer.scheduleCodeRequest(&codeRequest{path: path, hash: common.Hash512{0: 1}})
+	_, _, codes := syncer.Missing(1)
+	if len(codes) != 1 || syncer.fetches[255] != 2 {
+		t.Fatal("code request lost its full path depth")
+	}
+}
+
 // makeTestTrie create a sample test trie to test node-wise reconstruction.
 func makeTestTrie(scheme string) (qrldb.Database, *Database, *StateTrie, map[string][]byte) {
 	// Create an empty trie
@@ -73,11 +96,11 @@ func makeTestTrie(scheme string) (qrldb.Database, *Database, *StateTrie, map[str
 func checkTrieContents(t *testing.T, db qrldb.Database, scheme string, root []byte, content map[string][]byte) {
 	// Check root availability and trie contents
 	ndb := newTestDatabase(db, scheme)
-	trie, err := NewStateTrie(TrieID(common.BytesToHash(root)), ndb)
+	trie, err := NewStateTrie(TrieID(common.BytesToHash512(root)), ndb)
 	if err != nil {
 		t.Fatalf("failed to create trie at %x: %v", root, err)
 	}
-	if err := checkTrieConsistency(db, scheme, common.BytesToHash(root)); err != nil {
+	if err := checkTrieConsistency(db, scheme, common.BytesToHash512(root)); err != nil {
 		t.Fatalf("inconsistent trie at %x: %v", root, err)
 	}
 	for key, val := range content {
@@ -88,7 +111,7 @@ func checkTrieContents(t *testing.T, db qrldb.Database, scheme string, root []by
 }
 
 // checkTrieConsistency checks that all nodes in a trie are indeed present.
-func checkTrieConsistency(db qrldb.Database, scheme string, root common.Hash) error {
+func checkTrieConsistency(db qrldb.Database, scheme string, root common.Hash512) error {
 	ndb := newTestDatabase(db, scheme)
 	trie, err := NewStateTrie(TrieID(root), ndb)
 	if err != nil {
@@ -103,7 +126,7 @@ func checkTrieConsistency(db qrldb.Database, scheme string, root common.Hash) er
 // trieElement represents the element in the state trie(bytecode or trie node).
 type trieElement struct {
 	path     string
-	hash     common.Hash
+	hash     common.Hash512
 	syncPath SyncPath
 }
 
@@ -446,7 +469,7 @@ func testDuplicateAvoidanceSync(t *testing.T, scheme string) {
 	if err != nil {
 		t.Fatalf("State is not available %x", srcTrie.Hash())
 	}
-	requested := make(map[common.Hash]struct{})
+	requested := make(map[common.Hash512]struct{})
 	for len(elements) > 0 {
 		results := make([]NodeSyncResult, len(elements))
 		for i, element := range elements {
@@ -506,7 +529,7 @@ func testIncompleteSync(t *testing.T, scheme string) {
 	// at the testing trie.
 	var (
 		addedKeys   []string
-		addedHashes []common.Hash
+		addedHashes []common.Hash512
 		elements    []trieElement
 		root        = srcTrie.Hash()
 	)
@@ -546,10 +569,10 @@ func testIncompleteSync(t *testing.T, scheme string) {
 		batch.Write()
 
 		for _, result := range results {
-			hash := crypto.Keccak256Hash(result.Data)
+			hash := crypto.Keccak512Hash(result.Data)
 			if hash != root {
 				addedKeys = append(addedKeys, result.Path)
-				addedHashes = append(addedHashes, crypto.Keccak256Hash(result.Data))
+				addedHashes = append(addedHashes, crypto.Keccak512Hash(result.Data))
 			}
 		}
 		// Fetch the next batch to retrieve
@@ -658,7 +681,7 @@ func testSyncOrdering(t *testing.T, scheme string) {
 	}
 }
 
-func syncWith(t *testing.T, root common.Hash, db qrldb.Database, srcDb *Database) {
+func syncWith(t *testing.T, root common.Hash512, db qrldb.Database, srcDb *Database) {
 	// Create a destination trie and sync with the scheduler
 	sched := NewSync(root, db, nil, srcDb.Scheme())
 

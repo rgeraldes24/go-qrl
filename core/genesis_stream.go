@@ -42,7 +42,7 @@ import (
 // bounded caches and database file metadata. Individual header fields and
 // contract bytecode still need to fit in memory.
 type streamedGenesis struct {
-	root      common.Hash
+	root      common.Hash512
 	rootNode  []byte
 	scheme    string
 	index     qrldb.Database
@@ -137,12 +137,12 @@ func (b genesisBatch) flush(force bool) error {
 	return nil
 }
 
-func (s *streamedGenesis) buildState(preimages bool) (common.Hash, error) {
+func (s *streamedGenesis) buildState(preimages bool) (common.Hash512, error) {
 	batch := genesisBatch{s.nodes.NewBatch()}
 	var writeErr error
-	writeNode := func(owner common.Hash, path []byte, hash common.Hash, blob []byte) {
+	writeNode := func(owner common.Hash512, path []byte, hash common.Hash512, blob []byte) {
 		if writeErr == nil {
-			if owner == (common.Hash{}) && len(path) == 0 {
+			if owner == (common.Hash512{}) && len(path) == 0 {
 				s.rootNode = common.CopyBytes(blob)
 				return
 			}
@@ -154,82 +154,82 @@ func (s *streamedGenesis) buildState(preimages bool) (common.Hash, error) {
 	it := s.index.NewIterator([]byte{'a'}, nil)
 	defer it.Release()
 	for it.Next() {
-		owner := common.BytesToHash(it.Key()[1:])
+		owner := common.BytesToHash512(it.Key()[1:])
 		address := common.BytesToAddress(it.Value()[:common.AddressLength])
 		var account GenesisAccount
 		if err := json.Unmarshal(it.Value()[common.AddressLength:], &account); err != nil {
-			return common.Hash{}, err
+			return common.Hash512{}, err
 		}
 		storageRoot, err := s.buildStorage(owner, writeNode, batch, preimages, &writeErr)
 		if err != nil {
-			return common.Hash{}, err
+			return common.Hash512{}, err
 		}
-		codeHash := crypto.Keccak256Hash(account.Code)
+		codeHash := crypto.Keccak512Hash(account.Code)
 		if len(account.Code) > 0 {
 			rawdb.WriteCode(batch, codeHash, account.Code)
 		}
 		if preimages {
-			rawdb.WritePreimages(batch, map[common.Hash][]byte{owner: address[:]})
+			rawdb.WritePreimages(batch, map[common.Hash512][]byte{owner: address[:]})
 		}
 		encoded, err := rlp.EncodeToBytes(&types.StateAccount{
 			Nonce: account.Nonce, Balance: account.Balance, Root: storageRoot, CodeHash: codeHash[:],
 		})
 		if err != nil {
-			return common.Hash{}, err
+			return common.Hash512{}, err
 		}
 		if err := accounts.Update(owner[:], encoded); err != nil {
-			return common.Hash{}, err
+			return common.Hash512{}, err
 		}
 		if writeErr != nil {
-			return common.Hash{}, writeErr
+			return common.Hash512{}, writeErr
 		}
 		if err := batch.flush(false); err != nil {
-			return common.Hash{}, err
+			return common.Hash512{}, err
 		}
 	}
 	if err := it.Error(); err != nil {
-		return common.Hash{}, err
+		return common.Hash512{}, err
 	}
 	root, err := accounts.Commit()
 	if err != nil {
-		return common.Hash{}, err
+		return common.Hash512{}, err
 	}
 	if writeErr != nil {
-		return common.Hash{}, writeErr
+		return common.Hash512{}, writeErr
 	}
 	return root, batch.flush(true)
 }
 
-func (s *streamedGenesis) buildStorage(owner common.Hash, writeNode trie.NodeWriteFunc, batch genesisBatch, preimages bool, writeErr *error) (common.Hash, error) {
+func (s *streamedGenesis) buildStorage(owner common.Hash512, writeNode trie.NodeWriteFunc, batch genesisBatch, preimages bool, writeErr *error) (common.Hash512, error) {
 	storage := trie.NewStackTrieWithOwner(writeNode, owner)
 	it := s.index.NewIterator(append([]byte{'s'}, owner[:]...), nil)
 	defer it.Release()
 	for it.Next() {
-		key, value := it.Value()[:common.HashLength], it.Value()[common.HashLength:]
+		key, value := it.Value()[:common.Hash512Length], it.Value()[common.Hash512Length:]
 		if common.BytesToStorageValue64(value) == (common.StorageValue64{}) {
 			continue // A zero value is absent from the storage trie.
 		}
-		hash := common.BytesToHash(it.Key()[1+common.HashLength:])
+		hash := common.BytesToHash512(it.Key()[1+common.Hash512Length:])
 		if preimages {
-			rawdb.WritePreimages(batch, map[common.Hash][]byte{hash: key})
+			rawdb.WritePreimages(batch, map[common.Hash512][]byte{hash: key})
 		}
 		encoded, err := rlp.EncodeToBytes(common.TrimLeftZeroes(value))
 		if err != nil {
-			return common.Hash{}, err
+			return common.Hash512{}, err
 		}
 		if err := storage.Update(hash[:], encoded); err != nil {
-			return common.Hash{}, err
+			return common.Hash512{}, err
 		}
 		if *writeErr != nil {
-			return common.Hash{}, *writeErr
+			return common.Hash512{}, *writeErr
 		}
 	}
 	if err := it.Error(); err != nil {
-		return common.Hash{}, err
+		return common.Hash512{}, err
 	}
 	root, err := storage.Commit()
 	if err != nil {
-		return common.Hash{}, err
+		return common.Hash512{}, err
 	}
 	return root, *writeErr
 }
@@ -266,7 +266,7 @@ func (s *streamedGenesis) flush(db qrldb.Database, triedb *trie.Database, block 
 		return errors.New("missing staged genesis root")
 	}
 	if len(s.rootNode) > 0 {
-		rawdb.WriteTrieNode(batch, common.Hash{}, nil, s.root, s.rootNode, s.scheme)
+		rawdb.WriteTrieNode(batch, common.Hash512{}, nil, s.root, s.rootNode, s.scheme)
 		if err := batch.flush(true); err != nil {
 			return err
 		}

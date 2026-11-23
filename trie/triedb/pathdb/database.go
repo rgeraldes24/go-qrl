@@ -61,10 +61,10 @@ type layer interface {
 	// if the read operation exits abnormally. For example, if the layer is already
 	// stale, or the associated state is regarded as corrupted. Notably, no error
 	// will be returned if the requested node is not found in database.
-	Node(owner common.Hash, path []byte, hash common.Hash) ([]byte, error)
+	Node(owner common.Hash512, path []byte, hash common.Hash512) ([]byte, error)
 
 	// rootHash returns the root hash for which this layer was made.
-	rootHash() common.Hash
+	rootHash() common.Hash512
 
 	// stateID returns the associated state id of layer.
 	stateID() uint64
@@ -76,7 +76,7 @@ type layer interface {
 	// the provided dirty trie nodes along with the state change set.
 	//
 	// Note, the maps are retained by the method to avoid copying everything.
-	update(root common.Hash, id uint64, block uint64, nodes map[common.Hash]map[string]*trienode.Node, states *triestate.Set) *diffLayer
+	update(root common.Hash512, id uint64, block uint64, nodes map[common.Hash512]map[string]*trienode.Node, states *triestate.Set) *diffLayer
 
 	// journal commits an entire diff hierarchy to disk into a single journal entry.
 	// This is meant to be used during shutdown to persist the layer without
@@ -184,7 +184,7 @@ func New(diskdb qrldb.Database, config *Config) *Database {
 }
 
 // Reader retrieves a layer belonging to the given state root.
-func (db *Database) Reader(root common.Hash) (layer, error) {
+func (db *Database) Reader(root common.Hash512) (layer, error) {
 	l := db.tree.get(root)
 	if l == nil {
 		return nil, fmt.Errorf("state %#x is not available", root)
@@ -199,7 +199,7 @@ func (db *Database) Reader(root common.Hash) (layer, error) {
 //
 // The passed in maps(nodes, states) will be retained to avoid copying everything.
 // Therefore, these maps must not be changed afterwards.
-func (db *Database) Update(root common.Hash, parentRoot common.Hash, block uint64, nodes *trienode.MergedNodeSet, states *triestate.Set) error {
+func (db *Database) Update(root common.Hash512, parentRoot common.Hash512, block uint64, nodes *trienode.MergedNodeSet, states *triestate.Set) error {
 	// Hold the lock to prevent concurrent mutations.
 	db.lock.Lock()
 	defer db.lock.Unlock()
@@ -222,7 +222,7 @@ func (db *Database) Update(root common.Hash, parentRoot common.Hash, block uint6
 // Commit traverses downwards the layer tree from a specified layer with the
 // provided state root and all the layers below are flattened downwards. It
 // can be used alone and mostly for test purposes.
-func (db *Database) Commit(root common.Hash, report bool) error {
+func (db *Database) Commit(root common.Hash512, report bool) error {
 	// Hold the lock to prevent concurrent mutations.
 	db.lock.Lock()
 	defer db.lock.Unlock()
@@ -239,7 +239,7 @@ func (db *Database) Commit(root common.Hash, report bool) error {
 //   - if target state is empty, clear the stored state and all layers on top
 //   - if target state is non-empty, ensure the stored state matches with it
 //     and clear all other layers on top.
-func (db *Database) Reset(root common.Hash) error {
+func (db *Database) Reset(root common.Hash512) error {
 	db.lock.Lock()
 	defer db.lock.Unlock()
 
@@ -291,7 +291,7 @@ func (db *Database) Reset(root common.Hash) error {
 // Recover rollbacks the database to a specified historical point.
 // The state is supported as the rollback destination only if it's
 // canonical state and the corresponding trie histories are existent.
-func (db *Database) Recover(root common.Hash, loader triestate.TrieLoader) error {
+func (db *Database) Recover(root common.Hash512, loader triestate.TrieLoader) error {
 	db.lock.Lock()
 	defer db.lock.Unlock()
 
@@ -333,7 +333,7 @@ func (db *Database) Recover(root common.Hash, loader triestate.TrieLoader) error
 }
 
 // Recoverable returns the indicator if the specified state is recoverable.
-func (db *Database) Recoverable(root common.Hash) bool {
+func (db *Database) Recoverable(root common.Hash512) bool {
 	// Ensure the requested state is a known state.
 	root = types.TrieRootHash(root)
 	id := rawdb.ReadStateID(db.diskdb, root)
@@ -397,7 +397,7 @@ func (db *Database) Size() (diffs common.StorageSize, nodes common.StorageSize) 
 
 // Initialized returns an indicator if the state data is already
 // initialized in path-based scheme.
-func (db *Database) Initialized(genesisRoot common.Hash) bool {
+func (db *Database) Initialized(genesisRoot common.Hash512) bool {
 	var inited bool
 	db.tree.forEach(func(layer layer) {
 		if layer.rootHash() != types.EmptyRootHash {

@@ -81,7 +81,7 @@ func prefixedRlpHash(prefix byte, x any) (h common.Hash) {
 type TrieHasher interface {
 	Reset()
 	Update([]byte, []byte) error
-	Hash() common.Hash
+	Hash() common.Hash512
 }
 
 // DerivableList is the input to DeriveSha.
@@ -102,7 +102,7 @@ func encodeForDerive(list DerivableList, i int, buf *bytes.Buffer) []byte {
 }
 
 // DeriveSha creates the tree hashes of transactions, receipts, and withdrawals in a block header.
-func DeriveSha(list DerivableList, hasher TrieHasher) common.Hash {
+func DeriveSha(list DerivableList, hasher TrieHasher) common.Hash512 {
 	hasher.Reset()
 
 	valueBuf := encodeBufferPool.Get().(*bytes.Buffer)

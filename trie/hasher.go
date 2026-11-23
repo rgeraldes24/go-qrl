@@ -19,6 +19,8 @@ package trie
 import (
 	"sync"
 
+	"github.com/theQRL/go-qrl/common"
+
 	"github.com/theQRL/go-qrl/crypto"
 	"github.com/theQRL/go-qrl/rlp"
 	"golang.org/x/crypto/sha3"
@@ -37,8 +39,8 @@ type hasher struct {
 var hasherPool = sync.Pool{
 	New: func() any {
 		return &hasher{
-			tmp:    make([]byte, 0, 550), // cap is as large as a full fullNode.
-			sha:    sha3.NewLegacyKeccak256().(crypto.KeccakState),
+			tmp:    make([]byte, 0, 1100), // cap is as large as a full fullNode.
+			sha:    sha3.NewLegacyKeccak512().(crypto.KeccakState),
 			encbuf: rlp.NewEncoderBuffer(nil),
 		}
 	},
@@ -142,13 +144,13 @@ func (h *hasher) hashFullNodeChildren(n *fullNode) (collapsed *fullNode, cached 
 // shortnodeToHash creates a hashNode from a shortNode. The supplied shortnode
 // should have hex-type Key, which will be converted (without modification)
 // into compact form for RLP encoding.
-// If the rlp data is smaller than 32 bytes, `nil` is returned.
+// If the rlp data is smaller than 64 bytes, `nil` is returned.
 func (h *hasher) shortnodeToHash(n *shortNode, force bool) node {
 	n.encode(h.encbuf)
 	enc := h.encodedBytes()
 
-	if len(enc) < 32 && !force {
-		return n // Nodes smaller than 32 bytes are stored inside their parent
+	if len(enc) < common.Hash512Length && !force {
+		return n // Nodes smaller than common.Hash512Length bytes are stored inside their parent
 	}
 	return h.hashData(enc)
 }
@@ -159,8 +161,8 @@ func (h *hasher) fullnodeToHash(n *fullNode, force bool) node {
 	n.encode(h.encbuf)
 	enc := h.encodedBytes()
 
-	if len(enc) < 32 && !force {
-		return n // Nodes smaller than 32 bytes are stored inside their parent
+	if len(enc) < common.Hash512Length && !force {
+		return n // Nodes smaller than common.Hash512Length bytes are stored inside their parent
 	}
 	return h.hashData(enc)
 }
@@ -183,7 +185,7 @@ func (h *hasher) encodedBytes() []byte {
 
 // hashData hashes the provided data
 func (h *hasher) hashData(data []byte) hashNode {
-	n := make(hashNode, 32)
+	n := make(hashNode, common.Hash512Length)
 	h.sha.Reset()
 	h.sha.Write(data)
 	h.sha.Read(n)
@@ -192,7 +194,7 @@ func (h *hasher) hashData(data []byte) hashNode {
 
 // proofHash is used to construct trie proofs, and returns the 'collapsed'
 // node (for later RLP encoding) as well as the hashed node -- unless the
-// node is smaller than 32 bytes, in which case it will be returned as is.
+// node is smaller than 64 bytes, in which case it will be returned as is.
 // This method does not do anything on value- or hash-nodes.
 func (h *hasher) proofHash(original node) (collapsed, hashed node) {
 	switch n := original.(type) {

@@ -24,6 +24,7 @@ var artifactJSON []byte
 var contractSource []byte
 
 type Artifact struct {
+	StorageHash  string          `json:"storage_hash"`
 	Compiler     string          `json:"compiler"`
 	SourceSHA256 string          `json:"source_sha256"`
 	ABI          json.RawMessage `json:"abi"`
@@ -34,6 +35,9 @@ func Contract() (*Artifact, abi.ABI, []byte, error) {
 	var artifact Artifact
 	if err := json.Unmarshal(artifactJSON, &artifact); err != nil {
 		return nil, abi.ABI{}, nil, err
+	}
+	if artifact.StorageHash != "keccak512" {
+		return nil, abi.ABI{}, nil, errors.New("contract artifact uses an incompatible storage hash")
 	}
 	sourceHash := sha256.Sum256(contractSource)
 	if artifact.SourceSHA256 != hex.EncodeToString(sourceHash[:]) {
@@ -51,14 +55,14 @@ func Contract() (*Artifact, abi.ABI, []byte, error) {
 }
 
 // QRVM mapping slots hash TWO 64-byte words, unlike Ethereum's 32-byte words.
-func mappingSlot(key *big.Int, slot common.Hash) common.Hash {
+func mappingSlot(key *big.Int, slot common.Hash512) common.Hash512 {
 	input := make([]byte, 128)
 	key.FillBytes(input[:64])
-	copy(input[96:], slot[:])
-	return crypto.Keccak256Hash(input)
+	copy(input[64:], slot[:])
+	return crypto.Keccak512Hash(input)
 }
 
-func slot(number uint64) common.Hash { return common.BigToHash(new(big.Int).SetUint64(number)) }
+func slot(number uint64) common.Hash512 { return common.BigToHash512(new(big.Int).SetUint64(number)) }
 
 func validTarget(chainID *big.Int, contract common.Address) error {
 	if chainID == nil || chainID.Sign() <= 0 || chainID.BitLen() > 256 {
@@ -91,7 +95,7 @@ func GenesisAccount(s *Snapshot, chainID *big.Int, contract common.Address) (cor
 	if total.BitLen() > 256 {
 		return account, errors.New("target balance exceeds uint256")
 	}
-	storage := make(map[common.Hash]common.StorageValue64)
+	storage := make(map[common.StorageKey]common.StorageValue64)
 	err = walkStorage(s, chainID, func(visit func(Account) error) error {
 		for _, entry := range s.Accounts {
 			if err := visit(entry); err != nil {
@@ -99,7 +103,7 @@ func GenesisAccount(s *Snapshot, chainID *big.Int, contract common.Address) (cor
 			}
 		}
 		return nil
-	}, func(key common.Hash, value common.StorageValue64) error {
+	}, func(key common.Hash512, value common.StorageValue64) error {
 		storage[key] = value
 		return nil
 	})

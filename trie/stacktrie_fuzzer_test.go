@@ -42,9 +42,9 @@ func fuzz(data []byte, debugging bool) {
 		input   = bytes.NewReader(data)
 		dbA     = newTestDatabase(rawdb.NewMemoryDatabase(), rawdb.HashScheme)
 		trieA   = NewEmpty(dbA)
-		spongeB = &spongeDb{sponge: sha3.NewLegacyKeccak256()}
+		spongeB = &spongeDb{sponge: sha3.NewLegacyKeccak512()}
 		dbB     = NewDatabase(rawdb.NewDatabase(spongeB), nil)
-		trieB   = NewStackTrie(func(owner common.Hash, path []byte, hash common.Hash, blob []byte) {
+		trieB   = NewStackTrie(func(owner common.Hash512, path []byte, hash common.Hash512, blob []byte) {
 			rawdb.WriteTrieNode(spongeB, owner, path, hash, blob, dbB.Scheme())
 		})
 		vals        []*kv
@@ -110,11 +110,11 @@ func fuzz(data []byte, debugging bool) {
 	// Ensure all the nodes are persisted correctly
 	var (
 		nodeset = make(map[string][]byte) // path -> blob
-		trieC   = NewStackTrie(func(owner common.Hash, path []byte, hash common.Hash, blob []byte) {
-			if crypto.Keccak256Hash(blob) != hash {
+		trieC   = NewStackTrie(func(owner common.Hash512, path []byte, hash common.Hash512, blob []byte) {
+			if crypto.Keccak512Hash(blob) != hash {
 				panic("invalid node blob")
 			}
-			if owner != (common.Hash{}) {
+			if owner != (common.Hash512{}) {
 				panic("invalid node owner")
 			}
 			nodeset[string(path)] = common.CopyBytes(blob)
@@ -131,7 +131,7 @@ func fuzz(data []byte, debugging bool) {
 	trieA, _ = New(TrieID(rootA), dbA)
 	iterA := trieA.MustNodeIterator(nil)
 	for iterA.Next(true) {
-		if iterA.Hash() == (common.Hash{}) {
+		if iterA.Hash() == (common.Hash512{}) {
 			if _, present := nodeset[string(iterA.Path())]; present {
 				panic("unexpected tiny node")
 			}

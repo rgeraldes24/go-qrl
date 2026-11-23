@@ -33,19 +33,19 @@ import (
 // made to the state, that have not yet graduated into a semi-immutable state.
 type diffLayer struct {
 	// Immutables
-	root   common.Hash                               // Root hash to which this layer diff belongs to
-	id     uint64                                    // Corresponding state id
-	block  uint64                                    // Associated block number
-	nodes  map[common.Hash]map[string]*trienode.Node // Cached trie nodes indexed by owner and path
-	states *triestate.Set                            // Associated state change set for building history
-	memory uint64                                    // Approximate guess as to how much memory we use
+	root   common.Hash512                               // Root hash to which this layer diff belongs to
+	id     uint64                                       // Corresponding state id
+	block  uint64                                       // Associated block number
+	nodes  map[common.Hash512]map[string]*trienode.Node // Cached trie nodes indexed by owner and path
+	states *triestate.Set                               // Associated state change set for building history
+	memory uint64                                       // Approximate guess as to how much memory we use
 
 	parent layer        // Parent layer modified by this one, never nil, **can be changed**
 	lock   sync.RWMutex // Lock used to protect parent
 }
 
 // newDiffLayer creates a new diff layer on top of an existing layer.
-func newDiffLayer(parent layer, root common.Hash, id uint64, block uint64, nodes map[common.Hash]map[string]*trienode.Node, states *triestate.Set) *diffLayer {
+func newDiffLayer(parent layer, root common.Hash512, id uint64, block uint64, nodes map[common.Hash512]map[string]*trienode.Node, states *triestate.Set) *diffLayer {
 	var (
 		size  int64
 		count int
@@ -77,7 +77,7 @@ func newDiffLayer(parent layer, root common.Hash, id uint64, block uint64, nodes
 
 // rootHash implements the layer interface, returning the root hash of
 // corresponding state.
-func (dl *diffLayer) rootHash() common.Hash {
+func (dl *diffLayer) rootHash() common.Hash512 {
 	return dl.root
 }
 
@@ -98,7 +98,7 @@ func (dl *diffLayer) parentLayer() layer {
 // node retrieves the node with provided node information. It's the internal
 // version of Node function with additional accessed layer tracked. No error
 // will be returned if node is not found.
-func (dl *diffLayer) node(owner common.Hash, path []byte, hash common.Hash, depth int) ([]byte, error) {
+func (dl *diffLayer) node(owner common.Hash512, path []byte, hash common.Hash512, depth int) ([]byte, error) {
 	// Hold the lock, ensure the parent won't be changed during the
 	// state accessing.
 	dl.lock.RLock()
@@ -132,13 +132,13 @@ func (dl *diffLayer) node(owner common.Hash, path []byte, hash common.Hash, dept
 
 // Node implements the layer interface, retrieving the trie node blob with the
 // provided node information. No error will be returned if the node is not found.
-func (dl *diffLayer) Node(owner common.Hash, path []byte, hash common.Hash) ([]byte, error) {
+func (dl *diffLayer) Node(owner common.Hash512, path []byte, hash common.Hash512) ([]byte, error) {
 	return dl.node(owner, path, hash, 0)
 }
 
 // update implements the layer interface, creating a new layer on top of the
 // existing layer tree with the specified data items.
-func (dl *diffLayer) update(root common.Hash, id uint64, block uint64, nodes map[common.Hash]map[string]*trienode.Node, states *triestate.Set) *diffLayer {
+func (dl *diffLayer) update(root common.Hash512, id uint64, block uint64, nodes map[common.Hash512]map[string]*trienode.Node, states *triestate.Set) *diffLayer {
 	return newDiffLayer(dl, root, id, block, nodes, states)
 }
 

@@ -44,7 +44,7 @@ var (
 	zeroAddr     = common.Address{}
 	testContract = common.BytesToAddress(common.FromHex("000000000000000000000000000000000000beef000000000000000000000000000000000000beef11223344556677"))
 	testEmpty    = common.BytesToAddress(common.FromHex("000000000000000000000000000000000000eeee000000000000000000000000000000000000eeee11223344556677"))
-	testSlot     = common.HexToHash("0xdeadbeef")
+	testSlot     = common.HexToHash512("0xdeadbeef")
 	testValue    = common.BytesToStorageValue64(bytes.Repeat([]byte{0x42}, common.StorageValue64Length))
 	testBalance  = big.NewInt(2e18)
 )
@@ -83,7 +83,7 @@ func generateTestChain() (*core.Genesis, []*types.Block) {
 	genesis := &core.Genesis{
 		Config: params.AllBeaconProtocolChanges,
 		Alloc: core.GenesisAlloc{
-			testAddr:     {Balance: testBalance, Storage: map[common.Hash]common.StorageValue64{testSlot: testValue}},
+			testAddr:     {Balance: testBalance, Storage: map[common.StorageKey]common.StorageValue64{testSlot: testValue}},
 			testContract: {Nonce: 1, Code: []byte{0x13, 0x37}},
 			testEmpty:    {Balance: big.NewInt(1)},
 		},
@@ -224,7 +224,7 @@ func testAccessList(t *testing.T, client *rpc.Client) {
 	if (*al)[0].Address == zeroAddr {
 		t.Fatalf("unexpected address: %v", (*al)[0].Address)
 	}
-	if (*al)[0].StorageKeys[0] != common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000081") {
+	if (*al)[0].StorageKeys[0] != common.HexToHash512("0x0000000000000000000000000000000000000000000000000000000000000081") {
 		t.Fatalf("unexpected storage key: %v", (*al)[0].StorageKeys[0])
 	}
 }
@@ -256,7 +256,7 @@ func testGetProof(t *testing.T, client *rpc.Client, addr common.Address) {
 		if proof.Key != testSlot.String() {
 			t.Fatalf("invalid storage proof key, want: %q, got: %q", testSlot.String(), proof.Key)
 		}
-		slotValue, err := qrlcl.StorageAt(t.Context(), addr, common.HexToHash(proof.Key), nil)
+		slotValue, err := qrlcl.StorageAt(t.Context(), addr, common.HexToHash512(proof.Key), nil)
 		if err != nil {
 			t.Fatalf("failed to fetch storage for %x: %v", addr, err)
 		}
@@ -266,7 +266,7 @@ func testGetProof(t *testing.T, client *rpc.Client, addr common.Address) {
 	}
 	// test code
 	code, _ := qrlcl.CodeAt(t.Context(), addr, nil)
-	if have, want := result.CodeHash, crypto.Keccak256Hash(code); have != want {
+	if have, want := result.CodeHash, crypto.Keccak512Hash(code); have != want {
 		t.Fatalf("codehash wrong, have %v want %v ", have, want)
 	}
 }
@@ -290,8 +290,8 @@ func testGetProofCanonicalizeKeys(t *testing.T, client *rpc.Client) {
 		t.Fatalf("wrong storage key encoding in proof: %q", result.StorageProof[0].Key)
 	}
 
-	// If the requested storage key is 32 bytes long, it will be returned as is.
-	hashSizedKey := "0x00000000000000000000000000000000000000000000000000000000deadbeef"
+	// If the requested storage key is 64 bytes long, it will be returned as is.
+	hashSizedKey := "0x000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000deadbeef"
 	result, err = zc.GetProof(t.Context(), testAddr, []string{hashSizedKey}, nil)
 	if err != nil {
 		t.Fatal(err)
@@ -324,11 +324,11 @@ func testGetProofNonExistent(t *testing.T, client *rpc.Client) {
 		t.Fatalf("invalid storage proof, want 0 proof, got %v proof(s)", have)
 	}
 	// test codeHash
-	if have, want := result.CodeHash, (common.Hash{}); have != want {
+	if have, want := result.CodeHash, (common.Hash512{}); have != want {
 		t.Fatalf("codehash wrong, have %v want %v ", have, want)
 	}
 	// test codeHash
-	if have, want := result.StorageHash, (common.Hash{}); have != want {
+	if have, want := result.StorageHash, (common.Hash512{}); have != want {
 		t.Fatalf("storagehash wrong, have %v want %v ", have, want)
 	}
 }
@@ -487,13 +487,13 @@ func TestOverrideAccountMarshal(t *testing.T) {
 			// a non-nil but empty value.
 			Code:    []byte{},
 			Balance: big.NewInt(0),
-			State:   map[common.Hash]common.StorageValue64{},
+			State:   map[common.StorageKey]common.StorageValue64{},
 			// For 'stateDiff' the behavior is different, empty map
 			// is ignored because it makes no difference.
-			StateDiff: map[common.Hash]common.StorageValue64{},
+			StateDiff: map[common.StorageKey]common.StorageValue64{},
 		},
 		{0xdd}: {
-			StateDiff: map[common.Hash]common.StorageValue64{
+			StateDiff: map[common.StorageKey]common.StorageValue64{
 				{0x01}: common.BytesToStorageValue64(bytes.Repeat([]byte{0x22}, common.StorageValue64Length)),
 			},
 		},
@@ -522,7 +522,7 @@ func TestOverrideAccountMarshal(t *testing.T) {
   },
   "Qdd000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000": {
     "stateDiff": {
-      "0x0100000000000000000000000000000000000000000000000000000000000000": "0x22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222"
+      "0x01000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000": "0x22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222"
     }
   }
 }`

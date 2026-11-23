@@ -42,12 +42,12 @@ var stateTestCommand = &cli.Command{
 // StatetestResult contains the execution status after running a state test, any
 // error that might have occurred and a dump of the final state if requested.
 type StatetestResult struct {
-	Name  string       `json:"name"`
-	Pass  bool         `json:"pass"`
-	Root  *common.Hash `json:"stateRoot,omitempty"`
-	Fork  string       `json:"fork"`
-	Error string       `json:"error,omitempty"`
-	State *state.Dump  `json:"state,omitempty"`
+	Name  string          `json:"name"`
+	Pass  bool            `json:"pass"`
+	Root  *common.Hash512 `json:"stateRoot,omitempty"`
+	Fork  string          `json:"fork"`
+	Error string          `json:"error,omitempty"`
+	State *state.Dump     `json:"state,omitempty"`
 }
 
 func stateTestCmd(ctx *cli.Context) error {

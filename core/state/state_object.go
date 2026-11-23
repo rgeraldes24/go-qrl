@@ -38,12 +38,9 @@ func (c Code) String() string {
 	return string(c) //strings.Join(Disassemble(c), " ")
 }
 
-// Storage maps a 32-byte slot key (the Keccak-256 output produced by the
-// contract's slot-path hashing) to a 64-byte value. Keys stay 32 bytes
-// because the trie indexes entries by their Keccak-256; values are 64 bytes
-// so that a full 512-bit VM word (including a 64-byte address) can be
-// stored without truncation.
-type Storage map[common.Hash]common.StorageValue64
+// Storage maps a full 512-bit slot identifier to a 512-bit VM word.
+// Slot identifiers and trie paths retain all 64 bytes.
+type Storage map[common.Hash512]common.StorageValue64
 
 func (s Storage) String() (str string) {
 	for key, value := range s {
@@ -67,7 +64,7 @@ func (s Storage) Copy() Storage {
 type stateObject struct {
 	db       *StateDB
 	address  common.Address      // address of qrl account
-	addrHash common.Hash         // hash of qrl address of the account
+	addrHash common.Hash512      // hash of qrl address of the account
 	origin   *types.StateAccount // Account original data without any change applied, nil means it was not existent
 	data     types.StateAccount  // Account data with all mutations applied in the scope of block
 
@@ -101,7 +98,7 @@ func newObject(db *StateDB, address common.Address, acct *types.StateAccount) *s
 	return &stateObject{
 		db:             db,
 		address:        address,
-		addrHash:       crypto.Keccak256Hash(address[:]),
+		addrHash:       crypto.Keccak512Hash(address[:]),
 		origin:         origin,
 		data:           *acct,
 		originStorage:  make(Storage),
@@ -143,7 +140,7 @@ func (s *stateObject) getTrie() (Trie, error) {
 }
 
 // GetState retrieves a value from the account storage trie.
-func (s *stateObject) GetState(key common.Hash) common.StorageValue64 {
+func (s *stateObject) GetState(key common.Hash512) common.StorageValue64 {
 	// If we have a dirty value for this state entry, return it
 	value, dirty := s.dirtyStorage[key]
 	if dirty {
@@ -154,7 +151,7 @@ func (s *stateObject) GetState(key common.Hash) common.StorageValue64 {
 }
 
 // GetCommittedState retrieves a value from the committed account storage trie.
-func (s *stateObject) GetCommittedState(key common.Hash) common.StorageValue64 {
+func (s *stateObject) GetCommittedState(key common.Hash512) common.StorageValue64 {
 	// If we have a pending write or clean cached, return that
 	if value, pending := s.pendingStorage[key]; pending {
 		return value
@@ -179,7 +176,7 @@ func (s *stateObject) GetCommittedState(key common.Hash) common.StorageValue64 {
 	)
 	if s.db.snap != nil {
 		start := time.Now()
-		enc, err = s.db.snap.Storage(s.addrHash, crypto.Keccak256Hash(key.Bytes()))
+		enc, err = s.db.snap.Storage(s.addrHash, crypto.Keccak512Hash(key.Bytes()))
 		if metrics.EnabledExpensive {
 			s.db.SnapshotStorageReads += time.Since(start)
 		}
@@ -214,7 +211,7 @@ func (s *stateObject) GetCommittedState(key common.Hash) common.StorageValue64 {
 }
 
 // SetState updates a value in account storage.
-func (s *stateObject) SetState(key common.Hash, value common.StorageValue64) {
+func (s *stateObject) SetState(key common.Hash512, value common.StorageValue64) {
 	// If the new value is the same as old, don't set
 	prev := s.GetState(key)
 	if prev == value {
@@ -229,7 +226,7 @@ func (s *stateObject) SetState(key common.Hash, value common.StorageValue64) {
 	s.setState(key, value)
 }
 
-func (s *stateObject) setState(key common.Hash, value common.StorageValue64) {
+func (s *stateObject) setState(key common.Hash512, value common.StorageValue64) {
 	s.dirtyStorage[key] = value
 }
 
@@ -271,8 +268,8 @@ func (s *stateObject) updateTrie() (Trie, error) {
 	}
 	// The snapshot storage map for the object
 	var (
-		storage map[common.Hash][]byte
-		origin  map[common.Hash][]byte
+		storage map[common.Hash512][]byte
+		origin  map[common.Hash512][]byte
 	)
 	tr, err := s.getTrie()
 	if err != nil {
@@ -309,17 +306,17 @@ func (s *stateObject) updateTrie() (Trie, error) {
 		// Cache the mutated storage slots until commit
 		if storage == nil {
 			if storage = s.db.storages[s.addrHash]; storage == nil {
-				storage = make(map[common.Hash][]byte)
+				storage = make(map[common.Hash512][]byte)
 				s.db.storages[s.addrHash] = storage
 			}
 		}
-		khash := crypto.HashData(s.db.hasher, key[:])
+		khash := crypto.HashData512(s.db.hasher, key[:])
 		storage[khash] = encoded // encoded will be nil if it's deleted
 
 		// Cache the original value of mutated storage slots
 		if origin == nil {
 			if origin = s.db.storagesOrigin[s.address]; origin == nil {
-				origin = make(map[common.Hash][]byte)
+				origin = make(map[common.Hash512][]byte)
 				s.db.storagesOrigin[s.address] = origin
 			}
 		}
@@ -458,7 +455,7 @@ func (s *stateObject) Code() []byte {
 	if bytes.Equal(s.CodeHash(), types.EmptyCodeHash.Bytes()) {
 		return nil
 	}
-	code, err := s.db.db.ContractCode(s.address, common.BytesToHash(s.CodeHash()))
+	code, err := s.db.db.ContractCode(s.address, common.BytesToHash512(s.CodeHash()))
 	if err != nil {
 		s.db.setError(fmt.Errorf("can't load code hash %x: %v", s.CodeHash(), err))
 	}
@@ -476,14 +473,14 @@ func (s *stateObject) CodeSize() int {
 	if bytes.Equal(s.CodeHash(), types.EmptyCodeHash.Bytes()) {
 		return 0
 	}
-	size, err := s.db.db.ContractCodeSize(s.address, common.BytesToHash(s.CodeHash()))
+	size, err := s.db.db.ContractCodeSize(s.address, common.BytesToHash512(s.CodeHash()))
 	if err != nil {
 		s.db.setError(fmt.Errorf("can't load code size %x: %v", s.CodeHash(), err))
 	}
 	return size
 }
 
-func (s *stateObject) SetCode(codeHash common.Hash, code []byte) {
+func (s *stateObject) SetCode(codeHash common.Hash512, code []byte) {
 	prevcode := s.Code()
 	s.db.journal.append(codeChange{
 		account:  &s.address,
@@ -493,7 +490,7 @@ func (s *stateObject) SetCode(codeHash common.Hash, code []byte) {
 	s.setCode(codeHash, code)
 }
 
-func (s *stateObject) setCode(codeHash common.Hash, code []byte) {
+func (s *stateObject) setCode(codeHash common.Hash512, code []byte) {
 	s.code = code
 	s.data.CodeHash = codeHash[:]
 	s.dirtyCode = true
@@ -523,6 +520,6 @@ func (s *stateObject) Nonce() uint64 {
 	return s.data.Nonce
 }
 
-func (s *stateObject) Root() common.Hash {
+func (s *stateObject) Root() common.Hash512 {
 	return s.data.Root
 }

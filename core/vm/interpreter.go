@@ -44,8 +44,10 @@ type QRVMInterpreter struct {
 	qrvm  *QRVM
 	table *JumpTable
 
-	hasher    crypto.KeccakState // Keccak256 hasher instance shared across opcodes
-	hasherBuf common.Hash        // Keccak256 hasher result array shared across opcodes
+	hasher       crypto.KeccakState // Keccak256 hasher instance shared across opcodes
+	hasherBuf    common.Hash        // Keccak256 hasher result array shared across opcodes
+	hasher512    crypto.KeccakState // Keccak512 hasher for full-width storage slot derivation
+	hasherBuf512 common.Hash512
 
 	readOnly   bool   // Whether to throw on stateful modifications
 	returnData []byte // Last CALL's return data for subsequent reuse

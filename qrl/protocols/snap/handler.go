@@ -35,7 +35,7 @@ import (
 
 const (
 	// softResponseLimit is the target maximum size of replies to data retrievals.
-	softResponseLimit = 10 * 1024 * 1024
+	softResponseLimit = 2 * 1024 * 1024
 
 	// maxCodeLookups is the maximum number of bytecodes to serve. This number is
 	// there to limit the number of disk lookups.
@@ -294,7 +294,7 @@ func ServiceGetAccountRangeQuery(chain *core.BlockChain, req *GetAccountRangePac
 	var (
 		accounts []*AccountData
 		size     uint64
-		last     common.Hash
+		last     common.Hash512
 	)
 	for it.Next() {
 		hash, account := it.Hash(), common.CopyBytes(it.Account())
@@ -303,7 +303,7 @@ func ServiceGetAccountRangeQuery(chain *core.BlockChain, req *GetAccountRangePac
 		last = hash
 
 		// Assemble the reply item
-		size += uint64(common.HashLength + len(account))
+		size += uint64(common.Hash512Length + len(account))
 		accounts = append(accounts, &AccountData{
 			Hash: hash,
 			Body: account,
@@ -324,7 +324,7 @@ func ServiceGetAccountRangeQuery(chain *core.BlockChain, req *GetAccountRangePac
 		log.Warn("Failed to prove account range", "origin", req.Origin, "err", err)
 		return nil, nil
 	}
-	if last != (common.Hash{}) {
+	if last != (common.Hash512{}) {
 		if err := tr.Prove(last[:], proof); err != nil {
 			log.Warn("Failed to prove account range", "last", last, "err", err)
 			return nil, nil
@@ -361,13 +361,13 @@ func ServiceGetStorageRangesQuery(chain *core.BlockChain, req *GetStorageRangesP
 			break
 		}
 		// The first account might start from a different origin and end sooner
-		var origin common.Hash
+		var origin common.Hash512
 		if len(req.Origin) > 0 {
-			origin, req.Origin = common.BytesToHash(req.Origin), nil
+			origin, req.Origin = common.BytesToHash512(req.Origin), nil
 		}
-		var limit = common.MaxHash
+		var limit = common.MaxHash512
 		if len(req.Limit) > 0 {
-			limit, req.Limit = common.BytesToHash(req.Limit), nil
+			limit, req.Limit = common.BytesToHash512(req.Limit), nil
 		}
 		// Retrieve the requested state and bail out if non existent
 		it, err := chain.Snapshots().StorageIterator(req.Root, account, origin)
@@ -377,7 +377,7 @@ func ServiceGetStorageRangesQuery(chain *core.BlockChain, req *GetStorageRangesP
 		// Iterate over the requested range and pile slots up
 		var (
 			storage []*StorageData
-			last    common.Hash
+			last    common.Hash512
 			abort   bool
 		)
 		for it.Next() {
@@ -391,7 +391,7 @@ func ServiceGetStorageRangesQuery(chain *core.BlockChain, req *GetStorageRangesP
 			last = hash
 
 			// Assemble the reply item
-			size += uint64(common.HashLength + len(slot))
+			size += uint64(common.Hash512Length + len(slot))
 			storage = append(storage, &StorageData{
 				Hash: hash,
 				Body: slot,
@@ -409,7 +409,7 @@ func ServiceGetStorageRangesQuery(chain *core.BlockChain, req *GetStorageRangesP
 		// Generate the Merkle proofs for the first and last storage slot, but
 		// only if the response was capped. If the entire storage trie included
 		// in the response, no need for any proofs.
-		if origin != (common.Hash{}) || (abort && len(storage) > 0) {
+		if origin != (common.Hash512{}) || (abort && len(storage) > 0) {
 			// Request started at a non-zero hash or was capped prematurely, add
 			// the endpoint Merkle proofs
 			accTrie, err := trie.NewStateTrie(trie.StateTrieID(req.Root), chain.TrieDB())
@@ -430,7 +430,7 @@ func ServiceGetStorageRangesQuery(chain *core.BlockChain, req *GetStorageRangesP
 				log.Warn("Failed to prove storage range", "origin", req.Origin, "err", err)
 				return nil, nil
 			}
-			if last != (common.Hash{}) {
+			if last != (common.Hash512{}) {
 				if err := stTrie.Prove(last[:], proof); err != nil {
 					log.Warn("Failed to prove storage range", "last", last, "err", err)
 					return nil, nil
@@ -517,26 +517,26 @@ func ServiceGetTrieNodesQuery(chain *core.BlockChain, req *GetTrieNodesPacket, s
 			bytes += uint64(len(blob))
 
 		default:
-			var stRoot common.Hash
+			var stRoot common.Hash512
 			// Storage slots requested, open the storage trie and retrieve from there
 			if snap == nil {
 				// We don't have the requested state snapshotted yet (or it is stale),
 				// but can look up the account via the trie instead.
-				account, err := accTrie.GetAccountByHash(common.BytesToHash(pathset[0]))
+				account, err := accTrie.GetAccountByHash(common.BytesToHash512(pathset[0]))
 				loads += 8 // We don't know the exact cost of lookup, this is an estimate
 				if err != nil || account == nil {
 					break
 				}
 				stRoot = account.Root
 			} else {
-				account, err := snap.Account(common.BytesToHash(pathset[0]))
+				account, err := snap.Account(common.BytesToHash512(pathset[0]))
 				loads++ // always account database reads, even for failures
 				if err != nil || account == nil {
 					break
 				}
-				stRoot = common.BytesToHash(account.Root)
+				stRoot = common.BytesToHash512(account.Root)
 			}
-			id := trie.StorageTrieID(req.Root, common.BytesToHash(pathset[0]), stRoot)
+			id := trie.StorageTrieID(req.Root, common.BytesToHash512(pathset[0]), stRoot)
 			stTrie, err := trie.NewStateTrie(id, triedb)
 			loads++ // always account database reads, even for failures
 			if err != nil {

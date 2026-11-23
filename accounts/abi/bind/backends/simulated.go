@@ -231,7 +231,7 @@ func (b *SimulatedBackend) NonceAt(ctx context.Context, contract common.Address,
 }
 
 // StorageAt returns the value of key in the storage of an account in the blockchain.
-func (b *SimulatedBackend) StorageAt(ctx context.Context, contract common.Address, key common.Hash, blockNumber *big.Int) ([]byte, error) {
+func (b *SimulatedBackend) StorageAt(ctx context.Context, contract common.Address, key common.StorageKey, blockNumber *big.Int) ([]byte, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 

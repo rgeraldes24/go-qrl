@@ -35,7 +35,7 @@ import (
 
 var dumper = spew.ConfigState{Indent: "    "}
 
-func accountRangeTest(t *testing.T, trie *state.Trie, statedb *state.StateDB, start common.Hash, requestedNum int, expectedNum int) state.IteratorDump {
+func accountRangeTest(t *testing.T, trie *state.Trie, statedb *state.StateDB, start common.Hash512, requestedNum int, expectedNum int) state.IteratorDump {
 	result := statedb.IteratorDump(&state.DumpConfig{
 		SkipCode:          true,
 		SkipStorage:       true,
@@ -69,8 +69,8 @@ func TestAccountRange(t *testing.T) {
 	)
 
 	for i := range addrs {
-		hash := common.HexToHash(fmt.Sprintf("%x", i))
-		addr := common.BytesToAddress(crypto.Keccak256Hash(hash.Bytes()).Bytes())
+		hash := common.HexToHash512(fmt.Sprintf("%x", i))
+		addr := common.BytesToAddress(crypto.Keccak512Hash(hash.Bytes()).Bytes())
 		addrs[i] = addr
 		sdb.SetBalance(addrs[i], big.NewInt(1))
 		if _, ok := m[addr]; ok {
@@ -86,12 +86,12 @@ func TestAccountRange(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	accountRangeTest(t, &trie, sdb, common.Hash{}, AccountRangeMaxResults/2, AccountRangeMaxResults/2)
+	accountRangeTest(t, &trie, sdb, common.Hash512{}, AccountRangeMaxResults/2, AccountRangeMaxResults/2)
 	// test pagination
-	firstResult := accountRangeTest(t, &trie, sdb, common.Hash{}, AccountRangeMaxResults, AccountRangeMaxResults)
-	secondResult := accountRangeTest(t, &trie, sdb, common.BytesToHash(firstResult.Next), AccountRangeMaxResults, AccountRangeMaxResults)
+	firstResult := accountRangeTest(t, &trie, sdb, common.Hash512{}, AccountRangeMaxResults, AccountRangeMaxResults)
+	secondResult := accountRangeTest(t, &trie, sdb, common.BytesToHash512(firstResult.Next), AccountRangeMaxResults, AccountRangeMaxResults)
 
-	hList := make([]common.Hash, 0)
+	hList := make([]common.Hash512, 0)
 	for addr1 := range firstResult.Accounts {
 		// If address is empty, then it makes no sense to compare
 		// them as they might be two different accounts.
@@ -101,11 +101,11 @@ func TestAccountRange(t *testing.T) {
 		if _, duplicate := secondResult.Accounts[addr1]; duplicate {
 			t.Fatalf("pagination test failed:  results should not overlap")
 		}
-		hList = append(hList, crypto.Keccak256Hash(addr1.Bytes()))
+		hList = append(hList, crypto.Keccak512Hash(addr1.Bytes()))
 	}
 	// Test to see if it's possible to recover from the middle of the previous
 	// set and get an even split between the first and second sets.
-	slices.SortFunc(hList, common.Hash.Cmp)
+	slices.SortFunc(hList, common.Hash512.Cmp)
 	middleH := hList[AccountRangeMaxResults/2]
 	middleResult := accountRangeTest(t, &trie, sdb, middleH, AccountRangeMaxResults, AccountRangeMaxResults)
 	missing, infirst, insecond := 0, 0, 0
@@ -146,7 +146,7 @@ func TestEmptyAccountRange(t *testing.T) {
 		OnlyWithAddresses: true,
 		Max:               uint64(AccountRangeMaxResults),
 	})
-	if bytes.Equal(results.Next, (common.Hash{}).Bytes()) {
+	if bytes.Equal(results.Next, (common.Hash512{}).Bytes()) {
 		t.Fatalf("Empty results should not return a second page")
 	}
 	if len(results.Accounts) != 0 {
@@ -162,17 +162,17 @@ func TestStorageRangeAt(t *testing.T) {
 		db     = state.NewDatabaseWithConfig(rawdb.NewMemoryDatabase(), &trie.Config{Preimages: true})
 		sdb, _ = state.New(types.EmptyRootHash, db, nil)
 		addr   = common.Address{0x01}
-		keys   = []common.Hash{ // hashes of Keys of storage
-			common.HexToHash("340dd630ad21bf010b4e676dbfa9ba9a02175262d1fa356232cfde6cb5b47ef2"),
-			common.HexToHash("426fcb404ab2d5d8e61a3d918108006bbb0a9be65e92235bb10eefbdb6dcd053"),
-			common.HexToHash("48078cfed56339ea54962e72c37c7f588fc4f8e5bc173827ba75cb10a63a96a5"),
-			common.HexToHash("5723d2c3a83af9b735e3b7f21531e5623d183a9095a56604ead41f3582fdfb75"),
+		keys   = []common.Hash512{ // Keccak-512 hashes of the full 64-byte storage keys.
+			common.HexToHash512("2bd627c5ce0e5271cb2bdd3a6d41a244c096e1fcf077641aec2a2d2cb56a5ca1a492fa678df48995cd2013d71ddc6f7b12bde3c0b995f11d98c25c5ca5ee8de8"),
+			common.HexToHash512("814ff99d5a7b359389335e51b068c05dfc652932a7267034959912c9ac265c0b06d15431e0889f4eac982dc0f8aa85fc5adbf5a87f6e7d1f43e14ebe1c2f91cf"),
+			common.HexToHash512("e537d435e06a289739884b5badf4e7925ff5eee760855aba76376969feaef63e61f27a5bb7e5e3ef53add5caa23d9e4eea445e326745e0cc5f0dc03218e80c84"),
+			common.HexToHash512("f704854c445d4d892a7448e435676ab54d8d3aa5beac9e2c1595e709fc5405ac3a3d614d2cb7b04c97c10bd04b645eade488317cccf37b6c6ee2640b5898bbe7"),
 		}
 		storage = storageMap{
-			keys[0]: {Key: &common.Hash{0x02}, Value: common.StorageValue64{0x01}},
-			keys[1]: {Key: &common.Hash{0x04}, Value: common.StorageValue64{0x02}},
-			keys[2]: {Key: &common.Hash{0x01}, Value: common.StorageValue64{0x03}},
-			keys[3]: {Key: &common.Hash{0x03}, Value: common.StorageValue64{0x04}},
+			keys[0]: {Key: &common.Hash512{0x03}, Value: common.StorageValue64{0x04}},
+			keys[1]: {Key: &common.Hash512{0x01}, Value: common.StorageValue64{0x03}},
+			keys[2]: {Key: &common.Hash512{0x02}, Value: common.StorageValue64{0x01}},
+			keys[3]: {Key: &common.Hash512{0x04}, Value: common.StorageValue64{0x02}},
 		}
 	)
 	for _, entry := range storage {
@@ -204,7 +204,7 @@ func TestStorageRangeAt(t *testing.T) {
 			want: StorageRangeResult{storage, nil},
 		},
 		{
-			start: []byte{0x40}, limit: 2,
+			start: keys[1][:], limit: 2,
 			want: StorageRangeResult{storageMap{keys[1]: storage[keys[1]], keys[2]: storage[keys[2]]}, &keys[3]},
 		},
 	}

@@ -118,7 +118,7 @@ type BlockChain interface {
 	GetBlock(hash common.Hash, number uint64) *types.Block
 
 	// StateAt returns a state database for a given root hash (generally the head).
-	StateAt(root common.Hash) (*state.StateDB, error)
+	StateAt(root common.Hash512) (*state.StateDB, error)
 }
 
 // Config are the configuration parameters of the transaction pool.

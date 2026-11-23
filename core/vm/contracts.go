@@ -21,6 +21,7 @@ import (
 	"crypto/sha256"
 	"crypto/sha3"
 	"encoding/binary"
+	"errors"
 	gomath "math"
 	"math/big"
 
@@ -446,13 +447,18 @@ func (c *dataCopy) Run(in []byte) ([]byte, error) {
 type bigModExp struct{}
 
 var (
-	big0  = big.NewInt(0)
-	big1  = big.NewInt(1)
-	big3  = big.NewInt(3)
-	big7  = big.NewInt(7)
-	big8  = big.NewInt(8)
-	big32 = big.NewInt(32)
+	big0    = big.NewInt(0)
+	big1    = big.NewInt(1)
+	big7    = big.NewInt(7)
+	big8    = big.NewInt(8)
+	big16   = big.NewInt(16)
+	big32   = big.NewInt(32)
+	big1024 = big.NewInt(1024)
 )
+
+// errModExpInputTooLong is returned if the base, exponent or modulus length
+// exceeds the upper bound of 8192 bits (1024 bytes) defined in EIP-7823.
+var errModExpInputTooLong = errors.New("one or more of base/exponent/modulus length exceeded 1024 bytes")
 
 // RequiredGas returns the gas required to execute the pre-compiled contract.
 func (c *bigModExp) RequiredGas(input []byte) uint64 {
@@ -485,42 +491,57 @@ func (c *bigModExp) RequiredGas(input []byte) uint64 {
 	adjExpLen := new(big.Int)
 	if expLen.Cmp(big32) > 0 {
 		adjExpLen.Sub(expLen, big32)
-		adjExpLen.Mul(big8, adjExpLen)
+		adjExpLen.Mul(big16, adjExpLen)
 	}
 	adjExpLen.Add(adjExpLen, big.NewInt(int64(msb)))
 	// Calculate the gas cost of the operation
 	gas := new(big.Int).Set(math.BigMax(modLen, baseLen))
 
-	// EIP-2565 has three changes
+	// EIP-7883 has four changes over EIP-2565
 	// 1. Different multComplexity (inlined here)
-	// in EIP-2565 (https://eips.ethereum.org/EIPS/eip-2565):
+	// in EIP-7883 (https://eips.ethereum.org/EIPS/eip-7883):
 	//
 	// def mult_complexity(x):
-	//    ceiling(x/8)^2
+	//    if x <= 32: return 16
+	//    return 2 * ceiling(x/8)^2
 	//
 	//where is x is max(length_of_MODULUS, length_of_BASE)
-	gas = gas.Add(gas, big7)
-	gas = gas.Div(gas, big8)
-	gas.Mul(gas, gas)
-
+	if gas.Cmp(big32) <= 0 {
+		gas.SetUint64(16)
+	} else {
+		gas = gas.Add(gas, big7)
+		gas = gas.Div(gas, big8)
+		gas.Mul(gas, gas)
+		gas.Lsh(gas, 1)
+	}
+	// 2. Different multiplier (16) for exponents longer than 32 bytes
+	// (applied to the adjusted exponent length above)
 	gas.Mul(gas, math.BigMax(adjExpLen, big1))
-	// 2. Different divisor (`GQUADDIVISOR`) (3)
-	gas.Div(gas, big3)
+	// 3. No divisor (`GQUADDIVISOR`)
 	if gas.BitLen() > 64 {
 		return gomath.MaxUint64
 	}
-	// 3. Minimum price of 200 gas
-	if gas.Uint64() < 200 {
-		return 200
+	// 4. Minimum price of 500 gas
+	if gas.Uint64() < 500 {
+		return 500
 	}
 	return gas.Uint64()
 }
 
 func (c *bigModExp) Run(input []byte) ([]byte, error) {
 	var (
-		baseLen = new(big.Int).SetBytes(getData(input, 0, 32)).Uint64()
-		expLen  = new(big.Int).SetBytes(getData(input, 32, 32)).Uint64()
-		modLen  = new(big.Int).SetBytes(getData(input, 64, 32)).Uint64()
+		baseLenBig = new(big.Int).SetBytes(getData(input, 0, 32))
+		expLenBig  = new(big.Int).SetBytes(getData(input, 32, 32))
+		modLenBig  = new(big.Int).SetBytes(getData(input, 64, 32))
+	)
+	// EIP-7823: each of the length fields is limited to 8192 bits (1024 bytes)
+	if baseLenBig.Cmp(big1024) > 0 || expLenBig.Cmp(big1024) > 0 || modLenBig.Cmp(big1024) > 0 {
+		return nil, errModExpInputTooLong
+	}
+	var (
+		baseLen = baseLenBig.Uint64()
+		expLen  = expLenBig.Uint64()
+		modLen  = modLenBig.Uint64()
 	)
 	if len(input) > 96 {
 		input = input[96:]

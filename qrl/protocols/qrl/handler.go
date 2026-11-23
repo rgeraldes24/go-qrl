@@ -32,7 +32,9 @@ import (
 
 const (
 	// softResponseLimit is the target maximum size of replies to data retrievals.
-	softResponseLimit = 10 * 1024 * 1024
+	// A reply can overshoot it by one item, so it must leave room below
+	// maxMessageSize for the largest block body (~7 MB).
+	softResponseLimit = 2 * 1024 * 1024
 
 	// maxHeadersServe is the maximum number of block headers to serve. This number
 	// is there to limit the number of disk lookups.

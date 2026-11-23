@@ -26,10 +26,10 @@ import (
 
 func TestNewAccessListTracerExcludedAddress(t *testing.T) {
 	excluded := common.BytesToAddress(bytes.Repeat([]byte{0x22}, common.AddressLength))
-	slot := common.HexToHash("0x01")
+	slot := common.HexToHash512("0x01")
 	prelude := types.AccessList{{
 		Address:     excluded,
-		StorageKeys: []common.Hash{slot},
+		StorageKeys: []common.Hash512{slot},
 	}}
 	tracer := NewAccessListTracer(prelude, excluded, common.Address{}, nil)
 	got := tracer.AccessList()

@@ -35,8 +35,8 @@ type diskLayer struct {
 	triedb *trie.Database      // Trie node cache for reconstruction purposes
 	cache  *fastcache.Cache    // Cache to avoid hitting the disk for direct access
 
-	root  common.Hash // Root hash of the base snapshot
-	stale bool        // Signals that the layer became stale (state progressed)
+	root  common.Hash512 // Root hash of the base snapshot
+	stale bool           // Signals that the layer became stale (state progressed)
 
 	genMarker  []byte                    // Marker for the state that's indexed during initial layer generation
 	genPending chan struct{}             // Notification channel when generation is done (test synchronicity)
@@ -46,7 +46,7 @@ type diskLayer struct {
 }
 
 // Root returns  root hash for which this snapshot was made.
-func (dl *diskLayer) Root() common.Hash {
+func (dl *diskLayer) Root() common.Hash512 {
 	return dl.root
 }
 
@@ -66,7 +66,7 @@ func (dl *diskLayer) Stale() bool {
 
 // Account directly retrieves the account associated with a particular hash in
 // the snapshot slim data format.
-func (dl *diskLayer) Account(hash common.Hash) (*types.SlimAccount, error) {
+func (dl *diskLayer) Account(hash common.Hash512) (*types.SlimAccount, error) {
 	data, err := dl.AccountRLP(hash)
 	if err != nil {
 		return nil, err
@@ -83,7 +83,7 @@ func (dl *diskLayer) Account(hash common.Hash) (*types.SlimAccount, error) {
 
 // AccountRLP directly retrieves the account RLP associated with a particular
 // hash in the snapshot slim data format.
-func (dl *diskLayer) AccountRLP(hash common.Hash) ([]byte, error) {
+func (dl *diskLayer) AccountRLP(hash common.Hash512) ([]byte, error) {
 	dl.lock.RLock()
 	defer dl.lock.RUnlock()
 
@@ -121,7 +121,7 @@ func (dl *diskLayer) AccountRLP(hash common.Hash) ([]byte, error) {
 
 // Storage directly retrieves the storage data associated with a particular hash,
 // within a particular account.
-func (dl *diskLayer) Storage(accountHash, storageHash common.Hash) ([]byte, error) {
+func (dl *diskLayer) Storage(accountHash, storageHash common.Hash512) ([]byte, error) {
 	dl.lock.RLock()
 	defer dl.lock.RUnlock()
 
@@ -162,6 +162,6 @@ func (dl *diskLayer) Storage(accountHash, storageHash common.Hash) ([]byte, erro
 // Update creates a new layer on top of the existing snapshot diff tree with
 // the specified data items. Note, the maps are retained by the method to avoid
 // copying everything.
-func (dl *diskLayer) Update(blockHash common.Hash, destructs map[common.Hash]struct{}, accounts map[common.Hash][]byte, storage map[common.Hash]map[common.Hash][]byte) *diffLayer {
+func (dl *diskLayer) Update(blockHash common.Hash512, destructs map[common.Hash512]struct{}, accounts map[common.Hash512][]byte, storage map[common.Hash512]map[common.Hash512][]byte) *diffLayer {
 	return newDiffLayer(dl, blockHash, destructs, accounts, storage)
 }

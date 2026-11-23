@@ -18,6 +18,7 @@ package types
 
 import (
 	"bytes"
+	"reflect"
 
 	"github.com/theQRL/go-qrl/common"
 	"github.com/theQRL/go-qrl/common/hexutil"
@@ -29,10 +30,10 @@ import (
 
 // Withdrawal represents a validator withdrawal from the consensus layer.
 type Withdrawal struct {
-	Index     uint64         `json:"index"`          // monotonically increasing identifier issued by consensus layer
-	Validator uint64         `json:"validatorIndex"` // index of validator associated with withdrawal
-	Address   common.Address `json:"address"`        // target address for withdrawn quanta
-	Amount    uint64         `json:"amount"`         // value of withdrawal in Shor
+	Index     uint64         `json:"index"          gencodec:"required"` // monotonically increasing identifier issued by consensus layer
+	Validator uint64         `json:"validatorIndex" gencodec:"required"` // index of validator associated with withdrawal
+	Address   common.Address `json:"address"        gencodec:"required"` // target address for withdrawn quanta
+	Amount    uint64         `json:"amount"         gencodec:"required"` // value of withdrawal in Shor
 }
 
 // field type overrides for gencodec
@@ -47,6 +48,13 @@ type Withdrawals []*Withdrawal
 
 // Len returns the length of s.
 func (s Withdrawals) Len() int { return len(s) }
+
+var withdrawalSize = int(reflect.TypeFor[Withdrawal]().Size())
+
+// Size returns the approximate memory used by all withdrawals.
+func (s Withdrawals) Size() int {
+	return withdrawalSize * len(s)
+}
 
 // EncodeIndex encodes the i'th withdrawal to w. Note that this does not check for errors
 // because we assume that *Withdrawal will only ever contain valid withdrawals that were either

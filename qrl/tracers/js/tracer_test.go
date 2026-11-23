@@ -283,7 +283,7 @@ func expectedQRVMDisResultCount(op vm.OpCode) (int, bool) {
 	switch {
 	case op >= vm.ADD && op <= vm.SIGNEXTEND:
 		return 1, true
-	case op >= vm.LT && op <= vm.SAR:
+	case op >= vm.LT && op <= vm.CLZ:
 		return 1, true
 	case op >= vm.ADDRESS && op <= vm.CALLDATASIZE:
 		return 1, true
@@ -310,14 +310,16 @@ func expectedQRVMDisResultCount(op vm.OpCode) (int, bool) {
 		vm.MSTORE,
 		vm.MSTORE8,
 		vm.SSTORE,
+		vm.TSTORE,
 		vm.JUMP,
 		vm.JUMPI,
 		vm.JUMPDEST,
+		vm.MCOPY,
 		vm.RETURN,
 		vm.REVERT,
 		vm.INVALID:
 		return 0, true
-	case vm.KECCAK256,
+	case vm.KECCAK256, vm.KECCAK512,
 		vm.CODESIZE,
 		vm.GASPRICE,
 		vm.EXTCODESIZE,
@@ -325,6 +327,7 @@ func expectedQRVMDisResultCount(op vm.OpCode) (int, bool) {
 		vm.EXTCODEHASH,
 		vm.MLOAD,
 		vm.SLOAD,
+		vm.TLOAD,
 		vm.PC,
 		vm.MSIZE,
 		vm.GAS,

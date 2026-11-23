@@ -20,23 +20,23 @@ import "github.com/theQRL/go-qrl/common"
 
 // ID is the identifier for uniquely identifying a trie.
 type ID struct {
-	StateRoot common.Hash // The root of the corresponding state(block.root)
-	Owner     common.Hash // The contract address hash which the trie belongs to
-	Root      common.Hash // The root hash of trie
+	StateRoot common.Hash512 // The root of the corresponding state(block.root)
+	Owner     common.Hash512 // The contract address hash which the trie belongs to
+	Root      common.Hash512 // The root hash of trie
 }
 
 // StateTrieID constructs an identifier for state trie with the provided state root.
-func StateTrieID(root common.Hash) *ID {
+func StateTrieID(root common.Hash512) *ID {
 	return &ID{
 		StateRoot: root,
-		Owner:     common.Hash{},
+		Owner:     common.Hash512{},
 		Root:      root,
 	}
 }
 
 // StorageTrieID constructs an identifier for storage trie which belongs to a certain
 // state and contract specified by the stateRoot and owner.
-func StorageTrieID(stateRoot common.Hash, owner common.Hash, root common.Hash) *ID {
+func StorageTrieID(stateRoot common.Hash512, owner common.Hash512, root common.Hash512) *ID {
 	return &ID{
 		StateRoot: stateRoot,
 		Owner:     owner,
@@ -46,10 +46,10 @@ func StorageTrieID(stateRoot common.Hash, owner common.Hash, root common.Hash) *
 
 // TrieID constructs an identifier for a standard trie(not a second-layer trie)
 // with provided root. It's mostly used in tests and some other tries like CHT trie.
-func TrieID(root common.Hash) *ID {
+func TrieID(root common.Hash512) *ID {
 	return &ID{
 		StateRoot: root,
-		Owner:     common.Hash{},
+		Owner:     common.Hash512{},
 		Root:      root,
 	}
 }

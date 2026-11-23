@@ -78,12 +78,12 @@ func CreateAddress(b common.Address, nonce uint64) common.Address {
 }
 
 // CreateAddress2 creates a qrl address for a CREATE2 invocation given the
-// sender address, a 64-byte salt and the keccak256 hash of the init code.
+// sender address, a 64-byte salt and the Keccak-512 hash of the init code.
 //
 // The salt is 512 bits wide to match the VM stack word. Callers that hold a
 // narrower value should left-pad to 64 bytes.
-func CreateAddress2(b common.Address, salt [64]byte, inithash []byte) common.Address {
-	return keccakToAddress([]byte{0xff}, b.Bytes(), salt[:], inithash)
+func CreateAddress2(b common.Address, salt [64]byte, inithash common.Hash512) common.Address {
+	return keccakToAddress([]byte{0xff}, b.Bytes(), salt[:], inithash[:])
 }
 
 // addressDomain prefixes every Keccak-512 input used to derive a QRL

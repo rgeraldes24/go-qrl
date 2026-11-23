@@ -198,9 +198,9 @@ func TestRegenerateT8nFixtures(t *testing.T) {
 	header := map[string]any{
 		"parentHash":       "0x0000000000000000000000000000000000000000000000000000000000000000",
 		"miner":            qPrefixed(recipient),
-		"stateRoot":        "0x4e8c240fc34843c9b49d936ef9e03f2422ca4cfcfc8502a38cdf3ebb92eec6b2",
-		"transactionsRoot": "0x7fcad3606f4d5779972c5f4b2840da02006fb2a1cbb1a76517ec745e0a7f6123",
-		"receiptsRoot":     "0xf78dfb743fbd92ade140711c8bbc542b5e307f0ab7984eff35d751969fe57efa",
+		"stateRoot":        "0x16da589eb1c6d457b79c0a1738b6971074584aafd9797086d4eeee212c33658489da2ac02078f6392e1e80cb381e28e72c986774c50e270cd7973b1c21ac7421",
+		"transactionsRoot": "0x9a78fb4204d5dd94ffcaddb07e72d7642afd0a982819cd079254b6a905c09f4f24516ce4204e9de7f50ebda539eaa7446d8b4950925869f167c9a9c0ea878fb0",
+		"receiptsRoot":     "0x51ece6b2a68fbac8cf3b31b1d278f53fd757e37a4fb667ba788ad5d69cee472982552ccd3cb815d91be5410d888117821abece487b39ebcff64ac56b546cf94f",
 		"logsBloom":        "0x" + hex.EncodeToString(make([]byte, 256)),
 		"number":           "0x1",
 		"gasLimit":         "0x750a163df65e8a",

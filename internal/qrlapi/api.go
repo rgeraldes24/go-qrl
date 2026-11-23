@@ -127,7 +127,7 @@ func (s *QRLAPI) Syncing() (any, error) {
 	progress := s.b.SyncProgress()
 
 	// Return not syncing if the synchronisation already completed
-	if progress.CurrentBlock >= progress.HighestBlock {
+	if progress.Done() {
 		return false, nil
 	}
 	// Otherwise gather the block sync stats
@@ -308,9 +308,9 @@ type AccountResult struct {
 	Address      common.Address  `json:"address"`
 	AccountProof []string        `json:"accountProof"`
 	Balance      *hexutil.Big    `json:"balance"`
-	CodeHash     common.Hash     `json:"codeHash"`
+	CodeHash     common.Hash512  `json:"codeHash"`
 	Nonce        hexutil.Uint64  `json:"nonce"`
-	StorageHash  common.Hash     `json:"storageHash"`
+	StorageHash  common.Hash512  `json:"storageHash"`
 	StorageProof []StorageResult `json:"storageProof"`
 }
 
@@ -336,7 +336,7 @@ func (n *proofList) Delete(key []byte) error {
 // GetProof returns the Merkle-proof for a given account and optionally some storage keys.
 func (api *BlockChainAPI) GetProof(ctx context.Context, address common.Address, storageKeys []string, blockNrOrHash rpc.BlockNumberOrHash) (*AccountResult, error) {
 	var (
-		keys         = make([]common.Hash, len(storageKeys))
+		keys         = make([]common.Hash512, len(storageKeys))
 		keyLengths   = make([]int, len(storageKeys))
 		storageProof = make([]StorageResult, len(storageKeys))
 	)
@@ -357,8 +357,8 @@ func (api *BlockChainAPI) GetProof(ctx context.Context, address common.Address, 
 
 	if len(keys) > 0 {
 		var storageTrie state.Trie
-		if storageRoot != types.EmptyRootHash && storageRoot != (common.Hash{}) {
-			id := trie.StorageTrieID(header.Root, crypto.Keccak256Hash(address.Bytes()), storageRoot)
+		if storageRoot != types.EmptyRootHash && storageRoot != (common.Hash512{}) {
+			id := trie.StorageTrieID(header.Root, crypto.Keccak512Hash(address.Bytes()), storageRoot)
 			st, err := trie.NewStateTrie(id, statedb.Database().TrieDB())
 			if err != nil {
 				return nil, err
@@ -367,12 +367,12 @@ func (api *BlockChainAPI) GetProof(ctx context.Context, address common.Address, 
 		}
 		// Create the proofs for the storageKeys.
 		for i, key := range keys {
-			// Output key encoding is a bit special: if the input was a 32-byte hash, it is
+			// Output key encoding is a bit special: if the input was a 64-byte hash, it is
 			// returned as such. Otherwise, we apply the QUANTITY encoding mandated by the
 			// JSON-RPC spec for getProof. This behavior exists to preserve backwards
 			// compatibility with older client versions.
 			var outputKey string
-			if keyLengths[i] != 32 {
+			if keyLengths[i] != common.Hash512Length {
 				outputKey = hexutil.EncodeBig(key.Big())
 			} else {
 				outputKey = hexutil.Encode(key[:])
@@ -382,7 +382,7 @@ func (api *BlockChainAPI) GetProof(ctx context.Context, address common.Address, 
 				continue
 			}
 			var proof proofList
-			if err := storageTrie.Prove(crypto.Keccak256(key.Bytes()), &proof); err != nil {
+			if err := storageTrie.Prove(crypto.Keccak512(key.Bytes()), &proof); err != nil {
 				return nil, err
 			}
 			value := (*hexutil.U512)(statedb.GetState(address, key).Big())
@@ -396,7 +396,7 @@ func (api *BlockChainAPI) GetProof(ctx context.Context, address common.Address, 
 		return nil, err
 	}
 	var accountProof proofList
-	if err := tr.Prove(crypto.Keccak256(address.Bytes()), &accountProof); err != nil {
+	if err := tr.Prove(crypto.Keccak512(address.Bytes()), &accountProof); err != nil {
 		return nil, err
 	}
 	return &AccountResult{
@@ -410,9 +410,9 @@ func (api *BlockChainAPI) GetProof(ctx context.Context, address common.Address, 
 	}, statedb.Error()
 }
 
-// decodeHash parses a hex-encoded 32-byte hash. The input may optionally
-// be prefixed by 0x and can have a byte length up to 32.
-func decodeHash(s string) (h common.Hash, inputLength int, err error) {
+// decodeHash parses a hex-encoded 64-byte hash. The input may optionally
+// be prefixed by 0x and can have a byte length up to 64.
+func decodeHash(s string) (h common.Hash512, inputLength int, err error) {
 	if strings.HasPrefix(s, "0x") || strings.HasPrefix(s, "0X") {
 		s = s[2:]
 	}
@@ -421,12 +421,12 @@ func decodeHash(s string) (h common.Hash, inputLength int, err error) {
 	}
 	b, err := hex.DecodeString(s)
 	if err != nil {
-		return common.Hash{}, 0, errors.New("hex string invalid")
+		return common.Hash512{}, 0, errors.New("hex string invalid")
 	}
-	if len(b) > 32 {
-		return common.Hash{}, len(b), errors.New("hex string too long, want at most 32 bytes")
+	if len(b) > common.Hash512Length {
+		return common.Hash512{}, len(b), errors.New("hex string too long, want at most 64 bytes")
 	}
-	return common.BytesToHash(b), len(b), nil
+	return common.BytesToHash512(b), len(b), nil
 }
 
 // GetHeaderByNumber returns the requested canonical block header.
@@ -551,11 +551,11 @@ func (api *BlockChainAPI) GetBlockReceipts(ctx context.Context, blockNrOrHash rp
 // if statDiff is set, all diff will be applied first and then execute the call
 // message.
 type OverrideAccount struct {
-	Nonce     *hexutil.Uint64                        `json:"nonce"`
-	Code      *hexutil.Bytes                         `json:"code"`
-	Balance   **hexutil.Big                          `json:"balance"`
-	State     *map[common.Hash]common.StorageValue64 `json:"state"`
-	StateDiff *map[common.Hash]common.StorageValue64 `json:"stateDiff"`
+	Nonce     *hexutil.Uint64                              `json:"nonce"`
+	Code      *hexutil.Bytes                               `json:"code"`
+	Balance   **hexutil.Big                                `json:"balance"`
+	State     *map[common.StorageKey]common.StorageValue64 `json:"state"`
+	StateDiff *map[common.StorageKey]common.StorageValue64 `json:"stateDiff"`
 }
 
 // StateOverride is the collection of overridden accounts.
@@ -937,12 +937,10 @@ func RPCMarshalHeader(head *types.Header) map[string]any {
 		"timestamp":        hexutil.Uint64(head.Time),
 		"transactionsRoot": head.TxHash,
 		"receiptsRoot":     head.ReceiptHash,
+		"withdrawalsRoot":  head.WithdrawalsHash,
 	}
 	if head.BaseFee != nil {
 		result["baseFeePerGas"] = (*hexutil.Big)(head.BaseFee)
-	}
-	if head.WithdrawalsHash != nil {
-		result["withdrawalsRoot"] = head.WithdrawalsHash
 	}
 	return result
 }
@@ -970,9 +968,7 @@ func RPCMarshalBlock(block *types.Block, inclTx bool, fullTx bool, config *param
 		}
 		fields["transactions"] = transactions
 	}
-	if block.Header().WithdrawalsHash != nil {
-		fields["withdrawals"] = block.Withdrawals()
-	}
+	fields["withdrawals"] = block.Withdrawals()
 	return fields
 }
 
@@ -997,8 +993,8 @@ type RPCTransaction struct {
 	// NOTE(rgeraldes24): keeping GasPrice for now because it provides
 	// the effective gas price if the transaction has been included
 	GasPrice         *hexutil.Big      `json:"gasPrice"`
-	GasFeeCap        *hexutil.Big      `json:"maxFeePerGas,omitempty"`
-	GasTipCap        *hexutil.Big      `json:"maxPriorityFeePerGas,omitempty"`
+	GasFeeCap        *hexutil.Big      `json:"maxFeePerGas"`
+	GasTipCap        *hexutil.Big      `json:"maxPriorityFeePerGas"`
 	Hash             common.Hash       `json:"hash"`
 	Input            hexutil.Bytes     `json:"input"`
 	Nonce            hexutil.Uint64    `json:"nonce"`
@@ -1006,8 +1002,8 @@ type RPCTransaction struct {
 	TransactionIndex *hexutil.Uint64   `json:"transactionIndex"`
 	Value            *hexutil.Big      `json:"value"`
 	Type             hexutil.Uint64    `json:"type"`
-	Accesses         *types.AccessList `json:"accessList,omitempty"`
-	ChainID          *hexutil.Big      `json:"chainId,omitempty"`
+	Accesses         *types.AccessList `json:"accessList"`
+	ChainID          *hexutil.Big      `json:"chainId"`
 	Descriptor       hexutil.Bytes     `json:"descriptor"`
 	ExtraParams      hexutil.Bytes     `json:"extraParams"`
 	PublicKey        hexutil.Bytes     `json:"publicKey"`

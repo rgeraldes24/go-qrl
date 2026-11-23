@@ -577,8 +577,8 @@ type blockStats struct {
 	GasUsed    uint64         `json:"gasUsed"`
 	GasLimit   uint64         `json:"gasLimit"`
 	Txs        []txStats      `json:"transactions"`
-	TxHash     common.Hash    `json:"transactionsRoot"`
-	Root       common.Hash    `json:"stateRoot"`
+	TxHash     common.Hash512 `json:"transactionsRoot"`
+	Root       common.Hash512 `json:"stateRoot"`
 }
 
 // txStats is the information to report about individual transactions.
@@ -755,7 +755,7 @@ func (s *Service) reportStats(conn *connWrapper) error {
 	fullBackend, ok := s.backend.(fullNodeBackend)
 	if ok {
 		sync := fullBackend.SyncProgress()
-		syncing = fullBackend.CurrentHeader().Number.Uint64() >= sync.HighestBlock
+		syncing = !sync.Done()
 
 		price, _ := fullBackend.SuggestGasTipCap(context.Background())
 		gasprice = int(price.Uint64())
@@ -764,7 +764,7 @@ func (s *Service) reportStats(conn *connWrapper) error {
 		}
 	} else {
 		sync := s.backend.SyncProgress()
-		syncing = s.backend.CurrentHeader().Number.Uint64() >= sync.HighestBlock
+		syncing = !sync.Done()
 	}
 	// Assemble the node stats and send it to the server
 	log.Trace("Sending node details to qrlstats")

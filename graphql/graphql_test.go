@@ -221,7 +221,7 @@ func TestGraphQLBlockSerializationEIP2718(t *testing.T) {
 			Value:     big.NewInt(50),
 			AccessList: types.AccessList{{
 				Address:     dad,
-				StorageKeys: []common.Hash{{0}},
+				StorageKeys: []common.StorageKey{{0}},
 			}},
 		})
 		gen.AddTx(tx)
@@ -241,7 +241,7 @@ func TestGraphQLBlockSerializationEIP2718(t *testing.T) {
 			body: `{"query": "{block {number transactions { from { address } to { address } value hash type accessList { address storageKeys } index}}}"}`,
 			// Addresses widen to 128 hex chars and tx hashes change because
 			// the from/to/accessList fields now carry 64-byte values.
-			want: fmt.Sprintf(`{"data":{"block":{"number":"0x1","transactions":[{"from":{"address":"%s"},"to":{"address":"%s"},"value":"0x64","hash":"%s","type":"0x2","accessList":[],"index":"0x0"},{"from":{"address":"%s"},"to":{"address":"%s"},"value":"0x32","hash":"%s","type":"0x2","accessList":[{"address":"%s","storageKeys":["0x0000000000000000000000000000000000000000000000000000000000000000"]}],"index":"0x1"}]}}}`,
+			want: fmt.Sprintf(`{"data":{"block":{"number":"0x1","transactions":[{"from":{"address":"%s"},"to":{"address":"%s"},"value":"0x64","hash":"%s","type":"0x2","accessList":[],"index":"0x0"},{"from":{"address":"%s"},"to":{"address":"%s"},"value":"0x32","hash":"%s","type":"0x2","accessList":[{"address":"%s","storageKeys":["0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"]}],"index":"0x1"}]}}}`,
 				common.Address(address).Hex(), dad.Hex(), txHashes[0].Hex(),
 				common.Address(address).Hex(), dad.Hex(), txHashes[1].Hex(), dad.Hex()),
 			code: 200,
@@ -413,11 +413,11 @@ func TestWithdrawals(t *testing.T) {
 	}{
 		{
 			body: "{block(number: 0) { withdrawalsRoot withdrawals { index } } }",
-			want: `{"block":{"withdrawalsRoot":"0x56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421","withdrawals":[]}}`,
+			want: `{"block":{"withdrawalsRoot":"0xa088c353acbb4ba1d73c451acd04ce0c09dc20b5991305555c66d143aa763dc629084179101f69d2fef68731dd99c81a8357595303d53eace341a141df4cb52e","withdrawals":[]}}`,
 		},
 		{
 			body: "{block(number: 1) { withdrawalsRoot withdrawals { validator amount } } }",
-			want: `{"block":{"withdrawalsRoot":"0xaa813d09af1a68c5a1504f6b586e5803e976b3270992d4c4efa074289841228b","withdrawals":[{"validator":"0x5","amount":"0xa"}]}}`,
+			want: `{"block":{"withdrawalsRoot":"0xeb08f4709f41f667172cf188b814779939cf7a3549a56ef569c2a474e48cbedfb8a5999af4014d751a15be5a8b25c7c4891b4965dcb488b5a0f35f61e4176411","withdrawals":[{"validator":"0x5","amount":"0xa"}]}}`,
 		},
 	} {
 		res := handler.Schema.Exec(t.Context(), tt.body, "", map[string]any{})

@@ -116,7 +116,7 @@ func NewPruner(db qrldb.Database, config Config) (*Pruner, error) {
 	}, nil
 }
 
-func prune(snaptree *snapshot.Tree, root common.Hash, maindb qrldb.Database, stateBloom *stateBloom, bloomPath string, middleStateRoots map[common.Hash]struct{}, start time.Time) error {
+func prune(snaptree *snapshot.Tree, root common.Hash512, maindb qrldb.Database, stateBloom *stateBloom, bloomPath string, middleStateRoots map[common.Hash512]struct{}, start time.Time) error {
 	// Delete all stale trie nodes in the disk. With the help of state bloom
 	// the trie nodes(and codes) belong to the active state will be filtered
 	// out. A very small part of stale tries will also be filtered because of
@@ -140,13 +140,13 @@ func prune(snaptree *snapshot.Tree, root common.Hash, maindb qrldb.Database, sta
 		// - legacy contract code
 		// - new-scheme contract code
 		isCode, codeKey := rawdb.IsCodeKey(key)
-		if len(key) == common.HashLength || isCode {
+		if len(key) == common.Hash512Length || isCode {
 			checkKey := key
 			if isCode {
 				checkKey = codeKey
 			}
-			if _, exist := middleStateRoots[common.BytesToHash(checkKey)]; exist {
-				log.Debug("Forcibly delete the middle state roots", "hash", common.BytesToHash(checkKey))
+			if _, exist := middleStateRoots[common.BytesToHash512(checkKey)]; exist {
+				log.Debug("Forcibly delete the middle state roots", "hash", common.BytesToHash512(checkKey))
 			} else {
 				if stateBloom.Contain(checkKey) {
 					continue
@@ -233,7 +233,7 @@ func prune(snaptree *snapshot.Tree, root common.Hash, maindb qrldb.Database, sta
 // Prune deletes all historical state nodes except the nodes belong to the
 // specified state version. If user doesn't specify the state version, use
 // the bottom-most snapshot diff layer as the target.
-func (p *Pruner) Prune(root common.Hash) error {
+func (p *Pruner) Prune(root common.Hash512) error {
 	// If the state bloom filter is already committed previously,
 	// reuse it for pruning instead of generating a new one. It's
 	// mandatory because a part of state may already be deleted,
@@ -242,7 +242,7 @@ func (p *Pruner) Prune(root common.Hash) error {
 	if err != nil {
 		return err
 	}
-	if stateBloomRoot != (common.Hash{}) {
+	if stateBloomRoot != (common.Hash512{}) {
 		return RecoverPruning(p.config.Datadir, p.db)
 	}
 	// If the target state root is not specified, use the HEAD-127 as the
@@ -250,7 +250,7 @@ func (p *Pruner) Prune(root common.Hash) error {
 	// - in most of the normal cases, the related state is available
 	// - the probability of this layer being reorg is very low
 	var layers []snapshot.Snapshot
-	if root == (common.Hash{}) {
+	if root == (common.Hash512{}) {
 		// Retrieve all snapshot layers from the current HEAD.
 		// In theory there are 128 difflayers + 1 disk layer present,
 		// so 128 diff layers are expected to be returned.
@@ -303,7 +303,7 @@ func (p *Pruner) Prune(root common.Hash) error {
 	}
 	// All the state roots of the middle layer should be forcibly pruned,
 	// otherwise the dangling state will be left.
-	middleRoots := make(map[common.Hash]struct{})
+	middleRoots := make(map[common.Hash512]struct{})
 	for _, layer := range layers {
 		if layer.Root() == root {
 			break
@@ -381,7 +381,7 @@ func RecoverPruning(datadir string, db qrldb.Database) error {
 	var (
 		found       bool
 		layers      = snaptree.Snapshots(headBlock.Root(), 128, true)
-		middleRoots = make(map[common.Hash]struct{})
+		middleRoots = make(map[common.Hash512]struct{})
 	)
 	for _, layer := range layers {
 		if layer.Root() == stateBloomRoot {
@@ -420,7 +420,7 @@ func extractGenesis(db qrldb.Database, stateBloom *stateBloom) error {
 		hash := accIter.Hash()
 
 		// Embedded nodes don't have hash.
-		if hash != (common.Hash{}) {
+		if hash != (common.Hash512{}) {
 			stateBloom.Put(hash.Bytes(), nil)
 		}
 		// If it's a leaf node, yes we are touching an account,
@@ -431,7 +431,7 @@ func extractGenesis(db qrldb.Database, stateBloom *stateBloom) error {
 				return err
 			}
 			if acc.Root != types.EmptyRootHash {
-				id := trie.StorageTrieID(genesis.Root(), common.BytesToHash(accIter.LeafKey()), acc.Root)
+				id := trie.StorageTrieID(genesis.Root(), common.BytesToHash512(accIter.LeafKey()), acc.Root)
 				storageTrie, err := trie.NewStateTrie(id, trie.NewDatabase(db, trie.HashDefaults))
 				if err != nil {
 					return err
@@ -442,7 +442,7 @@ func extractGenesis(db qrldb.Database, stateBloom *stateBloom) error {
 				}
 				for storageIter.Next(true) {
 					hash := storageIter.Hash()
-					if hash != (common.Hash{}) {
+					if hash != (common.Hash512{}) {
 						stateBloom.Put(hash.Bytes(), nil)
 					}
 				}
@@ -458,22 +458,22 @@ func extractGenesis(db qrldb.Database, stateBloom *stateBloom) error {
 	return accIter.Error()
 }
 
-func bloomFilterName(datadir string, hash common.Hash) string {
+func bloomFilterName(datadir string, hash common.Hash512) string {
 	return filepath.Join(datadir, fmt.Sprintf("%s.%s.%s", stateBloomFilePrefix, hash.Hex(), stateBloomFileSuffix))
 }
 
-func isBloomFilter(filename string) (bool, common.Hash) {
+func isBloomFilter(filename string) (bool, common.Hash512) {
 	filename = filepath.Base(filename)
 	if strings.HasPrefix(filename, stateBloomFilePrefix) && strings.HasSuffix(filename, stateBloomFileSuffix) {
-		return true, common.HexToHash(filename[len(stateBloomFilePrefix)+1 : len(filename)-len(stateBloomFileSuffix)-1])
+		return true, common.HexToHash512(filename[len(stateBloomFilePrefix)+1 : len(filename)-len(stateBloomFileSuffix)-1])
 	}
-	return false, common.Hash{}
+	return false, common.Hash512{}
 }
 
-func findBloomFilter(datadir string) (string, common.Hash, error) {
+func findBloomFilter(datadir string) (string, common.Hash512, error) {
 	var (
 		stateBloomPath string
-		stateBloomRoot common.Hash
+		stateBloomRoot common.Hash512
 	)
 	if err := filepath.Walk(datadir, func(path string, info os.FileInfo, err error) error {
 		if info != nil && !info.IsDir() {
@@ -485,7 +485,7 @@ func findBloomFilter(datadir string) (string, common.Hash, error) {
 		}
 		return nil
 	}); err != nil {
-		return "", common.Hash{}, err
+		return "", common.Hash512{}, err
 	}
 	return stateBloomPath, stateBloomRoot, nil
 }

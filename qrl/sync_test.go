@@ -28,7 +28,7 @@ import (
 )
 
 // Tests that snap sync is disabled after a successful sync cycle.
-func TestSnapSyncDisabling1(t *testing.T) { testSnapSyncDisabling(t, qrl.QRL1, snap.SNAP1) }
+func TestSnapSyncDisabling1(t *testing.T) { testSnapSyncDisabling(t, qrl.QRL2, snap.SNAP2) }
 
 // Tests that snap sync gets disabled as soon as a real block is successfully
 // imported into the blockchain.

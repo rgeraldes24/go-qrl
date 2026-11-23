@@ -77,15 +77,15 @@ type btHeader struct {
 	Number           *big.Int
 	Hash             common.Hash
 	ParentHash       common.Hash
-	ReceiptTrie      common.Hash
-	StateRoot        common.Hash
-	TransactionsTrie common.Hash
+	ReceiptTrie      common.Hash512
+	StateRoot        common.Hash512
+	TransactionsTrie common.Hash512
 	ExtraData        []byte
 	GasLimit         uint64
 	GasUsed          uint64
 	Timestamp        uint64
 	BaseFeePerGas    *big.Int
-	WithdrawalsRoot  *common.Hash
+	WithdrawalsRoot  common.Hash512
 }
 
 type btHeaderMarshaling struct {
@@ -275,7 +275,7 @@ func validateHeader(h *btHeader, h2 *types.Header) error {
 	if !reflect.DeepEqual(h.BaseFeePerGas, h2.BaseFee) {
 		return fmt.Errorf("baseFeePerGas: want: %v have: %v", h.BaseFeePerGas, h2.BaseFee)
 	}
-	if !reflect.DeepEqual(h.WithdrawalsRoot, h2.WithdrawalsHash) {
+	if h.WithdrawalsRoot != h2.WithdrawalsHash {
 		return fmt.Errorf("withdrawalsRoot: want: %v have: %v", h.WithdrawalsRoot, h2.WithdrawalsHash)
 	}
 	return nil

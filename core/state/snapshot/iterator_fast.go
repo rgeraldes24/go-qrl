@@ -57,8 +57,8 @@ func (it *weightedIterator) Cmp(other *weightedIterator) int {
 // fastIterator is a more optimized multi-layer iterator which maintains a
 // direct mapping of all iterators leading down to the bottom layer.
 type fastIterator struct {
-	tree *Tree       // Snapshot tree to reinitialize stale sub-iterators with
-	root common.Hash // Root hash to reinitialize stale sub-iterators through
+	tree *Tree          // Snapshot tree to reinitialize stale sub-iterators with
+	root common.Hash512 // Root hash to reinitialize stale sub-iterators through
 
 	curAccount []byte
 	curSlot    []byte
@@ -72,7 +72,7 @@ type fastIterator struct {
 // newFastIterator creates a new hierarchical account or storage iterator with one
 // element per diff layer. The returned combo iterator can be used to walk over
 // the entire snapshot diff stack simultaneously.
-func newFastIterator(tree *Tree, root common.Hash, account common.Hash, seek common.Hash, accountIterator bool) (*fastIterator, error) {
+func newFastIterator(tree *Tree, root common.Hash512, account common.Hash512, seek common.Hash512, accountIterator bool) (*fastIterator, error) {
 	snap := tree.Snapshot(root)
 	if snap == nil {
 		return nil, fmt.Errorf("unknown snapshot: %x", root)
@@ -113,7 +113,7 @@ func newFastIterator(tree *Tree, root common.Hash, account common.Hash, seek com
 // which it prepares the stack for step-by-step iteration.
 func (fi *fastIterator) init() {
 	// Track which account hashes are iterators positioned on
-	var positioned = make(map[common.Hash]int)
+	var positioned = make(map[common.Hash512]int)
 
 	// Position all iterators and track how many remain live
 	for i := 0; i < len(fi.iterators); i++ {
@@ -296,7 +296,7 @@ func (fi *fastIterator) Error() error {
 }
 
 // Hash returns the current key
-func (fi *fastIterator) Hash() common.Hash {
+func (fi *fastIterator) Hash() common.Hash512 {
 	return fi.iterators[0].it.Hash()
 }
 
@@ -332,13 +332,13 @@ func (fi *fastIterator) Debug() {
 // newFastAccountIterator creates a new hierarchical account iterator with one
 // element per diff layer. The returned combo iterator can be used to walk over
 // the entire snapshot diff stack simultaneously.
-func newFastAccountIterator(tree *Tree, root common.Hash, seek common.Hash) (AccountIterator, error) {
-	return newFastIterator(tree, root, common.Hash{}, seek, true)
+func newFastAccountIterator(tree *Tree, root common.Hash512, seek common.Hash512) (AccountIterator, error) {
+	return newFastIterator(tree, root, common.Hash512{}, seek, true)
 }
 
 // newFastStorageIterator creates a new hierarchical storage iterator with one
 // element per diff layer. The returned combo iterator can be used to walk over
 // the entire snapshot diff stack simultaneously.
-func newFastStorageIterator(tree *Tree, root common.Hash, account common.Hash, seek common.Hash) (StorageIterator, error) {
+func newFastStorageIterator(tree *Tree, root common.Hash512, account common.Hash512, seek common.Hash512) (StorageIterator, error) {
 	return newFastIterator(tree, root, account, seek, false)
 }

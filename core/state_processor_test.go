@@ -302,7 +302,7 @@ func TestStateProcessorErrors(t *testing.T) {
 				txs: []*types.Transaction{
 					mkDynamicTx(wallet1, 0, common.Address{}, big.NewInt(0), params.TxGas-1000, big.NewInt(params.InitialBaseFee), big.NewInt(params.InitialBaseFee)),
 				},
-				want: "could not apply tx 0 [0xe2274fcf311f4b4a25c6923c344128d9734daa1f74b6407232f3092544323058]: sender not an eoa: address Q8AC356c6E37760C7706ebA2Fa7e08b78D8b01FDfAF4a4B91d4a244b59C73eAB4657362f640E94EDa01Fd397D0c8774fD80d4d8B815A22200988D0A886c979A9A, codehash: 0x9280914443471259d4570a8661015ae4a5b80186dbc619658fb494bebc3da3d1",
+				want: "could not apply tx 0 [0xe2274fcf311f4b4a25c6923c344128d9734daa1f74b6407232f3092544323058]: sender not an eoa: address Q8AC356c6E37760C7706ebA2Fa7e08b78D8b01FDfAF4a4B91d4a244b59C73eAB4657362f640E94EDa01Fd397D0c8774fD80d4d8B815A22200988D0A886c979A9A, codehash: 0xc931d283150db343b3e665b60ede6be106146b809586b8cd83fb2588e65d2ecc750d8bd260c1985b5ed78c6c810c45f55dc087a39091b8a244c1b183e9e40097",
 			},
 		} {
 			block := GenerateBadBlock(gspec.ToBlock(), beacon.New(), tt.txs, gspec.Config)
@@ -378,11 +378,11 @@ func GenerateBadBlock(parent *types.Block, engine consensus.Engine, txs types.Tr
 		Time:       parent.Time() + 10,
 	}
 	header.BaseFee = eip1559.CalcBaseFee(config, parent.Header())
-	header.WithdrawalsHash = &types.EmptyWithdrawalsHash
+	header.WithdrawalsHash = types.EmptyWithdrawalsHash
 	var receipts []*types.Receipt
 	// The post-state result doesn't need to be correct (this is a bad block), but we do need something there
 	// Preferably something unique. So let's use a combo of blocknum + txhash
-	hasher := sha3.NewLegacyKeccak256()
+	hasher := sha3.NewLegacyKeccak512()
 	hasher.Write(header.Number.Bytes())
 	var cumulativeGas uint64
 	for _, tx := range txs {
@@ -398,7 +398,7 @@ func GenerateBadBlock(parent *types.Block, engine consensus.Engine, txs types.Tr
 		receipts = append(receipts, receipt)
 		cumulativeGas += tx.Gas()
 	}
-	header.Root = common.BytesToHash(hasher.Sum(nil))
+	header.Root = common.BytesToHash512(hasher.Sum(nil))
 
 	// Assemble and return the final block for sealing
 	body := &types.Body{Transactions: txs, Withdrawals: []*types.Withdrawal{}}

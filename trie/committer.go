@@ -138,7 +138,7 @@ func (c *committer) store(path []byte, n node) node {
 		return n
 	}
 	// Collect the dirty node to nodeset for return.
-	nhash := common.BytesToHash(hash)
+	nhash := common.BytesToHash512(hash)
 	c.nodes.AddNode(path, trienode.New(nhash, nodeToBytes(n)))
 
 	// Collect the corresponding leaf node if it's required. We don't check
@@ -159,13 +159,13 @@ type mptResolver struct{}
 
 // ForEach implements childResolver, decodes the provided node and
 // traverses the children inside.
-func (resolver mptResolver) ForEach(node []byte, onChild func(common.Hash)) {
+func (resolver mptResolver) ForEach(node []byte, onChild func(common.Hash512)) {
 	forGatherChildren(mustDecodeNodeUnsafe(nil, node), onChild)
 }
 
 // forGatherChildren traverses the node hierarchy and invokes the callback
 // for all the hashnode children.
-func forGatherChildren(n node, onChild func(hash common.Hash)) {
+func forGatherChildren(n node, onChild func(hash common.Hash512)) {
 	switch n := n.(type) {
 	case *shortNode:
 		forGatherChildren(n.Val, onChild)
@@ -174,7 +174,7 @@ func forGatherChildren(n node, onChild func(hash common.Hash)) {
 			forGatherChildren(n.Children[i], onChild)
 		}
 	case hashNode:
-		onChild(common.BytesToHash(n))
+		onChild(common.BytesToHash512(n))
 	case valueNode, nil:
 	default:
 		panic(fmt.Sprintf("unknown node type: %T", n))

@@ -118,6 +118,10 @@ func New(stack *node.Node, config *qrlconfig.Config) (*QRL, error) {
 	if err != nil {
 		return nil, err
 	}
+	if err := core.CheckStateFormat(chainDb); err != nil {
+		chainDb.Close()
+		return nil, err
+	}
 	// Try to recover offline state pruning only in hash-based.
 	if config.StateScheme == rawdb.HashScheme {
 		if err := pruner.RecoverPruning(stack.ResolvePath(""), chainDb); err != nil {

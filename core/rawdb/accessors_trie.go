@@ -46,19 +46,19 @@ const HashScheme = "hash"
 // on extra state diffs to survive deep reorg.
 const PathScheme = "path"
 
-// hasher is used to compute the sha256 hash of the provided data.
+// hasher is used to compute the Keccak-512 hash of the provided data.
 type hasher struct{ sha crypto.KeccakState }
 
 var hasherPool = sync.Pool{
-	New: func() any { return &hasher{sha: sha3.NewLegacyKeccak256().(crypto.KeccakState)} },
+	New: func() any { return &hasher{sha: sha3.NewLegacyKeccak512().(crypto.KeccakState)} },
 }
 
 func newHasher() *hasher {
 	return hasherPool.Get().(*hasher)
 }
 
-func (h *hasher) hash(data []byte) common.Hash {
-	return crypto.HashData(h.sha, data)
+func (h *hasher) hash(data []byte) common.Hash512 {
+	return crypto.HashData512(h.sha, data)
 }
 
 func (h *hasher) release() {
@@ -67,10 +67,10 @@ func (h *hasher) release() {
 
 // ReadAccountTrieNode retrieves the account trie node and the associated node
 // hash with the specified node path.
-func ReadAccountTrieNode(db qrldb.KeyValueReader, path []byte) ([]byte, common.Hash) {
+func ReadAccountTrieNode(db qrldb.KeyValueReader, path []byte) ([]byte, common.Hash512) {
 	data, err := db.Get(accountTrieNodeKey(path))
 	if err != nil {
-		return nil, common.Hash{}
+		return nil, common.Hash512{}
 	}
 	h := newHasher()
 	defer h.release()
@@ -79,7 +79,7 @@ func ReadAccountTrieNode(db qrldb.KeyValueReader, path []byte) ([]byte, common.H
 
 // HasAccountTrieNode checks the account trie node presence with the specified
 // node path and the associated node hash.
-func HasAccountTrieNode(db qrldb.KeyValueReader, path []byte, hash common.Hash) bool {
+func HasAccountTrieNode(db qrldb.KeyValueReader, path []byte, hash common.Hash512) bool {
 	data, err := db.Get(accountTrieNodeKey(path))
 	if err != nil {
 		return false
@@ -105,10 +105,10 @@ func DeleteAccountTrieNode(db qrldb.KeyValueWriter, path []byte) {
 
 // ReadStorageTrieNode retrieves the storage trie node and the associated node
 // hash with the specified node path.
-func ReadStorageTrieNode(db qrldb.KeyValueReader, accountHash common.Hash, path []byte) ([]byte, common.Hash) {
+func ReadStorageTrieNode(db qrldb.KeyValueReader, accountHash common.Hash512, path []byte) ([]byte, common.Hash512) {
 	data, err := db.Get(storageTrieNodeKey(accountHash, path))
 	if err != nil {
-		return nil, common.Hash{}
+		return nil, common.Hash512{}
 	}
 	h := newHasher()
 	defer h.release()
@@ -117,7 +117,7 @@ func ReadStorageTrieNode(db qrldb.KeyValueReader, accountHash common.Hash, path 
 
 // HasStorageTrieNode checks the storage trie node presence with the provided
 // node path and the associated node hash.
-func HasStorageTrieNode(db qrldb.KeyValueReader, accountHash common.Hash, path []byte, hash common.Hash) bool {
+func HasStorageTrieNode(db qrldb.KeyValueReader, accountHash common.Hash512, path []byte, hash common.Hash512) bool {
 	data, err := db.Get(storageTrieNodeKey(accountHash, path))
 	if err != nil {
 		return false
@@ -128,14 +128,14 @@ func HasStorageTrieNode(db qrldb.KeyValueReader, accountHash common.Hash, path [
 }
 
 // WriteStorageTrieNode writes the provided storage trie node into database.
-func WriteStorageTrieNode(db qrldb.KeyValueWriter, accountHash common.Hash, path []byte, node []byte) {
+func WriteStorageTrieNode(db qrldb.KeyValueWriter, accountHash common.Hash512, path []byte, node []byte) {
 	if err := db.Put(storageTrieNodeKey(accountHash, path), node); err != nil {
 		log.Crit("Failed to store storage trie node", "err", err)
 	}
 }
 
 // DeleteStorageTrieNode deletes the specified storage trie node from the database.
-func DeleteStorageTrieNode(db qrldb.KeyValueWriter, accountHash common.Hash, path []byte) {
+func DeleteStorageTrieNode(db qrldb.KeyValueWriter, accountHash common.Hash512, path []byte) {
 	if err := db.Delete(storageTrieNodeKey(accountHash, path)); err != nil {
 		log.Crit("Failed to delete storage trie node", "err", err)
 	}
@@ -143,7 +143,7 @@ func DeleteStorageTrieNode(db qrldb.KeyValueWriter, accountHash common.Hash, pat
 
 // ReadLegacyTrieNode retrieves the legacy trie node with the given
 // associated node hash.
-func ReadLegacyTrieNode(db qrldb.KeyValueReader, hash common.Hash) []byte {
+func ReadLegacyTrieNode(db qrldb.KeyValueReader, hash common.Hash512) []byte {
 	data, err := db.Get(hash.Bytes())
 	if err != nil {
 		return nil
@@ -152,20 +152,20 @@ func ReadLegacyTrieNode(db qrldb.KeyValueReader, hash common.Hash) []byte {
 }
 
 // HasLegacyTrieNode checks if the trie node with the provided hash is present in db.
-func HasLegacyTrieNode(db qrldb.KeyValueReader, hash common.Hash) bool {
+func HasLegacyTrieNode(db qrldb.KeyValueReader, hash common.Hash512) bool {
 	ok, _ := db.Has(hash.Bytes())
 	return ok
 }
 
 // WriteLegacyTrieNode writes the provided legacy trie node to database.
-func WriteLegacyTrieNode(db qrldb.KeyValueWriter, hash common.Hash, node []byte) {
+func WriteLegacyTrieNode(db qrldb.KeyValueWriter, hash common.Hash512, node []byte) {
 	if err := db.Put(hash.Bytes(), node); err != nil {
 		log.Crit("Failed to store legacy trie node", "err", err)
 	}
 }
 
 // DeleteLegacyTrieNode deletes the specified legacy trie node from database.
-func DeleteLegacyTrieNode(db qrldb.KeyValueWriter, hash common.Hash) {
+func DeleteLegacyTrieNode(db qrldb.KeyValueWriter, hash common.Hash512) {
 	if err := db.Delete(hash.Bytes()); err != nil {
 		log.Crit("Failed to delete legacy trie node", "err", err)
 	}
@@ -173,12 +173,12 @@ func DeleteLegacyTrieNode(db qrldb.KeyValueWriter, hash common.Hash) {
 
 // HasTrieNode checks the trie node presence with the provided node info and
 // the associated node hash.
-func HasTrieNode(db qrldb.KeyValueReader, owner common.Hash, path []byte, hash common.Hash, scheme string) bool {
+func HasTrieNode(db qrldb.KeyValueReader, owner common.Hash512, path []byte, hash common.Hash512, scheme string) bool {
 	switch scheme {
 	case HashScheme:
 		return HasLegacyTrieNode(db, hash)
 	case PathScheme:
-		if owner == (common.Hash{}) {
+		if owner == (common.Hash512{}) {
 			return HasAccountTrieNode(db, path, hash)
 		}
 		return HasStorageTrieNode(db, owner, path, hash)
@@ -195,16 +195,16 @@ func HasTrieNode(db qrldb.KeyValueReader, owner common.Hash, path []byte, hash c
 // pathScheme-based lookup requires the following:
 //   - owner
 //   - path
-func ReadTrieNode(db qrldb.KeyValueReader, owner common.Hash, path []byte, hash common.Hash, scheme string) []byte {
+func ReadTrieNode(db qrldb.KeyValueReader, owner common.Hash512, path []byte, hash common.Hash512, scheme string) []byte {
 	switch scheme {
 	case HashScheme:
 		return ReadLegacyTrieNode(db, hash)
 	case PathScheme:
 		var (
 			blob  []byte
-			nHash common.Hash
+			nHash common.Hash512
 		)
-		if owner == (common.Hash{}) {
+		if owner == (common.Hash512{}) {
 			blob, nHash = ReadAccountTrieNode(db, path)
 		} else {
 			blob, nHash = ReadStorageTrieNode(db, owner, path)
@@ -226,12 +226,12 @@ func ReadTrieNode(db qrldb.KeyValueReader, owner common.Hash, path []byte, hash 
 // pathScheme-based lookup requires the following:
 //   - owner
 //   - path
-func WriteTrieNode(db qrldb.KeyValueWriter, owner common.Hash, path []byte, hash common.Hash, node []byte, scheme string) {
+func WriteTrieNode(db qrldb.KeyValueWriter, owner common.Hash512, path []byte, hash common.Hash512, node []byte, scheme string) {
 	switch scheme {
 	case HashScheme:
 		WriteLegacyTrieNode(db, hash, node)
 	case PathScheme:
-		if owner == (common.Hash{}) {
+		if owner == (common.Hash512{}) {
 			WriteAccountTrieNode(db, path, node)
 		} else {
 			WriteStorageTrieNode(db, owner, path, node)
@@ -249,12 +249,12 @@ func WriteTrieNode(db qrldb.KeyValueWriter, owner common.Hash, path []byte, hash
 // pathScheme-based lookup requires the following:
 //   - owner
 //   - path
-func DeleteTrieNode(db qrldb.KeyValueWriter, owner common.Hash, path []byte, hash common.Hash, scheme string) {
+func DeleteTrieNode(db qrldb.KeyValueWriter, owner common.Hash512, path []byte, hash common.Hash512, scheme string) {
 	switch scheme {
 	case HashScheme:
 		DeleteLegacyTrieNode(db, hash)
 	case PathScheme:
-		if owner == (common.Hash{}) {
+		if owner == (common.Hash512{}) {
 			DeleteAccountTrieNode(db, path)
 		} else {
 			DeleteStorageTrieNode(db, owner, path)

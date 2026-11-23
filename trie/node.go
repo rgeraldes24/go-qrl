@@ -205,7 +205,7 @@ func decodeFull(hash, elems []byte) (*fullNode, error) {
 	return n, nil
 }
 
-const hashLen = len(common.Hash{})
+const hashLen = len(common.Hash512{})
 
 func decodeRef(buf []byte) (node, []byte, error) {
 	kind, val, rest, err := rlp.Split(buf)
@@ -216,7 +216,7 @@ func decodeRef(buf []byte) (node, []byte, error) {
 	case kind == rlp.List:
 		// 'embedded' node reference. The encoding must be smaller
 		// than a hash in order to be valid.
-		if size := len(buf) - len(rest); size > hashLen {
+		if size := len(buf) - len(rest); size >= hashLen {
 			err := fmt.Errorf("oversized embedded node (size is %d bytes, want size < %d)", size, hashLen)
 			return nil, buf, err
 		}
@@ -225,10 +225,10 @@ func decodeRef(buf []byte) (node, []byte, error) {
 	case kind == rlp.String && len(val) == 0:
 		// empty node
 		return nil, rest, nil
-	case kind == rlp.String && len(val) == 32:
+	case kind == rlp.String && len(val) == common.Hash512Length:
 		return hashNode(val), rest, nil
 	default:
-		return nil, nil, fmt.Errorf("invalid RLP string size %d (want 0 or 32)", len(val))
+		return nil, nil, fmt.Errorf("invalid RLP string size %d (want 0 or %d)", len(val), common.Hash512Length)
 	}
 }
 

@@ -35,11 +35,11 @@ import (
 func randomStateSet(n int) *triestate.Set {
 	var (
 		accounts = make(map[common.Address][]byte)
-		storages = make(map[common.Address]map[common.Hash][]byte)
+		storages = make(map[common.Address]map[common.Hash512][]byte)
 	)
 	for range n {
 		addr := testutil.RandomAddress()
-		storages[addr] = make(map[common.Hash][]byte)
+		storages[addr] = make(map[common.Hash512][]byte)
 		for range 3 {
 			v, _ := rlp.EncodeToBytes(common.TrimLeftZeroes(testutil.RandBytes(32)))
 			storages[addr][testutil.RandomHash()] = v
@@ -102,7 +102,7 @@ func TestEncodeDecodeHistory(t *testing.T) {
 	}
 }
 
-func checkHistory(t *testing.T, db qrldb.KeyValueReader, freezer *rawdb.ResettableFreezer, id uint64, root common.Hash, exist bool) {
+func checkHistory(t *testing.T, db qrldb.KeyValueReader, freezer *rawdb.ResettableFreezer, id uint64, root common.Hash512, exist bool) {
 	blob := rawdb.ReadStateHistoryMeta(freezer, id)
 	if exist && len(blob) == 0 {
 		t.Fatalf("Failed to load trie history, %d", id)
@@ -118,7 +118,7 @@ func checkHistory(t *testing.T, db qrldb.KeyValueReader, freezer *rawdb.Resettab
 	}
 }
 
-func checkHistoriesInRange(t *testing.T, db qrldb.KeyValueReader, freezer *rawdb.ResettableFreezer, from, to uint64, roots []common.Hash, exist bool) {
+func checkHistoriesInRange(t *testing.T, db qrldb.KeyValueReader, freezer *rawdb.ResettableFreezer, from, to uint64, roots []common.Hash512, exist bool) {
 	for i, j := from, 0; i <= to; i, j = i+1, j+1 {
 		checkHistory(t, db, freezer, i, roots[j], exist)
 	}
@@ -126,7 +126,7 @@ func checkHistoriesInRange(t *testing.T, db qrldb.KeyValueReader, freezer *rawdb
 
 func TestTruncateHeadHistory(t *testing.T) {
 	var (
-		roots      []common.Hash
+		roots      []common.Hash512
 		hs         = makeHistories(10)
 		db         = rawdb.NewMemoryDatabase()
 		freezer, _ = openFreezer(t.TempDir(), false)
@@ -154,7 +154,7 @@ func TestTruncateHeadHistory(t *testing.T) {
 
 func TestTruncateTailHistory(t *testing.T) {
 	var (
-		roots      []common.Hash
+		roots      []common.Hash512
 		hs         = makeHistories(10)
 		db         = rawdb.NewMemoryDatabase()
 		freezer, _ = openFreezer(t.TempDir(), false)
@@ -197,7 +197,7 @@ func TestTruncateTailHistories(t *testing.T) {
 	}
 	for i, c := range cases {
 		var (
-			roots      []common.Hash
+			roots      []common.Hash512
 			hs         = makeHistories(10)
 			db         = rawdb.NewMemoryDatabase()
 			freezer, _ = openFreezer(t.TempDir()+fmt.Sprintf("%d", i), false)
@@ -257,7 +257,7 @@ func compareList[k comparable](a, b []k) bool {
 	return true
 }
 
-func compareStorages(a, b map[common.Address]map[common.Hash][]byte) bool {
+func compareStorages(a, b map[common.Address]map[common.Hash512][]byte) bool {
 	if len(a) != len(b) {
 		return false
 	}
@@ -273,7 +273,7 @@ func compareStorages(a, b map[common.Address]map[common.Hash][]byte) bool {
 	return true
 }
 
-func compareStorageList(a, b map[common.Address][]common.Hash) bool {
+func compareStorageList(a, b map[common.Address][]common.Hash512) bool {
 	if len(a) != len(b) {
 		return false
 	}

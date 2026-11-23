@@ -59,7 +59,7 @@ func TestUpdateLeaks(t *testing.T) {
 		state.AddBalance(addr, big.NewInt(int64(11*i)))
 		state.SetNonce(addr, uint64(42*i))
 		if i%2 == 0 {
-			state.SetState(addr, common.BytesToHash([]byte{i, i, i}), common.BytesToStorageValue64([]byte{i, i, i, i}))
+			state.SetState(addr, common.BytesToHash512([]byte{i, i, i}), common.BytesToStorageValue64([]byte{i, i, i, i}))
 		}
 		if i%3 == 0 {
 			state.SetCode(addr, []byte{i, i, i, i, i})
@@ -94,8 +94,8 @@ func TestIntermediateLeaks(t *testing.T) {
 		state.SetBalance(addr, big.NewInt(int64(11*i)+int64(tweak)))
 		state.SetNonce(addr, uint64(42*i+tweak))
 		if i%2 == 0 {
-			state.SetState(addr, common.Hash{i, i, i, 0}, common.StorageValue64{})
-			state.SetState(addr, common.Hash{i, i, i, tweak}, common.StorageValue64{i, i, i, i, tweak})
+			state.SetState(addr, common.Hash512{i, i, i, 0}, common.StorageValue64{})
+			state.SetState(addr, common.Hash512{i, i, i, tweak}, common.StorageValue64{i, i, i, i, tweak})
 		}
 		if i%3 == 0 {
 			state.SetCode(addr, []byte{i, i, i, i, i, tweak})
@@ -287,7 +287,7 @@ func newTestAction(addr common.Address, r *rand.Rand) testAction {
 		{
 			name: "SetState",
 			fn: func(a testAction, s *StateDB) {
-				var key common.Hash
+				var key common.Hash512
 				var val common.StorageValue64
 				binary.BigEndian.PutUint16(key[:], uint16(a.args[0]))
 				binary.BigEndian.PutUint16(val[:], uint16(a.args[1]))
@@ -332,7 +332,7 @@ func newTestAction(addr common.Address, r *rand.Rand) testAction {
 			name: "AddPreimage",
 			fn: func(a testAction, s *StateDB) {
 				preimage := []byte{1}
-				hash := common.BytesToHash(preimage)
+				hash := common.BytesToHash512(preimage)
 				s.AddPreimage(hash, preimage)
 			},
 			args: make([]int64, 1),
@@ -347,9 +347,20 @@ func newTestAction(addr common.Address, r *rand.Rand) testAction {
 			name: "AddSlotToAccessList",
 			fn: func(a testAction, s *StateDB) {
 				s.AddSlotToAccessList(addr,
-					common.Hash{byte(a.args[0])})
+					common.Hash512{byte(a.args[0])})
 			},
 			args: make([]int64, 1),
+		},
+		{
+			name: "SetTransientState",
+			fn: func(a testAction, s *StateDB) {
+				var key common.Hash512
+				var val common.StorageValue64
+				binary.BigEndian.PutUint16(key[:], uint16(a.args[0]))
+				binary.BigEndian.PutUint16(val[:], uint16(a.args[1]))
+				s.SetTransientState(addr, key, val)
+			},
+			args: make([]int64, 2),
 		},
 	}
 	action := actions[r.Intn(len(actions))]
@@ -435,7 +446,7 @@ func (test *snapshotTest) run() bool {
 	return true
 }
 
-func forEachStorage(s *StateDB, addr common.Address, cb func(key common.Hash, value common.StorageValue64) bool) error {
+func forEachStorage(s *StateDB, addr common.Address, cb func(key common.Hash512, value common.StorageValue64) bool) error {
 	so := s.getStateObject(addr)
 	if so == nil {
 		return nil
@@ -451,7 +462,7 @@ func forEachStorage(s *StateDB, addr common.Address, cb func(key common.Hash, va
 	it := trie.NewIterator(trieIt)
 
 	for it.Next() {
-		key := common.BytesToHash(s.trie.GetKey(it.Key))
+		key := common.BytesToHash512(s.trie.GetKey(it.Key))
 		if value, dirty := so.dirtyStorage[key]; dirty {
 			if !cb(key, value) {
 				return nil
@@ -492,10 +503,10 @@ func (test *snapshotTest) checkEqual(state, checkstate *StateDB) error {
 		checkeq("GetCodeSize", state.GetCodeSize(addr), checkstate.GetCodeSize(addr))
 		// Check storage.
 		if obj := state.getStateObject(addr); obj != nil {
-			forEachStorage(state, addr, func(key common.Hash, value common.StorageValue64) bool {
+			forEachStorage(state, addr, func(key common.Hash512, value common.StorageValue64) bool {
 				return checkeq("GetState("+key.Hex()+")", checkstate.GetState(addr, key), value)
 			})
-			forEachStorage(checkstate, addr, func(key common.Hash, value common.StorageValue64) bool {
+			forEachStorage(checkstate, addr, func(key common.Hash512, value common.StorageValue64) bool {
 				return checkeq("GetState("+key.Hex()+")", checkstate.GetState(addr, key), value)
 			})
 		}
@@ -558,7 +569,7 @@ func TestCopyCommitCopy(t *testing.T) {
 
 	// Create an account and check if the retrieved balance is correct
 	addr := common.MustParseAddress("Q00000000000000000000000000000000000000000000000000000000affeaffeaffeaffeaffeaffeaffeaffeaffeaffe99aabbccddeeff001122334455667788")
-	skey := common.HexToHash("aaa")
+	skey := common.HexToHash512("aaa")
 	sval := common.HexToStorageValue64("bbb")
 
 	state.SetBalance(addr, big.NewInt(42)) // Change the account trie
@@ -575,7 +586,7 @@ func TestCopyCommitCopy(t *testing.T) {
 		t.Fatalf("initial non-committed storage slot mismatch: have %x, want %x", val, sval)
 	}
 	if val := state.GetCommittedState(addr, skey); val != (common.StorageValue64{}) {
-		t.Fatalf("initial committed storage slot mismatch: have %x, want %x", val, common.Hash{})
+		t.Fatalf("initial committed storage slot mismatch: have %x, want %x", val, common.Hash512{})
 	}
 	// Copy the non-committed state database and check pre/post commit balance
 	copyOne := state.Copy()
@@ -589,7 +600,7 @@ func TestCopyCommitCopy(t *testing.T) {
 		t.Fatalf("first copy pre-commit non-committed storage slot mismatch: have %x, want %x", val, sval)
 	}
 	if val := copyOne.GetCommittedState(addr, skey); val != (common.StorageValue64{}) {
-		t.Fatalf("first copy pre-commit committed storage slot mismatch: have %x, want %x", val, common.Hash{})
+		t.Fatalf("first copy pre-commit committed storage slot mismatch: have %x, want %x", val, common.Hash512{})
 	}
 	// Copy the copy and check the balance once more
 	copyTwo := copyOne.Copy()
@@ -631,7 +642,7 @@ func TestCopyCopyCommitCopy(t *testing.T) {
 
 	// Create an account and check if the retrieved balance is correct
 	addr := common.MustParseAddress("Q00000000000000000000000000000000000000000000000000000000affeaffeaffeaffeaffeaffeaffeaffeaffeaffe99aabbccddeeff001122334455667788")
-	skey := common.HexToHash("aaa")
+	skey := common.HexToHash512("aaa")
 	sval := common.HexToStorageValue64("bbb")
 
 	state.SetBalance(addr, big.NewInt(42)) // Change the account trie
@@ -648,7 +659,7 @@ func TestCopyCopyCommitCopy(t *testing.T) {
 		t.Fatalf("initial non-committed storage slot mismatch: have %x, want %x", val, sval)
 	}
 	if val := state.GetCommittedState(addr, skey); val != (common.StorageValue64{}) {
-		t.Fatalf("initial committed storage slot mismatch: have %x, want %x", val, common.Hash{})
+		t.Fatalf("initial committed storage slot mismatch: have %x, want %x", val, common.Hash512{})
 	}
 	// Copy the non-committed state database and check pre/post commit balance
 	copyOne := state.Copy()
@@ -662,7 +673,7 @@ func TestCopyCopyCommitCopy(t *testing.T) {
 		t.Fatalf("first copy non-committed storage slot mismatch: have %x, want %x", val, sval)
 	}
 	if val := copyOne.GetCommittedState(addr, skey); val != (common.StorageValue64{}) {
-		t.Fatalf("first copy committed storage slot mismatch: have %x, want %x", val, common.Hash{})
+		t.Fatalf("first copy committed storage slot mismatch: have %x, want %x", val, common.Hash512{})
 	}
 	// Copy the copy and check the balance once more
 	copyTwo := copyOne.Copy()
@@ -676,7 +687,7 @@ func TestCopyCopyCommitCopy(t *testing.T) {
 		t.Fatalf("second copy pre-commit non-committed storage slot mismatch: have %x, want %x", val, sval)
 	}
 	if val := copyTwo.GetCommittedState(addr, skey); val != (common.StorageValue64{}) {
-		t.Fatalf("second copy pre-commit committed storage slot mismatch: have %x, want %x", val, common.Hash{})
+		t.Fatalf("second copy pre-commit committed storage slot mismatch: have %x, want %x", val, common.Hash512{})
 	}
 	// Copy the copy-copy and check the balance once more
 	copyThree := copyTwo.Copy()
@@ -700,7 +711,7 @@ func TestCommitCopy(t *testing.T) {
 
 	// Create an account and check if the retrieved balance is correct
 	addr := common.MustParseAddress("Q00000000000000000000000000000000000000000000000000000000affeaffeaffeaffeaffeaffeaffeaffeaffeaffe99aabbccddeeff001122334455667788")
-	skey := common.HexToHash("aaa")
+	skey := common.HexToHash512("aaa")
 	sval := common.HexToStorageValue64("bbb")
 
 	state.SetBalance(addr, big.NewInt(42)) // Change the account trie
@@ -717,7 +728,7 @@ func TestCommitCopy(t *testing.T) {
 		t.Fatalf("initial non-committed storage slot mismatch: have %x, want %x", val, sval)
 	}
 	if val := state.GetCommittedState(addr, skey); val != (common.StorageValue64{}) {
-		t.Fatalf("initial committed storage slot mismatch: have %x, want %x", val, common.Hash{})
+		t.Fatalf("initial committed storage slot mismatch: have %x, want %x", val, common.Hash512{})
 	}
 	// Copy the committed state database, the copied one is not functional.
 	state.Commit(0, true)
@@ -765,7 +776,7 @@ func testMissingTrieNodes(t *testing.T, scheme string) {
 	}
 	db := NewDatabaseWithNodeDB(memDb, triedb)
 
-	var root common.Hash
+	var root common.Hash512
 	state, _ := New(types.EmptyRootHash, db, nil)
 	addr := common.BytesToAddress([]byte("so"))
 	{
@@ -810,8 +821,8 @@ func TestStateDBAccessList(t *testing.T) {
 		addr := common.MustParseAddress(a)
 		return addr
 	}
-	slot := func(a string) common.Hash {
-		return common.HexToHash(a)
+	slot := func(a string) common.Hash512 {
+		return common.HexToHash512(a)
 	}
 
 	memDb := rawdb.NewMemoryDatabase()
@@ -847,9 +858,9 @@ func TestStateDBAccessList(t *testing.T) {
 			t.Fatalf("scope missing address/slots %v", addrString)
 		}
 		var address = addr(addrString)
-		// convert to common.Hash form
-		var slots []common.Hash
-		var slotMap = make(map[common.Hash]struct{})
+		// convert to common.Hash512 form
+		var slots []common.Hash512
+		var slotMap = make(map[common.Hash512]struct{})
 		for _, slotString := range slotStrings {
 			s := slot(slotString)
 			slots = append(slots, s)
@@ -979,6 +990,40 @@ func TestStateDBAccessList(t *testing.T) {
 	}
 }
 
+func TestStateDBTransientStorage(t *testing.T) {
+	memDb := rawdb.NewMemoryDatabase()
+	db := NewDatabase(memDb)
+	state, _ := New(types.EmptyRootHash, db, nil)
+
+	key := common.Hash512{0x01}
+	value := common.StorageValue64{0x02}
+	addr := common.Address{}
+
+	state.SetTransientState(addr, key, value)
+	if exp, got := 1, state.journal.length(); exp != got {
+		t.Fatalf("journal length mismatch: have %d, want %d", got, exp)
+	}
+	// the retrieved value should equal what was set
+	if got := state.GetTransientState(addr, key); got != value {
+		t.Fatalf("transient storage mismatch: have %v, want %v", got, value)
+	}
+
+	// revert the transient state being set and then check that the
+	// value is now the empty value
+	state.journal.revert(state, 0)
+	if got, exp := state.GetTransientState(addr, key), (common.StorageValue64{}); exp != got {
+		t.Fatalf("transient storage mismatch: have %v, want %v", got, exp)
+	}
+
+	// set transient state and then copy the statedb and ensure that
+	// the transient state is copied
+	state.SetTransientState(addr, key, value)
+	cpy := state.Copy()
+	if got := cpy.GetTransientState(addr, key); got != value {
+		t.Fatalf("transient storage mismatch: have %v, want %v", got, value)
+	}
+}
+
 // Tests that account and storage tries are flushed in the correct order and that
 // no data loss occurs.
 func TestFlushOrderDataLoss(t *testing.T) {
@@ -992,14 +1037,14 @@ func TestFlushOrderDataLoss(t *testing.T) {
 	for a := range byte(10) {
 		state.CreateAccount(common.Address{a})
 		for s := range byte(10) {
-			state.SetState(common.Address{a}, common.Hash{a, s}, common.StorageValue64{a, s})
+			state.SetState(common.Address{a}, common.Hash512{a, s}, common.StorageValue64{a, s})
 		}
 	}
 	root, err := state.Commit(0, false)
 	if err != nil {
 		t.Fatalf("failed to commit state trie: %v", err)
 	}
-	triedb.Reference(root, common.Hash{})
+	triedb.Reference(root, common.Hash512{})
 	if err := triedb.Cap(1024); err != nil {
 		t.Fatalf("failed to cap trie dirty cache: %v", err)
 	}
@@ -1013,7 +1058,7 @@ func TestFlushOrderDataLoss(t *testing.T) {
 	}
 	for a := range byte(10) {
 		for s := range byte(10) {
-			if have := state.GetState(common.Address{a}, common.Hash{a, s}); have != (common.StorageValue64{a, s}) {
+			if have := state.GetState(common.Address{a}, common.Hash512{a, s}); have != (common.StorageValue64{a, s}) {
 				t.Errorf("account %d: slot %d: state mismatch: have %x, want %x", a, s, have, common.StorageValue64{a, s})
 			}
 		}
@@ -1028,8 +1073,8 @@ func TestResetObject(t *testing.T) {
 		snaps, _ = snapshot.New(snapshot.Config{CacheSize: 10}, disk, tdb, types.EmptyRootHash)
 		state, _ = New(types.EmptyRootHash, db, snaps)
 		addr     = common.MustParseAddress("Q00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000199aabbccddeeff001122334455667788")
-		slotA    = common.HexToHash("0x1")
-		slotB    = common.HexToHash("0x2")
+		slotA    = common.HexToHash512("0x1")
+		slotB    = common.HexToHash512("0x2")
 	)
 	// Initialize account with balance and storage in first transaction.
 	state.SetBalance(addr, big.NewInt(1))
@@ -1044,11 +1089,11 @@ func TestResetObject(t *testing.T) {
 
 	// Ensure the original account is wiped properly
 	snap := snaps.Snapshot(root)
-	slot, _ := snap.Storage(crypto.Keccak256Hash(addr.Bytes()), crypto.Keccak256Hash(slotA.Bytes()))
+	slot, _ := snap.Storage(crypto.Keccak512Hash(addr.Bytes()), crypto.Keccak512Hash(slotA.Bytes()))
 	if len(slot) != 0 {
 		t.Fatalf("Unexpected storage slot")
 	}
-	slot, _ = snap.Storage(crypto.Keccak256Hash(addr.Bytes()), crypto.Keccak256Hash(slotB.Bytes()))
+	slot, _ = snap.Storage(crypto.Keccak512Hash(addr.Bytes()), crypto.Keccak512Hash(slotB.Bytes()))
 	if !bytes.Equal(slot, []byte{0x2}) {
 		t.Fatalf("Unexpected storage slot value %v", slot)
 	}
@@ -1067,7 +1112,7 @@ func TestDeleteStorage(t *testing.T) {
 	state.SetBalance(addr, big.NewInt(1))
 	state.CreateAccount(addr)
 	for i := range 1000 {
-		slot := common.Hash(uint256.NewInt(uint64(i)).Bytes32())
+		slot := common.BigToHash512(new(big.Int).SetUint64(uint64(i)))
 		buf := uint256.NewInt(uint64(10 * i)).Bytes32()
 		value := common.BytesToStorageValue64(buf[:])
 		state.SetState(addr, slot, value)
@@ -1080,19 +1125,19 @@ func TestDeleteStorage(t *testing.T) {
 	obj := fastState.GetOrNewStateObject(addr)
 	storageRoot := obj.data.Root
 
-	_, _, fastNodes, err := fastState.deleteStorage(addr, crypto.Keccak256Hash(addr[:]), storageRoot)
+	_, _, fastNodes, err := fastState.deleteStorage(addr, crypto.Keccak512Hash(addr[:]), storageRoot)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	_, _, slowNodes, err := slowState.deleteStorage(addr, crypto.Keccak256Hash(addr[:]), storageRoot)
+	_, _, slowNodes, err := slowState.deleteStorage(addr, crypto.Keccak512Hash(addr[:]), storageRoot)
 	if err != nil {
 		t.Fatal(err)
 	}
 	check := func(set *trienode.NodeSet) string {
 		var a []string
 		set.ForEachWithOrder(func(path string, n *trienode.Node) {
-			if n.Hash != (common.Hash{}) {
+			if n.Hash != (common.Hash512{}) {
 				t.Fatal("delete should have empty hashes")
 			}
 			if len(n.Blob) != 0 {

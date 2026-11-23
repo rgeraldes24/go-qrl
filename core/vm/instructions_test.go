@@ -22,10 +22,14 @@ import (
 	"fmt"
 	"math/big"
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/theQRL/go-qrl/common"
+	"github.com/theQRL/go-qrl/common/math"
 	"github.com/theQRL/go-qrl/common/uint512"
+	"github.com/theQRL/go-qrl/core/rawdb"
+	"github.com/theQRL/go-qrl/core/state"
 	"github.com/theQRL/go-qrl/core/types"
 	"github.com/theQRL/go-qrl/crypto"
 	"github.com/theQRL/go-qrl/params"
@@ -198,6 +202,52 @@ func TestSAR(t *testing.T) {
 	}
 
 	testTwoOperandOp(t, tests, opSAR, "sar")
+}
+
+func TestCLZ(t *testing.T) {
+	// CLZ counts the leading zero bits of the 512-bit VM word. A value below
+	// 2^256 therefore gives 256 more than the EIP-7939 result, and zero gives
+	// 512.
+	var (
+		env             = NewQRVM(BlockContext{}, TxContext{}, nil, params.TestChainConfig, Config{})
+		stack           = newstack()
+		pc              = uint64(0)
+		qrvmInterpreter = env.interpreter
+	)
+	check := func(x *uint512.Int, want uint64) {
+		t.Helper()
+		stack.push(x)
+		opCLZ(&pc, qrvmInterpreter, &ScopeContext{nil, stack, nil})
+		if len(stack.data) != 1 {
+			t.Fatalf("clz(%x): expected one item on stack, got %d", x, len(stack.data))
+		}
+		if have := stack.pop(); !have.IsUint64() || have.Uint64() != want {
+			t.Errorf("clz(%x): have %d, want %d", x, have, want)
+		}
+	}
+	for _, tc := range []struct {
+		x    string
+		want uint64
+	}{
+		{"00", 512},
+		{"01", 511},
+		{"80" + strings.Repeat("00", 31), 256}, // 2^255
+		{"01" + strings.Repeat("00", 32), 255}, // 2^256
+		{"80" + strings.Repeat("00", 63), 0},   // 2^511
+		{strings.Repeat("ff", 64), 0},          // 2^512 - 1
+	} {
+		check(new(uint512.Int).SetBytes(common.Hex2Bytes(tc.x)), tc.want)
+	}
+	// For every bit position i, 2^i is the smallest value whose top bit is i
+	// and 2^(i+1) - 1 is the largest.
+	one := uint512.NewInt(1)
+	for i := uint(0); i < WordBits; i++ {
+		want := uint64(WordBits - 1 - i)
+		low := new(uint512.Int).Lsh(one, i)
+		check(low, want)
+		high := new(uint512.Int).Lsh(one, i+1)
+		check(high.Sub(high, one), want)
+	}
 }
 
 func TestAddMod(t *testing.T) {
@@ -562,6 +612,213 @@ func TestOpMstore(t *testing.T) {
 	}
 }
 
+func TestOpTstore(t *testing.T) {
+	var (
+		statedb, _      = state.New(types.EmptyRootHash, state.NewDatabase(rawdb.NewMemoryDatabase()), nil)
+		env             = NewQRVM(BlockContext{}, TxContext{}, statedb, params.TestChainConfig, Config{})
+		stack           = newstack()
+		mem             = NewMemory()
+		qrvmInterpreter = NewQRVMInterpreter(env)
+		caller          = common.Address{}
+		to              = common.Address{1}
+		contract        = NewContract(AccountRef(caller), AccountRef(to), new(big.Int), 0)
+		scopeContext    = ScopeContext{mem, stack, contract}
+		// A full 64-byte VM word, so both halves of the value are covered.
+		value = common.Hex2Bytes("abcdef00000000000000abba000000000deaf000000c0de00100000000133700" +
+			"00deadbeef00000000000000000000000000000000000000000000000000cafe")
+	)
+
+	// Add a stateObject for the caller and the contract being called
+	statedb.CreateAccount(caller)
+	statedb.CreateAccount(to)
+
+	env.interpreter = qrvmInterpreter
+	pc := uint64(0)
+	// push the value to the stack
+	stack.push(new(uint512.Int).SetBytes(value))
+	// push the location to the stack
+	stack.push(new(uint512.Int))
+	opTstore(&pc, qrvmInterpreter, &scopeContext)
+	// there should be no elements on the stack after TSTORE
+	if stack.len() != 0 {
+		t.Fatal("stack wrong size")
+	}
+	// push the location to the stack
+	stack.push(new(uint512.Int))
+	opTload(&pc, qrvmInterpreter, &scopeContext)
+	// there should be one element on the stack after TLOAD
+	if stack.len() != 1 {
+		t.Fatal("stack wrong size")
+	}
+	val := stack.peek()
+	if !bytes.Equal(val.Bytes(), value) {
+		t.Fatal("incorrect element read from transient storage")
+	}
+
+	// TSTORE must be rejected in a static call and leave the value untouched
+	qrvmInterpreter.readOnly = true
+	stack.push(new(uint512.Int).SetUint64(1))
+	stack.push(new(uint512.Int))
+	if _, err := opTstore(&pc, qrvmInterpreter, &scopeContext); err != ErrWriteProtection {
+		t.Fatalf("TSTORE in a static call: have error %v, want %v", err, ErrWriteProtection)
+	}
+	if got := statedb.GetTransientState(to, common.Hash512{}); !bytes.Equal(got.Bytes(), value) {
+		t.Fatal("transient storage modified in a static call")
+	}
+}
+
+func TestOpMCopy(t *testing.T) {
+	// The cases follow https://eips.ethereum.org/EIPS/eip-5656#test-cases,
+	// rescaled to the 64-byte VM word: memory grows, and copy gas is charged,
+	// per 64 bytes.
+	var (
+		ascending = "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f" +
+			"202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f"
+		zeroWord = strings.Repeat("00", 64)
+	)
+	for i, tc := range []struct {
+		dst, src, len string
+		pre           string
+		want          string
+		wantGas       uint64
+		wantOverflow  bool
+	}{
+		{ // MCOPY 0 64 64 - copy 64 bytes from offset 64 to offset 0.
+			dst: "0x0", src: "0x40", len: "0x40",
+			pre:     zeroWord + ascending,
+			want:    ascending + ascending,
+			wantGas: 6,
+		},
+		{ // MCOPY 0 0 64 - copy 64 bytes from offset 0 to offset 0.
+			dst: "0x0", src: "0x0", len: "0x40",
+			pre:     strings.Repeat("01", 64),
+			want:    strings.Repeat("01", 64),
+			wantGas: 6,
+		},
+		{ // MCOPY 0 1 8 - copy 8 bytes from offset 1 to offset 0 (overlapping).
+			dst: "0x0", src: "0x1", len: "0x8",
+			pre:     "000102030405060708" + strings.Repeat("00", 55),
+			want:    "010203040506070808" + strings.Repeat("00", 55),
+			wantGas: 6,
+		},
+		{ // MCOPY 1 0 8 - copy 8 bytes from offset 0 to offset 1 (overlapping).
+			dst: "0x1", src: "0x0", len: "0x8",
+			pre:     "000102030405060708" + strings.Repeat("00", 55),
+			want:    "000001020304050607" + strings.Repeat("00", 55),
+			wantGas: 6,
+		},
+		// The cases below are not in the EIP.
+		{ // MCOPY 0xFFFFFFFFFFFF 0xFFFFFFFFFFFF 0 - copy zero bytes from out-of-bounds index (overlapping).
+			dst: "0xFFFFFFFFFFFF", src: "0xFFFFFFFFFFFF", len: "0x0",
+			pre:     "11",
+			want:    "11",
+			wantGas: 3,
+		},
+		{ // MCOPY 0xFFFFFFFFFFFF 0 0 - copy zero bytes from start of mem to out-of-bounds.
+			dst: "0xFFFFFFFFFFFF", src: "0x0", len: "0x0",
+			pre:     "11",
+			want:    "11",
+			wantGas: 3,
+		},
+		{ // MCOPY 0 0xFFFFFFFFFFFF 0 - copy zero bytes from out-of-bounds to start of mem.
+			dst: "0x0", src: "0xFFFFFFFFFFFF", len: "0x0",
+			pre:     "11",
+			want:    "11",
+			wantGas: 3,
+		},
+		{ // MCOPY - copy 1 from space outside of uint64 space.
+			dst: "0x0", src: "0x10000000000000000", len: "0x1",
+			pre:          "00",
+			wantOverflow: true,
+		},
+		{ // MCOPY - copy 1 from 0 to space outside of uint64.
+			dst: "0x10000000000000000", src: "0x0", len: "0x1",
+			pre:          "00",
+			wantOverflow: true,
+		},
+		{ // MCOPY - copy a length outside of uint64.
+			dst: "0x0", src: "0x0", len: "0x10000000000000000",
+			pre:          "00",
+			wantOverflow: true,
+		},
+		{ // MCOPY - copy nothing from 0 to space outside of uint64.
+			dst: "0x10000000000000000", src: "0x0", len: "0x0",
+			pre:     "",
+			want:    "",
+			wantGas: 3,
+		},
+		{ // MCOPY - copy 1 from 0x40 to 0x10, with no prior allocated mem: the source needs two words.
+			dst: "0x10", src: "0x40", len: "0x1",
+			pre:     "",
+			want:    zeroWord + zeroWord,
+			wantGas: 12,
+		},
+		{ // MCOPY - copy 1 from 0x20 to 0x10, with no prior allocated mem: one word holds both.
+			dst: "0x10", src: "0x20", len: "0x1",
+			pre:     "",
+			want:    zeroWord,
+			wantGas: 9,
+		},
+		{ // MCOPY - copy 65 bytes, with no prior allocated mem: two words expanded, two words copied.
+			dst: "0x0", src: "0x0", len: "0x41",
+			pre:     "",
+			want:    zeroWord + zeroWord,
+			wantGas: 15,
+		},
+	} {
+		var (
+			env             = NewQRVM(BlockContext{}, TxContext{}, nil, params.TestChainConfig, Config{})
+			stack           = newstack()
+			pc              = uint64(0)
+			qrvmInterpreter = NewQRVMInterpreter(env)
+		)
+		data := common.FromHex(tc.pre)
+		// Set pre
+		mem := NewMemory()
+		mem.Resize(uint64(len(data)))
+		mem.Set(0, uint64(len(data)), data)
+		// Push stack args
+		stack.push(new(uint512.Int).SetBytes(common.FromHex(tc.len)))
+		stack.push(new(uint512.Int).SetBytes(common.FromHex(tc.src)))
+		stack.push(new(uint512.Int).SetBytes(common.FromHex(tc.dst)))
+		// Calc mem expansion
+		memSize, overflow := memoryMcopy(stack)
+		if overflow != tc.wantOverflow {
+			t.Errorf("case %d: memory size overflow: have %v want %v", i, overflow, tc.wantOverflow)
+		}
+		if overflow {
+			continue
+		}
+		memorySize, overflow := math.SafeMul(toWordSize(memSize), uint64(WordBytes))
+		if overflow {
+			t.Errorf("case %d: %v", i, ErrGasUintOverflow)
+		}
+		// and the dynamic cost
+		var haveGas uint64
+		if dynamicCost, err := gasMcopy(env, nil, stack, mem, memorySize); err != nil {
+			t.Errorf("case %d: %v", i, err)
+		} else {
+			haveGas = GasFastestStep + dynamicCost
+		}
+		// Expand mem
+		if memorySize > 0 {
+			mem.Resize(memorySize)
+		}
+		// Do the copy
+		opMcopy(&pc, qrvmInterpreter, &ScopeContext{mem, stack, nil})
+		want := common.FromHex(tc.want)
+		if have := mem.store; !bytes.Equal(want, have) {
+			t.Errorf("case %d: \nwant: %#x\nhave: %#x\n", i, want, have)
+		}
+		if haveGas != tc.wantGas {
+			t.Errorf("case %d: gas wrong, want %d have %d\n", i, tc.wantGas, haveGas)
+		}
+		if stack.len() != 0 {
+			t.Errorf("case %d: stack not empty after MCOPY, have %d items", i, stack.len())
+		}
+	}
+}
+
 func BenchmarkOpMstore(bench *testing.B) {
 	var (
 		env             = NewQRVM(BlockContext{}, TxContext{}, nil, params.TestChainConfig, Config{})
@@ -647,43 +904,43 @@ func TestCreate2Addresses(t *testing.T) {
 			origin:   "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
 			salt:     "0x0000000000000000000000000000000000000000",
 			code:     "0x00",
-			expected: "Q8a2649715d9d1fd27f191cd37fc5749e97e8bbcf189d42e2e06dd8d4122ff0981585238ad588a42cf8867a8462e1a5a8016ed72ecf2b3e3472305cb2c7264fa3",
+			expected: "Q5aed9ff5130a68c3ef67d87c5c6caef10e0508e8f89f1a123fbff221e1b1f6f54d7015aa15407162599c1d67a8e6ff2f8c68c9a4d75126be0716c812e17d1246",
 		},
 		{
 			origin:   "deadbeef00000000000000000000000000000000deadbeef000000000000000000000000000000000000000000000000",
 			salt:     "0x0000000000000000000000000000000000000000",
 			code:     "0x00",
-			expected: "Q2a39a6247e3eb969a0b147af5d8497a556985f9c16d78fd720c7c6edb5e347912fb2891b9aee842bec31b22cee8b190e34c372c61c1d6f13ca851dc70fb087f7",
+			expected: "Q1e1902257084d14390dbb1d77931e9567ffe253e148259554412d0ed99e886bb99ed4b97170401a76ef24f60151c35d37277ca267399264a4ded2eee3b9b21e1",
 		},
 		{
 			origin:   "deadbeef00000000000000000000000000000000deadbeef000000000000000000000000000000000000000000000000",
 			salt:     "0xfeed000000000000000000000000000000000000",
 			code:     "0x00",
-			expected: "Q6749a8bf893c7f50482f026e5d48dcca6aa36ddb78de550179a3ae843c3b6a0a3f53608a80e62de43bb32891745494fae5ff1761d4bb7a69eae1a0abbe154dad",
+			expected: "Q05e8f1cb9310a38664d80b00a992d5587b31c72b14f002cc69012fc11e4842bae40efcf4ea4b30017f25b4b2cde79eca39a720dc59fa512319de762c75d541ca",
 		},
 		{
 			origin:   "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
 			salt:     "0x0000000000000000000000000000000000000000",
 			code:     "0xdeadbeef",
-			expected: "Qbe3c770d4b3321650860502344de7176b99de6e28cd6461a1031bebc7781a0dd154c7483e583d565a94196b2d7514814a18747b52a457d42aa840809c9f0b8ba",
+			expected: "Q3564a0c067c7db4aefc403b819c832f595de307c54b5e7c1f8c6d039407441f148a8595889e75d6ed588c6217dbc32d4d4c559938650762a0b43091ac6c9fbae",
 		},
 		{
 			origin:   "00000000000000000000000000000000deadbeef00000000000000000000000000000000deadbeef0000000000000000",
 			salt:     "0xcafebabe",
 			code:     "0xdeadbeef",
-			expected: "Q7f5986b8479fcfd7bce3168635266c9d4aef8001e00849eacef7f644ca13e9135e33f1b999ed9301b27a625ed8b13e0c06256499b6ad1d9a4f0a9cbde3d5a515",
+			expected: "Q2a6bbb2315bcf3cf74202245b4eab8a3df64f45605dde360a6a717bdcb06e197b73881c9c3b5255935b22cc4b0ed54a16894d94e6626b21d501bc2f350bd3352",
 		},
 		{
 			origin:   "00000000000000000000000000000000deadbeef00000000000000000000000000000000deadbeef0000000000000000",
 			salt:     "0xcafebabe",
 			code:     "0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef",
-			expected: "Q27204fb9491481a20aac5db35fdeda1a9da694ce1383793b4a57b560c31c39fe776854f64882277762af258812a91c66ce0605be45bfbb395b2f09f797ad3214",
+			expected: "Q1a2c1f373f9d76f63e8d60f933848e4398f9c8ac2cb7826f5bad7e14d66a176b6f0e6576617f1bea5f0bcefb5fefc44e8f06351d05b53fd338dce6eee51ae2cf",
 		},
 		{
 			origin:   "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
 			salt:     "0x0000000000000000000000000000000000000000",
 			code:     "0x",
-			expected: "Q129e945d73c2abba8dc13b37c613c63c128e80ea7940b8a0479390faf8772f0c7cdd53065842db816b5e7609f45a56ff4d2971e75ed1e835619d09452a66832c",
+			expected: "Q363a565ec52ae6a64188fa6f0988de8cd33d1e0fa8821c5ad6982533d6cd9a02a47a96bbfeb56bd7b71cc2c18b0fddf16df1afa73118e8020f92940ffcb0ade1",
 		},
 	} {
 		origin := common.BytesToAddress(common.FromHex(tt.origin))
@@ -696,7 +953,7 @@ func TestCreate2Addresses(t *testing.T) {
 		}
 		copy(salt[64-len(saltBytes):], saltBytes)
 		code := common.FromHex(tt.code)
-		codeHash := crypto.Keccak256(code)
+		codeHash := crypto.Keccak512Hash(code)
 		address := crypto.CreateAddress2(origin, salt, codeHash)
 		/*
 			stack          := newstack()
@@ -723,7 +980,7 @@ func TestRandom(t *testing.T) {
 	for _, tt := range []testcase{
 		{name: "empty hash", random: common.Hash{}},
 		{name: "1", random: common.Hash{0}},
-		{name: "emptyCodeHash", random: types.EmptyCodeHash},
+		{name: "emptyCodeHash", random: crypto.Keccak256Hash(nil)},
 		{name: "hash(0x010203)", random: crypto.Keccak256Hash([]byte{0x01, 0x02, 0x03})},
 	} {
 		var (

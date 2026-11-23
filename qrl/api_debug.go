@@ -88,7 +88,7 @@ func (api *DebugAPI) DumpBlock(blockNr rpc.BlockNumber) (state.Dump, error) {
 }
 
 // Preimage is a debug API function that returns the preimage for a sha3 hash, if known.
-func (api *DebugAPI) Preimage(ctx context.Context, hash common.Hash) (hexutil.Bytes, error) {
+func (api *DebugAPI) Preimage(ctx context.Context, hash common.Hash512) (hexutil.Bytes, error) {
 	if preimage := rawdb.ReadPreimage(api.qrl.ChainDb(), hash); preimage != nil {
 		return preimage, nil
 	}
@@ -198,14 +198,14 @@ func (api *DebugAPI) AccountRange(blockNrOrHash rpc.BlockNumberOrHash, start hex
 
 // StorageRangeResult is the result of a debug_storageRangeAt API call.
 type StorageRangeResult struct {
-	Storage storageMap   `json:"storage"`
-	NextKey *common.Hash `json:"nextKey"` // nil if Storage includes the last key in the trie.
+	Storage storageMap      `json:"storage"`
+	NextKey *common.Hash512 `json:"nextKey"` // nil if Storage includes the last key in the trie.
 }
 
-type storageMap map[common.Hash]storageEntry
+type storageMap map[common.Hash512]storageEntry
 
 type storageEntry struct {
-	Key   *common.Hash          `json:"key"`
+	Key   *common.Hash512       `json:"key"`
 	Value common.StorageValue64 `json:"value"`
 }
 
@@ -229,12 +229,12 @@ func (api *DebugAPI) StorageRangeAt(ctx context.Context, blockNrOrHash rpc.Block
 	return storageRangeAt(statedb, block.Root(), contractAddress, keyStart, maxResult)
 }
 
-func storageRangeAt(statedb *state.StateDB, root common.Hash, address common.Address, start []byte, maxResult int) (StorageRangeResult, error) {
+func storageRangeAt(statedb *state.StateDB, root common.Hash512, address common.Address, start []byte, maxResult int) (StorageRangeResult, error) {
 	storageRoot := statedb.GetStorageRoot(address)
-	if storageRoot == types.EmptyRootHash || storageRoot == (common.Hash{}) {
+	if storageRoot == types.EmptyRootHash || storageRoot == (common.Hash512{}) {
 		return StorageRangeResult{}, nil // empty storage
 	}
-	id := trie.StorageTrieID(root, crypto.Keccak256Hash(address.Bytes()), storageRoot)
+	id := trie.StorageTrieID(root, crypto.Keccak512Hash(address.Bytes()), storageRoot)
 	tr, err := trie.NewStateTrie(id, statedb.Database().TrieDB())
 	if err != nil {
 		return StorageRangeResult{}, err
@@ -252,14 +252,14 @@ func storageRangeAt(statedb *state.StateDB, root common.Hash, address common.Add
 		}
 		e := storageEntry{Value: common.BytesToStorageValue64(content)}
 		if preimage := tr.GetKey(it.Key); preimage != nil {
-			preimage := common.BytesToHash(preimage)
+			preimage := common.BytesToHash512(preimage)
 			e.Key = &preimage
 		}
-		result.Storage[common.BytesToHash(it.Key)] = e
+		result.Storage[common.BytesToHash512(it.Key)] = e
 	}
 	// Add the 'next key' so clients can continue downloading.
 	if it.Next() {
-		next := common.BytesToHash(it.Key)
+		next := common.BytesToHash512(it.Key)
 		result.NextKey = &next
 	}
 	return result, nil

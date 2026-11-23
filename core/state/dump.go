@@ -42,21 +42,21 @@ type DumpConfig struct {
 // DumpCollector interface which the state trie calls during iteration
 type DumpCollector interface {
 	// OnRoot is called with the state root
-	OnRoot(common.Hash)
+	OnRoot(common.Hash512)
 	// OnAccount is called once for each account in the trie
 	OnAccount(*common.Address, DumpAccount)
 }
 
 // DumpAccount represents an account in the state.
 type DumpAccount struct {
-	Balance   string                 `json:"balance"`
-	Nonce     uint64                 `json:"nonce"`
-	Root      hexutil.Bytes          `json:"root"`
-	CodeHash  hexutil.Bytes          `json:"codeHash"`
-	Code      hexutil.Bytes          `json:"code,omitempty"`
-	Storage   map[common.Hash]string `json:"storage,omitempty"`
-	Address   *common.Address        `json:"address,omitempty"` // Address only present in iterative (line-by-line) mode
-	SecureKey hexutil.Bytes          `json:"key,omitempty"`     // If we don't have address, we can output the key
+	Balance   string                    `json:"balance"`
+	Nonce     uint64                    `json:"nonce"`
+	Root      hexutil.Bytes             `json:"root"`
+	CodeHash  hexutil.Bytes             `json:"codeHash"`
+	Code      hexutil.Bytes             `json:"code,omitempty"`
+	Storage   map[common.Hash512]string `json:"storage,omitempty"`
+	Address   *common.Address           `json:"address,omitempty"` // Address only present in iterative (line-by-line) mode
+	SecureKey hexutil.Bytes             `json:"key,omitempty"`     // If we don't have address, we can output the key
 
 }
 
@@ -67,7 +67,7 @@ type Dump struct {
 }
 
 // OnRoot implements DumpCollector interface
-func (d *Dump) OnRoot(root common.Hash) {
+func (d *Dump) OnRoot(root common.Hash512) {
 	d.Root = fmt.Sprintf("%x", root)
 }
 
@@ -86,7 +86,7 @@ type IteratorDump struct {
 }
 
 // OnRoot implements DumpCollector interface
-func (d *IteratorDump) OnRoot(root common.Hash) {
+func (d *IteratorDump) OnRoot(root common.Hash512) {
 	d.Root = fmt.Sprintf("%x", root)
 }
 
@@ -118,9 +118,9 @@ func (d iterativeDump) OnAccount(addr *common.Address, account DumpAccount) {
 }
 
 // OnRoot implements DumpCollector interface
-func (d iterativeDump) OnRoot(root common.Hash) {
+func (d iterativeDump) OnRoot(root common.Hash512) {
 	d.Encode(struct {
-		Root common.Hash `json:"root"`
+		Root common.Hash512 `json:"root"`
 	}{root})
 }
 
@@ -176,7 +176,7 @@ func (s *StateDB) DumpToCollector(c DumpCollector, conf *DumpConfig) (nextKey []
 			account.Code = obj.Code()
 		}
 		if !conf.SkipStorage {
-			account.Storage = make(map[common.Hash]string)
+			account.Storage = make(map[common.Hash512]string)
 			tr, err := obj.getTrie()
 			if err != nil {
 				log.Error("Failed to load storage trie", "err", err)
@@ -194,7 +194,7 @@ func (s *StateDB) DumpToCollector(c DumpCollector, conf *DumpConfig) (nextKey []
 					log.Error("Failed to decode the value returned by iterator", "error", err)
 					continue
 				}
-				account.Storage[common.BytesToHash(s.trie.GetKey(storageIt.Key))] = common.Bytes2Hex(content)
+				account.Storage[common.BytesToHash512(s.trie.GetKey(storageIt.Key))] = common.Bytes2Hex(content)
 			}
 		}
 		c.OnAccount(address, account)

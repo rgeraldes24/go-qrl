@@ -208,6 +208,44 @@ func TestPrecompiledModExpOOG(t *testing.T) {
 	}
 }
 
+// Tests the EIP-7823 upper bound of 1024 bytes on the ModExp length fields.
+func TestPrecompiledModExpLengthLimit(t *testing.T) {
+	p := allPrecompiles[common.MustParseAddress(precompileAddress("05"))]
+
+	word := func(v uint64) []byte {
+		b := make([]byte, 32)
+		binary.BigEndian.PutUint64(b[24:], v)
+		return b
+	}
+	// A length of 2^64, which truncates to zero when read as a uint64.
+	overflow := make([]byte, 32)
+	overflow[23] = 1
+
+	tests := []struct {
+		name                    string
+		baseLen, expLen, modLen []byte
+		wantErr                 error
+	}{
+		{"all-at-limit", word(1024), word(1024), word(1024), nil},
+		{"base-over-limit", word(1025), word(0), word(0), errModExpInputTooLong},
+		{"exponent-over-limit", word(0), word(1025), word(0), errModExpInputTooLong},
+		{"modulus-over-limit", word(0), word(0), word(1025), errModExpInputTooLong},
+		{"base-overflows-uint64", overflow, word(0), word(0), errModExpInputTooLong},
+		{"exponent-overflows-uint64", word(0), overflow, word(0), errModExpInputTooLong},
+		{"modulus-overflows-uint64", word(0), word(0), overflow, errModExpInputTooLong},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			in := append(append(append([]byte{}, test.baseLen...), test.expLen...), test.modLen...)
+			// Supply the maximum amount of gas, so that only the length check can fail
+			_, _, err := RunPrecompiledContract(p, in, ^uint64(0))
+			if err != test.wantErr {
+				t.Errorf("Expected error [%v], got [%v]", test.wantErr, err)
+			}
+		})
+	}
+}
+
 func TestPrecompiledDepositroot(t *testing.T) {
 	testJson("depositroot", precompileAddress("01"), t)
 }

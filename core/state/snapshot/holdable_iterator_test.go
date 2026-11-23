@@ -88,21 +88,21 @@ func TestIteratorHold(t *testing.T) {
 
 func TestReopenIterator(t *testing.T) {
 	var (
-		content = map[common.Hash]string{
-			common.HexToHash("a1"): "v1",
-			common.HexToHash("a2"): "v2",
-			common.HexToHash("a3"): "v3",
-			common.HexToHash("a4"): "v4",
-			common.HexToHash("a5"): "v5",
-			common.HexToHash("a6"): "v6",
+		content = map[common.Hash512]string{
+			common.HexToHash512("a1"): "v1",
+			common.HexToHash512("a2"): "v2",
+			common.HexToHash512("a3"): "v3",
+			common.HexToHash512("a4"): "v4",
+			common.HexToHash512("a5"): "v5",
+			common.HexToHash512("a6"): "v6",
 		}
-		order = []common.Hash{
-			common.HexToHash("a1"),
-			common.HexToHash("a2"),
-			common.HexToHash("a3"),
-			common.HexToHash("a4"),
-			common.HexToHash("a5"),
-			common.HexToHash("a6"),
+		order = []common.Hash512{
+			common.HexToHash512("a1"),
+			common.HexToHash512("a2"),
+			common.HexToHash512("a3"),
+			common.HexToHash512("a4"),
+			common.HexToHash512("a5"),
+			common.HexToHash512("a6"),
 		}
 		db = rawdb.NewMemoryDatabase()
 	)

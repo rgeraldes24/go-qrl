@@ -34,7 +34,7 @@ import (
 // of the referenced layer by themselves.
 type layerTree struct {
 	lock   sync.RWMutex
-	layers map[common.Hash]layer
+	layers map[common.Hash512]layer
 }
 
 // newLayerTree constructs the layerTree with the given head layer.
@@ -50,7 +50,7 @@ func (tree *layerTree) reset(head layer) {
 	tree.lock.Lock()
 	defer tree.lock.Unlock()
 
-	var layers = make(map[common.Hash]layer)
+	var layers = make(map[common.Hash512]layer)
 	for head != nil {
 		layers[head.rootHash()] = head
 		head = head.parentLayer()
@@ -59,7 +59,7 @@ func (tree *layerTree) reset(head layer) {
 }
 
 // get retrieves a layer belonging to the given state root.
-func (tree *layerTree) get(root common.Hash) layer {
+func (tree *layerTree) get(root common.Hash512) layer {
 	tree.lock.RLock()
 	defer tree.lock.RUnlock()
 
@@ -86,7 +86,7 @@ func (tree *layerTree) len() int {
 }
 
 // add inserts a new layer into the tree if it can be linked to an existing old parent.
-func (tree *layerTree) add(root common.Hash, parentRoot common.Hash, block uint64, nodes *trienode.MergedNodeSet, states *triestate.Set) error {
+func (tree *layerTree) add(root common.Hash512, parentRoot common.Hash512, block uint64, nodes *trienode.MergedNodeSet, states *triestate.Set) error {
 	// Reject noop updates to avoid self-loops. This is a special case that can
 	// happen for proof-of-stake networks where empty blocks don't modify the
 	// state (0 block subsidy).
@@ -111,7 +111,7 @@ func (tree *layerTree) add(root common.Hash, parentRoot common.Hash, block uint6
 
 // cap traverses downwards the diff tree until the number of allowed diff layers
 // are crossed. All diffs beyond the permitted number are flattened downwards.
-func (tree *layerTree) cap(root common.Hash, layers int) error {
+func (tree *layerTree) cap(root common.Hash512, layers int) error {
 	// Retrieve the head layer to cap from
 	root = types.TrieRootHash(root)
 	l := tree.get(root)
@@ -132,7 +132,7 @@ func (tree *layerTree) cap(root common.Hash, layers int) error {
 			return err
 		}
 		// Replace the entire layer tree with the flat base
-		tree.layers = map[common.Hash]layer{base.rootHash(): base}
+		tree.layers = map[common.Hash512]layer{base.rootHash(): base}
 		return nil
 	}
 	// Dive until we run out of layers or reach the persistent database
@@ -170,15 +170,15 @@ func (tree *layerTree) cap(root common.Hash, layers int) error {
 		panic(fmt.Sprintf("unknown data layer in triedb: %T", parent))
 	}
 	// Remove any layer that is stale or links into a stale layer
-	children := make(map[common.Hash][]common.Hash)
+	children := make(map[common.Hash512][]common.Hash512)
 	for root, layer := range tree.layers {
 		if dl, ok := layer.(*diffLayer); ok {
 			parent := dl.parentLayer().rootHash()
 			children[parent] = append(children[parent], root)
 		}
 	}
-	var remove func(root common.Hash)
-	remove = func(root common.Hash) {
+	var remove func(root common.Hash512)
+	remove = func(root common.Hash512) {
 		delete(tree.layers, root)
 		for _, child := range children[root] {
 			remove(child)

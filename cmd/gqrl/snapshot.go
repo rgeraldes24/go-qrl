@@ -185,7 +185,7 @@ func pruneState(ctx *cli.Context) error {
 		log.Error("Too many arguments given")
 		return errors.New("too many arguments")
 	}
-	var targetRoot common.Hash
+	var targetRoot common.Hash512
 	if ctx.NArg() == 1 {
 		targetRoot, err = parseRoot(ctx.Args().First())
 		if err != nil {
@@ -278,7 +278,7 @@ func traverseState(ctx *cli.Context) error {
 		return errors.New("too many arguments")
 	}
 	var (
-		root common.Hash
+		root common.Hash512
 		err  error
 	)
 	if ctx.NArg() == 1 {
@@ -318,7 +318,7 @@ func traverseState(ctx *cli.Context) error {
 			return err
 		}
 		if acc.Root != types.EmptyRootHash {
-			id := trie.StorageTrieID(root, common.BytesToHash(accIter.Key), acc.Root)
+			id := trie.StorageTrieID(root, common.BytesToHash512(accIter.Key), acc.Root)
 			storageTrie, err := trie.NewStateTrie(id, triedb)
 			if err != nil {
 				log.Error("Failed to open storage trie", "root", acc.Root, "err", err)
@@ -339,8 +339,8 @@ func traverseState(ctx *cli.Context) error {
 			}
 		}
 		if !bytes.Equal(acc.CodeHash, types.EmptyCodeHash.Bytes()) {
-			if !rawdb.HasCode(chaindb, common.BytesToHash(acc.CodeHash)) {
-				log.Error("Code is missing", "hash", common.BytesToHash(acc.CodeHash))
+			if !rawdb.HasCode(chaindb, common.BytesToHash512(acc.CodeHash)) {
+				log.Error("Code is missing", "hash", common.BytesToHash512(acc.CodeHash))
 				return errors.New("missing code")
 			}
 			codes += 1
@@ -382,7 +382,7 @@ func traverseRawState(ctx *cli.Context) error {
 		return errors.New("too many arguments")
 	}
 	var (
-		root common.Hash
+		root common.Hash512
 		err  error
 	)
 	if ctx.NArg() == 1 {
@@ -408,8 +408,8 @@ func traverseRawState(ctx *cli.Context) error {
 		codes      int
 		lastReport time.Time
 		start      = time.Now()
-		hasher     = crypto.NewKeccakState()
-		got        = make([]byte, 32)
+		hasher     = crypto.NewKeccak512State()
+		got        = make([]byte, common.Hash512Length)
 	)
 	accIter, err := t.NodeIterator(nil)
 	if err != nil {
@@ -427,8 +427,8 @@ func traverseRawState(ctx *cli.Context) error {
 
 		// Check the present for non-empty hash node(embedded node doesn't
 		// have their own hash).
-		if node != (common.Hash{}) {
-			blob, _ := reader.Node(common.Hash{}, accIter.Path(), node)
+		if node != (common.Hash512{}) {
+			blob, _ := reader.Node(common.Hash512{}, accIter.Path(), node)
 			if len(blob) == 0 {
 				log.Error("Missing trie node(account)", "hash", node)
 				return errors.New("missing account")
@@ -451,7 +451,7 @@ func traverseRawState(ctx *cli.Context) error {
 				return errors.New("invalid account")
 			}
 			if acc.Root != types.EmptyRootHash {
-				id := trie.StorageTrieID(root, common.BytesToHash(accIter.LeafKey()), acc.Root)
+				id := trie.StorageTrieID(root, common.BytesToHash512(accIter.LeafKey()), acc.Root)
 				storageTrie, err := trie.NewStateTrie(id, triedb)
 				if err != nil {
 					log.Error("Failed to open storage trie", "root", acc.Root, "err", err)
@@ -468,8 +468,8 @@ func traverseRawState(ctx *cli.Context) error {
 
 					// Check the presence for non-empty hash node(embedded node doesn't
 					// have their own hash).
-					if node != (common.Hash{}) {
-						blob, _ := reader.Node(common.BytesToHash(accIter.LeafKey()), storageIter.Path(), node)
+					if node != (common.Hash512{}) {
+						blob, _ := reader.Node(common.BytesToHash512(accIter.LeafKey()), storageIter.Path(), node)
 						if len(blob) == 0 {
 							log.Error("Missing trie node(storage)", "hash", node)
 							return errors.New("missing storage")
@@ -493,8 +493,8 @@ func traverseRawState(ctx *cli.Context) error {
 				}
 			}
 			if !bytes.Equal(acc.CodeHash, types.EmptyCodeHash.Bytes()) {
-				if !rawdb.HasCode(chaindb, common.BytesToHash(acc.CodeHash)) {
-					log.Error("Code is missing", "account", common.BytesToHash(accIter.LeafKey()))
+				if !rawdb.HasCode(chaindb, common.BytesToHash512(acc.CodeHash)) {
+					log.Error("Code is missing", "account", common.BytesToHash512(accIter.LeafKey()))
 					return errors.New("missing code")
 				}
 				codes += 1
@@ -513,8 +513,8 @@ func traverseRawState(ctx *cli.Context) error {
 	return nil
 }
 
-func parseRoot(input string) (common.Hash, error) {
-	var h common.Hash
+func parseRoot(input string) (common.Hash512, error) {
+	var h common.Hash512
 	if err := h.UnmarshalText([]byte(input)); err != nil {
 		return h, err
 	}
@@ -542,7 +542,7 @@ func dumpState(ctx *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	accIt, err := snaptree.AccountIterator(root, common.BytesToHash(conf.Start))
+	accIt, err := snaptree.AccountIterator(root, common.BytesToHash512(conf.Start))
 	if err != nil {
 		return err
 	}
@@ -556,7 +556,7 @@ func dumpState(ctx *cli.Context) error {
 	)
 	enc := json.NewEncoder(os.Stdout)
 	enc.Encode(struct {
-		Root common.Hash `json:"root"`
+		Root common.Hash512 `json:"root"`
 	}{root})
 	for accIt.Next() {
 		account, err := types.FullAccount(accIt.Account())
@@ -571,12 +571,12 @@ func dumpState(ctx *cli.Context) error {
 			SecureKey: accIt.Hash().Bytes(),
 		}
 		if !conf.SkipCode && !bytes.Equal(account.CodeHash, types.EmptyCodeHash.Bytes()) {
-			da.Code = rawdb.ReadCode(db, common.BytesToHash(account.CodeHash))
+			da.Code = rawdb.ReadCode(db, common.BytesToHash512(account.CodeHash))
 		}
 		if !conf.SkipStorage {
-			da.Storage = make(map[common.Hash]string)
+			da.Storage = make(map[common.Hash512]string)
 
-			stIt, err := snaptree.StorageIterator(root, accIt.Hash(), common.Hash{})
+			stIt, err := snaptree.StorageIterator(root, accIt.Hash(), common.Hash512{})
 			if err != nil {
 				return err
 			}
@@ -607,7 +607,7 @@ func checkAccount(ctx *cli.Context) error {
 		return errors.New("need <address|hash> arg")
 	}
 	var (
-		hash common.Hash
+		hash common.Hash512
 		addr common.Address
 		err  error
 	)
@@ -617,9 +617,9 @@ func checkAccount(ctx *cli.Context) error {
 		if err != nil {
 			return err
 		}
-		hash = crypto.Keccak256Hash(addr.Bytes())
-	case common.IsHexEncodedHash(arg):
-		hash = common.HexToHash(arg)
+		hash = crypto.Keccak512Hash(addr.Bytes())
+	case common.IsHexEncodedHash512(arg):
+		hash = common.HexToHash512(arg)
 	default:
 		return errors.New("malformed address or hash")
 	}

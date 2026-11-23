@@ -51,28 +51,28 @@ const maxFetchesPerDepth = 16384
 // To support aiming arbitrary trie nodes, the path needs to support odd nibble
 // lengths. To avoid transferring expanded hex form over the network, the last
 // part of the tuple (which needs to index into the middle of a trie) is compact
-// encoded. In case of a 2-tuple, the first item is always 32 bytes so that is
+// encoded. In case of a 2-tuple, the first item is always 64 bytes so that is
 // simple binary encoded.
 //
 // Examples:
 //   - Path 0x9  -> {0x19}
 //   - Path 0x99 -> {0x0099}
-//   - Path 0x01234567890123456789012345678901012345678901234567890123456789019  -> {0x0123456789012345678901234567890101234567890123456789012345678901, 0x19}
-//   - Path 0x012345678901234567890123456789010123456789012345678901234567890199 -> {0x0123456789012345678901234567890101234567890123456789012345678901, 0x0099}
+//   - Path 0x012345678901234567890123456789010123456789012345678901234567890101234567890123456789012345678901012345678901234567890123456789019  -> {0x01234567890123456789012345678901012345678901234567890123456789010123456789012345678901234567890101234567890123456789012345678901, 0x19}
+//   - Path 0x0123456789012345678901234567890101234567890123456789012345678901012345678901234567890123456789010123456789012345678901234567890199 -> {0x01234567890123456789012345678901012345678901234567890123456789010123456789012345678901234567890101234567890123456789012345678901, 0x0099}
 type SyncPath [][]byte
 
 // NewSyncPath converts an expanded trie path from nibble form into a compact
 // version that can be sent over the network.
 func NewSyncPath(path []byte) SyncPath {
 	// If the hash is from the account trie, append a single item, if it
-	// is from a storage trie, append a tuple. Note, the length 64 is
+	// is from a storage trie, append a tuple. Note, the length 128 is
 	// clashing between account leaf and storage root. It's fine though
-	// because having a trie node at 64 depth means a hash collision was
+	// because having a trie node at 128 depth means a hash collision was
 	// found and we're long dead.
-	if len(path) < 64 {
+	if len(path) < 2*common.Hash512Length {
 		return SyncPath{hexToCompact(path)}
 	}
-	return SyncPath{hexToKeybytes(path[:64]), hexToCompact(path[64:])}
+	return SyncPath{hexToKeybytes(path[:2*common.Hash512Length]), hexToCompact(path[2*common.Hash512Length:])}
 }
 
 // LeafCallback is a callback type invoked when a trie operation reaches a leaf
@@ -80,7 +80,7 @@ func NewSyncPath(path []byte) SyncPath {
 //
 // The keys is a path tuple identifying a particular trie node either in a single
 // trie (account) or a layered trie (account -> storage). Each key in the tuple
-// is in the raw format(32 bytes).
+// is in the raw format(64 bytes).
 //
 // The path is a composite hexary path identifying the trie node. All the key
 // bytes are converted to the hexary nibbles and composited with the parent path
@@ -89,13 +89,13 @@ func NewSyncPath(path []byte) SyncPath {
 // It's used by state sync and commit to allow handling external references
 // between account and storage tries. And also it's used in the state healing
 // for extracting the raw states(leaf nodes) with corresponding paths.
-type LeafCallback func(keys [][]byte, path []byte, leaf []byte, parent common.Hash, parentPath []byte) error
+type LeafCallback func(keys [][]byte, path []byte, leaf []byte, parent common.Hash512, parentPath []byte) error
 
 // nodeRequest represents a scheduled or already in-flight trie node retrieval request.
 type nodeRequest struct {
-	hash common.Hash // Hash of the trie node to retrieve
-	path []byte      // Merkle path leading to this node for prioritization
-	data []byte      // Data content of the node, cached until all subtrees complete
+	hash common.Hash512 // Hash of the trie node to retrieve
+	path []byte         // Merkle path leading to this node for prioritization
+	data []byte         // Data content of the node, cached until all subtrees complete
 
 	parent   *nodeRequest // Parent state node referencing this entry
 	deps     int          // Number of dependencies before allowed to commit this node
@@ -104,7 +104,7 @@ type nodeRequest struct {
 
 // codeRequest represents a scheduled or already in-flight bytecode retrieval request.
 type codeRequest struct {
-	hash    common.Hash    // Hash of the contract bytecode to retrieve
+	hash    common.Hash512 // Hash of the contract bytecode to retrieve
 	path    []byte         // Merkle path leading to this node for prioritization
 	data    []byte         // Data content of the node, cached until all subtrees complete
 	parents []*nodeRequest // Parent state nodes referencing this entry (notify all upon completion)
@@ -118,25 +118,25 @@ type NodeSyncResult struct {
 
 // CodeSyncResult is a response with requested bytecode along with its hash.
 type CodeSyncResult struct {
-	Hash common.Hash // Hash the originally unknown bytecode
-	Data []byte      // Data content of the retrieved bytecode
+	Hash common.Hash512 // Hash the originally unknown bytecode
+	Data []byte         // Data content of the retrieved bytecode
 }
 
 // syncMemBatch is an in-memory buffer of successfully downloaded but not yet
 // persisted data items.
 type syncMemBatch struct {
-	nodes  map[string][]byte      // In-memory membatch of recently completed nodes
-	hashes map[string]common.Hash // Hashes of recently completed nodes
-	codes  map[common.Hash][]byte // In-memory membatch of recently completed codes
-	size   uint64                 // Estimated batch-size of in-memory data.
+	nodes  map[string][]byte         // In-memory membatch of recently completed nodes
+	hashes map[string]common.Hash512 // Hashes of recently completed nodes
+	codes  map[common.Hash512][]byte // In-memory membatch of recently completed codes
+	size   uint64                    // Estimated batch-size of in-memory data.
 }
 
 // newSyncMemBatch allocates a new memory-buffer for not-yet persisted trie nodes.
 func newSyncMemBatch() *syncMemBatch {
 	return &syncMemBatch{
 		nodes:  make(map[string][]byte),
-		hashes: make(map[string]common.Hash),
-		codes:  make(map[common.Hash][]byte),
+		hashes: make(map[string]common.Hash512),
+		codes:  make(map[common.Hash512][]byte),
 	}
 }
 
@@ -147,7 +147,7 @@ func (batch *syncMemBatch) hasNode(path []byte) bool {
 }
 
 // hasCode reports the contract code with specific hash is already cached.
-func (batch *syncMemBatch) hasCode(hash common.Hash) bool {
+func (batch *syncMemBatch) hasCode(hash common.Hash512) bool {
 	_, ok := batch.codes[hash]
 	return ok
 }
@@ -156,34 +156,34 @@ func (batch *syncMemBatch) hasCode(hash common.Hash) bool {
 // unknown trie hashes to retrieve, accepts node data associated with said hashes
 // and reconstructs the trie step by step until all is done.
 type Sync struct {
-	scheme   string                       // Node scheme descriptor used in database.
-	database qrldb.KeyValueReader         // Persistent database to check for existing entries
-	membatch *syncMemBatch                // Memory buffer to avoid frequent database writes
-	nodeReqs map[string]*nodeRequest      // Pending requests pertaining to a trie node path
-	codeReqs map[common.Hash]*codeRequest // Pending requests pertaining to a code hash
-	queue    *prque.Prque[int64, any]     // Priority queue with the pending requests
-	fetches  map[int]int                  // Number of active fetches per trie node depth
+	scheme   string                          // Node scheme descriptor used in database.
+	database qrldb.KeyValueReader            // Persistent database to check for existing entries
+	membatch *syncMemBatch                   // Memory buffer to avoid frequent database writes
+	nodeReqs map[string]*nodeRequest         // Pending requests pertaining to a trie node path
+	codeReqs map[common.Hash512]*codeRequest // Pending requests pertaining to a code hash
+	queue    *prque.Prque[int64, any]        // Priority queue with the pending requests
+	fetches  map[int]int                     // Number of active fetches per trie node depth
 }
 
 // NewSync creates a new trie data download scheduler.
-func NewSync(root common.Hash, database qrldb.KeyValueReader, callback LeafCallback, scheme string) *Sync {
+func NewSync(root common.Hash512, database qrldb.KeyValueReader, callback LeafCallback, scheme string) *Sync {
 	ts := &Sync{
 		scheme:   scheme,
 		database: database,
 		membatch: newSyncMemBatch(),
 		nodeReqs: make(map[string]*nodeRequest),
-		codeReqs: make(map[common.Hash]*codeRequest),
+		codeReqs: make(map[common.Hash512]*codeRequest),
 		queue:    prque.New[int64, any](nil), // Ugh, can contain both string and hash, whyyy
 		fetches:  make(map[int]int),
 	}
-	ts.AddSubTrie(root, nil, common.Hash{}, nil, callback)
+	ts.AddSubTrie(root, nil, common.Hash512{}, nil, callback)
 	return ts
 }
 
 // AddSubTrie registers a new trie to the sync code, rooted at the designated
 // parent for completion tracking. The given path is a unique node path in
 // hex format and contain all the parent path if it's layered trie node.
-func (s *Sync) AddSubTrie(root common.Hash, path []byte, parent common.Hash, parentPath []byte, callback LeafCallback) {
+func (s *Sync) AddSubTrie(root common.Hash512, path []byte, parent common.Hash512, parentPath []byte, callback LeafCallback) {
 	// Short circuit if the trie is empty or already known
 	if root == types.EmptyRootHash {
 		return
@@ -202,7 +202,7 @@ func (s *Sync) AddSubTrie(root common.Hash, path []byte, parent common.Hash, par
 		callback: callback,
 	}
 	// If this sub-trie has a designated parent, link them together
-	if parent != (common.Hash{}) {
+	if parent != (common.Hash512{}) {
 		ancestor := s.nodeReqs[string(parentPath)]
 		if ancestor == nil {
 			panic(fmt.Sprintf("sub-trie ancestor not found: %x", parent))
@@ -216,7 +216,7 @@ func (s *Sync) AddSubTrie(root common.Hash, path []byte, parent common.Hash, par
 // AddCodeEntry schedules the direct retrieval of a contract code that should not
 // be interpreted as a trie node, but rather accepted and stored into the database
 // as is.
-func (s *Sync) AddCodeEntry(hash common.Hash, path []byte, parent common.Hash, parentPath []byte) {
+func (s *Sync) AddCodeEntry(hash common.Hash512, path []byte, parent common.Hash512, parentPath []byte) {
 	// Short circuit if the entry is empty or already known
 	if hash == types.EmptyCodeHash {
 		return
@@ -238,7 +238,7 @@ func (s *Sync) AddCodeEntry(hash common.Hash, path []byte, parent common.Hash, p
 		hash: hash,
 	}
 	// If this sub-trie has a designated parent, link them together
-	if parent != (common.Hash{}) {
+	if parent != (common.Hash512{}) {
 		ancestor := s.nodeReqs[string(parentPath)] // the parent of codereq can ONLY be nodereq
 		if ancestor == nil {
 			panic(fmt.Sprintf("raw-entry ancestor not found: %x", parent))
@@ -252,18 +252,18 @@ func (s *Sync) AddCodeEntry(hash common.Hash, path []byte, parent common.Hash, p
 // Missing retrieves the known missing nodes from the trie for retrieval. To aid
 // both qrl/6x style fast sync and snap/1x style state sync, the paths of trie
 // nodes are returned too, as well as separate hash list for codes.
-func (s *Sync) Missing(max int) ([]string, []common.Hash, []common.Hash) {
+func (s *Sync) Missing(max int) ([]string, []common.Hash512, []common.Hash512) {
 	var (
 		nodePaths  []string
-		nodeHashes []common.Hash
-		codeHashes []common.Hash
+		nodeHashes []common.Hash512
+		codeHashes []common.Hash512
 	)
 	for !s.queue.Empty() && (max == 0 || len(nodeHashes)+len(codeHashes) < max) {
 		// Retrieve the next item in line
 		item, prio := s.queue.Peek()
 
 		// If we have too many already-pending tasks for this depth, throttle
-		depth := int(prio >> 56)
+		depth := int(prio >> 55)
 		if s.fetches[depth] > maxFetchesPerDepth {
 			break
 		}
@@ -272,7 +272,7 @@ func (s *Sync) Missing(max int) ([]string, []common.Hash, []common.Hash) {
 		s.fetches[depth]++
 
 		switch item := item.(type) {
-		case common.Hash:
+		case common.Hash512:
 			codeHashes = append(codeHashes, item)
 		case string:
 			req, ok := s.nodeReqs[item]
@@ -378,9 +378,9 @@ func (s *Sync) scheduleNodeRequest(req *nodeRequest) {
 
 	// Schedule the request for future retrieval. This queue is shared
 	// by both node requests and code requests.
-	prio := int64(len(req.path)) << 56 // depth >= 128 will never happen, storage leaves will be included in their parents
-	for i := 0; i < 14 && i < len(req.path); i++ {
-		prio |= int64(15-req.path[i]) << (52 - i*4) // 15-nibble => lexicographic order
+	prio := int64(len(req.path)) << 55 // Eight depth bits cover account and storage paths (up to 255 nibbles).
+	for i := 0; i < 13 && i < len(req.path); i++ {
+		prio |= int64(15-req.path[i]) << (51 - i*4) // 15-nibble => lexicographic order
 	}
 	s.queue.Push(string(req.path), prio)
 }
@@ -398,9 +398,9 @@ func (s *Sync) scheduleCodeRequest(req *codeRequest) {
 
 	// Schedule the request for future retrieval. This queue is shared
 	// by both node requests and code requests.
-	prio := int64(len(req.path)) << 56 // depth >= 128 will never happen, storage leaves will be included in their parents
-	for i := 0; i < 14 && i < len(req.path); i++ {
-		prio |= int64(15-req.path[i]) << (52 - i*4) // 15-nibble => lexicographic order
+	prio := int64(len(req.path)) << 55 // Eight depth bits cover account and storage paths (up to 255 nibbles).
+	for i := 0; i < 13 && i < len(req.path); i++ {
+		prio |= int64(15-req.path[i]) << (51 - i*4) // 15-nibble => lexicographic order
 	}
 	s.queue.Push(req.hash, prio)
 }
@@ -447,11 +447,11 @@ func (s *Sync) children(req *nodeRequest, object node) ([]*nodeRequest, error) {
 		if req.callback != nil {
 			if node, ok := (child.node).(valueNode); ok {
 				var paths [][]byte
-				if len(child.path) == 2*common.HashLength {
+				if len(child.path) == 2*common.Hash512Length {
 					paths = append(paths, hexToKeybytes(child.path))
-				} else if len(child.path) == 4*common.HashLength {
-					paths = append(paths, hexToKeybytes(child.path[:2*common.HashLength]))
-					paths = append(paths, hexToKeybytes(child.path[2*common.HashLength:]))
+				} else if len(child.path) == 4*common.Hash512Length {
+					paths = append(paths, hexToKeybytes(child.path[:2*common.Hash512Length]))
+					paths = append(paths, hexToKeybytes(child.path[2*common.Hash512Length:]))
 				}
 				if err := req.callback(paths, child.path, node, req.hash, req.path); err != nil {
 					return nil, err
@@ -472,7 +472,7 @@ func (s *Sync) children(req *nodeRequest, object node) ([]*nodeRequest, error) {
 				// If database says duplicate, then at least the trie node is present
 				// and we hold the assumption that it's NOT legacy contract code.
 				var (
-					chash        = common.BytesToHash(node)
+					chash        = common.BytesToHash512(node)
 					owner, inner = ResolvePath(child.path)
 				)
 				if rawdb.HasTrieNode(s.database, owner, inner, chash, s.scheme) {
@@ -512,7 +512,7 @@ func (s *Sync) commitNodeRequest(req *nodeRequest) error {
 	// The size tracking refers to the db-batch, not the in-memory data.
 	// Therefore, we ignore the req.path, and account only for the hash+data
 	// which eventually is written to db.
-	s.membatch.size += common.HashLength + uint64(len(req.data))
+	s.membatch.size += common.Hash512Length + uint64(len(req.data))
 	delete(s.nodeReqs, string(req.path))
 	s.fetches[len(req.path)]--
 
@@ -534,7 +534,7 @@ func (s *Sync) commitNodeRequest(req *nodeRequest) error {
 func (s *Sync) commitCodeRequest(req *codeRequest) error {
 	// Write the node content to the membatch
 	s.membatch.codes[req.hash] = req.data
-	s.membatch.size += common.HashLength + uint64(len(req.data))
+	s.membatch.size += common.Hash512Length + uint64(len(req.data))
 	delete(s.codeReqs, req.hash)
 	s.fetches[len(req.path)]--
 
@@ -552,11 +552,11 @@ func (s *Sync) commitCodeRequest(req *codeRequest) error {
 
 // ResolvePath resolves the provided composite node path by separating the
 // path in account trie if it's existent.
-func ResolvePath(path []byte) (common.Hash, []byte) {
-	var owner common.Hash
-	if len(path) >= 2*common.HashLength {
-		owner = common.BytesToHash(hexToKeybytes(path[:2*common.HashLength]))
-		path = path[2*common.HashLength:]
+func ResolvePath(path []byte) (common.Hash512, []byte) {
+	var owner common.Hash512
+	if len(path) >= 2*common.Hash512Length {
+		owner = common.BytesToHash512(hexToKeybytes(path[:2*common.Hash512Length]))
+		path = path[2*common.Hash512Length:]
 	}
 	return owner, path
 }

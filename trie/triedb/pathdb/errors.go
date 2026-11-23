@@ -46,6 +46,6 @@ var (
 	errUnexpectedNode = errors.New("unexpected node")
 )
 
-func newUnexpectedNodeError(loc string, expHash common.Hash, gotHash common.Hash, owner common.Hash, path []byte) error {
+func newUnexpectedNodeError(loc string, expHash common.Hash512, gotHash common.Hash512, owner common.Hash512, path []byte) error {
 	return fmt.Errorf("%w, loc: %s, node: (%x %v), %x!=%x", errUnexpectedNode, loc, owner, path, expHash, gotHash)
 }

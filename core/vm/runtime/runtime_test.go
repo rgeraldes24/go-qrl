@@ -678,7 +678,7 @@ func TestRuntimeJSTracer(t *testing.T) {
 				byte(vm.CREATE2),
 				byte(vm.POP),
 			},
-			results: []string{`"1,1,952844,6,13"`, `"1,1,952844,6,0"`},
+			results: []string{`"1,1,952838,6,13"`, `"1,1,952838,6,0"`},
 		},
 		{
 			// CALL

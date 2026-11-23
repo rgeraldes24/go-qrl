@@ -342,11 +342,11 @@ func exportChain(ctx *cli.Context) error {
 	return nil
 }
 
-func parseDumpConfig(ctx *cli.Context, stack *node.Node) (*state.DumpConfig, qrldb.Database, common.Hash, error) {
+func parseDumpConfig(ctx *cli.Context, stack *node.Node) (*state.DumpConfig, qrldb.Database, common.Hash512, error) {
 	db := utils.MakeChainDatabase(ctx, stack, true)
 	var header *types.Header
 	if ctx.NArg() > 1 {
-		return nil, nil, common.Hash{}, fmt.Errorf("expected 1 argument (number or hash), got %d", ctx.NArg())
+		return nil, nil, common.Hash512{}, fmt.Errorf("expected 1 argument (number or hash), got %d", ctx.NArg())
 	}
 	if ctx.NArg() == 1 {
 		arg := ctx.Args().First()
@@ -355,17 +355,17 @@ func parseDumpConfig(ctx *cli.Context, stack *node.Node) (*state.DumpConfig, qrl
 			if number := rawdb.ReadHeaderNumber(db, hash); number != nil {
 				header = rawdb.ReadHeader(db, hash, *number)
 			} else {
-				return nil, nil, common.Hash{}, fmt.Errorf("block %x not found", hash)
+				return nil, nil, common.Hash512{}, fmt.Errorf("block %x not found", hash)
 			}
 		} else {
 			number, err := strconv.ParseUint(arg, 10, 64)
 			if err != nil {
-				return nil, nil, common.Hash{}, err
+				return nil, nil, common.Hash512{}, err
 			}
 			if hash := rawdb.ReadCanonicalHash(db, number); hash != (common.Hash{}) {
 				header = rawdb.ReadHeader(db, hash, number)
 			} else {
-				return nil, nil, common.Hash{}, fmt.Errorf("header for block %d not found", number)
+				return nil, nil, common.Hash512{}, fmt.Errorf("header for block %d not found", number)
 			}
 		}
 	} else {
@@ -373,23 +373,23 @@ func parseDumpConfig(ctx *cli.Context, stack *node.Node) (*state.DumpConfig, qrl
 		header = rawdb.ReadHeadHeader(db)
 	}
 	if header == nil {
-		return nil, nil, common.Hash{}, errors.New("no head block found")
+		return nil, nil, common.Hash512{}, errors.New("no head block found")
 	}
 	startArg := ctx.String(utils.StartKeyFlag.Name)
-	var start common.Hash
+	var start common.Hash512
 	switch {
 	case startArg == "": // common.Hash
-	case common.IsHexEncodedHash(startArg):
-		start = common.BytesToHash(common.FromHex(startArg))
+	case common.IsHexEncodedHash512(startArg):
+		start = common.BytesToHash512(common.FromHex(startArg))
 	case common.IsAddress(startArg):
 		addr, err := common.NewAddressFromString(startArg)
 		if err != nil {
-			return nil, nil, common.Hash{}, err
+			return nil, nil, common.Hash512{}, err
 		}
-		start = crypto.Keccak256Hash(addr.Bytes())
+		start = crypto.Keccak512Hash(addr.Bytes())
 		log.Info("Converting start-address to hash", "address", addr, "hash", start.Hex())
 	default:
-		return nil, nil, common.Hash{}, fmt.Errorf("invalid start argument %q: Q-prefixed hex-encoded %d-byte address or hex-encoded %d-byte hash required", startArg, common.AddressLength, common.HashLength)
+		return nil, nil, common.Hash512{}, fmt.Errorf("invalid start argument %q: Q-prefixed hex-encoded %d-byte address or hex-encoded %d-byte hash required", startArg, common.AddressLength, common.Hash512Length)
 	}
 	var conf = &state.DumpConfig{
 		SkipCode:          ctx.Bool(utils.ExcludeCodeFlag.Name),

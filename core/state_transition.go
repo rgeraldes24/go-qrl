@@ -263,7 +263,7 @@ func (st *StateTransition) preCheck() error {
 		}
 		// Make sure the sender is an EOA
 		codeHash := st.state.GetCodeHash(msg.From)
-		if codeHash != (common.Hash{}) && codeHash != types.EmptyCodeHash {
+		if codeHash != (common.Hash512{}) && codeHash != types.EmptyCodeHash {
 			return fmt.Errorf("%w: address %v, codehash: %s", ErrSenderNoEOA,
 				msg.From.Hex(), codeHash)
 		}
@@ -356,6 +356,7 @@ func (st *StateTransition) TransitionDb() (*ExecutionResult, error) {
 
 	// Execute the preparatory steps for state transition which includes:
 	// - prepare accessList
+	// - reset transient storage(eip 1153)
 	st.state.Prepare(msg.From, st.qrvm.Context.Coinbase, msg.To, vm.ActivePrecompiles(), msg.AccessList)
 
 	var (

@@ -122,7 +122,10 @@ const (
 	// - Version 8
 	//  The following incompatible database changes were added:
 	//    * New scheme for contract code in order to separate the codes and trie nodes
-	BlockChainVersion uint64 = 8
+	// - Version 9
+	//    * 512-bit state keys, trie roots, node references and code hashes.
+	//      Requires a fresh genesis; earlier chain databases cannot be upgraded.
+	BlockChainVersion uint64 = 9
 )
 
 // CacheConfig contains the configuration values for the trie database
@@ -197,14 +200,14 @@ type BlockChain struct {
 	chainConfig *params.ChainConfig // Chain & network configuration
 	cacheConfig *CacheConfig        // Cache configuration for pruning
 
-	db            qrldb.Database                   // Low level persistent database to store final content in
-	snaps         *snapshot.Tree                   // Snapshot tree for fast trie leaf access
-	triegc        *prque.Prque[int64, common.Hash] // Priority queue mapping block numbers to tries to gc
-	gcproc        time.Duration                    // Accumulates canonical block processing for trie dumping
-	lastWrite     uint64                           // Last block when the state was flushed
-	flushInterval atomic.Int64                     // Time interval (processing time) after which to flush a state
-	triedb        *trie.Database                   // The database handler for maintaining trie nodes.
-	stateCache    state.Database                   // State database to reuse between imports (contains state cache)
+	db            qrldb.Database                      // Low level persistent database to store final content in
+	snaps         *snapshot.Tree                      // Snapshot tree for fast trie leaf access
+	triegc        *prque.Prque[int64, common.Hash512] // Priority queue mapping block numbers to tries to gc
+	gcproc        time.Duration                       // Accumulates canonical block processing for trie dumping
+	lastWrite     uint64                              // Last block when the state was flushed
+	flushInterval atomic.Int64                        // Time interval (processing time) after which to flush a state
+	triedb        *trie.Database                      // The database handler for maintaining trie nodes.
+	stateCache    state.Database                      // State database to reuse between imports (contains state cache)
 
 	// txLookupLimit is the maximum number of blocks from head whose tx indices
 	// are reserved:
@@ -278,7 +281,7 @@ func NewBlockChain(db qrldb.Database, cacheConfig *CacheConfig, genesis *Genesis
 		cacheConfig:   cacheConfig,
 		db:            db,
 		triedb:        triedb,
-		triegc:        prque.New[int64, common.Hash](nil),
+		triegc:        prque.New[int64, common.Hash512](nil),
 		quit:          make(chan struct{}),
 		chainmu:       syncx.NewClosableMutex(),
 		bodyCache:     lru.NewCache[common.Hash, *types.Body](bodyCacheLimit),
@@ -337,11 +340,11 @@ func NewBlockChain(db qrldb.Database, cacheConfig *CacheConfig, genesis *Genesis
 			// Head state is missing, before the state recovery, find out the
 			// disk layer point of snapshot(if it's enabled). Make sure the
 			// rewound point is lower than disk layer.
-			var diskRoot common.Hash
+			var diskRoot common.Hash512
 			if bc.cacheConfig.SnapshotLimit > 0 {
 				diskRoot = rawdb.ReadSnapshotRoot(bc.db)
 			}
-			if diskRoot != (common.Hash{}) {
+			if diskRoot != (common.Hash512{}) {
 				log.Warn("Head state missing, repairing", "number", head.Number, "hash", head.Hash(), "snaproot", diskRoot)
 
 				snapDisk, err := bc.setHeadBeyondRoot(head.Number.Uint64(), 0, diskRoot, true)
@@ -354,7 +357,7 @@ func NewBlockChain(db qrldb.Database, cacheConfig *CacheConfig, genesis *Genesis
 				}
 			} else {
 				log.Warn("Head state missing, repairing", "number", head.Number, "hash", head.Hash())
-				if _, err := bc.setHeadBeyondRoot(head.Number.Uint64(), 0, common.Hash{}, true); err != nil {
+				if _, err := bc.setHeadBeyondRoot(head.Number.Uint64(), 0, common.Hash512{}, true); err != nil {
 					return nil, err
 				}
 			}
@@ -524,7 +527,7 @@ func (bc *BlockChain) loadLastState() error {
 // was snap synced or full synced and in which state, the method will try to
 // delete minimal data from disk whilst retaining chain consistency.
 func (bc *BlockChain) SetHead(head uint64) error {
-	if _, err := bc.setHeadBeyondRoot(head, 0, common.Hash{}, false); err != nil {
+	if _, err := bc.setHeadBeyondRoot(head, 0, common.Hash512{}, false); err != nil {
 		return err
 	}
 	// Send chain head event to update the transaction pool
@@ -546,7 +549,7 @@ func (bc *BlockChain) SetHead(head uint64) error {
 // synced and in which state, the method will try to delete minimal data from
 // disk whilst retaining chain consistency.
 func (bc *BlockChain) SetHeadWithTimestamp(timestamp uint64) error {
-	if _, err := bc.setHeadBeyondRoot(0, timestamp, common.Hash{}, false); err != nil {
+	if _, err := bc.setHeadBeyondRoot(0, timestamp, common.Hash512{}, false); err != nil {
 		return err
 	}
 	// Send chain head event to update the transaction pool
@@ -619,7 +622,7 @@ func (bc *BlockChain) resetState() {
 // requested time. If both `head` and `time` is 0, the chain is rewound to genesis.
 //
 // The method returns the block number where the requested root cap was found.
-func (bc *BlockChain) setHeadBeyondRoot(head uint64, time uint64, root common.Hash, repair bool) (uint64, error) {
+func (bc *BlockChain) setHeadBeyondRoot(head uint64, time uint64, root common.Hash512, repair bool) (uint64, error) {
 	if !bc.chainmu.TryLock() {
 		return 0, errChainStopped
 	}
@@ -647,11 +650,11 @@ func (bc *BlockChain) setHeadBeyondRoot(head uint64, time uint64, root common.Ha
 				// Block exists, keep rewinding until we find one with state,
 				// keeping rewinding until we exceed the optional threshold
 				// root hash
-				beyondRoot := (root == common.Hash{}) // Flag whether we're beyond the requested root (no root, always true)
+				beyondRoot := (root == common.Hash512{}) // Flag whether we're beyond the requested root (no root, always true)
 
 				for {
 					// If a root threshold was requested but not yet crossed, check
-					if root != (common.Hash{}) && !beyondRoot && newHeadBlock.Root() == root {
+					if root != (common.Hash512{}) && !beyondRoot && newHeadBlock.Root() == root {
 						beyondRoot, rootNumber = true, newHeadBlock.NumberU64()
 					}
 					if !bc.HasState(newHeadBlock.Root()) && !bc.stateRecoverable(newHeadBlock.Root()) {
@@ -951,7 +954,7 @@ func (bc *BlockChain) Stop() {
 	bc.stopWithoutSaving()
 
 	// Ensure that the entirety of the state snapshot is journalled to disk.
-	var snapBase common.Hash
+	var snapBase common.Hash512
 	if bc.snaps != nil {
 		var err error
 		if snapBase, err = bc.snaps.Journal(bc.CurrentBlock().Root); err != nil {
@@ -982,7 +985,7 @@ func (bc *BlockChain) Stop() {
 					}
 				}
 			}
-			if snapBase != (common.Hash{}) {
+			if snapBase != (common.Hash512{}) {
 				log.Info("Writing snapshot state to disk", "root", snapBase)
 				if err := triedb.Commit(snapBase, true); err != nil {
 					log.Error("Failed to commit recent state trie", "err", err)
@@ -1327,7 +1330,7 @@ func (bc *BlockChain) writeBlockWithState(block *types.Block, receipts []*types.
 		return bc.triedb.Commit(root, false)
 	}
 	// Full but not archive node, do proper garbage collection
-	bc.triedb.Reference(root, common.Hash{}) // metadata reference to keep trie alive
+	bc.triedb.Reference(root, common.Hash512{}) // metadata reference to keep trie alive
 	bc.triegc.Push(root, -int64(block.NumberU64()))
 
 	// Flush limits are not considered for the first TriesInMemory blocks.
@@ -2045,7 +2048,7 @@ func (bc *BlockChain) skipBlock(err error, it *insertIterator) bool {
 	}
 	var (
 		header     = it.current() // header can't be nil
-		parentRoot common.Hash
+		parentRoot common.Hash512
 	)
 	// If we also have the snapshot-state, we can skip the processing.
 	if bc.snaps.Snapshot(header.Root) != nil {
@@ -2060,7 +2063,7 @@ func (bc *BlockChain) skipBlock(err error, it *insertIterator) bool {
 	} else if parent = bc.GetHeaderByHash(header.ParentHash); parent != nil {
 		parentRoot = parent.Root
 	}
-	if parentRoot == (common.Hash{}) {
+	if parentRoot == (common.Hash512{}) {
 		return false // Theoretically impossible case
 	}
 	// Parent is also missing snapshot: we can skip this. Otherwise process.

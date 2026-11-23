@@ -309,8 +309,8 @@ func handleBlockBodies(backend Backend, msg Decoder, peer *Peer) error {
 	}
 	metadata := func() any {
 		var (
-			txsHashes        = make([]common.Hash, len(res.BlockBodiesResponse))
-			withdrawalHashes = make([]common.Hash, len(res.BlockBodiesResponse))
+			txsHashes        = make([]common.Hash512, len(res.BlockBodiesResponse))
+			withdrawalHashes = make([]common.Hash512, len(res.BlockBodiesResponse))
 		)
 		hasher := trie.NewStackTrie(nil)
 		for i, body := range res.BlockBodiesResponse {
@@ -319,7 +319,7 @@ func handleBlockBodies(backend Backend, msg Decoder, peer *Peer) error {
 				withdrawalHashes[i] = types.DeriveSha(types.Withdrawals(body.Withdrawals), hasher)
 			}
 		}
-		return [][]common.Hash{txsHashes, withdrawalHashes}
+		return [][]common.Hash512{txsHashes, withdrawalHashes}
 	}
 	return peer.dispatchResponse(&Response{
 		id:   res.RequestId,
@@ -336,7 +336,7 @@ func handleReceipts(backend Backend, msg Decoder, peer *Peer) error {
 	}
 	metadata := func() any {
 		hasher := trie.NewStackTrie(nil)
-		hashes := make([]common.Hash, len(res.ReceiptsResponse))
+		hashes := make([]common.Hash512, len(res.ReceiptsResponse))
 		for i, receipt := range res.ReceiptsResponse {
 			hashes[i] = types.DeriveSha(types.Receipts(receipt), hasher)
 		}

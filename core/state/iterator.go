@@ -36,12 +36,12 @@ type nodeIterator struct {
 	stateIt trie.NodeIterator // Primary iterator for the global state trie
 	dataIt  trie.NodeIterator // Secondary iterator for the data trie of a contract
 
-	accountHash common.Hash // Hash of the node containing the account
-	codeHash    common.Hash // Hash of the contract source code
-	code        []byte      // Source code associated with a contract
+	accountHash common.Hash512 // Hash of the node containing the account
+	codeHash    common.Hash512 // Hash of the contract source code
+	code        []byte         // Source code associated with a contract
 
-	Hash   common.Hash // Hash of the current entry being iterated (nil if not standalone)
-	Parent common.Hash // Hash of the first full ancestor node (nil if current is the root)
+	Hash   common.Hash512 // Hash of the current entry being iterated (nil if not standalone)
+	Parent common.Hash512 // Hash of the first full ancestor node (nil if current is the root)
 
 	Error error // Failure set in case of an internal error in the iterator
 }
@@ -135,8 +135,8 @@ func (it *nodeIterator) step() error {
 		it.dataIt = nil
 	}
 	if !bytes.Equal(account.CodeHash, types.EmptyCodeHash.Bytes()) {
-		it.codeHash = common.BytesToHash(account.CodeHash)
-		it.code, err = it.state.db.ContractCode(address, common.BytesToHash(account.CodeHash))
+		it.codeHash = common.BytesToHash512(account.CodeHash)
+		it.code, err = it.state.db.ContractCode(address, common.BytesToHash512(account.CodeHash))
 		if err != nil {
 			return fmt.Errorf("code %x: %v", account.CodeHash, err)
 		}
@@ -149,7 +149,7 @@ func (it *nodeIterator) step() error {
 // The method returns whether there are any more data left for inspection.
 func (it *nodeIterator) retrieve() bool {
 	// Clear out any previously set values
-	it.Hash = common.Hash{}
+	it.Hash = common.Hash512{}
 
 	// If the iteration's done, return no available data
 	if it.state == nil {
@@ -159,7 +159,7 @@ func (it *nodeIterator) retrieve() bool {
 	switch {
 	case it.dataIt != nil:
 		it.Hash, it.Parent = it.dataIt.Hash(), it.dataIt.Parent()
-		if it.Parent == (common.Hash{}) {
+		if it.Parent == (common.Hash512{}) {
 			it.Parent = it.accountHash
 		}
 	case it.code != nil:

@@ -320,7 +320,7 @@ func XTestDelivery(t *testing.T) {
 					txset = append(txset, world.getTransactions(hdr.Number.Uint64()))
 				}
 				var (
-					txsHashes = make([]common.Hash, len(txset))
+					txsHashes = make([]common.Hash512, len(txset))
 				)
 				hasher := trie.NewStackTrie(nil)
 				for i, txs := range txset {
@@ -349,7 +349,7 @@ func XTestDelivery(t *testing.T) {
 					rcs = append(rcs, world.getReceipts(hdr.Number.Uint64()))
 				}
 				hasher := trie.NewStackTrie(nil)
-				hashes := make([]common.Hash, len(rcs))
+				hashes := make([]common.Hash512, len(rcs))
 				for i, receipt := range rcs {
 					hashes[i] = types.DeriveSha(types.Receipts(receipt), hasher)
 				}

@@ -34,7 +34,7 @@ type StateDB interface {
 	GetNonce(common.Address) uint64
 	SetNonce(common.Address, uint64)
 
-	GetCodeHash(common.Address) common.Hash
+	GetCodeHash(common.Address) common.Hash512
 	GetCode(common.Address) []byte
 	SetCode(common.Address, []byte)
 	GetCodeSize(common.Address) int
@@ -43,9 +43,12 @@ type StateDB interface {
 	SubRefund(uint64)
 	GetRefund() uint64
 
-	GetCommittedState(common.Address, common.Hash) common.StorageValue64
-	GetState(common.Address, common.Hash) common.StorageValue64
-	SetState(common.Address, common.Hash, common.StorageValue64)
+	GetCommittedState(common.Address, common.Hash512) common.StorageValue64
+	GetState(common.Address, common.Hash512) common.StorageValue64
+	SetState(common.Address, common.Hash512, common.StorageValue64)
+
+	GetTransientState(addr common.Address, key common.Hash512) common.StorageValue64
+	SetTransientState(addr common.Address, key common.Hash512, value common.StorageValue64)
 
 	// Exist reports whether the given account exists in state.
 	Exist(common.Address) bool
@@ -54,18 +57,18 @@ type StateDB interface {
 	Empty(common.Address) bool
 
 	AddressInAccessList(addr common.Address) bool
-	SlotInAccessList(addr common.Address, slot common.Hash) (addressOk bool, slotOk bool)
+	SlotInAccessList(addr common.Address, slot common.Hash512) (addressOk bool, slotOk bool)
 	// AddAddressToAccessList adds the given address to the access list. This operation is safe to perform
 	// even if the feature/fork is not active yet
 	AddAddressToAccessList(addr common.Address)
 	// AddSlotToAccessList adds the given (address,slot) to the access list. This operation is safe to perform
 	// even if the feature/fork is not active yet
-	AddSlotToAccessList(addr common.Address, slot common.Hash)
+	AddSlotToAccessList(addr common.Address, slot common.Hash512)
 	Prepare(sender, coinbase common.Address, dest *common.Address, precompiles []common.Address, txAccesses types.AccessList)
 
 	RevertToSnapshot(int)
 	Snapshot() int
 
 	AddLog(*types.Log)
-	AddPreimage(common.Hash, []byte)
+	AddPreimage(common.Hash512, []byte)
 }

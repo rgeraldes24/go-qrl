@@ -43,30 +43,30 @@ type Trie interface {
 
 	// Commit the trie and returns a set of dirty nodes generated along with
 	// the new root hash.
-	Commit(collectLeaf bool) (common.Hash, *trienode.NodeSet, error)
+	Commit(collectLeaf bool) (common.Hash512, *trienode.NodeSet, error)
 }
 
 // TrieLoader wraps functions to load tries.
 type TrieLoader interface {
 	// OpenTrie opens the main account trie.
-	OpenTrie(root common.Hash) (Trie, error)
+	OpenTrie(root common.Hash512) (Trie, error)
 
 	// OpenStorageTrie opens the storage trie of an account.
-	OpenStorageTrie(stateRoot common.Hash, addrHash, root common.Hash) (Trie, error)
+	OpenStorageTrie(stateRoot common.Hash512, addrHash, root common.Hash512) (Trie, error)
 }
 
 // Set represents a collection of mutated states during a state transition.
 // The value refers to the original content of state before the transition
 // is made. Nil means that the state was not present previously.
 type Set struct {
-	Accounts   map[common.Address][]byte                 // Mutated account set, nil means the account was not present
-	Storages   map[common.Address]map[common.Hash][]byte // Mutated storage set, nil means the slot was not present
-	Incomplete map[common.Address]struct{}               // Indicator whether the storage is incomplete due to large deletion
-	size       common.StorageSize                        // Approximate size of set
+	Accounts   map[common.Address][]byte                    // Mutated account set, nil means the account was not present
+	Storages   map[common.Address]map[common.Hash512][]byte // Mutated storage set, nil means the slot was not present
+	Incomplete map[common.Address]struct{}                  // Indicator whether the storage is incomplete due to large deletion
+	size       common.StorageSize                           // Approximate size of set
 }
 
 // New constructs the state set with provided data.
-func New(accounts map[common.Address][]byte, storages map[common.Address]map[common.Hash][]byte, incomplete map[common.Address]struct{}) *Set {
+func New(accounts map[common.Address][]byte, storages map[common.Address]map[common.Hash512][]byte, incomplete map[common.Address]struct{}) *Set {
 	return &Set{
 		Accounts:   accounts,
 		Storages:   storages,
@@ -84,7 +84,7 @@ func (s *Set) Size() common.StorageSize {
 	}
 	for _, slots := range s.Storages {
 		for _, val := range slots {
-			s.size += common.StorageSize(common.HashLength + len(val))
+			s.size += common.StorageSize(common.Hash512Length + len(val))
 		}
 		s.size += common.StorageSize(common.AddressLength)
 	}
@@ -94,10 +94,10 @@ func (s *Set) Size() common.StorageSize {
 
 // context wraps all fields for executing state diffs.
 type context struct {
-	prevRoot    common.Hash
-	postRoot    common.Hash
+	prevRoot    common.Hash512
+	postRoot    common.Hash512
 	accounts    map[common.Address][]byte
-	storages    map[common.Address]map[common.Hash][]byte
+	storages    map[common.Address]map[common.Hash512][]byte
 	accountTrie Trie
 	nodes       *trienode.MergedNodeSet
 }
@@ -105,7 +105,7 @@ type context struct {
 // Apply traverses the provided state diffs, apply them in the associated
 // post-state and return the generated dirty trie nodes. The state can be
 // loaded via the provided trie loader.
-func Apply(prevRoot common.Hash, postRoot common.Hash, accounts map[common.Address][]byte, storages map[common.Address]map[common.Hash][]byte, loader TrieLoader) (map[common.Hash]map[string]*trienode.Node, error) {
+func Apply(prevRoot common.Hash512, postRoot common.Hash512, accounts map[common.Address][]byte, storages map[common.Address]map[common.Hash512][]byte, loader TrieLoader) (map[common.Hash512]map[string]*trienode.Node, error) {
 	tr, err := loader.OpenTrie(postRoot)
 	if err != nil {
 		return nil, err
@@ -260,15 +260,15 @@ func deleteAccount(ctx *context, loader TrieLoader, addr common.Address) error {
 type hasher struct{ sha crypto.KeccakState }
 
 var hasherPool = sync.Pool{
-	New: func() any { return &hasher{sha: sha3.NewLegacyKeccak256().(crypto.KeccakState)} },
+	New: func() any { return &hasher{sha: sha3.NewLegacyKeccak512().(crypto.KeccakState)} },
 }
 
 func newHasher() *hasher {
 	return hasherPool.Get().(*hasher)
 }
 
-func (h *hasher) hash(data []byte) common.Hash {
-	return crypto.HashData(h.sha, data)
+func (h *hasher) hash(data []byte) common.Hash512 {
+	return crypto.HashData512(h.sha, data)
 }
 
 func (h *hasher) release() {

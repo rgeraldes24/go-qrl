@@ -45,11 +45,11 @@ var (
 
 	// aggregatorItemLimit is an approximate number of items that will end up
 	// in the agregator layer before it's flushed out to disk. A plain account
-	// weighs around 14B (+hash), a storage slot 32B (+hash), a deleted slot
+	// weighs around 14B (+hash), a storage slot 64B (+hash), a deleted slot
 	// 0B (+hash). Slots are mostly set/unset in lockstep, so that average at
-	// 16B (+hash). All in all, the average entry seems to be 15+32=47B. Use a
+	// 32B (+hash). All in all, the average entry is about 23+64=87B. Use a
 	// smaller number to be on the safe side.
-	aggregatorItemLimit = aggregatorMemoryLimit / 42
+	aggregatorItemLimit = aggregatorMemoryLimit / 80
 
 	// bloomTargetError is the target false positive rate when the aggregator
 	// layer is at its fullest. The actual value will probably move around up
@@ -104,8 +104,8 @@ type diffLayer struct {
 	parent snapshot   // Parent snapshot modified by this one, never nil
 	memory uint64     // Approximate guess as to how much memory we use
 
-	root  common.Hash // Root hash to which this snapshot diff belongs to
-	stale atomic.Bool // Signals that the layer became stale (state progressed)
+	root  common.Hash512 // Root hash to which this snapshot diff belongs to
+	stale atomic.Bool    // Signals that the layer became stale (state progressed)
 
 	// destructSet is a very special helper marker. If an account is marked as
 	// deleted, then it's recorded in this set. However it's allowed that an account
@@ -114,21 +114,21 @@ type diffLayer struct {
 	// happen that in the tx_1, account A is self-destructed while in the tx_2
 	// it's recreated. But we still need this marker to indicate the "old" A is
 	// deleted, all data in other set belongs to the "new" A.
-	destructSet map[common.Hash]struct{}               // Keyed markers for deleted (and potentially) recreated accounts
-	accountList []common.Hash                          // List of account for iteration. If it exists, it's sorted, otherwise it's nil
-	accountData map[common.Hash][]byte                 // Keyed accounts for direct retrieval (nil means deleted)
-	storageList map[common.Hash][]common.Hash          // List of storage slots for iterated retrievals, one per account. Any existing lists are sorted if non-nil
-	storageData map[common.Hash]map[common.Hash][]byte // Keyed storage slots for direct retrieval. one per account (nil means deleted)
+	destructSet map[common.Hash512]struct{}                  // Keyed markers for deleted (and potentially) recreated accounts
+	accountList []common.Hash512                             // List of account for iteration. If it exists, it's sorted, otherwise it's nil
+	accountData map[common.Hash512][]byte                    // Keyed accounts for direct retrieval (nil means deleted)
+	storageList map[common.Hash512][]common.Hash512          // List of storage slots for iterated retrievals, one per account. Any existing lists are sorted if non-nil
+	storageData map[common.Hash512]map[common.Hash512][]byte // Keyed storage slots for direct retrieval. one per account (nil means deleted)
 
 	diffed *bloomfilter.Filter // Bloom filter tracking all the diffed items up to the disk layer
 
 	lock sync.RWMutex
 }
 
-// destructBloomHasher is a wrapper around a common.Hash to satisfy the interface
+// destructBloomHasher is a wrapper around a common.Hash512 to satisfy the interface
 // API requirements of the bloom library used. It's used to convert a destruct
 // event into a 64 bit mini hash.
-type destructBloomHasher common.Hash
+type destructBloomHasher common.Hash512
 
 func (h destructBloomHasher) Write(p []byte) (n int, err error) { panic("not implemented") }
 func (h destructBloomHasher) Sum(b []byte) []byte               { panic("not implemented") }
@@ -139,10 +139,10 @@ func (h destructBloomHasher) Sum64() uint64 {
 	return binary.BigEndian.Uint64(h[bloomDestructHasherOffset : bloomDestructHasherOffset+8])
 }
 
-// accountBloomHasher is a wrapper around a common.Hash to satisfy the interface
+// accountBloomHasher is a wrapper around a common.Hash512 to satisfy the interface
 // API requirements of the bloom library used. It's used to convert an account
 // hash into a 64 bit mini hash.
-type accountBloomHasher common.Hash
+type accountBloomHasher common.Hash512
 
 func (h accountBloomHasher) Write(p []byte) (n int, err error) { panic("not implemented") }
 func (h accountBloomHasher) Sum(b []byte) []byte               { panic("not implemented") }
@@ -153,10 +153,10 @@ func (h accountBloomHasher) Sum64() uint64 {
 	return binary.BigEndian.Uint64(h[bloomAccountHasherOffset : bloomAccountHasherOffset+8])
 }
 
-// storageBloomHasher is a wrapper around a [2]common.Hash to satisfy the interface
+// storageBloomHasher is a wrapper around a [2]common.Hash512 to satisfy the interface
 // API requirements of the bloom library used. It's used to convert an account
 // hash into a 64 bit mini hash.
-type storageBloomHasher [2]common.Hash
+type storageBloomHasher [2]common.Hash512
 
 func (h storageBloomHasher) Write(p []byte) (n int, err error) { panic("not implemented") }
 func (h storageBloomHasher) Sum(b []byte) []byte               { panic("not implemented") }
@@ -170,7 +170,7 @@ func (h storageBloomHasher) Sum64() uint64 {
 
 // newDiffLayer creates a new diff on top of an existing snapshot, whether that's a low
 // level persistent database or a hierarchical diff already.
-func newDiffLayer(parent snapshot, root common.Hash, destructs map[common.Hash]struct{}, accounts map[common.Hash][]byte, storage map[common.Hash]map[common.Hash][]byte) *diffLayer {
+func newDiffLayer(parent snapshot, root common.Hash512, destructs map[common.Hash512]struct{}, accounts map[common.Hash512][]byte, storage map[common.Hash512]map[common.Hash512][]byte) *diffLayer {
 	// Create the new layer with some pre-allocated data segments
 	dl := &diffLayer{
 		parent:      parent,
@@ -178,7 +178,7 @@ func newDiffLayer(parent snapshot, root common.Hash, destructs map[common.Hash]s
 		destructSet: destructs,
 		accountData: accounts,
 		storageData: storage,
-		storageList: make(map[common.Hash][]common.Hash),
+		storageList: make(map[common.Hash512][]common.Hash512),
 	}
 	switch parent := parent.(type) {
 	case *diskLayer:
@@ -194,7 +194,7 @@ func newDiffLayer(parent snapshot, root common.Hash, destructs map[common.Hash]s
 			panic(fmt.Sprintf("account %#x nil", accountHash))
 		}
 		// Determine memory size and track the dirty writes
-		dl.memory += uint64(common.HashLength + len(blob))
+		dl.memory += uint64(common.Hash512Length + len(blob))
 		snapshotDirtyAccountWriteMeter.Mark(int64(len(blob)))
 	}
 	for accountHash, slots := range storage {
@@ -203,11 +203,11 @@ func newDiffLayer(parent snapshot, root common.Hash, destructs map[common.Hash]s
 		}
 		// Determine memory size and track the dirty writes
 		for _, data := range slots {
-			dl.memory += uint64(common.HashLength + len(data))
+			dl.memory += uint64(common.Hash512Length + len(data))
 			snapshotDirtyStorageWriteMeter.Mark(int64(len(data)))
 		}
 	}
-	dl.memory += uint64(len(destructs) * common.HashLength)
+	dl.memory += uint64(len(destructs) * common.Hash512Length)
 	return dl
 }
 
@@ -254,7 +254,7 @@ func (dl *diffLayer) rebloom(origin *diskLayer) {
 }
 
 // Root returns the root hash for which this snapshot was made.
-func (dl *diffLayer) Root() common.Hash {
+func (dl *diffLayer) Root() common.Hash512 {
 	return dl.root
 }
 
@@ -274,7 +274,7 @@ func (dl *diffLayer) Stale() bool {
 
 // Account directly retrieves the account associated with a particular hash in
 // the snapshot slim data format.
-func (dl *diffLayer) Account(hash common.Hash) (*types.SlimAccount, error) {
+func (dl *diffLayer) Account(hash common.Hash512) (*types.SlimAccount, error) {
 	data, err := dl.AccountRLP(hash)
 	if err != nil {
 		return nil, err
@@ -293,7 +293,7 @@ func (dl *diffLayer) Account(hash common.Hash) (*types.SlimAccount, error) {
 // hash in the snapshot slim data format.
 //
 // Note the returned account is not a copy, please don't modify it.
-func (dl *diffLayer) AccountRLP(hash common.Hash) ([]byte, error) {
+func (dl *diffLayer) AccountRLP(hash common.Hash512) ([]byte, error) {
 	// Check staleness before reaching further.
 	dl.lock.RLock()
 	if dl.Stale() {
@@ -325,7 +325,7 @@ func (dl *diffLayer) AccountRLP(hash common.Hash) ([]byte, error) {
 // accountRLP is an internal version of AccountRLP that skips the bloom filter
 // checks and uses the internal maps to try and retrieve the data. It's meant
 // to be used if a higher layer's bloom filter hit already.
-func (dl *diffLayer) accountRLP(hash common.Hash, depth int) ([]byte, error) {
+func (dl *diffLayer) accountRLP(hash common.Hash512, depth int) ([]byte, error) {
 	dl.lock.RLock()
 	defer dl.lock.RUnlock()
 
@@ -364,7 +364,7 @@ func (dl *diffLayer) accountRLP(hash common.Hash, depth int) ([]byte, error) {
 // is consulted.
 //
 // Note the returned slot is not a copy, please don't modify it.
-func (dl *diffLayer) Storage(accountHash, storageHash common.Hash) ([]byte, error) {
+func (dl *diffLayer) Storage(accountHash, storageHash common.Hash512) ([]byte, error) {
 	// Check the bloom filter first whether there's even a point in reaching into
 	// all the maps in all the layers below
 	dl.lock.RLock()
@@ -396,7 +396,7 @@ func (dl *diffLayer) Storage(accountHash, storageHash common.Hash) ([]byte, erro
 // storage is an internal version of Storage that skips the bloom filter checks
 // and uses the internal maps to try and retrieve the data. It's meant  to be
 // used if a higher layer's bloom filter hit already.
-func (dl *diffLayer) storage(accountHash, storageHash common.Hash, depth int) ([]byte, error) {
+func (dl *diffLayer) storage(accountHash, storageHash common.Hash512, depth int) ([]byte, error) {
 	dl.lock.RLock()
 	defer dl.lock.RUnlock()
 
@@ -438,7 +438,7 @@ func (dl *diffLayer) storage(accountHash, storageHash common.Hash, depth int) ([
 
 // Update creates a new layer on top of the existing snapshot diff tree with
 // the specified data items.
-func (dl *diffLayer) Update(blockRoot common.Hash, destructs map[common.Hash]struct{}, accounts map[common.Hash][]byte, storage map[common.Hash]map[common.Hash][]byte) *diffLayer {
+func (dl *diffLayer) Update(blockRoot common.Hash512, destructs map[common.Hash512]struct{}, accounts map[common.Hash512][]byte, storage map[common.Hash512]map[common.Hash512][]byte) *diffLayer {
 	return newDiffLayer(dl, blockRoot, destructs, accounts, storage)
 }
 
@@ -490,7 +490,7 @@ func (dl *diffLayer) flatten() snapshot {
 		destructSet: parent.destructSet,
 		accountData: parent.accountData,
 		storageData: parent.storageData,
-		storageList: make(map[common.Hash][]common.Hash),
+		storageList: make(map[common.Hash512][]common.Hash512),
 		diffed:      dl.diffed,
 		memory:      parent.memory + dl.memory,
 	}
@@ -500,7 +500,7 @@ func (dl *diffLayer) flatten() snapshot {
 // the deleted ones.
 //
 // Note, the returned slice is not a copy, so do not modify it.
-func (dl *diffLayer) AccountList() []common.Hash {
+func (dl *diffLayer) AccountList() []common.Hash512 {
 	// If an old list already exists, return it
 	dl.lock.RLock()
 	list := dl.accountList
@@ -513,7 +513,7 @@ func (dl *diffLayer) AccountList() []common.Hash {
 	dl.lock.Lock()
 	defer dl.lock.Unlock()
 
-	dl.accountList = make([]common.Hash, 0, len(dl.destructSet)+len(dl.accountData))
+	dl.accountList = make([]common.Hash512, 0, len(dl.destructSet)+len(dl.accountData))
 	for hash := range dl.accountData {
 		dl.accountList = append(dl.accountList, hash)
 	}
@@ -522,8 +522,8 @@ func (dl *diffLayer) AccountList() []common.Hash {
 			dl.accountList = append(dl.accountList, hash)
 		}
 	}
-	slices.SortFunc(dl.accountList, common.Hash.Cmp)
-	dl.memory += uint64(len(dl.accountList) * common.HashLength)
+	slices.SortFunc(dl.accountList, common.Hash512.Cmp)
+	dl.memory += uint64(len(dl.accountList) * common.Hash512Length)
 	return dl.accountList
 }
 
@@ -536,7 +536,7 @@ func (dl *diffLayer) AccountList() []common.Hash {
 // not empty but the flag is true.
 //
 // Note, the returned slice is not a copy, so do not modify it.
-func (dl *diffLayer) StorageList(accountHash common.Hash) ([]common.Hash, bool) {
+func (dl *diffLayer) StorageList(accountHash common.Hash512) ([]common.Hash512, bool) {
 	dl.lock.RLock()
 	_, destructed := dl.destructSet[accountHash]
 	if _, ok := dl.storageData[accountHash]; !ok {
@@ -556,12 +556,12 @@ func (dl *diffLayer) StorageList(accountHash common.Hash) ([]common.Hash, bool) 
 	defer dl.lock.Unlock()
 
 	storageMap := dl.storageData[accountHash]
-	storageList := make([]common.Hash, 0, len(storageMap))
+	storageList := make([]common.Hash512, 0, len(storageMap))
 	for k := range storageMap {
 		storageList = append(storageList, k)
 	}
-	slices.SortFunc(storageList, common.Hash.Cmp)
+	slices.SortFunc(storageList, common.Hash512.Cmp)
 	dl.storageList[accountHash] = storageList
-	dl.memory += uint64(len(dl.storageList)*common.HashLength + common.HashLength)
+	dl.memory += uint64(len(dl.storageList)*common.Hash512Length + common.Hash512Length)
 	return storageList, destructed
 }

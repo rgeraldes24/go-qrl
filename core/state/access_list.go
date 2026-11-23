@@ -24,7 +24,7 @@ import (
 
 type accessList struct {
 	addresses map[common.Address]int
-	slots     []map[common.Hash]struct{}
+	slots     []map[common.Hash512]struct{}
 }
 
 // ContainsAddress returns true if the address is in the access list.
@@ -35,7 +35,7 @@ func (al *accessList) ContainsAddress(address common.Address) bool {
 
 // Contains checks if a slot within an account is present in the access list, returning
 // separate flags for the presence of the account and the slot respectively.
-func (al *accessList) Contains(address common.Address, slot common.Hash) (addressPresent bool, slotPresent bool) {
+func (al *accessList) Contains(address common.Address, slot common.Hash512) (addressPresent bool, slotPresent bool) {
 	idx, ok := al.addresses[address]
 	if !ok {
 		// no such address (and hence zero slots)
@@ -60,9 +60,9 @@ func newAccessList() *accessList {
 func (al *accessList) Copy() *accessList {
 	cp := newAccessList()
 	maps.Copy(cp.addresses, al.addresses)
-	cp.slots = make([]map[common.Hash]struct{}, len(al.slots))
+	cp.slots = make([]map[common.Hash512]struct{}, len(al.slots))
 	for i, slotMap := range al.slots {
-		newSlotmap := make(map[common.Hash]struct{}, len(slotMap))
+		newSlotmap := make(map[common.Hash512]struct{}, len(slotMap))
 		for k := range slotMap {
 			newSlotmap[k] = struct{}{}
 		}
@@ -86,12 +86,12 @@ func (al *accessList) AddAddress(address common.Address) bool {
 // - address added
 // - slot added
 // For any 'true' value returned, a corresponding journal entry must be made.
-func (al *accessList) AddSlot(address common.Address, slot common.Hash) (addrChange bool, slotChange bool) {
+func (al *accessList) AddSlot(address common.Address, slot common.Hash512) (addrChange bool, slotChange bool) {
 	idx, addrPresent := al.addresses[address]
 	if !addrPresent || idx == -1 {
 		// Address not present, or addr present but no slots there
 		al.addresses[address] = len(al.slots)
-		slotmap := map[common.Hash]struct{}{slot: {}}
+		slotmap := map[common.Hash512]struct{}{slot: {}}
 		al.slots = append(al.slots, slotmap)
 		return !addrPresent, true
 	}
@@ -110,7 +110,7 @@ func (al *accessList) AddSlot(address common.Address, slot common.Hash) (addrCha
 // This operation needs to be performed in the same order as the addition happened.
 // This method is meant to be used  by the journal, which maintains ordering of
 // operations.
-func (al *accessList) DeleteSlot(address common.Address, slot common.Hash) {
+func (al *accessList) DeleteSlot(address common.Address, slot common.Hash512) {
 	idx, addrOk := al.addresses[address]
 	// There are two ways this can fail
 	if !addrOk {
