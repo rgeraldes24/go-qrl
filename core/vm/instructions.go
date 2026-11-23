@@ -293,6 +293,7 @@ func opOrigin(pc *uint64, interpreter *QRVMInterpreter, scope *ScopeContext) ([]
 	scope.Stack.push(new(uint512.Int).SetBytes(interpreter.qrvm.Origin.Bytes()))
 	return nil, nil
 }
+
 func opCaller(pc *uint64, interpreter *QRVMInterpreter, scope *ScopeContext) ([]byte, error) {
 	scope.Stack.push(new(uint512.Int).SetBytes(scope.Contract.Caller().Bytes()))
 	return nil, nil
