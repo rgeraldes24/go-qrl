@@ -312,7 +312,8 @@ func exportChain(ctx *cli.Context) error {
 	stack, _ := makeConfigNode(ctx)
 	defer stack.Close()
 
-	chain, _ := utils.MakeChain(ctx, stack, true)
+	chain, db := utils.MakeChain(ctx, stack, true)
+	defer db.Close()
 	start := time.Now()
 
 	var err error
