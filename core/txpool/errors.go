@@ -52,7 +52,7 @@ var (
 	ErrOversizedData = errors.New("oversized data")
 
 	// ErrFutureReplacePending is returned if a future transaction replaces a pending
-	// transaction. Future transactions should only be able to replace other future transactions.
+	// one. Future transactions should only be able to replace other future transactions.
 	ErrFutureReplacePending = errors.New("future transaction tries to replace pending")
 
 	// ErrAlreadyReserved is returned if the sender address has a pending transaction
