@@ -50,9 +50,8 @@ var (
 		ArgsUsage: "<genesisPath>",
 		Flags: slices.Concat([]cli.Flag{
 			utils.CachePreimagesFlag,
-			utils.StateSchemeFlag,
 			&cli.StringFlag{Name: "work-dir", Usage: "Scratch directory on disk for genesis import (default: datadir)"},
-		}, utils.DatabasePathFlags),
+		}, utils.DatabaseFlags),
 		Description: `
 The init command initializes a new genesis block and definition for the network.
 This is a destructive action and changes the network in which you will be
@@ -97,9 +96,8 @@ if one is set.  Otherwise it prints the genesis from the datadir.`,
 			utils.MetricsInfluxDBBucketFlag,
 			utils.MetricsInfluxDBOrganizationFlag,
 			utils.TransactionHistoryFlag,
-			utils.StateSchemeFlag,
 			utils.StateHistoryFlag,
-		}, utils.DatabasePathFlags),
+		}, utils.DatabaseFlags),
 		Description: `
 The import command imports blocks from an RLP-encoded form. The form can be one file
 with several RLP-encoded blocks, or several files can be used.
@@ -115,8 +113,7 @@ processing will proceed even if an individual RLP-file import failure occurs.`,
 		Flags: slices.Concat([]cli.Flag{
 			utils.CacheFlag,
 			utils.SyncModeFlag,
-			utils.StateSchemeFlag,
-		}, utils.DatabasePathFlags),
+		}, utils.DatabaseFlags),
 		Description: `
 Requires a first argument of the file to write to.
 Optional second and third arguments control the first and
@@ -137,8 +134,7 @@ be gzipped.`,
 			utils.IncludeIncompletesFlag,
 			utils.StartKeyFlag,
 			utils.DumpLimitFlag,
-			utils.StateSchemeFlag,
-		}, utils.DatabasePathFlags),
+		}, utils.DatabaseFlags),
 		Description: `
 This command dumps out the state for a given block (or latest, if none provided).
 `,
