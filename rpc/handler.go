@@ -228,14 +228,22 @@ func (h *handler) handleBatch(msgs []*jsonrpcMessage) {
 				break
 			}
 			resp := h.handleCallMsg(cp, msg)
-			callBuffer.pushResponse(resp)
 			if resp != nil && h.batchResponseMaxSize != 0 {
-				responseBytes += len(resp.Result)
-				if responseBytes > h.batchResponseMaxSize {
+				// A result that would take the response over the limit is refused,
+				// with the calls after it. The first result is always sent, so a
+				// batch of one call is answered like a single call.
+				if responseBytes > 0 && responseBytes+len(resp.Result) > h.batchResponseMaxSize {
 					err := &internalServerError{errcodeResponseTooLarge, errMsgResponseTooLarge}
 					callBuffer.respondWithError(cp.ctx, h.conn, err)
 					break
 				}
+				responseBytes += len(resp.Result)
+			}
+			callBuffer.pushResponse(resp)
+			if h.batchResponseMaxSize != 0 && responseBytes > h.batchResponseMaxSize {
+				err := &internalServerError{errcodeResponseTooLarge, errMsgResponseTooLarge}
+				callBuffer.respondWithError(cp.ctx, h.conn, err)
+				break
 			}
 		}
 		if timer != nil {

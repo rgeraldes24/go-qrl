@@ -19,6 +19,7 @@ package rpc
 import (
 	"bufio"
 	"bytes"
+	"encoding/json"
 	"errors"
 	"io"
 	"net"
@@ -170,40 +171,59 @@ func TestServerShortLivedConn(t *testing.T) {
 func TestServerBatchResponseSizeLimit(t *testing.T) {
 	t.Parallel()
 
-	server := newTestServer()
-	defer server.Stop()
-	server.SetBatchLimits(100, 60)
-	var (
-		batch  []BatchElem
-		client = DialInProc(server)
-	)
-	for range 5 {
-		batch = append(batch, BatchElem{
-			Method: "test_echo",
-			Args:   []any{"x", 1},
-			Result: new(echoResult),
-		})
-	}
-	if err := client.BatchCall(batch); err != nil {
-		t.Fatal("error sending batch:", err)
-	}
-	for i := range batch {
-		// We expect the first two queries to be ok, but after that the size limit takes effect.
-		if i < 2 {
-			if batch[i].Error != nil {
-				t.Fatalf("batch elem %d has unexpected error: %v", i, batch[i].Error)
+	// Each test_echo result below is 34 bytes.
+	for _, test := range []struct {
+		name   string
+		limit  int
+		served int
+	}{
+		{"the first result is sent even above the limit", 10, 1},
+		{"a result that would cross the limit is refused", 60, 1},
+		{"results up to the limit are sent", 68, 2},
+		{"results within a larger limit are sent", 110, 3},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+
+			server := newTestServer()
+			defer server.Stop()
+			server.SetBatchLimits(100, test.limit)
+			client := DialInProc(server)
+			defer client.Close()
+
+			var batch []BatchElem
+			for range 5 {
+				batch = append(batch, BatchElem{
+					Method: "test_echo",
+					Args:   []any{"x", 1},
+					Result: new(json.RawMessage),
+				})
 			}
-			continue
-		}
-		// After two, we expect an error.
-		re, ok := batch[i].Error.(Error)
-		if !ok {
-			t.Fatalf("batch elem %d has wrong error: %v", i, batch[i].Error)
-		}
-		wantedCode := errcodeResponseTooLarge
-		if re.ErrorCode() != wantedCode {
-			t.Errorf("batch elem %d wrong error code, have %d want %d", i, re.ErrorCode(), wantedCode)
-		}
+			if err := client.BatchCall(batch); err != nil {
+				t.Fatal("error sending batch:", err)
+			}
+
+			resultBytes := 0
+			for i := range batch {
+				if i < test.served {
+					if batch[i].Error != nil {
+						t.Fatalf("batch elem %d has unexpected error: %v", i, batch[i].Error)
+					}
+					resultBytes += len(*batch[i].Result.(*json.RawMessage))
+					continue
+				}
+				re, ok := batch[i].Error.(Error)
+				if !ok {
+					t.Fatalf("batch elem %d has wrong error: %v", i, batch[i].Error)
+				}
+				if re.ErrorCode() != errcodeResponseTooLarge {
+					t.Errorf("batch elem %d wrong error code, have %d want %d", i, re.ErrorCode(), errcodeResponseTooLarge)
+				}
+			}
+			if test.served > 1 && resultBytes > test.limit {
+				t.Errorf("batch results are %d bytes, above the limit of %d", resultBytes, test.limit)
+			}
+		})
 	}
 }
 
