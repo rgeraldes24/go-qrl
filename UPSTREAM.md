@@ -15,40 +15,40 @@ Generated from go-ethereum `e0feab521` (2026-11-23).
 
 Flags on commits to port: **consensus** touches state transition, the VM, types, state, trie or chain config; **security?** has a word like crash, panic, DoS or limit in its title. The statuses are a first pass from file paths and references: check each before porting.
 
-## v1.13.2 (2023-09-28): 33 commits, 27 to review
+## v1.13.2 (2023-09-28): 33 commits, 1 to review
 
 - [-] [90d5bd85bc](https://github.com/ethereum/go-ethereum/commit/90d5bd85bc) params: begin Geth v1.13.2 release cycle `params` — build/CI/docs/release
-- [~] [#28109](https://github.com/ethereum/go-ethereum/pull/28109) cmd/evm: fix some issues with the evm run command `cmd/qrvm`, `core/asm` — port open
-- [ ] [#28140](https://github.com/ethereum/go-ethereum/pull/28140) core/rawdb: fix typo in comment `core/rawdb`
-- [ ] [#28146](https://github.com/ethereum/go-ethereum/pull/28146) eth: fix typo in comment `qrl`
-- [ ] [#28139](https://github.com/ethereum/go-ethereum/pull/28139) cmd/devp2p: use bootnodes as crawl input `cmd/devp2p`
-- [-] [#28127](https://github.com/ethereum/go-ethereum/pull/28127) go.mod: use existing version of karalabe/usb — build/CI/docs/release
-- [ ] [#28155](https://github.com/ethereum/go-ethereum/pull/28155) trie: add getter for preimage store in trie.Database `trie` **consensus**
-- [ ] [#28159](https://github.com/ethereum/go-ethereum/pull/28159) cmd/utils: fix typo in comment `cmd/utils`
-- [ ] [#28160](https://github.com/ethereum/go-ethereum/pull/28160) cmd/clef: suppress fsnotify error if keydir not exists `accounts/keystore`
-- [ ] [#28145](https://github.com/ethereum/go-ethereum/pull/28145) core/rawdb: no need to run truncateFile for readonly mode `core/rawdb`
-- [~] [#28163](https://github.com/ethereum/go-ethereum/pull/28163) trie: remove internal nodes between shortNode and child in path mode `core/rawdb`, `trie` **consensus** — port open
-- [ ] [#28177](https://github.com/ethereum/go-ethereum/pull/28177) trie/triedb/pathdb: improve error log `trie/triedb` **consensus**
-- [ ] [#28178](https://github.com/ethereum/go-ethereum/pull/28178) core/state/snapshot: be very noisy if the generator hits a trie error `core/state` **consensus**
-- [ ] [#28179](https://github.com/ethereum/go-ethereum/pull/28179) cmd/geth: print progress logs when iterating large contracts too `cmd/gqrl`
-- [ ] [#28180](https://github.com/ethereum/go-ethereum/pull/28180) core/rawdb: use readonly file lock in readonly mode `core/rawdb`
-- [ ] [#28107](https://github.com/ethereum/go-ethereum/pull/28107) cmd: add state.scheme to the database flag group for local flag handling `cmd/gqrl`, `cmd/utils`
-- [ ] [#28191](https://github.com/ethereum/go-ethereum/pull/28191) core, params: update Holesky testnet to relaunched spec `core`, `params` **consensus**
-- [ ] [#28192](https://github.com/ethereum/go-ethereum/pull/28192) params: update hash for Holesky relaunch `params` **consensus**
-- [ ] [#28184](https://github.com/ethereum/go-ethereum/pull/28184) core/bloombits: fix deadlock when matcher session hits an error `core/bloombits`
-- [ ] [#28193](https://github.com/ethereum/go-ethereum/pull/28193) core/forkid: add forkid test for holesky `core/forkid`
-- [ ] [#28190](https://github.com/ethereum/go-ethereum/pull/28190) internal/debug: add --log.rotate to the logging category `internal/debug`
-- [ ] [#28150](https://github.com/ethereum/go-ethereum/pull/28150) cmd/geth: ensure db is closed before exit `cmd/gqrl`
-- [ ] [#28095](https://github.com/ethereum/go-ethereum/pull/28095) cmd/utils: fix bootnodes config priority `cmd/utils`
-- [ ] [#28087](https://github.com/ethereum/go-ethereum/pull/28087) ethclient: fix BlockReceipts parameter encoding `qrlclient`
-- [ ] [#28199](https://github.com/ethereum/go-ethereum/pull/28199) core/vm: minor code formatting `core/vm` **consensus**
-- [ ] [#28196](https://github.com/ethereum/go-ethereum/pull/28196) eth/downloader: typo in comment `qrl/downloader`
-- [ ] [#28097](https://github.com/ethereum/go-ethereum/pull/28097) eth/fetcher: allow underpriced transactions in after timeout `qrl/fetcher`
-- [ ] [#28165](https://github.com/ethereum/go-ethereum/pull/28165) internal/ethapi: eth_call block parameter is optional `internal/qrlapi`
-- [ ] [#28147](https://github.com/ethereum/go-ethereum/pull/28147) eth/downloader: remove header rollback mechanism `qrl/downloader`
-- [ ] [#28208](https://github.com/ethereum/go-ethereum/pull/28208) core/txpool: fix typos `core/txpool`
-- [ ] [#28213](https://github.com/ethereum/go-ethereum/pull/28213) core/txpool: fix typos `core/txpool`
-- [~] [#28171](https://github.com/ethereum/go-ethereum/pull/28171) core, accounts, eth, trie: handle genesis state missing `accounts/abi`, `cmd/devp2p`, `core`, `core/rawdb` **consensus** — port open
+- [x] [#28109](https://github.com/ethereum/go-ethereum/pull/28109) cmd/evm: fix some issues with the evm run command `cmd/qrvm`, `core/asm` — cyyber/go-qrl#323
+- [x] [#28140](https://github.com/ethereum/go-ethereum/pull/28140) core/rawdb: fix typo in comment `core/rawdb` — cyyber/go-qrl#310
+- [-] [#28146](https://github.com/ethereum/go-ethereum/pull/28146) eth: fix typo in comment `qrl` — n/a: clique comment
+- [x] [#28139](https://github.com/ethereum/go-ethereum/pull/28139) cmd/devp2p: use bootnodes as crawl input `cmd/devp2p` — already in go-qrl
+- [-] [#28127](https://github.com/ethereum/go-ethereum/pull/28127) go.mod: use existing version of karalabe/usb — n/a: go-qrl doesn't use karalabe/usb
+- [x] [#28155](https://github.com/ethereum/go-ethereum/pull/28155) trie: add getter for preimage store in trie.Database `trie` **consensus** — cyyber/go-qrl#311
+- [x] [#28159](https://github.com/ethereum/go-ethereum/pull/28159) cmd/utils: fix typo in comment `cmd/utils` — cyyber/go-qrl#316
+- [x] [#28160](https://github.com/ethereum/go-ethereum/pull/28160) cmd/clef: suppress fsnotify error if keydir not exists `accounts/keystore` — already in go-qrl
+- [x] [#28145](https://github.com/ethereum/go-ethereum/pull/28145) core/rawdb: no need to run truncateFile for readonly mode `core/rawdb` — cyyber/go-qrl#312
+- [~] [#28163](https://github.com/ethereum/go-ethereum/pull/28163) trie: remove internal nodes between shortNode and child in path mode `core/rawdb`, `trie` **consensus** — in rgeraldes24/go-qrl#91
+- [x] [#28177](https://github.com/ethereum/go-ethereum/pull/28177) trie/triedb/pathdb: improve error log `trie/triedb` **consensus** — cyyber/go-qrl#318
+- [x] [#28178](https://github.com/ethereum/go-ethereum/pull/28178) core/state/snapshot: be very noisy if the generator hits a trie error `core/state` **consensus** — cyyber/go-qrl#313
+- [x] [#28179](https://github.com/ethereum/go-ethereum/pull/28179) cmd/geth: print progress logs when iterating large contracts too `cmd/gqrl` — cyyber/go-qrl#314
+- [x] [#28180](https://github.com/ethereum/go-ethereum/pull/28180) core/rawdb: use readonly file lock in readonly mode `core/rawdb` — cyyber/go-qrl#315
+- [x] [#28107](https://github.com/ethereum/go-ethereum/pull/28107) cmd: add state.scheme to the database flag group for local flag handling `cmd/gqrl`, `cmd/utils` — cyyber/go-qrl#322
+- [-] [#28191](https://github.com/ethereum/go-ethereum/pull/28191) core, params: update Holesky testnet to relaunched spec `core`, `params` **consensus** — n/a: Holesky
+- [-] [#28192](https://github.com/ethereum/go-ethereum/pull/28192) params: update hash for Holesky relaunch `params` **consensus** — n/a: Holesky
+- [x] [#28184](https://github.com/ethereum/go-ethereum/pull/28184) core/bloombits: fix deadlock when matcher session hits an error `core/bloombits` — already in go-qrl
+- [-] [#28193](https://github.com/ethereum/go-ethereum/pull/28193) core/forkid: add forkid test for holesky `core/forkid` — n/a: Holesky
+- [x] [#28190](https://github.com/ethereum/go-ethereum/pull/28190) internal/debug: add --log.rotate to the logging category `internal/debug` — already in go-qrl
+- [x] [#28150](https://github.com/ethereum/go-ethereum/pull/28150) cmd/geth: ensure db is closed before exit `cmd/gqrl` — cyyber/go-qrl#321
+- [x] [#28095](https://github.com/ethereum/go-ethereum/pull/28095) cmd/utils: fix bootnodes config priority `cmd/utils` — already in go-qrl
+- [x] [#28087](https://github.com/ethereum/go-ethereum/pull/28087) ethclient: fix BlockReceipts parameter encoding `qrlclient` — already in go-qrl (go-ethereum reverted it in #33242)
+- [x] [#28199](https://github.com/ethereum/go-ethereum/pull/28199) core/vm: minor code formatting `core/vm` **consensus** — cyyber/go-qrl#317
+- [x] [#28196](https://github.com/ethereum/go-ethereum/pull/28196) eth/downloader: typo in comment `qrl/downloader` — already in go-qrl
+- [x] [#28097](https://github.com/ethereum/go-ethereum/pull/28097) eth/fetcher: allow underpriced transactions in after timeout `qrl/fetcher` — already in go-qrl
+- [x] [#28165](https://github.com/ethereum/go-ethereum/pull/28165) internal/ethapi: eth_call block parameter is optional `internal/qrlapi` — cyyber/go-qrl#320
+- [x] [#28147](https://github.com/ethereum/go-ethereum/pull/28147) eth/downloader: remove header rollback mechanism `qrl/downloader` — already in go-qrl
+- [x] [#28208](https://github.com/ethereum/go-ethereum/pull/28208) core/txpool: fix typos `core/txpool` — already in go-qrl
+- [x] [#28213](https://github.com/ethereum/go-ethereum/pull/28213) core/txpool: fix typos `core/txpool` — cyyber/go-qrl#319
+- [ ] [#28171](https://github.com/ethereum/go-ethereum/pull/28171) core, accounts, eth, trie: handle genesis state missing `accounts/abi`, `cmd/devp2p`, `core`, `core/rawdb` **consensus** — needs go-qrl's own recovery path; with rgeraldes24/go-qrl#91 and #82
 - [-] [dc34fe8291](https://github.com/ethereum/go-ethereum/commit/dc34fe8291) params: release Geth v1.13.2 `params` — build/CI/docs/release
 
 ## v1.13.3 (2023-10-12): 40 commits, 35 to review
