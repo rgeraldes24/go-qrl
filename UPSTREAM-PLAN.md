@@ -59,6 +59,8 @@ Not gaps, and not ported:
 
 All small, independent and the highest value.
 
+**Status (2026-11-23):** every item below has a draft `[UPSTREAM]` PR in cyyber/go-qrl, one per go-ethereum PR: #325–#358. The by-hash payload bodies cap stays in rgeraldes24/go-qrl#98.
+
 - **p2p:**
   - **rlpx:** 2 KB handshake cap (#30029), after decision 3.
   - **Discovery:** discv5 FINDNODE liveness (#28686, #30512); bonded-only address prediction (#35861).
@@ -71,10 +73,10 @@ All small, independent and the highest value.
 - **RPC and API:**
   - **Request limits:**
     - `qrl_getProof` key cap (#34617).
-    - Range and log-query limits (rgeraldes24/go-qrl#95, #97); GraphQL body limit (#96).
+    - Range and log-query limits (#33163, #34647, #31876); GraphQL body limit (#35034).
     - User HTTP body limit (#35224).
   - **Filters:** unsubscribe on error and subscription race (#32794, #32894, #33990).
-  - **State access:** replay cancellation and release leak (#36036).
+  - **State access:** replay cancellation, release leak and unavailable-state errors (#36036, which includes #36035).
   - **Tracing:** struct-logger memory cap (#30806, #35349, #35360); this also covers issue #89.
   - **Connections:** cancel running calls on connection close (#35798); no timeout responses for notifications (#36019).
   - **Node:** vhost and Bearer case handling (#34693, #35022, #35408).
