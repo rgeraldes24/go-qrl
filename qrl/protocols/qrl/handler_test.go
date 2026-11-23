@@ -36,6 +36,7 @@ import (
 	"github.com/theQRL/go-qrl/p2p/qnode"
 	"github.com/theQRL/go-qrl/params"
 	"github.com/theQRL/go-qrl/qrldb"
+	"github.com/theQRL/go-qrl/rlp"
 )
 
 var (
@@ -639,6 +640,106 @@ func testGetBlockBodiesMaxServeMaxSize(t *testing.T, protocol uint) {
 	// With ~6.9 MB blocks and 2 MB softResponseLimit, expect only 1 body
 	t.Logf("Requested %d max-size blocks, received %d bodies (softResponseLimit=%d)",
 		numBlocks, received, softResponseLimit)
+}
+
+// Tests that the largest block bodies reply still fits in a message. A reply
+// stops at the first body that takes it to softResponseLimit, so it is largest
+// when the bodies before the last one end just under the limit and the last
+// one is a full block.
+func TestGetBlockBodiesLargestReply1(t *testing.T) { testGetBlockBodiesLargestReply(t, QRL2) }
+
+func testGetBlockBodiesLargestReply(t *testing.T, protocol uint) {
+	t.Parallel()
+
+	var (
+		signer = types.NewZondSigner(params.MainnetChainConfig.ChainID)
+		to     = common.Address{0x01}
+		nonce  uint64
+	)
+	transfer := func(baseFee *big.Int) *types.Transaction {
+		tx := types.MustSignNewTx(testWallet, signer, &types.DynamicFeeTx{
+			ChainID:   params.MainnetChainConfig.ChainID,
+			Nonce:     nonce,
+			GasTipCap: big.NewInt(1),
+			GasFeeCap: new(big.Int).Mul(baseFee, big.NewInt(10)),
+			Gas:       params.TxGas,
+			To:        &to,
+			Value:     big.NewInt(1),
+		})
+		nonce++
+		return tx
+	}
+	// A full block holds as many transfers as the gas limit allows, which is
+	// the most bytes a body can have: no transaction is larger per gas.
+	fullBlock := int(params.MaxGasLimit / params.TxGas)
+
+	// The blocks before the last one are full until the next would reach the
+	// limit, then one holds the transfers that still fit under it.
+	sample, err := rlp.EncodeToBytes(types.Transactions{transfer(big.NewInt(params.InitialBaseFee))})
+	if err != nil {
+		t.Fatal(err)
+	}
+	nonce = 0
+	// A fee that takes more bytes makes a later transfer slightly larger.
+	transferSize := len(sample) + 32
+	var txs []int
+	for room := softResponseLimit - 1; ; {
+		count := min(fullBlock, room/transferSize)
+		if count == 0 {
+			break
+		}
+		txs = append(txs, count)
+		if room -= count * transferSize; count < fullBlock {
+			break
+		}
+	}
+	txs = append(txs, fullBlock)
+
+	backend := newTestBackendMaxBlocks(len(txs), func(n int, g *core.BlockGen) {
+		for range txs[n] {
+			g.AddTx(transfer(g.BaseFee()))
+		}
+	})
+	defer backend.close()
+
+	peer, _ := newTestPeer("peer", protocol, backend)
+	defer peer.close()
+
+	var (
+		hashes []common.Hash
+		before int
+	)
+	for number := 1; number <= len(txs); number++ {
+		hash := backend.chain.GetBlockByNumber(uint64(number)).Hash()
+		hashes = append(hashes, hash)
+		if number < len(txs) {
+			before += len(backend.chain.GetBodyRLP(hash))
+		}
+	}
+	if before >= softResponseLimit {
+		t.Fatalf("the bodies before the last one have %d bytes, want under softResponseLimit (%d)", before, softResponseLimit)
+	}
+
+	p2p.Send(peer.app, GetBlockBodiesMsg, &GetBlockBodiesPacket{RequestId: 1, GetBlockBodiesRequest: hashes})
+	msg, err := peer.app.ReadMsg()
+	if err != nil {
+		t.Fatalf("failed to read response: %v", err)
+	}
+	defer msg.Discard()
+	// The receiving peer drops any message above maxMessageSize.
+	if msg.Size > maxMessageSize {
+		t.Fatalf("response size %d exceeds maxMessageSize %d", msg.Size, maxMessageSize)
+	}
+
+	var resp BlockBodiesRLPPacket
+	if err := msg.Decode(&resp); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+	if len(resp.BlockBodiesRLPResponse) != len(hashes) {
+		t.Fatalf("received %d bodies, want all %d: the last one starts under softResponseLimit", len(resp.BlockBodiesRLPResponse), len(hashes))
+	}
+	t.Logf("%d bodies with %v transfers, %d bytes before the last one (softResponseLimit=%d), reply of %d bytes (maxMessageSize=%d)",
+		len(hashes), txs, before, softResponseLimit, msg.Size, maxMessageSize)
 }
 
 // Tests that the transaction receipts can be retrieved based on hashes.
