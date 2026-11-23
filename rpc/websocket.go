@@ -19,6 +19,8 @@ package rpc
 import (
 	"context"
 	"encoding/base64"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"maps"
 	"net/http"
@@ -320,8 +322,27 @@ func (wc *websocketCodec) writeJSON(ctx context.Context, v any, isError bool) er
 		case wc.pingReset <- struct{}{}:
 		default:
 		}
+		return nil
+	}
+	// A write that fails on the connection, such as one that times out because
+	// the peer stopped reading, leaves it unable to write again. Close it:
+	// otherwise the peer waits on an open connection for replies and
+	// notifications that never come.
+	if !isEncodingError(err) {
+		wc.jsonCodec.close()
 	}
 	return err
+}
+
+// isEncodingError reports whether a write failed because its value could not
+// be encoded, which leaves the connection usable.
+func isEncodingError(err error) bool {
+	var (
+		unsupportedType  *json.UnsupportedTypeError
+		unsupportedValue *json.UnsupportedValueError
+		marshaler        *json.MarshalerError
+	)
+	return errors.As(err, &unsupportedType) || errors.As(err, &unsupportedValue) || errors.As(err, &marshaler)
 }
 
 // pingLoop sends periodic ping frames when the connection is idle.

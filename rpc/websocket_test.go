@@ -457,3 +457,47 @@ func TestWebsocketMethodNameLengthLimit(t *testing.T) {
 		})
 	}
 }
+
+// This test checks that the server closes a connection it can no longer write
+// to. A subscriber that stops reading makes a write time out, after which the
+// connection cannot be written to again.
+func TestWebsocketCloseOnWriteFailure(t *testing.T) {
+	// Not parallel: it shortens the write timeout.
+	defer func(timeout time.Duration) { defaultWriteTimeout = timeout }(defaultWriteTimeout)
+	defaultWriteTimeout = 200 * time.Millisecond
+
+	var (
+		srv     = newTestServer()
+		httpsrv = httptest.NewServer(srv.WebsocketHandler([]string{"*"}))
+		wsURL   = "ws:" + strings.TrimPrefix(httpsrv.URL, "http:")
+	)
+	defer srv.Stop()
+	defer httpsrv.Close()
+
+	conn, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
+	if err != nil {
+		t.Fatalf("failed to dial test server: %v", err)
+	}
+	defer conn.Close()
+
+	// Subscribe to more notifications than the connection buffers, and read
+	// none of them until the server's write has timed out.
+	subscribe := `{"jsonrpc":"2.0","id":1,"method":"nftest_subscribe","params":["someSubscription",100000000,1]}`
+	if err := conn.WriteMessage(websocket.TextMessage, []byte(subscribe)); err != nil {
+		t.Fatalf("failed to subscribe: %v", err)
+	}
+	time.Sleep(2 * time.Second)
+
+	// What the server wrote is still to be read. After it comes the close, not
+	// silence on an open connection.
+	for {
+		conn.SetReadDeadline(time.Now().Add(5 * time.Second))
+		if _, _, err = conn.ReadMessage(); err != nil {
+			break
+		}
+	}
+	var netErr net.Error
+	if errors.As(err, &netErr) && netErr.Timeout() {
+		t.Fatal("the server kept a connection that it can no longer write to")
+	}
+}
