@@ -1,0 +1,3144 @@
+# go-ethereum changes since v1.13.1
+
+go-qrl was last synced with go-ethereum at v1.13.1 (December 2023). This lists every go-ethereum commit since then, by the release that first shipped it, so the ports can go release by release. Point releases cut from release branches (for example v1.13.15) only carry backports, so their commits are listed under the next release on the main line.
+
+Generated from go-ethereum `e0feab521` (2026-11-23).
+
+| Status | Commits |
+|---|---|
+| `[x]` already in go-qrl (a merged go-qrl PR or commit references it) | 22 |
+| `[~]` port open in a go-qrl PR | 63 |
+| `[-]` not applicable: code go-qrl removed (PoW, clique, blobs/KZG, BLS and BN256 precompiles, light client, era) | 142 |
+| `[-]` build, CI, docs or release housekeeping only | 339 |
+| `[ ]` to review and port | 2457 |
+| **Total** | **3023** |
+
+Flags on commits to port: **consensus** touches state transition, the VM, types, state, trie or chain config; **security?** has a word like crash, panic, DoS or limit in its title. The statuses are a first pass from file paths and references: check each before porting.
+
+## v1.13.2 (2023-09-28): 33 commits, 27 to review
+
+- [-] [90d5bd85bc](https://github.com/ethereum/go-ethereum/commit/90d5bd85bc) params: begin Geth v1.13.2 release cycle `params` — build/CI/docs/release
+- [~] [#28109](https://github.com/ethereum/go-ethereum/pull/28109) cmd/evm: fix some issues with the evm run command `cmd/qrvm`, `core/asm` — port open
+- [ ] [#28140](https://github.com/ethereum/go-ethereum/pull/28140) core/rawdb: fix typo in comment `core/rawdb`
+- [ ] [#28146](https://github.com/ethereum/go-ethereum/pull/28146) eth: fix typo in comment `qrl`
+- [ ] [#28139](https://github.com/ethereum/go-ethereum/pull/28139) cmd/devp2p: use bootnodes as crawl input `cmd/devp2p`
+- [-] [#28127](https://github.com/ethereum/go-ethereum/pull/28127) go.mod: use existing version of karalabe/usb — build/CI/docs/release
+- [ ] [#28155](https://github.com/ethereum/go-ethereum/pull/28155) trie: add getter for preimage store in trie.Database `trie` **consensus**
+- [ ] [#28159](https://github.com/ethereum/go-ethereum/pull/28159) cmd/utils: fix typo in comment `cmd/utils`
+- [ ] [#28160](https://github.com/ethereum/go-ethereum/pull/28160) cmd/clef: suppress fsnotify error if keydir not exists `accounts/keystore`
+- [ ] [#28145](https://github.com/ethereum/go-ethereum/pull/28145) core/rawdb: no need to run truncateFile for readonly mode `core/rawdb`
+- [~] [#28163](https://github.com/ethereum/go-ethereum/pull/28163) trie: remove internal nodes between shortNode and child in path mode `core/rawdb`, `trie` **consensus** — port open
+- [ ] [#28177](https://github.com/ethereum/go-ethereum/pull/28177) trie/triedb/pathdb: improve error log `trie/triedb` **consensus**
+- [ ] [#28178](https://github.com/ethereum/go-ethereum/pull/28178) core/state/snapshot: be very noisy if the generator hits a trie error `core/state` **consensus**
+- [ ] [#28179](https://github.com/ethereum/go-ethereum/pull/28179) cmd/geth: print progress logs when iterating large contracts too `cmd/gqrl`
+- [ ] [#28180](https://github.com/ethereum/go-ethereum/pull/28180) core/rawdb: use readonly file lock in readonly mode `core/rawdb`
+- [ ] [#28107](https://github.com/ethereum/go-ethereum/pull/28107) cmd: add state.scheme to the database flag group for local flag handling `cmd/gqrl`, `cmd/utils`
+- [ ] [#28191](https://github.com/ethereum/go-ethereum/pull/28191) core, params: update Holesky testnet to relaunched spec `core`, `params` **consensus**
+- [ ] [#28192](https://github.com/ethereum/go-ethereum/pull/28192) params: update hash for Holesky relaunch `params` **consensus**
+- [ ] [#28184](https://github.com/ethereum/go-ethereum/pull/28184) core/bloombits: fix deadlock when matcher session hits an error `core/bloombits`
+- [ ] [#28193](https://github.com/ethereum/go-ethereum/pull/28193) core/forkid: add forkid test for holesky `core/forkid`
+- [ ] [#28190](https://github.com/ethereum/go-ethereum/pull/28190) internal/debug: add --log.rotate to the logging category `internal/debug`
+- [ ] [#28150](https://github.com/ethereum/go-ethereum/pull/28150) cmd/geth: ensure db is closed before exit `cmd/gqrl`
+- [ ] [#28095](https://github.com/ethereum/go-ethereum/pull/28095) cmd/utils: fix bootnodes config priority `cmd/utils`
+- [ ] [#28087](https://github.com/ethereum/go-ethereum/pull/28087) ethclient: fix BlockReceipts parameter encoding `qrlclient`
+- [ ] [#28199](https://github.com/ethereum/go-ethereum/pull/28199) core/vm: minor code formatting `core/vm` **consensus**
+- [ ] [#28196](https://github.com/ethereum/go-ethereum/pull/28196) eth/downloader: typo in comment `qrl/downloader`
+- [ ] [#28097](https://github.com/ethereum/go-ethereum/pull/28097) eth/fetcher: allow underpriced transactions in after timeout `qrl/fetcher`
+- [ ] [#28165](https://github.com/ethereum/go-ethereum/pull/28165) internal/ethapi: eth_call block parameter is optional `internal/qrlapi`
+- [ ] [#28147](https://github.com/ethereum/go-ethereum/pull/28147) eth/downloader: remove header rollback mechanism `qrl/downloader`
+- [ ] [#28208](https://github.com/ethereum/go-ethereum/pull/28208) core/txpool: fix typos `core/txpool`
+- [ ] [#28213](https://github.com/ethereum/go-ethereum/pull/28213) core/txpool: fix typos `core/txpool`
+- [~] [#28171](https://github.com/ethereum/go-ethereum/pull/28171) core, accounts, eth, trie: handle genesis state missing `accounts/abi`, `cmd/devp2p`, `core`, `core/rawdb` **consensus** — port open
+- [-] [dc34fe8291](https://github.com/ethereum/go-ethereum/commit/dc34fe8291) params: release Geth v1.13.2 `params` — build/CI/docs/release
+
+## v1.13.3 (2023-10-12): 40 commits, 35 to review
+
+- [-] [3dc45a3e1d](https://github.com/ethereum/go-ethereum/commit/3dc45a3e1d) params: begin v1.13.3 release cycle `params` — build/CI/docs/release
+- [ ] [#28205](https://github.com/ethereum/go-ethereum/pull/28205) params: update 4788 beacon roots contract addr `cmd/qrvm`, `params` **consensus**
+- [ ] [#28207](https://github.com/ethereum/go-ethereum/pull/28207) internal/ethapi: compact db missing key starts with 0xff `internal/qrlapi`
+- [ ] [#28201](https://github.com/ethereum/go-ethereum/pull/28201) core, eth: typos and some code formatting `core`, `qrl`, `qrl/catalyst` **consensus**
+- [ ] [#28224](https://github.com/ethereum/go-ethereum/pull/28224) ethdb, internal/ethapi: support exposing Pebble stats too, beside LevelDB `internal/qrlapi`, `qrldb/leveldb`, `qrldb/pebble`
+- [ ] [#28218](https://github.com/ethereum/go-ethereum/pull/28218) core: fix typos `core/asm`, `core/bloombits`, `core/rawdb`
+- [ ] [#28212](https://github.com/ethereum/go-ethereum/pull/28212) core: infer blobGasUsed in chain maker `core`, `internal/qrlapi`
+- [ ] [#28183](https://github.com/ethereum/go-ethereum/pull/28183) core/state: small trie prefetcher nits `core/state` **consensus**
+- [ ] [#28228](https://github.com/ethereum/go-ethereum/pull/28228) common: remove address.Hash footgun `common`
+- [ ] [#28070](https://github.com/ethereum/go-ethereum/pull/28070) ethdb/pebble: upgrade pebble to master (aa077af62593) `qrldb/pebble`
+- [ ] [966e50bddb](https://github.com/ethereum/go-ethereum/commit/966e50bddb) ethdb/pebble: luv you linter `qrldb/pebble`
+- [ ] [#28226](https://github.com/ethereum/go-ethereum/pull/28226) eth/catalyst: add validation error in new paylaod hash mismatch `qrl/catalyst`
+- [ ] [#28209](https://github.com/ethereum/go-ethereum/pull/28209) cmd, eth: switch the dev synctarget to hash from block `cmd/gqrl`, `cmd/utils`, `qrl/catalyst`, `qrl/downloader`
+- [ ] [#28098](https://github.com/ethereum/go-ethereum/pull/28098) core: implement BLOBBASEFEE opcode (0x4a) `cmd/qrvm`, `core`, `core/vm`, `internal/qrlapi` **consensus**
+- [ ] [#27801](https://github.com/ethereum/go-ethereum/pull/27801) eth, rpc: add configurable option for wsMessageSizeLimit `rpc`
+- [ ] [#28195](https://github.com/ethereum/go-ethereum/pull/28195) cmd/evm: cancun-updates for b11r and t8n -tools `cmd/qrvm`
+- [ ] [#28238](https://github.com/ethereum/go-ethereum/pull/28238) core: fix typos `core/types` **consensus**
+- [ ] [#28221](https://github.com/ethereum/go-ethereum/pull/28221) trie: fix benchmark by ensuring key immutability `trie` **consensus**
+- [ ] [#28227](https://github.com/ethereum/go-ethereum/pull/28227) rpc: fix erroneous error-message in test `rpc`
+- [ ] [#28239](https://github.com/ethereum/go-ethereum/pull/28239) cmd/devp2p, eth: drop eth/66 `cmd/devp2p`, `qrl`, `qrl/downloader`, `qrl/fetcher`
+- [ ] [#28243](https://github.com/ethereum/go-ethereum/pull/28243) core, eth, miner: start propagating and consuming blob txs `core/txpool`, `miner`, `qrl`, `qrl/catalyst`
+- [ ] [#28249](https://github.com/ethereum/go-ethereum/pull/28249) eth: when snap is complaining for missing eth, be verbose about the details `qrl`
+- [ ] [#28245](https://github.com/ethereum/go-ethereum/pull/28245) cmd/evm/internal/t8ntoo: tiny bugfix for difficulty field `cmd/qrvm`
+- [ ] [#28258](https://github.com/ethereum/go-ethereum/pull/28258) core/txpool/legacypool: fix typo `core/txpool`
+- [~] [#28233](https://github.com/ethereum/go-ethereum/pull/28233) trie: refactor stacktrie `trie` **consensus** — port open
+- [ ] [#28255](https://github.com/ethereum/go-ethereum/pull/28255) core: fix typos `core/vm` **consensus**
+- [ ] [#28286](https://github.com/ethereum/go-ethereum/pull/28286) eth, params: fix typos `params`, `qrl/ethconfig` **consensus**
+- [ ] [#28287](https://github.com/ethereum/go-ethereum/pull/28287) all: move light.NodeSet to trienode.ProofSet `cmd/devp2p`, `les`, `light`, `qrl/protocols` **consensus**
+- [ ] [#28302](https://github.com/ethereum/go-ethereum/pull/28302) trie: fix a typo, use correct docstrings `trie` **consensus**
+- [ ] [#28261](https://github.com/ethereum/go-ethereum/pull/28261) eth: enforce announcement metadatas and drop peers violating the protocol `qrl`, `qrl/fetcher`, `tests/fuzzers`
+- [ ] [#28254](https://github.com/ethereum/go-ethereum/pull/28254) git: ignore tests/spec-tests folder `.gitignore`
+- [ ] [#28280](https://github.com/ethereum/go-ethereum/pull/28280) accounts/abi/bind/backend: use requested header for gas prices and gas limits `accounts/abi`
+- [~] [#28291](https://github.com/ethereum/go-ethereum/pull/28291) trie: remove owner and binary marshaling from stacktrie `core/state`, `qrl/protocols`, `tests/fuzzers`, `trie` **consensus** — port open
+- [ ] [#28271](https://github.com/ethereum/go-ethereum/pull/28271) ethdb/pebble: add level file metrics `qrldb/pebble`
+- [ ] [#28304](https://github.com/ethereum/go-ethereum/pull/28304) eth/fetcher: throttle tx fetches to 128KB responses `qrl/fetcher`
+- [ ] [13d1d425ac](https://github.com/ethereum/go-ethereum/commit/13d1d425ac) eth/fetcher: fix typo `qrl/fetcher`
+- [ ] [#28313](https://github.com/ethereum/go-ethereum/pull/28313) cmd, core: resolve scheme from a read-write database `cmd/gqrl`, `cmd/utils`, `core`, `core/rawdb` **consensus**
+- [-] [#28300](https://github.com/ethereum/go-ethereum/pull/28300) accounts, cmd: fix typos — build/CI/docs/release
+- [ ] [#28322](https://github.com/ethereum/go-ethereum/pull/28322) cmd/geth: fix failing test `cmd/gqrl`
+- [-] [0d45d72d70](https://github.com/ethereum/go-ethereum/commit/0d45d72d70) params: release Geth v.1.13.3 `params` — build/CI/docs/release
+
+## v1.13.4 (2023-10-17): 17 commits, 10 to review
+
+- [-] [2f66d7c47c](https://github.com/ethereum/go-ethereum/commit/2f66d7c47c) params: begin v1.13.4 release cycle `params` — build/CI/docs/release
+- [ ] [#28306](https://github.com/ethereum/go-ethereum/pull/28306) eth/protocols/snap: fix snap sync failure on empty storage range `cmd/clef`, `cmd/devp2p`, `common`, `core` **consensus**
+- [ ] [#28329](https://github.com/ethereum/go-ethereum/pull/28329) go.mod, internal/build: update Azure dependencies `internal/build`
+- [-] [#28333](https://github.com/ethereum/go-ethereum/pull/28333) go.mod: update gnark lib to fix a malleability issue — build/CI/docs/release
+- [-] [#28334](https://github.com/ethereum/go-ethereum/pull/28334) go.mod: update fastcache to latest — build/CI/docs/release
+- [ ] [#28324](https://github.com/ethereum/go-ethereum/pull/28324) build: move version-info into checksum file `internal/build`
+- [-] [#28332](https://github.com/ethereum/go-ethereum/pull/28332) go.mod: update AWS APIs to latest heads — build/CI/docs/release
+- [~] [#28311](https://github.com/ethereum/go-ethereum/pull/28311) trie: make rhs-proof align with last key in range proofs `cmd/devp2p`, `core/state`, `qrl/protocols`, `tests/fuzzers` **consensus** — port open
+- [ ] [#28336](https://github.com/ethereum/go-ethereum/pull/28336) go.mod: pull in the latest cloudflare API libs `cmd/devp2p`
+- [ ] [#28335](https://github.com/ethereum/go-ethereum/pull/28335) cmd, core, ethdb: enable Pebble on 32 bits and OpenBSD too `cmd/utils`, `core/rawdb`, `qrldb/pebble`
+- [ ] [#28337](https://github.com/ethereum/go-ethereum/pull/28337) tests: update execution-spec-tests to 1.0.5 `cmd/qrvm`, `tests`
+- [ ] [#28356](https://github.com/ethereum/go-ethereum/pull/28356) eth/fetcher: only make noise big mismatches `qrl/fetcher`
+- [ ] [#28342](https://github.com/ethereum/go-ethereum/pull/28342) fix: broken url link `miner`
+- [ ] [#28357](https://github.com/ethereum/go-ethereum/pull/28357) internal/ethapi: fix codehash lookup in eth_getProof `internal/qrlapi`, `qrlclient/gethclient`
+- [-] [#28323](https://github.com/ethereum/go-ethereum/pull/28323) cmd: fix typos — build/CI/docs/release
+- [ ] [#28220](https://github.com/ethereum/go-ethereum/pull/28220) eth/fetcher: fix fetcher timeout `qrl/fetcher`
+- [-] [3f907d6a6f](https://github.com/ethereum/go-ethereum/commit/3f907d6a6f) params: release Geth v1.13.4 `params` — build/CI/docs/release
+
+## v1.14.0 (2024-04-24): 498 commits, 405 to review
+
+- [-] [aeb0abf80a](https://github.com/ethereum/go-ethereum/commit/aeb0abf80a) params: begin v1.13.5 release cycle `params` — build/CI/docs/release
+- [~] [#28350](https://github.com/ethereum/go-ethereum/pull/28350) core, trie, eth: refactor stacktrie constructor `core/state`, `qrl/protocols`, `tests/fuzzers`, `trie` **consensus** — port open
+- [ ] [#28349](https://github.com/ethereum/go-ethereum/pull/28349) ethclient: ensure the close of canceled context `qrlclient`
+- [ ] [#28348](https://github.com/ethereum/go-ethereum/pull/28348) internal/ethapi, accounts/abi/bind: use `errors.Is` for error comparison `accounts/abi`, `internal/qrlapi`
+- [ ] [#28084](https://github.com/ethereum/go-ethereum/pull/28084) api/bind: add CallOpts.BlockHash to allow calling contracts at a specific block hash `accounts/abi`, `qrlclient`
+- [ ] [#28252](https://github.com/ethereum/go-ethereum/pull/28252) core/chain_makers: add SetParentBeaconRoot(..) to chain makers `core`
+- [ ] [#28362](https://github.com/ethereum/go-ethereum/pull/28362) tests/fuzzers/les: fix crash in fuzzer `tests/fuzzers` **security?**
+- [ ] [#28364](https://github.com/ethereum/go-ethereum/pull/28364) eth/fetcher: downgrade stale txs log from warn to debug `qrl/fetcher`
+- [ ] [#28352](https://github.com/ethereum/go-ethereum/pull/28352) tests/fuzzers: update fuzzers to be based on go-native fuzzing `crypto/blake2b`, `oss-fuzz.sh`, `tests/fuzzers`
+- [ ] [#28371](https://github.com/ethereum/go-ethereum/pull/28371) rpc: increase timeout in TestClientWebsocketPing `rpc`
+- [ ] [#28376](https://github.com/ethereum/go-ethereum/pull/28376) eth/filters: fix flaky test TestPendingTxFilterDeadlock `qrl/filters`
+- [ ] [#28381](https://github.com/ethereum/go-ethereum/pull/28381) crypto/blake2b: put architecture-dependent features behind build-tag `crypto/blake2b`
+- [ ] [#28387](https://github.com/ethereum/go-ethereum/pull/28387) core/state, tests: fix memory leak via fastcache `core`, `core/state`, `tests` **consensus**
+- [ ] [#28383](https://github.com/ethereum/go-ethereum/pull/28383) crypto/kzg4844: use the new trusted setup file and format `core/vm`, `crypto/kzg4844` **consensus**
+- [ ] [#28359](https://github.com/ethereum/go-ethereum/pull/28359) event: fix Resubscribe deadlock when unsubscribing after inner sub ends `event`
+- [ ] [#28368](https://github.com/ethereum/go-ethereum/pull/28368) core/state/pruner: track number of skipped items during state pruning `core/state` **consensus**
+- [ ] [#28398](https://github.com/ethereum/go-ethereum/pull/28398) ethstats: fix bug in block reporting `qrlstats`
+- [ ] [#28295](https://github.com/ethereum/go-ethereum/pull/28295) core/blockchain: fix typos and grammar `core` **consensus**
+- [ ] [#28198](https://github.com/ethereum/go-ethereum/pull/28198) trie/triedb/pathdb, core/rawdb: enhance error message in freezer `core/rawdb`, `trie/triedb` **consensus**
+- [ ] [#28393](https://github.com/ethereum/go-ethereum/pull/28393) graphql: return error if block from>to `graphql`
+- [~] [#28327](https://github.com/ethereum/go-ethereum/pull/28327) core, eth, trie: filter out boundary nodes and remove dangling nodes in stacktrie `qrl/protocols`, `trie` **consensus** — port open
+- [ ] [#28400](https://github.com/ethereum/go-ethereum/pull/28400) txpool/legacypool: remove already known error in legacypool `core/txpool`
+- [ ] [#28397](https://github.com/ethereum/go-ethereum/pull/28397) cmd/evm: make t8ntool handle transaction decoding errors better `cmd/qrvm`
+- [~] [#28361](https://github.com/ethereum/go-ethereum/pull/28361) trie: use explicit errors in stacktrie (instead of panic) `core/state`, `trie` **consensus** **security?** — port open
+- [ ] [#28412](https://github.com/ethereum/go-ethereum/pull/28412) graphql: logs return error if from block > to `graphql`
+- [ ] [#28358](https://github.com/ethereum/go-ethereum/pull/28358) rpc: use correct stringer-method for serializing BlockNumberOrHash `rpc`
+- [ ] [#28373](https://github.com/ethereum/go-ethereum/pull/28373) cmd/geth: test for logging-output `cmd/gqrl`, `internal/debug`, `log`
+- [ ] [#28416](https://github.com/ethereum/go-ethereum/pull/28416) graphql: fix an issue of nil pointer panic `graphql` **security?**
+- [ ] [#28407](https://github.com/ethereum/go-ethereum/pull/28407) core, cmd/geth: add --override.* flags to geth init `cmd/gqrl`, `core` **consensus**
+- [ ] [#28417](https://github.com/ethereum/go-ethereum/pull/28417) graphql: always set content-type to application/json `graphql`
+- [ ] [#28382](https://github.com/ethereum/go-ethereum/pull/28382) all: make vendored copy of reexec `cmd/clef`, `cmd/ethkey`, `cmd/gqrl`, `cmd/qrvm`
+- [ ] [#28426](https://github.com/ethereum/go-ethereum/pull/28426) trie/triedb/pathdb: improve dirty node flushing trigger `trie/triedb` **consensus**
+- [ ] [#28379](https://github.com/ethereum/go-ethereum/pull/28379) core/rawdb: add logging and fix comments around AncientRange function. `core/rawdb`
+- [ ] [#28428](https://github.com/ethereum/go-ethereum/pull/28428) core: add basic chain history support in GenerateChain `core`, `qrl/filters` **consensus**
+- [ ] [#28421](https://github.com/ethereum/go-ethereum/pull/28421) cmd/evm: add --run option to blocktest command `cmd/qrvm`
+- [ ] [#28444](https://github.com/ethereum/go-ethereum/pull/28444) ethdb/pebble: cap memory table size as maxMemTableSize-1 `qrldb/pebble`
+- [ ] [#28453](https://github.com/ethereum/go-ethereum/pull/28453) core/vm: performance tweak of `OpCode.String()` `core/vm` **consensus**
+- [ ] [#28389](https://github.com/ethereum/go-ethereum/pull/28389) eth/tracers: add position field for callTracer logs `qrl/tracers`
+- [ ] [#28462](https://github.com/ethereum/go-ethereum/pull/28462) ethclient: fix forwarding 1559 gas fields `qrlclient`
+- [-] [#28474](https://github.com/ethereum/go-ethereum/pull/28474) .travis: enable cross building to macos arm64 — build/CI/docs/release
+- [-] [#28475](https://github.com/ethereum/go-ethereum/pull/28475) travis: use newer builder image — build/CI/docs/release
+- [ ] [#28386](https://github.com/ethereum/go-ethereum/pull/28386) eth/filters: eth_getLogs fast exit for invalid block range `qrl/filters`
+- [ ] [#28250](https://github.com/ethereum/go-ethereum/pull/28250) eth: set networkID to chainID by default `qrl`, `qrl/ethconfig`, `qrlclient`
+- [ ] [#28470](https://github.com/ethereum/go-ethereum/pull/28470) core/vm: set basefee to 0 internally on eth_call `core`, `core/vm`, `internal/qrlapi` **consensus**
+- [ ] [#28456](https://github.com/ethereum/go-ethereum/pull/28456) graphql: type of yParity from Long to BigInt `graphql`
+- [ ] [#28501](https://github.com/ethereum/go-ethereum/pull/28501) cmd/geth: more testcases for logging `cmd/gqrl`
+- [ ] [#28491](https://github.com/ethereum/go-ethereum/pull/28491) ethdb/pebble: add `Errorf` function to panicLogger `qrldb/pebble`
+- [ ] [#28494](https://github.com/ethereum/go-ethereum/pull/28494) eth/filters: exit early if topics-filter has more than 4 topics `qrl/filters`
+- [ ] [#28483](https://github.com/ethereum/go-ethereum/pull/28483) core/rawdb: fsync the index file after each freezer write `core/rawdb`
+- [ ] [#28484](https://github.com/ethereum/go-ethereum/pull/28484) cmd/evm: allow state dump regardless if test passes in statetest `cmd/qrvm`
+- [ ] [#28482](https://github.com/ethereum/go-ethereum/pull/28482) ethclient: add empty/nonexist account testcase for eth_getProof RPC `qrlclient/gethclient`
+- [-] [#28505](https://github.com/ethereum/go-ethereum/pull/28505) build: upgrade -dlgo version to Go 1.21.4 — build/CI/docs/release
+- [ ] [#28148](https://github.com/ethereum/go-ethereum/pull/28148) cmd/geth: remove some whitespace in code and comments `cmd/gqrl`, `cmd/utils`
+- [ ] [#28270](https://github.com/ethereum/go-ethereum/pull/28270) cmd, core, trie: verkle-capable `geth init` `cmd/gqrl`, `cmd/utils`, `core`, `core/state` **consensus**
+- [ ] [#28520](https://github.com/ethereum/go-ethereum/pull/28520) eth/tracers/js: fix isPush for push0 `core/asm`, `core/vm` **consensus**
+- [ ] [#28507](https://github.com/ethereum/go-ethereum/pull/28507) trie: spelling - fix comments in hasher `trie` **consensus**
+- [ ] [#28467](https://github.com/ethereum/go-ethereum/pull/28467)  tests/fuzzers: move fuzzers into native packages `accounts/abi`, `accounts/keystore`, `common/bitutil`, `core/types` **consensus**
+- [ ] [#28521](https://github.com/ethereum/go-ethereum/pull/28521) tests: skip tests on windows 32bit CI `tests`
+- [ ] [#28527](https://github.com/ethereum/go-ethereum/pull/28527) cmd/geth: more special cases logging tests `cmd/gqrl`
+- [ ] [#28532](https://github.com/ethereum/go-ethereum/pull/28532) accounts,cmd,console,les,metrics:  refactor some errors checked by (ST1005) go-staticcheck `accounts/abi`, `cmd/clef`, `cmd/devp2p`, `cmd/faucet`
+- [ ] [#28506](https://github.com/ethereum/go-ethereum/pull/28506) miner: run tests in parallel `miner`
+- [ ] [#28511](https://github.com/ethereum/go-ethereum/pull/28511) internal/jsre/deps: fix typo in jsdoc `internal/jsre`
+- [ ] [#28530](https://github.com/ethereum/go-ethereum/pull/28530) accounts/abi: improve readability of method-to-string conversion `accounts/abi`
+- [ ] [#28446](https://github.com/ethereum/go-ethereum/pull/28446) all: replace some cases of strings.SplitN with strings.Cut `accounts/scwallet`, `cmd/p2psim`, `p2p/nat`, `p2p/simulations`
+- [ ] [#28473](https://github.com/ethereum/go-ethereum/pull/28473) ethdb/memorydb, trie: reduced allocations `qrldb/memorydb`, `trie` **consensus**
+- [-] [#28538](https://github.com/ethereum/go-ethereum/pull/28538) Dockerfile: update Go to 1.21 — build/CI/docs/release
+- [ ] [#28443](https://github.com/ethereum/go-ethereum/pull/28443) cmd/evm: validate blockchain tests poststate account storage `tests`
+- [ ] [#28536](https://github.com/ethereum/go-ethereum/pull/28536) signer: run tests in parallel `signer/core`, `signer/fourbyte`, `signer/rules`, `signer/storage`
+- [ ] [#28526](https://github.com/ethereum/go-ethereum/pull/28526) accounts, cmd: fix typos `accounts`, `accounts/abi`, `accounts/keystore`
+- [ ] [#28435](https://github.com/ethereum/go-ethereum/pull/28435) core/txpool/legacypool: respect nolocals-setting `core/txpool`
+- [ ] [#28546](https://github.com/ethereum/go-ethereum/pull/28546) cmd: run tests in parallel `cmd/abigen`, `cmd/clef`, `cmd/devp2p`, `cmd/ethkey`
+- [ ] [#28560](https://github.com/ethereum/go-ethereum/pull/28560) core/state/snapshot: print correct error from trie iterator `core/state` **consensus**
+- [ ] [#28569](https://github.com/ethereum/go-ethereum/pull/28569) cmd/evm: capitalize evm commands `cmd/qrvm`
+- [ ] [#28529](https://github.com/ethereum/go-ethereum/pull/28529) accounts/abi: context info on unpack-errors `accounts/abi`
+- [ ] [#28461](https://github.com/ethereum/go-ethereum/pull/28461) core, trie, rpc: speed up tests `accounts/keystore`, `core/forkid`, `core/state`, `rpc` **consensus**
+- [ ] [#28566](https://github.com/ethereum/go-ethereum/pull/28566) ethdb/pebble: don't double-close iterator inside pebbleIterator `qrldb/pebble`
+- [ ] [#28479](https://github.com/ethereum/go-ethereum/pull/28479) eth/filters: reuse error msg for invalid block range `qrl/filters`
+- [ ] [#28564](https://github.com/ethereum/go-ethereum/pull/28564) core/types: make 'v' optional for DynamicFeeTx and BlobTx `core/types` **consensus**
+- [ ] [#28328](https://github.com/ethereum/go-ethereum/pull/28328) rpc: improve performance of subscription notification encoding `rpc`
+- [ ] [#28468](https://github.com/ethereum/go-ethereum/pull/28468) cmd/utils: validate pre-existing genesis in --dev mode `cmd/utils`, `core`, `params`, `qrl/catalyst` **consensus**
+- [ ] [#28463](https://github.com/ethereum/go-ethereum/pull/28463) cmd/geth: add support for --dev flag in dumpgenesis `cmd/gqrl`, `cmd/utils`, `console`, `core` **consensus**
+- [-] [#28524](https://github.com/ethereum/go-ethereum/pull/28524) les/vflux: run tests in parallel `les/vflux` — n/a
+- [ ] [#28256](https://github.com/ethereum/go-ethereum/pull/28256) cmd/{geth,utils}: add cmd to export preimages in snap enumeration order `cmd/gqrl`, `cmd/utils`
+- [ ] [#28585](https://github.com/ethereum/go-ethereum/pull/28585) cmd/geth: fix build error `cmd/gqrl`
+- [ ] [#28588](https://github.com/ethereum/go-ethereum/pull/28588) cmd/devp2p/internal/ethtest: undo debug-hack `cmd/devp2p`
+- [ ] [#28562](https://github.com/ethereum/go-ethereum/pull/28562) params: update discV5 bootnodes `params`
+- [ ] [#28586](https://github.com/ethereum/go-ethereum/pull/28586) cmd, les, tests: remove light client code `cmd/faucet`, `cmd/gqrl`, `cmd/utils`, `les`
+- [ ] [#28597](https://github.com/ethereum/go-ethereum/pull/28597) eth, internal/ethapi: drop some weird indirection `internal/qrlapi`, `qrl`
+- [ ] [#28590](https://github.com/ethereum/go-ethereum/pull/28590) trie: fix random test generator early terminate `trie` **consensus**
+- [ ] [#28600](https://github.com/ethereum/go-ethereum/pull/28600) eth/gasestimator, internal/ethapi: move gas estimator out of rpc `internal/qrlapi`, `qrl/gasestimator`
+- [-] [#28612](https://github.com/ethereum/go-ethereum/pull/28612) go.mod: update uint256 to v1.2.4 — build/CI/docs/release
+- [ ] [#28584](https://github.com/ethereum/go-ethereum/pull/28584) eth/catalyst, eth/downloader: expose more sync information `qrl/catalyst`, `qrl/downloader`, `trie` **consensus**
+- [-] [#28614](https://github.com/ethereum/go-ethereum/pull/28614) light: remove package light `light` — n/a
+- [~] [#28504](https://github.com/ethereum/go-ethereum/pull/28504) cmd/evm, core/state: fix post-exec dump of state (statetests, blockchaintests) `cmd/gqrl`, `cmd/qrvm`, `core/state`, `qrl` **consensus** — port open
+- [ ] [#28609](https://github.com/ethereum/go-ethereum/pull/28609) ethereum: remove TODO comment about subscription `interfaces.go`
+- [ ] [#28488](https://github.com/ethereum/go-ethereum/pull/28488) eth/tracers/js: fix type inconsistencies `qrl/tracers`
+- [-] [#28602](https://github.com/ethereum/go-ethereum/pull/28602) crypto/secp256k1: fix 32-bit tests when CGO_ENABLED=0 `crypto/secp256k1` — n/a
+- [-] [#28605](https://github.com/ethereum/go-ethereum/pull/28605) consensus: verify the nonexistence of shanghai- and cancun-specific header fields `consensus/clique`, `consensus/ethash` — n/a
+- [ ] [#28618](https://github.com/ethereum/go-ethereum/pull/28618) eth/gasestimator: allow slight estimation error in favor of less iterations `core`, `graphql`, `internal/qrlapi`, `qrl/gasestimator` **consensus**
+- [ ] [#28187](https://github.com/ethereum/go-ethereum/pull/28187) all: replace log15 with slog `cmd/abigen`, `cmd/bootnode`, `cmd/clef`, `cmd/devp2p` **consensus**
+- [ ] [#28459](https://github.com/ethereum/go-ethereum/pull/28459) core/state: make stateobject.create selfcontain `core/state` **consensus**
+- [ ] [#28542](https://github.com/ethereum/go-ethereum/pull/28542) trie/triedb/hashdb: take lock around access to dirties cache `trie`, `trie/triedb` **consensus**
+- [ ] [#28630](https://github.com/ethereum/go-ethereum/pull/28630) accounts/abi/bind: fix typo `accounts/abi`
+- [ ] [#28621](https://github.com/ethereum/go-ethereum/pull/28621) slog: faster and less memory-consumption `internal/testlog`, `log`
+- [ ] [#28460](https://github.com/ethereum/go-ethereum/pull/28460) eth/tracers: tx-level state in debug_traceCall `qrl/tracers`
+- [-] [#28635](https://github.com/ethereum/go-ethereum/pull/28635) cmd/evm: fix Env struct json tag — build/CI/docs/release
+- [ ] [#28634](https://github.com/ethereum/go-ethereum/pull/28634) accounts/abi/bind: fixed typos `accounts/abi`
+- [ ] [#28637](https://github.com/ethereum/go-ethereum/pull/28637) eth/fetcher: fix invalid tracking of received at time for block `qrl/fetcher`
+- [ ] [#28544](https://github.com/ethereum/go-ethereum/pull/28544) accounts: run tests in parallel `accounts`, `accounts/abi`, `accounts/keystore`
+- [ ] [#28628](https://github.com/ethereum/go-ethereum/pull/28628) eth/tracers/logger: make structlog/json-log stack hex again `common/hexutil`, `qrl/tracers`
+- [ ] [#28622](https://github.com/ethereum/go-ethereum/pull/28622) log: remove lazy, remove unused interfaces, unexport methods `cmd/gqrl`, `internal/testlog`, `log`, `p2p/discover`
+- [-] [#28549](https://github.com/ethereum/go-ethereum/pull/28549) .github: use github actions to run 32-bit linux tests — build/CI/docs/release
+- [ ] [#28627](https://github.com/ethereum/go-ethereum/pull/28627) ethdb/pebble: remove a dependency `qrldb/pebble`
+- [ ] [#28653](https://github.com/ethereum/go-ethereum/pull/28653) tests/fuzzers/bls12381: deactivate BLS fuzzer when CGO_ENABLED=0 `tests/fuzzers`
+- [-] [#28648](https://github.com/ethereum/go-ethereum/pull/28648) build: upgrade -dlgo version to Go 1.21.5 — build/CI/docs/release
+- [ ] [#28649](https://github.com/ethereum/go-ethereum/pull/28649) rpc: fix ns/µs mismatch in metrics `metrics`, `rpc`
+- [ ] [#28650](https://github.com/ethereum/go-ethereum/pull/28650) cmd/evm: fix dump after state-test exec `cmd/qrvm`, `core/state` **consensus**
+- [ ] [#27766](https://github.com/ethereum/go-ethereum/pull/27766) beacon/light: add CommitteeChain `beacon/light`, `beacon/types`, `core/rawdb`
+- [ ] [#28657](https://github.com/ethereum/go-ethereum/pull/28657) cmd/utils, eth: disallow invalid snap sync / snapshot flag combos `cmd/utils`, `qrl`
+- [~] [#28595](https://github.com/ethereum/go-ethereum/pull/28595) trie: remove inconsistent trie nodes during sync in path mode `qrldb/dbtest`, `trie` **consensus** — port open
+- [ ] [#28669](https://github.com/ethereum/go-ethereum/pull/28669) cmd/utils: fix HTTPHost, WSHost flag priority `cmd/utils`
+- [ ] [#28652](https://github.com/ethereum/go-ethereum/pull/28652) eth/protocols/eth: fix typos in comments `qrl/protocols`
+- [ ] [#28654](https://github.com/ethereum/go-ethereum/pull/28654) core/txpool : small cleanup refactors `cmd/gqrl`, `core/txpool`
+- [ ] [#28675](https://github.com/ethereum/go-ethereum/pull/28675) eth/fetcher, eth/gasestimator: fix typos in comments `qrl/fetcher`, `qrl/gasestimator`
+- [ ] [#28662](https://github.com/ethereum/go-ethereum/pull/28662) all: fix typos in comments `accounts/abi`
+- [ ] [#28677](https://github.com/ethereum/go-ethereum/pull/28677) miner: eliminate the dead loop possibility for `newWorkLoop` and `mainLoop` `miner`
+- [ ] [#28682](https://github.com/ethereum/go-ethereum/pull/28682) all: fix typos in comments `cmd/clef`, `core/txpool`, `core/vm`, `p2p/rlpx` **consensus**
+- [ ] [#28686](https://github.com/ethereum/go-ethereum/pull/28686) p2p/discover: add liveness check in collectTableNodes `p2p/discover`
+- [ ] [#28692](https://github.com/ethereum/go-ethereum/pull/28692) internal/flags: add missing flag types for auto-env-var generation `internal/flags`
+- [ ] [#28691](https://github.com/ethereum/go-ethereum/pull/28691) cmd/evm:  default to mirror mainnet forks enabled `cmd/qrvm`
+- [~] [#28696](https://github.com/ethereum/go-ethereum/pull/28696) cmd/evm, cmd/clef, cmd/bootnode: fix / unify logging `cmd/bootnode`, `cmd/clef`, `cmd/qrvm` — port open
+- [ ] [#28557](https://github.com/ethereum/go-ethereum/pull/28557) cmd/evm: t8n support custom tracers `cmd/qrvm`
+- [-] [a18b845ecd](https://github.com/ethereum/go-ethereum/commit/a18b845ecd) params: release go-ethereum v1.13.6 stable `params` — build/CI/docs/release
+- [-] [4410c1416a](https://github.com/ethereum/go-ethereum/commit/4410c1416a) params: begin v1.13.7 release cycle `params` — build/CI/docs/release
+- [ ] [#27834](https://github.com/ethereum/go-ethereum/pull/27834) internal/ethapi: ethSendTransaction check baseFee `internal/qrlapi`
+- [ ] [#28525](https://github.com/ethereum/go-ethereum/pull/28525) core/rawdb: implement size reporting for live items in freezer_table `core/rawdb`
+- [ ] [#28704](https://github.com/ethereum/go-ethereum/pull/28704) build: make linter emit output `internal/build`
+- [-] [#28705](https://github.com/ethereum/go-ethereum/pull/28705) .travis: set lower GOGC value — build/CI/docs/release
+- [-] [#28706](https://github.com/ethereum/go-ethereum/pull/28706) ci: disable lint on travis — build/CI/docs/release
+- [-] [#28702](https://github.com/ethereum/go-ethereum/pull/28702) build(deps): bump golang.org/x/crypto from 0.15.0 to 0.17.0 — build/CI/docs/release
+- [-] [3fd568855f](https://github.com/ethereum/go-ethereum/commit/3fd568855f) params: go-ethereum v1.13.7 stable `params` — build/CI/docs/release
+- [-] [9258a44b8f](https://github.com/ethereum/go-ethereum/commit/9258a44b8f) params: begin go-ethereum v1.13.8 release cycle `params` — build/CI/docs/release
+- [ ] [#28709](https://github.com/ethereum/go-ethereum/pull/28709) internal/build: fix crash in MustRunCommandWithOutput `internal/build` **security?**
+- [ ] [#28710](https://github.com/ethereum/go-ethereum/pull/28710) accounts: properly close managed wallets when closing manager `accounts`, `accounts/usbwallet`, `cmd/clef`
+- [ ] [#28712](https://github.com/ethereum/go-ethereum/pull/28712) build: upgrade to golangci-lint v1.55.2 `internal/build`
+- [ ] [#28340](https://github.com/ethereum/go-ethereum/pull/28340) cmd/devp2p: update eth/snap protocol test suites for PoS `cmd/devp2p`, `core/rawdb`, `core/txpool`, `internal/flags`
+- [ ] [#28718](https://github.com/ethereum/go-ethereum/pull/28718) core, cmd, trie: fix the condition of pathdb initialization `cmd/gqrl`, `core/rawdb`, `trie/triedb` **consensus**
+- [ ] [#28724](https://github.com/ethereum/go-ethereum/pull/28724) core/rawdb: improve state scheme checking `core/rawdb`
+- [-] [904a278054](https://github.com/ethereum/go-ethereum/commit/904a278054) params: go-ethereum v1.13.8 stable `params` — build/CI/docs/release
+- [-] [8d0391806f](https://github.com/ethereum/go-ethereum/commit/8d0391806f) params: begin v1.13.9 release cycle `params` — build/CI/docs/release
+- [ ] [#28733](https://github.com/ethereum/go-ethereum/pull/28733) core/state: logic equivalence for GetCodeHash `core/state` **consensus**
+- [ ] [#28735](https://github.com/ethereum/go-ethereum/pull/28735) tests: add currentExcessBlobGas to state tests `tests`
+- [ ] [#28730](https://github.com/ethereum/go-ethereum/pull/28730) accounts,signer: fix typos in comments `accounts/keystore`, `signer/core`
+- [-] [#28728](https://github.com/ethereum/go-ethereum/pull/28728) build: add support for ubuntu 23.10 (mantic minotaur) — build/CI/docs/release
+- [ ] [#28747](https://github.com/ethereum/go-ethereum/pull/28747) log: avoid setting default slog logger in init `log`
+- [-] [#28755](https://github.com/ethereum/go-ethereum/pull/28755) cmd/evm: fix link in README.md — build/CI/docs/release
+- [ ] [#28743](https://github.com/ethereum/go-ethereum/pull/28743) core/vm: update comments to match eip number `core/vm` **consensus**
+- [ ] [#28734](https://github.com/ethereum/go-ethereum/pull/28734) cmd/evm: Fix blob-gas-used on invalid transactions in t8n `cmd/qrvm`
+- [ ] [#28760](https://github.com/ethereum/go-ethereum/pull/28760) internal/flags: update copyright year to 2024 `cmd/gqrl`, `internal/flags`
+- [ ] [#28748](https://github.com/ethereum/go-ethereum/pull/28748) ethclient: simplify error handling in TransactionReceipt `qrlclient`
+- [ ] [#28762](https://github.com/ethereum/go-ethereum/pull/28762) eth/downloader, eth/filters: use defer to call Unsubscribe `qrl/downloader`, `qrl/filters`
+- [ ] [#28774](https://github.com/ethereum/go-ethereum/pull/28774) log: emit error level string as "error", not "eror" `log`
+- [ ] [#28769](https://github.com/ethereum/go-ethereum/pull/28769) eth/filters: fix early Unsubscribe of log events `qrl/filters`
+- [ ] [#28772](https://github.com/ethereum/go-ethereum/pull/28772) cmd/devp2p/internal/ethtest: fix typos in comments `cmd/devp2p`
+- [ ] [#28719](https://github.com/ethereum/go-ethereum/pull/28719) params, core/forkid: schedule cancun fork on goerli `core/forkid`, `params` **consensus**
+- [ ] [#28725](https://github.com/ethereum/go-ethereum/pull/28725) cmd/geth: make it possible to autopilot removedb `cmd/gqrl`
+- [ ] [#28764](https://github.com/ethereum/go-ethereum/pull/28764) accounts/abi: fix bigInt topic encoding `accounts/abi`
+- [ ] [#28780](https://github.com/ethereum/go-ethereum/pull/28780) cmd/geth: update log test data `cmd/gqrl`
+- [ ] [#28202](https://github.com/ethereum/go-ethereum/pull/28202) ethclient/simulated: implement new sim backend `accounts/abi`, `interfaces.go`, `qrl/catalyst`, `qrlclient/simulated`
+- [-] [4f825318ea](https://github.com/ethereum/go-ethereum/commit/4f825318ea) params: go-ethereum v1.13.9 stable `params` — build/CI/docs/release
+- [-] [daa2e5d6a6](https://github.com/ethereum/go-ethereum/commit/daa2e5d6a6) params: begin v1.13.10 release cycle `params` — build/CI/docs/release
+- [-] [a162091e8f](https://github.com/ethereum/go-ethereum/commit/a162091e8f) version: release v1.13.10 to fix bad tag `params` — build/CI/docs/release
+- [-] [2e8b1187aa](https://github.com/ethereum/go-ethereum/commit/2e8b1187aa) params: begin v1.13.11 release cycle `params` — build/CI/docs/release
+- [-] [#28796](https://github.com/ethereum/go-ethereum/pull/28796) docs: fix badge in README — build/CI/docs/release
+- [ ] [#28782](https://github.com/ethereum/go-ethereum/pull/28782) eth: minor change of config-accessor `qrl`
+- [ ] [#28798](https://github.com/ethereum/go-ethereum/pull/28798) cmd: fix typos `cmd/devp2p`, `cmd/qrvm`
+- [-] [#28800](https://github.com/ethereum/go-ethereum/pull/28800) build: fix typo in comment — build/CI/docs/release
+- [ ] [#28799](https://github.com/ethereum/go-ethereum/pull/28799) accounts, ethclient: minor tweaks on the new simulated backend `accounts/abi`, `qrlclient/simulated`
+- [ ] [#28801](https://github.com/ethereum/go-ethereum/pull/28801) cmd/geth, internal/debug: get rid of by-default log config `cmd/gqrl`, `internal/debug`
+- [ ] [#28794](https://github.com/ethereum/go-ethereum/pull/28794) cmd/devp2p/internal/ethtest: skip large tx test on github build `cmd/devp2p`, `internal/utesting`
+- [ ] [#28787](https://github.com/ethereum/go-ethereum/pull/28787) p2p/dnsdisc: use strings.Cut over strings.IndexByte `p2p/dnsdisc`
+- [ ] [#28784](https://github.com/ethereum/go-ethereum/pull/28784) internal/ethapi: avoid using pending for defaults `internal/qrlapi`, `qrlclient/gethclient`
+- [ ] [#28804](https://github.com/ethereum/go-ethereum/pull/28804) core/state: unexport GetOrNewStateObject `core/state`, `core/vm` **consensus**
+- [ ] [#28785](https://github.com/ethereum/go-ethereum/pull/28785) cmd/rlpdump: add -pos flag, displaying byte positions `cmd/rlpdump`
+- [ ] [#28778](https://github.com/ethereum/go-ethereum/pull/28778) tests: update reference tests `tests`
+- [ ] [#28283](https://github.com/ethereum/go-ethereum/pull/28283) ethclient: add tests for TransactionInBlock `qrlclient`
+- [ ] [#28744](https://github.com/ethereum/go-ethereum/pull/28744) eth: fix potential hang in waitSnapExtension `qrl`
+- [-] [9ee6809ff4](https://github.com/ethereum/go-ethereum/commit/9ee6809ff4) core/txpool/blobpool: fix typos `core/txpool` — n/a
+- [ ] [#28815](https://github.com/ethereum/go-ethereum/pull/28815) acounts/usbwallet: fix typo `accounts/usbwallet`
+- [ ] [#28814](https://github.com/ethereum/go-ethereum/pull/28814) tests: more verbosity if block decoding fails `tests`
+- [ ] [#28775](https://github.com/ethereum/go-ethereum/pull/28775) tracer: use proper base fee in tests `qrl/tracers`
+- [ ] [#28825](https://github.com/ethereum/go-ethereum/pull/28825) miner: fix typo in payload_building_test.go `miner`
+- [ ] [#28786](https://github.com/ethereum/go-ethereum/pull/28786) internal/ethapi: handle blobs in API methods `core`, `internal/qrlapi`, `params` **consensus**
+- [ ] [#28830](https://github.com/ethereum/go-ethereum/pull/28830) eth/filters: reset filter.begin in BenchmarkFilters `qrl/filters`
+- [ ] [#28827](https://github.com/ethereum/go-ethereum/pull/28827) crypto/kzg4844: add helpers for versioned blob hashes `core`, `core/txpool`, `core/types`, `crypto/kzg4844` **consensus**
+- [ ] [#28832](https://github.com/ethereum/go-ethereum/pull/28832) ethclient: apply accessList field in toCallArg `qrlclient`, `qrlclient/gethclient`
+- [ ] [#28834](https://github.com/ethereum/go-ethereum/pull/28834) params, core/forkid: enable cancun on sepolia and holesky `core/forkid`, `params` **consensus**
+- [x] [#28703](https://github.com/ethereum/go-ethereum/pull/28703) core, core/rawdb, eth/sync: no tx indexing during snap sync `core`, `core/rawdb`, `graphql`, `interfaces.go` — in go-qrl
+- [ ] [#28858](https://github.com/ethereum/go-ethereum/pull/28858) docs: remove reference to being official `cmd/gqrl`
+- [-] [#28859](https://github.com/ethereum/go-ethereum/pull/28859) go.{mod,sum}: upgrade go-ole to support arm64 — build/CI/docs/release
+- [ ] [#28856](https://github.com/ethereum/go-ethereum/pull/28856) core: fix genesis setup in benchReadChain `core`
+- [ ] [#28598](https://github.com/ethereum/go-ethereum/pull/28598) all: use uint256 in state `cmd/qrvm`, `common`, `consensus/beacon`, `consensus/ethash` **consensus**
+- [-] [#28836](https://github.com/ethereum/go-ethereum/pull/28836) build: upgrade -dlgo version to Go 1.21.6 — build/CI/docs/release
+- [ ] [#28849](https://github.com/ethereum/go-ethereum/pull/28849) core/state/snapshot: use AddHash/ContainHash instead of Hasher interface `core/state` **consensus**
+- [ ] [#28860](https://github.com/ethereum/go-ethereum/pull/28860) core/vm: fix misleading comment `core/vm` **consensus**
+- [ ] [#28230](https://github.com/ethereum/go-ethereum/pull/28230) eth/catalyst: add timestamp checks to fcu and new payload and improve param checks `params`, `params/forks`, `qrl/catalyst` **consensus**
+- [ ] [#28837](https://github.com/ethereum/go-ethereum/pull/28837) core/txpool, eth/catalyst: fix racy simulator due to txpool background reset `core/txpool`, `qrl/catalyst`
+- [ ] [#28857](https://github.com/ethereum/go-ethereum/pull/28857) core: move tx indexer to its own file `core`, `internal/qrlapi` **consensus**
+- [ ] [#28246](https://github.com/ethereum/go-ethereum/pull/28246) eth/catalyst: prefix payload id with version `beacon/engine`, `miner`, `qrl/catalyst`
+- [ ] [#28864](https://github.com/ethereum/go-ethereum/pull/28864) ethclient: fix flaky test `qrlclient`
+- [-] [99dc3fe118](https://github.com/ethereum/go-ethereum/commit/99dc3fe118) params: go-ethereum v1.13.11 stable `params` — build/CI/docs/release
+- [-] [cd0770ea68](https://github.com/ethereum/go-ethereum/commit/cd0770ea68) params: begin v.1.13.12 release cycle `params` — build/CI/docs/release
+- [ ] [#28876](https://github.com/ethereum/go-ethereum/pull/28876) internal/flags: fix typo `internal/flags`
+- [ ] [#28879](https://github.com/ethereum/go-ethereum/pull/28879) core/types: fix and test handling of faulty nil-returning signer `core/types` **consensus**
+- [-] [#28889](https://github.com/ethereum/go-ethereum/pull/28889) README.md: fix travis badge — build/CI/docs/release
+- [ ] [#28882](https://github.com/ethereum/go-ethereum/pull/28882) eth/catalyst: allow payload attributes v1 in fcu v2 `qrl/catalyst`
+- [-] [#28893](https://github.com/ethereum/go-ethereum/pull/28893) docs/postmortems: fix outdated link — build/CI/docs/release
+- [ ] [#28865](https://github.com/ethereum/go-ethereum/pull/28865) core: reset tx lookup cache if necessary `core` **consensus**
+- [ ] [#28900](https://github.com/ethereum/go-ethereum/pull/28900) build: fix problem with windows line-endings in CI download `internal/build`
+- [ ] [#28581](https://github.com/ethereum/go-ethereum/pull/28581) eth/downloader: fix skeleton cleanup `qrl/downloader`
+- [-] [#28916](https://github.com/ethereum/go-ethereum/pull/28916) deps: update memsize — build/CI/docs/release
+- [-] [#28914](https://github.com/ethereum/go-ethereum/pull/28914) core/txpool/blobpool: post-crash cleanup and addition/removal metrics `core/txpool` — n/a
+- [ ] [#28917](https://github.com/ethereum/go-ethereum/pull/28917) core/txpool: don't inject lazy resolved transactions into the container `core/txpool`
+- [-] [#28922](https://github.com/ethereum/go-ethereum/pull/28922) core/types: fix typo `core/types` — n/a
+- [ ] [#28911](https://github.com/ethereum/go-ethereum/pull/28911) p2p: fix accidental termination of portMappingLoop `p2p`
+- [ ] [#28932](https://github.com/ethereum/go-ethereum/pull/28932) internal/flags: fix --miner.gasprice default listing `internal/flags`
+- [ ] [#28881](https://github.com/ethereum/go-ethereum/pull/28881) all: fix typos in comments `accounts/abi`, `accounts/scwallet`, `core`, `core/rawdb` **consensus**
+- [-] [#28845](https://github.com/ethereum/go-ethereum/pull/28845) Makefile: add help target to display available targets — build/CI/docs/release
+- [ ] [#28908](https://github.com/ethereum/go-ethereum/pull/28908) core: cache transaction indexing tail in memory `core`
+- [ ] [#28933](https://github.com/ethereum/go-ethereum/pull/28933) eth, miner: fix enforcing the minimum miner tip `accounts/abi`, `miner`, `qrl`, `qrlclient/simulated`
+- [ ] [#28944](https://github.com/ethereum/go-ethereum/pull/28944) core/state, core/vm: minor uint256 related perf improvements `core/state`, `core/vm` **consensus**
+- [ ] [#26621](https://github.com/ethereum/go-ethereum/pull/26621) cmd,internal/era: implement `export-history` subcommand `cmd/era`, `cmd/gqrl`, `cmd/utils`, `core`
+- [ ] [#28903](https://github.com/ethereum/go-ethereum/pull/28903) core,params: add holesky to default genesis function `core`, `params` **consensus**
+- [ ] [#28948](https://github.com/ethereum/go-ethereum/pull/28948) node, rpc: add configurable HTTP request limit `node`, `rpc` **security?**
+- [ ] [#28923](https://github.com/ethereum/go-ethereum/pull/28923) all: fix docstring names `core`, `crypto/bn256`, `internal/qrlapi`, `log`
+- [ ] [#28952](https://github.com/ethereum/go-ethereum/pull/28952) ethclient/simulated: fix typo `qrlclient/simulated`
+- [ ] [#28954](https://github.com/ethereum/go-ethereum/pull/28954) eth/gasprice: fix percentile validation in eth_feeHistory `qrl/gasprice`
+- [ ] [#28956](https://github.com/ethereum/go-ethereum/pull/28956) cmd/devp2p, eth: drop support for eth/67 `cmd/devp2p`, `qrl`, `qrl/downloader`, `qrl/protocols`
+- [ ] [#28958](https://github.com/ethereum/go-ethereum/pull/28958) params, core/forkid: add mainnet timestamp for Cancun `core/forkid`, `params` **consensus**
+- [ ] [#28839](https://github.com/ethereum/go-ethereum/pull/28839) internal/ethapi: add support for blobs in eth_fillTransaction `core/types`, `crypto/kzg4844`, `internal/qrlapi` **consensus**
+- [ ] [#28959](https://github.com/ethereum/go-ethereum/pull/28959) internal/era: update block index format to be based on record offset `cmd/utils`, `internal/era`
+- [-] [8facf44109](https://github.com/ethereum/go-ethereum/commit/8facf44109) params: go-ethereum v1.13.12 stable `params` — build/CI/docs/release
+- [-] [89575aeb4b](https://github.com/ethereum/go-ethereum/commit/89575aeb4b) params: begin v1.13.13 release cycle `params` — build/CI/docs/release
+- [-] [#28962](https://github.com/ethereum/go-ethereum/pull/28962) build: remove ubuntu 'lunar' build — build/CI/docs/release
+- [ ] [#28966](https://github.com/ethereum/go-ethereum/pull/28966) fix: update outdated link to trezor docs `accounts/usbwallet`
+- [ ] [#28929](https://github.com/ethereum/go-ethereum/pull/28929) internal/ethapi: fix gas estimation bug in eth_fillTransaction for blob tx `internal/qrlapi`
+- [ ] [#28606](https://github.com/ethereum/go-ethereum/pull/28606) core/txpool/legacypool: use uint256.Int instead of big.Int `core/txpool`, `miner`, `qrl`, `qrl/protocols`
+- [ ] [#28979](https://github.com/ethereum/go-ethereum/pull/28979) internal/ethapi, signer/core: fix documentation-links `internal/qrlapi`, `signer/core`
+- [ ] [#28824](https://github.com/ethereum/go-ethereum/pull/28824) all: remove the dependency from trie to triedb `cmd/qrvm`, `cmd/utils`, `core`, `core/state` **consensus**
+- [ ] [#28985](https://github.com/ethereum/go-ethereum/pull/28985) cmd/utils: fix merge-breakage in test `cmd/utils`
+- [ ] [#28974](https://github.com/ethereum/go-ethereum/pull/28974) tests: fix goroutine leak related to state snapshot generation `cmd/qrvm`, `core/state`, `qrl/tracers`, `tests` **consensus**
+- [ ] [#28989](https://github.com/ethereum/go-ethereum/pull/28989) ethereum, ethclient: add blob transaction fields in CallMsg `interfaces.go`, `qrlclient`
+- [-] [#28981](https://github.com/ethereum/go-ethereum/pull/28981) core/txpool/blobpool: rename variables in comments `core/txpool` — n/a
+- [ ] [#28970](https://github.com/ethereum/go-ethereum/pull/28970) cmd/devp2p: fix modulo in makeBlobTxs `cmd/devp2p`
+- [ ] [#28915](https://github.com/ethereum/go-ethereum/pull/28915) eth/catalyst,beacon/engine: implement GetClientVersionV1 `beacon/engine`, `qrl/catalyst`
+- [ ] [#28993](https://github.com/ethereum/go-ethereum/pull/28993) tests: update execution spec tests + split statetest exec `tests`
+- [ ] [#28994](https://github.com/ethereum/go-ethereum/pull/28994) eth/catalyst: add getClientVersion to capabilities `qrl/catalyst`
+- [ ] [#28995](https://github.com/ethereum/go-ethereum/pull/28995) cmd/evm: fix typo in test script `cmd/qrvm`
+- [ ] [#28996](https://github.com/ethereum/go-ethereum/pull/28996) cmd/devp2p/internal/ethtest: some fixes for the eth test suite `cmd/devp2p`
+- [ ] [#28910](https://github.com/ethereum/go-ethereum/pull/28910) core/txpool/legacypool: remove a redundant heap.Init `core/txpool`
+- [-] [#29001](https://github.com/ethereum/go-ethereum/pull/29001) core/txpool/blobpool: update the blob db with corruption handling `core/txpool` — n/a
+- [ ] [#29003](https://github.com/ethereum/go-ethereum/pull/29003) core: move genesis alloc types to core/types `accounts/abi`, `cmd/qrvm`, `cmd/utils`, `consensus/clique` **consensus**
+- [ ] [#29005](https://github.com/ethereum/go-ethereum/pull/29005) core/txpool, eth, miner: pre-filter dynamic fees during pending tx retrieval `core/txpool`, `miner`, `qrl`, `qrl/catalyst`
+- [ ] [#29020](https://github.com/ethereum/go-ethereum/pull/29020) ethstats: prevent panic if head block is not available `qrlstats` **security?**
+- [ ] [#29022](https://github.com/ethereum/go-ethereum/pull/29022) core: using math.MaxUint64 instead of 0xffffffffffffffff `core/vm` **consensus**
+- [ ] [#29008](https://github.com/ethereum/go-ethereum/pull/29008) core/txpool, miner: speed up blob pool pending retrievals `core/txpool`, `miner`, `qrl`
+- [ ] [#29023](https://github.com/ethereum/go-ethereum/pull/29023) core/vm, params: ensure order of forks, prevent overflow `core/vm`, `internal/qrlapi`, `params` **consensus** **security?**
+- [ ] [#29026](https://github.com/ethereum/go-ethereum/pull/29026) core/txpool, eth, miner: retrieve plain and blob txs separately `core/txpool`, `miner`, `qrl`, `qrl/catalyst`
+- [-] [#29031](https://github.com/ethereum/go-ethereum/pull/29031) core/txpool: fix typo `core/txpool` — n/a
+- [ ] [#29024](https://github.com/ethereum/go-ethereum/pull/29024) core,eth,internal: fix typo `core/state`, `core/txpool`, `internal/qrlapi`, `qrl` **consensus**
+- [ ] [#29042](https://github.com/ethereum/go-ethereum/pull/29042) params: add cancun upgrade banner `params` **consensus**
+- [ ] [#29036](https://github.com/ethereum/go-ethereum/pull/29036) core/txpool: fix typo `core`, `core/txpool` **consensus**
+- [ ] [#29037](https://github.com/ethereum/go-ethereum/pull/29037) internal/ethapi: fix defaults for blob fields `internal/qrlapi`
+- [-] [3b4ede7444](https://github.com/ethereum/go-ethereum/commit/3b4ede7444) params: release go-ethereum v1.13.13 stable `params` — build/CI/docs/release
+- [-] [b590cae892](https://github.com/ethereum/go-ethereum/commit/b590cae892) params: begin v1.13.14 release cycle `params` — build/CI/docs/release
+- [ ] [#29051](https://github.com/ethereum/go-ethereum/pull/29051) internal/ethapi: use overriden baseFee for gasPrice `internal/qrlapi`, `qrl/tracers`
+- [ ] [#28846](https://github.com/ethereum/go-ethereum/pull/28846) internal/ethapi:fix zero rpc gas cap in eth_createAccessList `internal/qrlapi`
+- [ ] [#29049](https://github.com/ethereum/go-ethereum/pull/29049) eth/catalyst: fix wrong error message of payloadV2 after cancun `qrl/catalyst`
+- [ ] [#29081](https://github.com/ethereum/go-ethereum/pull/29081) core/txpool: reject blob txs with blob fee cap below the minimum `core/txpool`
+- [ ] [#29074](https://github.com/ethereum/go-ethereum/pull/29074) p2p, log, rpc: use errors.New to replace fmt.Errorf with no parameters `log`, `p2p`, `rpc`
+- [ ] [#29073](https://github.com/ethereum/go-ethereum/pull/29073) eth/catalyst: enable some commented-out testcases `qrl/catalyst`
+- [ ] [#29085](https://github.com/ethereum/go-ethereum/pull/29085) internal/ethapi: pass blob hashes to gas estimation `internal/qrlapi`
+- [-] [#29077](https://github.com/ethereum/go-ethereum/pull/29077) cmd/clef: add spaces in README.md table — build/CI/docs/release
+- [ ] [#29076](https://github.com/ethereum/go-ethereum/pull/29076) eth/catalyst: remove variable in tx conversion loop `qrl/catalyst`
+- [-] [#29090](https://github.com/ethereum/go-ethereum/pull/29090) core/txpool/blobpool: reduce default database cap for rollout `core/txpool` — n/a
+- [ ] [#29083](https://github.com/ethereum/go-ethereum/pull/29083) core/txpool: no need to log loud rotate if no local txs `core/txpool`
+- [ ] [#29068](https://github.com/ethereum/go-ethereum/pull/29068) eth/tracers: Fix callTracer logs on onlyTopCall == true `qrl/tracers`
+- [ ] [#29095](https://github.com/ethereum/go-ethereum/pull/29095) core/txpool: elevate the 'already reserved' error into a constant `core/txpool`
+- [-] [9038ba6942](https://github.com/ethereum/go-ethereum/commit/9038ba6942) params: release Geth v1.13.14 `params` — build/CI/docs/release
+- [-] [57d2b552c7](https://github.com/ethereum/go-ethereum/commit/57d2b552c7) params: begin v1.13.15 cycle `params` — build/CI/docs/release
+- [ ] [#29094](https://github.com/ethereum/go-ethereum/pull/29094) core: using math.MaxUint64 instead of 0xffffffffffffffff `core/vm` **consensus**
+- [ ] [170fcd80c6](https://github.com/ethereum/go-ethereum/commit/170fcd80c6) params: being major version bump cycle `params`
+- [ ] [#29106](https://github.com/ethereum/go-ethereum/pull/29106) core, triedb/pathdb: calculate the size for batch pre-allocation `core/rawdb`, `triedb/pathdb` **consensus**
+- [~] [#29107](https://github.com/ethereum/go-ethereum/pull/29107) triedb/pathdb: fix panic in recoverable `triedb/pathdb` **consensus** **security?** — port open
+- [ ] [#29089](https://github.com/ethereum/go-ethereum/pull/29089) internal/ethapi: pass in accesslist in test `internal/qrlapi`
+- [ ] [#29115](https://github.com/ethereum/go-ethereum/pull/29115) eth/catalyst: return invalid payload attributes instead of invalid parms for bad fcu payload `qrl/catalyst`
+- [ ] [#29128](https://github.com/ethereum/go-ethereum/pull/29128) all: fix function names in docs `internal/era`, `metrics`, `p2p/enode`, `qrl`
+- [ ] [#29100](https://github.com/ethereum/go-ethereum/pull/29100) cmd/geth: parseDumpConfig should not return closed db `cmd/gqrl`
+- [x] [#29126](https://github.com/ethereum/go-ethereum/pull/29126) all: replace fmt.Errorf() with errors.New() if no param required `cmd/era`, `cmd/gqrl`, `cmd/utils`, `core/txpool` — in go-qrl
+- [ ] [#29108](https://github.com/ethereum/go-ethereum/pull/29108) cmd/utils, core/rawdb, triedb/pathdb: flip hash to path scheme `cmd/utils`, `core/rawdb`, `graphql`, `triedb/pathdb` **consensus**
+- [ ] [#28829](https://github.com/ethereum/go-ethereum/pull/28829) eth/catalyst: update simulated beacon for cancun `params`, `qrl/catalyst` **consensus**
+- [ ] [#29034](https://github.com/ethereum/go-ethereum/pull/29034) eth: make transaction propagation paths in the network deterministic `qrl`
+- [ ] [#29144](https://github.com/ethereum/go-ethereum/pull/29144) all: remove redundant import aliases `cmd/gqrl`, `consensus/clique`, `qrl/protocols` **consensus**
+- [ ] [#29132](https://github.com/ethereum/go-ethereum/pull/29132) p2p: remove unused argument 'flags' `p2p`
+- [ ] [#29136](https://github.com/ethereum/go-ethereum/pull/29136) accounts/abi: delete duplicate error check `accounts/abi`
+- [ ] [#29062](https://github.com/ethereum/go-ethereum/pull/29062) core: delete unused ErrMaxInitCodeSizeExceeded `core/vm` **consensus**
+- [ ] [#29134](https://github.com/ethereum/go-ethereum/pull/29134) all: use EmptyUncleHash, EmptyCodeHash instead of raw value `cmd/devp2p`, `core/types` **consensus**
+- [ ] [#29150](https://github.com/ethereum/go-ethereum/pull/29150) triedb/pathdb: changed the test code to check for verifying state `triedb/pathdb` **consensus**
+- [ ] [#29091](https://github.com/ethereum/go-ethereum/pull/29091) cmd/devp2p: fix commandHasFlag `cmd/devp2p`
+- [ ] [#28683](https://github.com/ethereum/go-ethereum/pull/28683) core: use finalized block as the chain freeze indicator `core`, `core/rawdb`
+- [ ] [#29099](https://github.com/ethereum/go-ethereum/pull/29099) eth/tracers: Fix prestateTracer pre nonce on contract creation `qrl/tracers`
+- [-] [#29163](https://github.com/ethereum/go-ethereum/pull/29163) .mailmap: remove invalid email address — build/CI/docs/release
+- [ ] [#29152](https://github.com/ethereum/go-ethereum/pull/29152) core/types: reuse signtx `core/types` **consensus**
+- [ ] [#29149](https://github.com/ethereum/go-ethereum/pull/29149) core: initialize `gasRemaining` with `=` instead of `+=` `core` **consensus**
+- [ ] [#29154](https://github.com/ethereum/go-ethereum/pull/29154) rlp: remove a moot todo `rlp`
+- [ ] [#28940](https://github.com/ethereum/go-ethereum/pull/28940) core/state, trie/triedb/pathdb: remove storage incomplete flag `core/state`, `trie/triestate`, `triedb/pathdb` **consensus**
+- [ ] [#28945](https://github.com/ethereum/go-ethereum/pull/28945) accounts/usbwallet: use updated hid (only) library `accounts/usbwallet`
+- [ ] [#29166](https://github.com/ethereum/go-ethereum/pull/29166) internal/jsre: format blob fields from hexdecimal to int `internal/jsre`
+- [ ] [#29162](https://github.com/ethereum/go-ethereum/pull/29162) rpc: remove deprecated method "Notifier.Closed" `node`, `p2p/simulations`, `qrl/downloader`, `qrl/filters`
+- [ ] [#29067](https://github.com/ethereum/go-ethereum/pull/29067) rlp: using unsafe.Slice instead of SliceHeader `rlp`
+- [ ] [#29065](https://github.com/ethereum/go-ethereum/pull/29065) core: remove useless assignments `core` **consensus**
+- [ ] [#29159](https://github.com/ethereum/go-ethereum/pull/29159) node: remove test which doesn't do a lot `node`
+- [ ] [#29169](https://github.com/ethereum/go-ethereum/pull/29169) consensus, cmd, core, eth: remove support for non-merge mode of operation `cmd/gqrl`, `consensus`, `core`, `params` **consensus**
+- [ ] [#29038](https://github.com/ethereum/go-ethereum/pull/29038) go.mod: bump pebble db to official release `qrldb/pebble`
+- [ ] [#29127](https://github.com/ethereum/go-ethereum/pull/29127) internal/ethapi: delete needless error check `internal/qrlapi`
+- [ ] [#29175](https://github.com/ethereum/go-ethereum/pull/29175) accounts/usbwallet: revert #28945 `accounts/usbwallet`
+- [ ] [#29006](https://github.com/ethereum/go-ethereum/pull/29006) rpc: add more test cases for arg types `rpc`
+- [ ] [#29176](https://github.com/ethereum/go-ethereum/pull/29176) accounts/usbwallet: update hid library `accounts/usbwallet`
+- [ ] [#29171](https://github.com/ethereum/go-ethereum/pull/29171) accounts: remove deprecated function NewPlaintextKeyStore `accounts/keystore`
+- [ ] [#29168](https://github.com/ethereum/go-ethereum/pull/29168) eth/tracers: prestate tracer add blob fee `qrl/tracers`
+- [ ] [#28623](https://github.com/ethereum/go-ethereum/pull/28623) miner: refactor the miner, make the pending block on demand `cmd/gqrl`, `cmd/utils`, `consensus`, `console` **consensus**
+- [ ] [#28822](https://github.com/ethereum/go-ethereum/pull/28822) cmd/blsync, beacon/light: beacon chain light client `beacon/blsync`, `beacon/light`, `beacon/params`, `beacon/types`
+- [ ] [#29184](https://github.com/ethereum/go-ethereum/pull/29184) accounts: remove redundant string conversion `accounts`
+- [ ] [#29186](https://github.com/ethereum/go-ethereum/pull/29186) all: fix typos in comments `cmd/qrvm`, `core/types`, `crypto/kzg4844`, `crypto/secp256k1` **consensus**
+- [ ] [#28793](https://github.com/ethereum/go-ethereum/pull/28793) log: add Handler getter to Logger interface `internal/testlog`, `log`
+- [ ] [#29198](https://github.com/ethereum/go-ethereum/pull/29198) ethclient/gethclient: add blob transaction fields in toCallArg `qrlclient/gethclient`
+- [ ] [#29183](https://github.com/ethereum/go-ethereum/pull/29183) console: fix the wrong error msg of datadir testcase `console`
+- [ ] [#29207](https://github.com/ethereum/go-ethereum/pull/29207) p2p/simulations/adapters: fix error messages in TestTCPPipeBidirections `p2p/simulations`
+- [ ] [#29191](https://github.com/ethereum/go-ethereum/pull/29191) cmd, core, metrics: always report expensive metrics `cmd/gqrl`, `cmd/utils`, `core`, `core/state` **consensus**
+- [-] [#29210](https://github.com/ethereum/go-ethereum/pull/29210) core/txpool/blobpool: return ErrAlreadyKnown for duplicate txs `core/txpool` — n/a
+- [ ] [#29218](https://github.com/ethereum/go-ethereum/pull/29218) core: fix deprecation comment for GenesisAccount `core` **consensus**
+- [-] [#29216](https://github.com/ethereum/go-ethereum/pull/29216) beacon/light/request: fix typos `beacon/light` — n/a
+- [-] [#29222](https://github.com/ethereum/go-ethereum/pull/29222)  crypto/bn256/cloudflare: fix noescape-directive `crypto/bn256` — n/a
+- [ ] [#29227](https://github.com/ethereum/go-ethereum/pull/29227) cmd: use package filepath over path for file system operations `cmd/devp2p`, `cmd/era`, `cmd/qrvm`, `cmd/utils`
+- [ ] [#29223](https://github.com/ethereum/go-ethereum/pull/29223) internal/build, rpc: add missing HTTP response body Close() calls `internal/build`, `rpc`
+- [ ] [#29233](https://github.com/ethereum/go-ethereum/pull/29233) common/math: copy result in Exp `common/math`
+- [ ] [#29193](https://github.com/ethereum/go-ethereum/pull/29193) miner: add additional log `miner`
+- [~] [#29235](https://github.com/ethereum/go-ethereum/pull/29235) p2p: fix race in dialScheduler `p2p` — port open
+- [ ] [#29238](https://github.com/ethereum/go-ethereum/pull/29238) eth/tracers: fix concurrency issue for JS-tracing a block `qrl/tracers`
+- [ ] [#29050](https://github.com/ethereum/go-ethereum/pull/29050) crypto/kz4844: pass blobs by ref `cmd/devp2p`, `core/txpool`, `core/types`, `crypto/kzg4844` **consensus**
+- [ ] [#29078](https://github.com/ethereum/go-ethereum/pull/29078) accounts/usbwallet, common/bitutil: fix broken links in docs `accounts/usbwallet`, `common/bitutil`
+- [~] [#29196](https://github.com/ethereum/go-ethereum/pull/29196) core: improve chain rewinding mechanism `core` **consensus** — port open
+- [ ] [#29220](https://github.com/ethereum/go-ethereum/pull/29220) tests, appveyor: only execute one in four permutations on CI `tests`
+- [-] [#29228](https://github.com/ethereum/go-ethereum/pull/29228) go.mod: update golang.org/x/crypto from v0.17.0 to v0.21.0 — build/CI/docs/release
+- [ ] [#29043](https://github.com/ethereum/go-ethereum/pull/29043) eth/catalyst: remove error return in delayPayloadImport `qrl/catalyst`
+- [ ] [#29257](https://github.com/ethereum/go-ethereum/pull/29257) cmd/devp2p: fix decoding of raw RLP ENR attributes `cmd/devp2p`
+- [ ] [#29263](https://github.com/ethereum/go-ethereum/pull/29263) cmd/emv/internal/t8ntool: fix shadowing of `excessBlobGas` `cmd/qrvm`
+- [ ] [#29195](https://github.com/ethereum/go-ethereum/pull/29195) params: use the same variable name as EIP-4788 `core`, `params`, `qrl/catalyst` **consensus**
+- [ ] [#29243](https://github.com/ethereum/go-ethereum/pull/29243) eth/downloader, graphql: fix typos `graphql`, `qrl/downloader`
+- [ ] [#29259](https://github.com/ethereum/go-ethereum/pull/29259) eth/catalyst: prettier output on bad new payloads `common`, `qrl/catalyst`
+- [ ] [#29269](https://github.com/ethereum/go-ethereum/pull/29269) accounts/abi/bind: remove unused err set and check `accounts/abi`
+- [-] [#29270](https://github.com/ethereum/go-ethereum/pull/29270) go.mod: update protobuf — build/CI/docs/release
+- [ ] [#28946](https://github.com/ethereum/go-ethereum/pull/28946) all: update to go version 1.22.1 `accounts/scwallet`, `crypto`, `crypto/ecies`, `crypto/secp256k1`
+- [~] [#29278](https://github.com/ethereum/go-ethereum/pull/29278) triedb/pathdb: improve tests `internal/testrand`, `qrl/protocols`, `trie`, `triedb/pathdb` **consensus** — port open
+- [ ] [#29287](https://github.com/ethereum/go-ethereum/pull/29287) log: replace tmp with bytes.Buffer.AvailableBuffer `log`
+- [-] [#29256](https://github.com/ethereum/go-ethereum/pull/29256) beacon/light/sync: fix typo in comment `beacon/light` — n/a
+- [ ] [#29275](https://github.com/ethereum/go-ethereum/pull/29275) accounts/abi/bind: check invalid chainID first `accounts/abi`
+- [ ] [#29242](https://github.com/ethereum/go-ethereum/pull/29242) miner: modify header before checking time-based fields `miner`
+- [ ] [#29293](https://github.com/ethereum/go-ethereum/pull/29293) core/asm: minor code-clarification `core/asm`
+- [ ] [#29288](https://github.com/ethereum/go-ethereum/pull/29288) all: fix typos `core/rawdb`, `core/txpool`, `signer/fourbyte`
+- [ ] [#29279](https://github.com/ethereum/go-ethereum/pull/29279) metrics: fix docstrings `metrics`
+- [ ] [#29290](https://github.com/ethereum/go-ethereum/pull/29290) cmd/evm: make staterunner always output stateroot to stderr `cmd/qrvm`
+- [ ] [#29298](https://github.com/ethereum/go-ethereum/pull/29298) cmd/evm: fix flag-mismatch from #29290 `cmd/qrvm`
+- [-] [#29296](https://github.com/ethereum/go-ethereum/pull/29296) Makefile: update PHONY directive — build/CI/docs/release
+- [~] [#29245](https://github.com/ethereum/go-ethereum/pull/29245) core: skip the check the statefulness of head block in repair `core` **consensus** — port open
+- [-] [#29300](https://github.com/ethereum/go-ethereum/pull/29300) core/txpool/blobpool: calculate log1.125 faster `core/txpool` — n/a
+- [ ] [#29283](https://github.com/ethereum/go-ethereum/pull/29283) core: refactor consensus interface `consensus`, `consensus/beacon`, `consensus/clique`, `consensus/ethash` **consensus**
+- [ ] [#29301](https://github.com/ethereum/go-ethereum/pull/29301) eth/protocols/snap, internal/testlog: fix dataraces `internal/testlog`, `qrl/protocols`
+- [ ] [#29180](https://github.com/ethereum/go-ethereum/pull/29180) beacon/blsync: support for deneb fork `beacon/blsync`, `beacon/light`, `beacon/types`, `cmd/blsync`
+- [ ] [#29307](https://github.com/ethereum/go-ethereum/pull/29307) all: use min/max/clear from go1.21 `accounts/keystore`, `core/vm`, `crypto`, `crypto/secp256k1` **consensus**
+- [ ] [#29309](https://github.com/ethereum/go-ethereum/pull/29309) triedb/hashdb: Avoid setting db.cleans on Close `triedb/hashdb` **consensus**
+- [ ] [#29267](https://github.com/ethereum/go-ethereum/pull/29267) cmd, triedb: implement history inspection `cmd/gqrl`, `triedb`, `triedb/pathdb` **consensus**
+- [ ] [#29302](https://github.com/ethereum/go-ethereum/pull/29302) log: use native log/slog instead of golang/exp `internal/debug`, `internal/testlog`, `log`, `p2p/simulations`
+- [-] [#29311](https://github.com/ethereum/go-ethereum/pull/29311) all: fix docstrings `beacon/light`, `crypto/bn256` — n/a
+- [ ] [#29189](https://github.com/ethereum/go-ethereum/pull/29189) eth/tracers: live chain tracing with hooks `cmd/gqrl`, `cmd/qrvm`, `cmd/utils`, `consensus/beacon` **consensus**
+- [ ] [#29047](https://github.com/ethereum/go-ethereum/pull/29047) metrics/influxdb: skip float64-precision-dependent tests on arm64 `metrics/influxdb`
+- [ ] [#29320](https://github.com/ethereum/go-ethereum/pull/29320) eth: fix typo `qrl`
+- [ ] [#29314](https://github.com/ethereum/go-ethereum/pull/29314) all: remove dependency on golang.org/exp `accounts/keystore`, `cmd/devp2p`, `common/prque`, `consensus/clique` **consensus**
+- [ ] [#29316](https://github.com/ethereum/go-ethereum/pull/29316) ethclient/simulated: clean up Node resources when simulated backend is closed `qrl`, `qrlclient/simulated`
+- [-] [#29308](https://github.com/ethereum/go-ethereum/pull/29308) beacon/light/api: improve handling of event stream setup failures `beacon/light` — n/a
+- [-] [#29335](https://github.com/ethereum/go-ethereum/pull/29335) beacon/blsync: fixed blsync command line params `beacon/blsync` — n/a
+- [ ] [#29339](https://github.com/ethereum/go-ethereum/pull/29339) Removes some leftover `err` check `internal/qrlapi`
+- [ ] [#29344](https://github.com/ethereum/go-ethereum/pull/29344) eth/catalyst: fix flaw in withdrawal-gathering in simulated beacon `qrl/catalyst`
+- [ ] [#29349](https://github.com/ethereum/go-ethereum/pull/29349) tests: fix panic via state test runner using json logger `tests` **security?**
+- [ ] [#29201](https://github.com/ethereum/go-ethereum/pull/29201) core/state: perform updates before deletions when mutating tries `core/state` **consensus**
+- [ ] [#29348](https://github.com/ethereum/go-ethereum/pull/29348) all: fix mismatched names in comments `accounts/abi`, `accounts/keystore`, `beacon/light`, `beacon/types` **consensus**
+- [ ] [#29262](https://github.com/ethereum/go-ethereum/pull/29262) core: add an end-to-end verkle test `core`, `core/state`, `triedb`, `triedb/pathdb` **consensus**
+- [~] [#29341](https://github.com/ethereum/go-ethereum/pull/29341) eth/protocols/snap: check storage root existence for hash scheme `qrl/protocols` — port open
+- [ ] [#29351](https://github.com/ethereum/go-ethereum/pull/29351) beacon/engine: Fix json param name in GetClientVersionV1 `beacon/engine`
+- [ ] [#29336](https://github.com/ethereum/go-ethereum/pull/29336) accounts/keystore: fix typos in comments `accounts/keystore`
+- [ ] [#29353](https://github.com/ethereum/go-ethereum/pull/29353) t8ntool: add optional call frames to json logger `cmd/qrvm`, `qrl/tracers`
+- [ ] [#29382](https://github.com/ethereum/go-ethereum/pull/29382) ethdb/dbtest: replace reflect.DeepEqual with slices.Equal `qrldb/dbtest`
+- [ ] [#29381](https://github.com/ethereum/go-ethereum/pull/29381) core: remove unused code `core` **consensus**
+- [ ] [#29377](https://github.com/ethereum/go-ethereum/pull/29377) p2p/dnsdisc: using maps.Copy `p2p/dnsdisc`
+- [ ] [#29366](https://github.com/ethereum/go-ethereum/pull/29366) core/state: using slices.Clone `core/state` **consensus**
+- [ ] [#29384](https://github.com/ethereum/go-ethereum/pull/29384) eth/tracers/logger: using maps.Equal `qrl/tracers`
+- [ ] [#29375](https://github.com/ethereum/go-ethereum/pull/29375) eth/tracers/js: consistent name for method receivers `qrl/tracers`
+- [ ] [#29419](https://github.com/ethereum/go-ethereum/pull/29419) trie: using maps.Clone `trie` **consensus**
+- [ ] [#29398](https://github.com/ethereum/go-ethereum/pull/29398) core/types: using maps.Clone `core/types` **consensus**
+- [ ] [#29376](https://github.com/ethereum/go-ethereum/pull/29376) eth/tracers: fix base fee and set blob fee in tests `qrl/tracers`
+- [ ] [#29412](https://github.com/ethereum/go-ethereum/pull/29412) log: replace the outdated link `log`
+- [ ] [#29434](https://github.com/ethereum/go-ethereum/pull/29434) rlp: using maps.Clone `rlp`
+- [ ] [#29385](https://github.com/ethereum/go-ethereum/pull/29385) rpc: fix ipc max path size `rpc`
+- [ ] [#29435](https://github.com/ethereum/go-ethereum/pull/29435) eth/filter: using atomic.Pointer instead of atomic.Value `qrl/filters`
+- [ ] [#29437](https://github.com/ethereum/go-ethereum/pull/29437) cmd/evm: reopen the statedb for dumping `cmd/qrvm`
+- [ ] [#29365](https://github.com/ethereum/go-ethereum/pull/29365) core/state: use maps.Clone `core/state` **consensus**
+- [ ] [#29399](https://github.com/ethereum/go-ethereum/pull/29399) common/lru: use clear builtin `common/lru`
+- [ ] [#29383](https://github.com/ethereum/go-ethereum/pull/29383) eth/fetcher: using slices.Contains `qrl/fetcher`
+- [ ] [#29424](https://github.com/ethereum/go-ethereum/pull/29424) p2p: add inbound and outbound peers metric `p2p`
+- [ ] [#29420](https://github.com/ethereum/go-ethereum/pull/29420) eth: simplify peer counting logic `qrl`
+- [-] [#29448](https://github.com/ethereum/go-ethereum/pull/29448) build: upgrade -dlgo version to Go 1.22.2 — build/CI/docs/release
+- [ ] [#29396](https://github.com/ethereum/go-ethereum/pull/29396) beacon/engine: using slices.Contains `beacon/engine`
+- [ ] [#29392](https://github.com/ethereum/go-ethereum/pull/29392) log: using maps.Clone `log`
+- [ ] [#29418](https://github.com/ethereum/go-ethereum/pull/29418) p2p/dnsdisc: using clear builtin func `p2p/dnsdisc`
+- [ ] [#29444](https://github.com/ethereum/go-ethereum/pull/29444) crypto/signify: close tmp key file in test `crypto/signify`
+- [ ] [#29395](https://github.com/ethereum/go-ethereum/pull/29395) p2p/discover: using slices.Contains `p2p/discover`
+- [ ] [#29356](https://github.com/ethereum/go-ethereum/pull/29356) internal/debug: convert legacy log level value in debug_verbosity `internal/debug`
+- [ ] [#29411](https://github.com/ethereum/go-ethereum/pull/29411) core/types: use new atomic types in caches `core/types`, `qrl/catalyst` **consensus**
+- [-] [#29451](https://github.com/ethereum/go-ethereum/pull/29451) core/txpool: repair the limbo Billy too on unclean shutdowns `core/txpool` — n/a
+- [ ] [#29413](https://github.com/ethereum/go-ethereum/pull/29413) trie/utils: change Div+Mod to DivMod `trie/utils` **consensus**
+- [ ] [#29380](https://github.com/ethereum/go-ethereum/pull/29380) beacon/types: enforce fork order based on known forks list `beacon/types`
+- [ ] [#28976](https://github.com/ethereum/go-ethereum/pull/28976) signer: implement blob txs sendtxargs, enable blobtx-signing `accounts/external`, `core/types`, `internal/qrlapi`, `signer/core` **consensus**
+- [ ] [#29470](https://github.com/ethereum/go-ethereum/pull/29470) signer/core/apitypes: fix apitypes breakage due to bitrotted PR `signer/core`
+- [ ] [#29460](https://github.com/ethereum/go-ethereum/pull/29460) common/prque: fix godoc comments `common/prque`
+- [ ] [#29459](https://github.com/ethereum/go-ethereum/pull/29459) all: use slices.Contains `cmd/devp2p`, `node`, `qrl/filters`
+- [ ] [#29461](https://github.com/ethereum/go-ethereum/pull/29461) eth/tracers: use slices.Contains `qrl/tracers`
+- [ ] [#29471](https://github.com/ethereum/go-ethereum/pull/29471) log: default JSON log handler should log all verbosity levels `internal/debug`, `log`
+- [ ] [#29354](https://github.com/ethereum/go-ethereum/pull/29354) core/vm: better error-info for vm errors `core/vm`, `qrl/tracers` **consensus**
+- [ ] [#29479](https://github.com/ethereum/go-ethereum/pull/29479) all: replace path.Join with filepath.Join `core`, `core/rawdb`, `internal/build`, `node`
+- [ ] [#29474](https://github.com/ethereum/go-ethereum/pull/29474) signer/core/apitypes: use slices.Contains `log`, `signer/core`
+- [ ] [#29472](https://github.com/ethereum/go-ethereum/pull/29472) all: replace fmt.Errorf() with errors.New() if no param required `accounts/external`, `cmd/devp2p`, `core`, `internal/era` **consensus**
+- [ ] [#29469](https://github.com/ethereum/go-ethereum/pull/29469) core: fix dev mode genesis difficulty `core` **consensus**
+- [ ] [#29438](https://github.com/ethereum/go-ethereum/pull/29438) core: fix typo `core`
+- [ ] [#28912](https://github.com/ethereum/go-ethereum/pull/28912) core/vm: reject contract creation if the storage is non-empty `core/vm`, `tests` **consensus**
+- [ ] [#29489](https://github.com/ethereum/go-ethereum/pull/29489) internal, signer/core: replace path.Join with filepath.Join `internal/build`, `internal/jsre`, `signer/core`
+- [ ] [#29488](https://github.com/ethereum/go-ethereum/pull/29488) rlp: replace reflect.PtrTo with reflect.PointerTo `rlp`
+- [ ] [#29445](https://github.com/ethereum/go-ethereum/pull/29445) core/vm: move bls precompiles to correct addresses `core/vm`, `tests/fuzzers` **consensus**
+- [ ] [#29343](https://github.com/ethereum/go-ethereum/pull/29343) core: add txlookup lock `core` **consensus**
+- [ ] [#29241](https://github.com/ethereum/go-ethereum/pull/29241) all: use timer instead of time.After in loops, to avoid memleaks `core/bloombits`, `p2p/simulations`, `qrl/downloader`, `qrlstats`
+- [-] [#29388](https://github.com/ethereum/go-ethereum/pull/29388) core/tracing: add changelog — build/CI/docs/release
+- [ ] [#29490](https://github.com/ethereum/go-ethereum/pull/29490) all: use big.Sign to compare with zero `core`, `internal/qrlapi`, `qrl`, `qrlclient/gethclient`
+- [~] [#29378](https://github.com/ethereum/go-ethereum/pull/29378) eth/protocols/snap: skip retrieval for completed storages `qrl/protocols` — port open
+- [ ] [#29507](https://github.com/ethereum/go-ethereum/pull/29507) rpc: fix comment grammar `rpc`
+- [-] [#29405](https://github.com/ethereum/go-ethereum/pull/29405) cmd: fix some typos in readmes — n/a
+- [ ] [#29531](https://github.com/ethereum/go-ethereum/pull/29531) all: remove duplicate word in comments `cmd/utils`, `core/state`, `core/vm`, `crypto` **consensus**
+- [ ] [#29528](https://github.com/ethereum/go-ethereum/pull/29528) cmd/utils: fix typo in comment `cmd/utils`
+- [ ] [#29534](https://github.com/ethereum/go-ethereum/pull/29534) core/rawdb: add sanity-limit to header accessor `core/rawdb` **security?**
+- [ ] [#29536](https://github.com/ethereum/go-ethereum/pull/29536) p2p/nat: fix typos in comments `p2p/nat`
+- [ ] [#29535](https://github.com/ethereum/go-ethereum/pull/29535) eth/filters: enforce topic-limit early on filter criterias `qrl/filters` **security?**
+- [~] [#29313](https://github.com/ethereum/go-ethereum/pull/29313) core, eth/protocols/snap, trie: fix cause for snap-sync corruption, implement gentrie `core/state`, `qrl/protocols`, `trie` **consensus** — port open
+- [ ] [#29522](https://github.com/ethereum/go-ethereum/pull/29522) rpc: implement Unwrap() for wsHandshakeError `rpc`
+- [ ] [#29512](https://github.com/ethereum/go-ethereum/pull/29512) rpc: close Clients in tests `rpc`
+- [ ] [#29441](https://github.com/ethereum/go-ethereum/pull/29441) core/vm: update gascosts for BLS12-381 + use gnark instead of kilic `core/vm`, `crypto/bls12381`, `oss-fuzz.sh`, `params` **consensus**
+- [ ] [#29549](https://github.com/ethereum/go-ethereum/pull/29549) eth/catalyst: fix log `qrl/catalyst`
+- [ ] [#29554](https://github.com/ethereum/go-ethereum/pull/29554) c.d/utils: rename vmtrace.config to vmtrace.jsonconfig `cmd/utils`
+- [-] [#29553](https://github.com/ethereum/go-ethereum/pull/29553) go.mod: clean up indirection — build/CI/docs/release
+- [ ] [#29544](https://github.com/ethereum/go-ethereum/pull/29544) core: go fmt `core`
+- [ ] [#29542](https://github.com/ethereum/go-ethereum/pull/29542) all: fix various typos `accounts/abi`, `beacon/light`, `core/rawdb`, `crypto/secp256k1`
+- [ ] [#29515](https://github.com/ethereum/go-ethereum/pull/29515) core/vm: refactor push-functions to use `min` builtin `core/vm` **consensus**
+- [~] [#29478](https://github.com/ethereum/go-ethereum/pull/29478) ethdb/pebble: print warning log if pebble performance degrades `qrldb/pebble` — port open
+- [ ] [#29480](https://github.com/ethereum/go-ethereum/pull/29480) trie/utils: simplify codeChunkIndex `trie/utils` **consensus**
+- [ ] [#29563](https://github.com/ethereum/go-ethereum/pull/29563) core/state: fix bug in statedb.Copy and remove unnecessary preallocation `core/state` **consensus**
+- [-] [#29449](https://github.com/ethereum/go-ethereum/pull/29449) beacon/blsync: proceed with empty finalized hash if proof is not expected soon `beacon/blsync` — n/a
+- [ ] [#29559](https://github.com/ethereum/go-ethereum/pull/29559) eth/ethconfig: regenerate autogen files `qrl/ethconfig`
+- [ ] [#29569](https://github.com/ethereum/go-ethereum/pull/29569) core: remove unused fields `core`
+- [ ] [#29552](https://github.com/ethereum/go-ethereum/pull/29552) core/vm: enable bls-precompiles for Prague `core/vm`, `tests` **consensus**
+- [ ] [#29580](https://github.com/ethereum/go-ethereum/pull/29580) eth/catalyst: fix typo `qrl/catalyst`
+- [ ] [#29557](https://github.com/ethereum/go-ethereum/pull/29557) tests: define cancun-to-prague at 15K chainconig `tests`
+- [ ] [#29583](https://github.com/ethereum/go-ethereum/pull/29583) core/vm: add KZG benchmark `core/vm` **consensus**
+- [ ] [#29592](https://github.com/ethereum/go-ethereum/pull/29592) p2p/discover: fix test error messages `p2p/discover`
+- [-] [#29595](https://github.com/ethereum/go-ethereum/pull/29595) build: fix string compare for SortFunc — build/CI/docs/release
+- [ ] [#29602](https://github.com/ethereum/go-ethereum/pull/29602) cmd/geth: remove unused parameter `cmd/gqrl`
+- [ ] [#29574](https://github.com/ethereum/go-ethereum/pull/29574) eth/filters: remove support for pending logs `cmd/utils`, `qrl/filters`, `qrlclient/gethclient`, `qrlclient/simulated`
+- [-] [#29604](https://github.com/ethereum/go-ethereum/pull/29604) go.mod: update golang/x repos — build/CI/docs/release
+- [ ] [#29140](https://github.com/ethereum/go-ethereum/pull/29140) eth: Add eth_blobBaseFee RPC and blob fields to eth_feeHistory `internal/jsre`, `internal/qrlapi`, `qrl`, `qrl/gasprice`
+- [-] [#29532](https://github.com/ethereum/go-ethereum/pull/29532) beacon/light/sync: print error log if checkpoint retrieval fails `beacon/blsync`, `beacon/light` — n/a
+- [ ] [#29609](https://github.com/ethereum/go-ethereum/pull/29609) core: remove bad block checks `core` **consensus**
+- [x] [#29571](https://github.com/ethereum/go-ethereum/pull/29571) eth/catalyst, trie/pathdb: fix flaky tests `qrl/catalyst`, `triedb/pathdb` — in go-qrl
+- [ ] [#29625](https://github.com/ethereum/go-ethereum/pull/29625) miner: fix typos `miner`
+- [ ] [#29624](https://github.com/ethereum/go-ethereum/pull/29624) metrics: remove librato `metrics/librato`
+- [ ] [#29600](https://github.com/ethereum/go-ethereum/pull/29600) all: fix various typos `accounts/abi`, `core`, `core/state`, `qrl/protocols` **consensus**
+- [ ] [#29567](https://github.com/ethereum/go-ethereum/pull/29567) beacon/light: request finality update explicitly when necessary `beacon/blsync`, `beacon/light`, `beacon/types`
+- [ ] [#29612](https://github.com/ethereum/go-ethereum/pull/29612) core/vm: fix Prague contracts `core/vm` **consensus**
+- [ ] [#29573](https://github.com/ethereum/go-ethereum/pull/29573) cmd/geth, cmd/utils: rename config and flag to` VMTraceJsonConfig` `cmd/gqrl`, `cmd/utils`, `qrl`, `qrl/ethconfig`
+- [ ] [#29629](https://github.com/ethereum/go-ethereum/pull/29629) core/tracing: Add OnClose Trace Hook `core`, `core/tracing` **consensus**
+- [ ] [#29402](https://github.com/ethereum/go-ethereum/pull/29402) eth, eth/tracers: process beacon root before transactions `qrl`, `qrl/tracers`
+- [ ] [#29358](https://github.com/ethereum/go-ethereum/pull/29358) eth/downloader: fix case where skeleton reorgs below the filled block `qrl/downloader`
+- [-] [87246f3cba](https://github.com/ethereum/go-ethereum/commit/87246f3cba) params: release Geth v1.14.0 `params` — build/CI/docs/release
+
+## v1.14.2 (2024-05-08): 49 commits, 35 to review
+
+- [-] [938734be3c](https://github.com/ethereum/go-ethereum/commit/938734be3c) params: begin 1.14.1 release cycle `params` — build/CI/docs/release
+- [ ] [#29520](https://github.com/ethereum/go-ethereum/pull/29520)  core/state: remove account reset operation v2 `core/state`, `core/vm`, `tests` **consensus**
+- [ ] [#29614](https://github.com/ethereum/go-ethereum/pull/29614) trie: preallocate capacity for fields slice `trie/trienode` **consensus**
+- [ ] [#29616](https://github.com/ethereum/go-ethereum/pull/29616) trie, consensus/clique: use maps.Clone `consensus/clique`, `trie` **consensus**
+- [ ] [#29641](https://github.com/ethereum/go-ethereum/pull/29641) core/state: storage journal entry should revert dirtyness too `core/state` **consensus**
+- [ ] [#29636](https://github.com/ethereum/go-ethereum/pull/29636) internal/ethapi: typo `internal/qrlapi`
+- [ ] [#29590](https://github.com/ethereum/go-ethereum/pull/29590) eth/protocols/eth,p2p/discover: remove unnecessary checks `p2p/discover`, `qrl/protocols`
+- [ ] [#29627](https://github.com/ethereum/go-ethereum/pull/29627) core/state: better randomized testing (postcheck) on journalling `core/state` **consensus**
+- [-] [#29647](https://github.com/ethereum/go-ethereum/pull/29647) build: build all the builders to build all the builders — build/CI/docs/release
+- [-] [#29648](https://github.com/ethereum/go-ethereum/pull/29648) travis: temporarilly enable PPA builds for testing — build/CI/docs/release
+- [-] [#29649](https://github.com/ethereum/go-ethereum/pull/29649) travis: revert the PPA fix hot-build, it works — build/CI/docs/release
+- [-] [#29651](https://github.com/ethereum/go-ethereum/pull/29651) build: drop trusty from PPA builds, EOL and incompatible — build/CI/docs/release
+- [ ] [#29661](https://github.com/ethereum/go-ethereum/pull/29661) core/state: revert pending storage updates if they revert to original `core/state` **consensus**
+- [ ] [#29665](https://github.com/ethereum/go-ethereum/pull/29665) core/state: move metrics out of state objects `core`, `core/state` **consensus**
+- [ ] [#29643](https://github.com/ethereum/go-ethereum/pull/29643) params: clarify consensus engine config `String`s `params` **consensus**
+- [ ] [#29626](https://github.com/ethereum/go-ethereum/pull/29626) p2p/simulations/adapters: use maps.Clone `p2p/simulations`
+- [ ] [#29620](https://github.com/ethereum/go-ethereum/pull/29620) cmd/evm/internal/t8ntool, core: prealloc map sizes where possible `cmd/qrvm`, `core` **consensus**
+- [ ] [#29514](https://github.com/ethereum/go-ethereum/pull/29514) params: print time value instead of pointer in ConfigCompatError `params` **consensus**
+- [ ] [#29579](https://github.com/ethereum/go-ethereum/pull/29579) cmd/utils: require TTD and difficulty to be zero at genesis for dev mode `cmd/utils`
+- [ ] [#29135](https://github.com/ethereum/go-ethereum/pull/29135) core/rawdb: implement in-memory freezer `core/rawdb`, `node`, `qrldb`, `triedb/pathdb` **consensus**
+- [ ] [#29683](https://github.com/ethereum/go-ethereum/pull/29683) trie/trienode: minor speedup in nodeset merging `trie/trienode` **consensus**
+- [ ] [#29672](https://github.com/ethereum/go-ethereum/pull/29672) core/vm: remove a redundant zero check in opAddmod `core/vm` **consensus**
+- [ ] [#29623](https://github.com/ethereum/go-ethereum/pull/29623) eth/tracers/native: fix flatCallTracer Stop() bug `qrl/tracers`
+- [ ] [#29637](https://github.com/ethereum/go-ethereum/pull/29637) core/vm: add subgroup checks for mul/mulexp for G1/G2 `core/vm` **consensus**
+- [ ] [#29686](https://github.com/ethereum/go-ethereum/pull/29686) internal/ethapi: listen to ctx cancellation in access list `internal/qrlapi`
+- [ ] [#29482](https://github.com/ethereum/go-ethereum/pull/29482) all: refactor so `NewBlock`, `WithBody` take `types.Body` `beacon/engine`, `beacon/types`, `cmd/qrvm`, `consensus/beacon` **consensus**
+- [ ] [#29281](https://github.com/ethereum/go-ethereum/pull/29281) eth/downloader:  purge pre-merge sync code `qrl/downloader`
+- [ ] [#29598](https://github.com/ethereum/go-ethereum/pull/29598) accounts, cmd/geth, core: close opened files `accounts/keystore`, `accounts/scwallet`, `cmd/gqrl`, `core`
+- [ ] [#29362](https://github.com/ethereum/go-ethereum/pull/29362) core/rawdb, trie: improve db APIs for accessing trie nodes `cmd/devp2p`, `cmd/gqrl`, `core`, `core/rawdb` **consensus**
+- [ ] [#29681](https://github.com/ethereum/go-ethereum/pull/29681) core/state: parallelise parts of state commit `core`, `core/state` **consensus**
+- [ ] [#29692](https://github.com/ethereum/go-ethereum/pull/29692) core/vm: remove redundant error checks `core/vm` **consensus**
+- [ ] [#29684](https://github.com/ethereum/go-ethereum/pull/29684) params: fix misleading comments `params` **consensus**
+- [ ] [#29690](https://github.com/ethereum/go-ethereum/pull/29690) trie/pathdb: preallocate map capacity `triedb/pathdb` **consensus**
+- [ ] [#29697](https://github.com/ethereum/go-ethereum/pull/29697) core/rawdb: fix ancient root folder `core/rawdb`
+- [x] [#29708](https://github.com/ethereum/go-ethereum/pull/29708) p2p/discover/v5wire: add tests for invalid handshake and auth data size `p2p/discover` — in go-qrl
+- [ ] [#29355](https://github.com/ethereum/go-ethereum/pull/29355) core/tracing: add system call callback when performing `ProcessBeaconBlockRoot` `core`, `core/tracing` **consensus**
+- [ ] [#29701](https://github.com/ethereum/go-ethereum/pull/29701) core, core/state: move TriesInMemory to state package `core`, `core/state` **consensus**
+- [ ] [#29699](https://github.com/ethereum/go-ethereum/pull/29699) ethdb/pebble: fix pebble metrics registration `qrldb/pebble`
+- [ ] [#29644](https://github.com/ethereum/go-ethereum/pull/29644) eth/gasprice: add query limit for FeeHistory to defend DDOS attack `qrl/gasprice` **security?**
+- [ ] [#29703](https://github.com/ethereum/go-ethereum/pull/29703) eth/gasestimator: include blobs in virtual balance computation `qrl/gasestimator`
+- [-] [#29723](https://github.com/ethereum/go-ethereum/pull/29723) travis: use ubuntu noble (24.04) instead of bionic (18.04) — build/CI/docs/release
+- [-] [#29725](https://github.com/ethereum/go-ethereum/pull/29725) build: upgrade to go 1.22.3 — build/CI/docs/release
+- [ ] [#29720](https://github.com/ethereum/go-ethereum/pull/29720) core: use in-memory freezer for tests `cmd/utils`, `core`, `qrl/downloader`
+- [-] [#29733](https://github.com/ethereum/go-ethereum/pull/29733) .travis.yml: fix install of gcc-multilib — build/CI/docs/release
+- [-] [#29734](https://github.com/ethereum/go-ethereum/pull/29734) .travis.yml: fix apt-get options — build/CI/docs/release
+- [-] [dd09f7e3fa](https://github.com/ethereum/go-ethereum/commit/dd09f7e3fa) params: release go-ethereum v1.14.1 stable `params` — build/CI/docs/release
+- [-] [14f4228472](https://github.com/ethereum/go-ethereum/commit/14f4228472) params: begin v1.14.2 release cycle `params` — build/CI/docs/release
+- [-] [eeb22089fd](https://github.com/ethereum/go-ethereum/commit/eeb22089fd) .travis.yml: fix package install on PPA builder — build/CI/docs/release
+- [-] [35b2d07f4b](https://github.com/ethereum/go-ethereum/commit/35b2d07f4b) params: release go-ethereum v1.14.2 stable `params` — build/CI/docs/release
+
+## v1.14.3 (2024-05-09): 4 commits, 0 to review
+
+- [-] [1a79f8fe58](https://github.com/ethereum/go-ethereum/commit/1a79f8fe58) params: begin v1.14.3 release cycle `params` — build/CI/docs/release
+- [-] [#29741](https://github.com/ethereum/go-ethereum/pull/29741) .travis.yml: enable PPA upload on push and fix apt-get command — build/CI/docs/release
+- [-] [#29742](https://github.com/ethereum/go-ethereum/pull/29742) .travis.yml: restore PPA condition and bump timeouts — build/CI/docs/release
+- [-] [ab48ba42f4](https://github.com/ethereum/go-ethereum/commit/ab48ba42f4) params: release go-ethereum v1.14.3 stable `params` — build/CI/docs/release
+
+## v1.14.4 (2024-06-05): 69 commits, 59 to review
+
+- [-] [6d51c1f5f4](https://github.com/ethereum/go-ethereum/commit/6d51c1f5f4) params: begin v1.14.4 release cycle `params` — build/CI/docs/release
+- [-] [#29746](https://github.com/ethereum/go-ethereum/pull/29746) .travis.yml: disable normal unit tests in cron job — build/CI/docs/release
+- [ ] [74edc93864](https://github.com/ethereum/go-ethereum/commit/74edc93864) params: gofmt `params`
+- [ ] [#29731](https://github.com/ethereum/go-ethereum/pull/29731) core/state: remove slot dirtyness if it's set back to origin value `core/state` **consensus**
+- [ ] [#29749](https://github.com/ethereum/go-ethereum/pull/29749) event: fix typo `event`
+- [ ] [#29748](https://github.com/ethereum/go-ethereum/pull/29748) core, beacon, ethdb: fix typos `beacon/light`, `core/state`, `core/vm`, `qrldb/dbtest` **consensus**
+- [ ] [#29338](https://github.com/ethereum/go-ethereum/pull/29338) cmd, core, params, trie: add verkle access witness gas charging `cmd/gqrl`, `core`, `core/state`, `core/tracing` **consensus**
+- [ ] [#29519](https://github.com/ethereum/go-ethereum/pull/29519) core/state: blocking prefetcher on term signal, parallel updates `core`, `core/state` **consensus**
+- [ ] [#29730](https://github.com/ethereum/go-ethereum/pull/29730) tests: update tests `cmd/qrvm`, `tests`
+- [ ] [#29769](https://github.com/ethereum/go-ethereum/pull/29769) core/state: remove useless operation `core/state` **consensus**
+- [ ] [#29655](https://github.com/ethereum/go-ethereum/pull/29655) core: deploy EIP-4788 contract in dev mode genesis `core`, `params` **consensus**
+- [-] [#29776](https://github.com/ethereum/go-ethereum/pull/29776) .github: upgrade to action versions with node20 — build/CI/docs/release
+- [ ] [#29762](https://github.com/ethereum/go-ethereum/pull/29762) core: move balanceCheck addition in buyGas `core` **consensus**
+- [~] [#29485](https://github.com/ethereum/go-ethereum/pull/29485) trie, eth/protocols/snap: sanitize the committed node data `qrl/protocols`, `trie` **consensus** — port open
+- [ ] [#29809](https://github.com/ethereum/go-ethereum/pull/29809) trie: update the `valid` function comments `trie` **consensus**
+- [ ] [#29811](https://github.com/ethereum/go-ethereum/pull/29811) eth/tracers: fix basefee context for traceBlock `qrl/tracers`
+- [ ] [#29784](https://github.com/ethereum/go-ethereum/pull/29784) internal/ethapi: fix typos `internal/qrlapi`
+- [ ] [#29795](https://github.com/ethereum/go-ethereum/pull/29795) eth/tracers: fix json logger for evm blocktest `qrl/tracers`
+- [-] [#29777](https://github.com/ethereum/go-ethereum/pull/29777) Makefile: add fmt, update help — build/CI/docs/release
+- [ ] [#29821](https://github.com/ethereum/go-ethereum/pull/29821) metrics: fix out of range error message `metrics`
+- [ ] [#29572](https://github.com/ethereum/go-ethereum/pull/29572) p2p/discover: improved node revalidation `cmd/devp2p`, `internal/testlog`, `node`, `p2p`
+- [ ] [#29801](https://github.com/ethereum/go-ethereum/pull/29801) p2p/enode: fix endpoint determination for IPv6 `p2p/enode`, `p2p/enr`
+- [ ] [#29827](https://github.com/ethereum/go-ethereum/pull/29827) p2p/enode: fix TCPEndpoint `p2p/enode`
+- [ ] [#29832](https://github.com/ethereum/go-ethereum/pull/29832) metrics: fix flaky test`TestExpDecaySampleNanosecondRegression` `metrics`
+- [ ] [#29828](https://github.com/ethereum/go-ethereum/pull/29828) p2p: fix typos `p2p`, `p2p/discover`
+- [ ] [#29831](https://github.com/ethereum/go-ethereum/pull/29831) metrics: add test for `SampleSnapshot.Sum` `metrics`
+- [ ] [#29839](https://github.com/ethereum/go-ethereum/pull/29839) core/types: clarify set inclusion in comments `core/types` **consensus**
+- [ ] [#29843](https://github.com/ethereum/go-ethereum/pull/29843) metrics: fix function comment `metrics`
+- [ ] [#29841](https://github.com/ethereum/go-ethereum/pull/29841) core, eth/protocols/snap, internal/ethapi: remove redundant types `core`, `internal/qrlapi`, `qrl/protocols` **consensus**
+- [ ] [#29853](https://github.com/ethereum/go-ethereum/pull/29853) miner: fix TestBuildPayload sporadic failure `miner`
+- [ ] [#29852](https://github.com/ethereum/go-ethereum/pull/29852) eth/downloader: fix flaky test `qrl/downloader`
+- [ ] [#29824](https://github.com/ethereum/go-ethereum/pull/29824) eth/tracers: clear error for non-reverting pre-homestead fail `qrl/tracers`
+- [ ] [#29842](https://github.com/ethereum/go-ethereum/pull/29842) all: improve some error strings `beacon/types`, `cmd/clef`, `core`, `core/types` **consensus**
+- [ ] [#29799](https://github.com/ethereum/go-ethereum/pull/29799) core/vm/runtime: set random to enable merge-opcodes `core/vm` **consensus**
+- [ ] [#29767](https://github.com/ethereum/go-ethereum/pull/29767) core/state: fix typos in comments `core/state` **consensus**
+- [ ] [#29714](https://github.com/ethereum/go-ethereum/pull/29714) cmd/geth: update testdata (vulncheck) `cmd/gqrl`
+- [ ] [#29823](https://github.com/ethereum/go-ethereum/pull/29823) core/rawdb, triedb/pathdb: fix freezer read-only option `core/rawdb`, `triedb/pathdb` **consensus**
+- [ ] [#29864](https://github.com/ethereum/go-ethereum/pull/29864) p2p/discover: fix crash when revalidated node is removed `p2p/discover` **security?**
+- [ ] [#29711](https://github.com/ethereum/go-ethereum/pull/29711)  eth, eth/downloader: remove references to LightChain, LightSync `qrl`, `qrl/downloader`
+- [ ] [#29768](https://github.com/ethereum/go-ethereum/pull/29768) core/state: remove unused error from prefetcher trie method `core/state` **consensus**
+- [ ] [#29836](https://github.com/ethereum/go-ethereum/pull/29836) p2p/discover: fix update logic in handleAddNode `p2p/discover`
+- [-] [#29763](https://github.com/ethereum/go-ethereum/pull/29763) go.mod: update a number of dependencies — build/CI/docs/release
+- [ ] [#29874](https://github.com/ethereum/go-ethereum/pull/29874) p2p/simulations: remove stale information about docker adapter `p2p/simulations`
+- [ ] [#29872](https://github.com/ethereum/go-ethereum/pull/29872) p2p/nodestate: remove unused package `p2p/nodestate`
+- [ ] [#29867](https://github.com/ethereum/go-ethereum/pull/29867) accounts: fix TestUpdateKeyfileContents `accounts/keystore`
+- [ ] [#29873](https://github.com/ethereum/go-ethereum/pull/29873) all: fix typos in comments `cmd/gqrl`, `core/bloombits`, `qrl/protocols`, `qrldb/leveldb`
+- [ ] [#29707](https://github.com/ethereum/go-ethereum/pull/29707) eth/downloader, eth/tracer: fix typos in comments `qrl/downloader`, `qrl/tracers`
+- [ ] [#29639](https://github.com/ethereum/go-ethereum/pull/29639) core/state: fix typo in comment `core/state` **consensus**
+- [ ] [#29844](https://github.com/ethereum/go-ethereum/pull/29844) p2p/discover: refactor node and endpoint representation `cmd/devp2p`, `p2p`, `p2p/discover`
+- [-] [#29875](https://github.com/ethereum/go-ethereum/pull/29875) build: upgrade to golangci-lint v1.59.0 — build/CI/docs/release
+- [ ] [#29879](https://github.com/ethereum/go-ethereum/pull/29879) cmd/devp2p: fix node.TCP -> node.UDP `cmd/devp2p`
+- [ ] [#29876](https://github.com/ethereum/go-ethereum/pull/29876) eth/catalyst: ensure TxPool is synced in Fork `qrl/catalyst`
+- [ ] [#29888](https://github.com/ethereum/go-ethereum/pull/29888) ethdb: remove unnecessary function wrapper `qrldb/dbtest`, `qrldb/pebble`
+- [-] [#29889](https://github.com/ethereum/go-ethereum/pull/29889) crypto/secp256k1: change receiver variable name to lowercase `crypto/secp256k1` — n/a
+- [ ] [#29892](https://github.com/ethereum/go-ethereum/pull/29892) eth/gasprice: add comment to constant `qrl/gasprice`
+- [ ] [#29890](https://github.com/ethereum/go-ethereum/pull/29890) common/math: rename variable name `int` to `n` `common/math`
+- [ ] [#29895](https://github.com/ethereum/go-ethereum/pull/29895) miner: lower default min miner tip from 1 gwei to 0.001 gwei `miner`
+- [-] [#29899](https://github.com/ethereum/go-ethereum/pull/29899) CODEOWNERS: @s1na owns core/tracing — build/CI/docs/release
+- [ ] [#29347](https://github.com/ethereum/go-ethereum/pull/29347) Supply delta live tracer `core/tracing`, `qrl/tracers`
+- [ ] [#29530](https://github.com/ethereum/go-ethereum/pull/29530) core/state: introduce stateupdate structure `core`, `core/state` **consensus**
+- [ ] [#29887](https://github.com/ethereum/go-ethereum/pull/29887) cmd/evm/internal/t8ntool: fix a typo `cmd/qrvm`
+- [ ] [#29903](https://github.com/ethereum/go-ethereum/pull/29903) beacon/engine: prealloc capacity for map and slice `beacon/engine`
+- [ ] [#29883](https://github.com/ethereum/go-ethereum/pull/29883) log: fix a typo `log`
+- [ ] [#29893](https://github.com/ethereum/go-ethereum/pull/29893) core/rawdb,eth/protocols,p2p: prealloc slice size `qrl/protocols`
+- [ ] [#29919](https://github.com/ethereum/go-ethereum/pull/29919) core/state: prefetch account trie while starting a prefetcher `core/state` **consensus**
+- [ ] [#27838](https://github.com/ethereum/go-ethereum/pull/27838) trie: iterate values pre-order and fix seek behavior `trie` **consensus**
+- [ ] [#29738](https://github.com/ethereum/go-ethereum/pull/29738) internal/ethapi: recap higher args.Gas with block GasLimit in DoEstimateGas `internal/qrlapi`
+- [ ] [#29924](https://github.com/ethereum/go-ethereum/pull/29924) core/state: avoid data race `core/state` **consensus**
+- [-] [5550d8399f](https://github.com/ethereum/go-ethereum/commit/5550d8399f) params: release Geth v1.14.4 `params` — build/CI/docs/release
+
+## v1.14.5 (2024-06-06): 9 commits, 6 to review
+
+- [-] [fc40d68e5b](https://github.com/ethereum/go-ethereum/commit/fc40d68e5b) params: begin v1.14.5 release cycle `params` — build/CI/docs/release
+- [ ] [#29932](https://github.com/ethereum/go-ethereum/pull/29932) core/state, eth/tracers: fix typos `core/state`, `qrl/tracers` **consensus**
+- [ ] [#29913](https://github.com/ethereum/go-ethereum/pull/29913) core/rawdb: remove unused deriveLogFields `core/rawdb`
+- [ ] [#29891](https://github.com/ethereum/go-ethereum/pull/29891) p2p: use netip.Addr where possible `cmd/devp2p`, `p2p`, `p2p/discover`, `p2p/enode`
+- [-] [#29938](https://github.com/ethereum/go-ethereum/pull/29938) build: upgrade -dlgo version to Go 1.22.4 — build/CI/docs/release
+- [ ] [#29936](https://github.com/ethereum/go-ethereum/pull/29936) rlp: no need to repeat called len method `rlp`
+- [ ] [#29942](https://github.com/ethereum/go-ethereum/pull/29942) p2p/netutil: fix comments `p2p/netutil`
+- [ ] [#29944](https://github.com/ethereum/go-ethereum/pull/29944) p2p/discover: unwrap 4-in-6 UDP source addresses `p2p/discover`
+- [-] [0dd173a727](https://github.com/ethereum/go-ethereum/commit/0dd173a727) params: release Geth v1.14.5 `params` — build/CI/docs/release
+
+## v1.15.0 (2025-02-06): 468 commits, 363 to review
+
+- [-] [4461c1fc17](https://github.com/ethereum/go-ethereum/commit/4461c1fc17) params: begin v1.14.6 release cycle `params` — build/CI/docs/release
+- [ ] [#29930](https://github.com/ethereum/go-ethereum/pull/29930) cmd/evm/internal/t8ntool: remove unused parameter `cmd/qrvm`
+- [-] [6a49d13c13](https://github.com/ethereum/go-ethereum/commit/6a49d13c13) go.mod : tidy — build/CI/docs/release
+- [-] [#29954](https://github.com/ethereum/go-ethereum/pull/29954) cmd/clef, cmd/evm: fix markdown issues in README — build/CI/docs/release
+- [ ] [#29952](https://github.com/ethereum/go-ethereum/pull/29952) cmd/geth: remove unused param `cmd/gqrl`
+- [ ] [#29960](https://github.com/ethereum/go-ethereum/pull/29960) p2p/discover: add missing lock when calling tab.handleAddNode `p2p/discover`
+- [ ] [#29957](https://github.com/ethereum/go-ethereum/pull/29957) p2p: use package slices to sort in PeersInfo `p2p`
+- [ ] [#29963](https://github.com/ethereum/go-ethereum/pull/29963) core: initialize developer genesis beacon root contract with 0 balance `core` **consensus**
+- [ ] [#29964](https://github.com/ethereum/go-ethereum/pull/29964) core, rlp: remove duplicated words `core/state` **consensus**
+- [ ] [#29807](https://github.com/ethereum/go-ethereum/pull/29807) cmd, core: prefetch reads too from tries if requested `cmd/gqrl`, `cmd/utils`, `core`, `core/state` **consensus**
+- [ ] [#29921](https://github.com/ethereum/go-ethereum/pull/29921) core/state: rename all the AccessList receivers to 'al' `core/state` **consensus**
+- [ ] [#29970](https://github.com/ethereum/go-ethereum/pull/29970) ethconfig: regenerate config `qrl/ethconfig`
+- [ ] [#29972](https://github.com/ethereum/go-ethereum/pull/29972) cmd/devp2p: fix log output `cmd/devp2p`
+- [-] [#29926](https://github.com/ethereum/go-ethereum/pull/29926) .github: disable cache in actions run — build/CI/docs/release
+- [-] [#29894](https://github.com/ethereum/go-ethereum/pull/29894) p2p/simulations: update doc of HTTP endpoints — build/CI/docs/release
+- [ ] [#29974](https://github.com/ethereum/go-ethereum/pull/29974) all: fix inconsistent receiver name and add lint rule for it `beacon/light`, `core/txpool`, `core/types`, `internal/qrlapi` **consensus**
+- [ ] [#29943](https://github.com/ethereum/go-ethereum/pull/29943) accounts: avoid duplicate regex compilation `accounts/abi`, `accounts/scwallet`
+- [ ] [#29869](https://github.com/ethereum/go-ethereum/pull/29869) core/state, eth/protocols, trie, triedb/pathdb:  remove unused error from trie Commit `core/state`, `qrl/protocols`, `trie`, `trie/triestate` **consensus**
+- [-] [#29946](https://github.com/ethereum/go-ethereum/pull/29946) beacon/light: fix shutdown issues `beacon/light` — n/a
+- [ ] [#29988](https://github.com/ethereum/go-ethereum/pull/29988) trie/triedb: add Reader to backend interface `triedb`, `triedb/hashdb` **consensus**
+- [ ] [#30001](https://github.com/ethereum/go-ethereum/pull/30001) core/state/snapshot: add a missing lock `core/state` **consensus**
+- [-] [#30010](https://github.com/ethereum/go-ethereum/pull/30010) go.mod: update Pebble to sort out a deleted upstream dependency — build/CI/docs/release
+- [ ] [#29907](https://github.com/ethereum/go-ethereum/pull/29907) log: fix some functions comments `log`
+- [ ] [#29986](https://github.com/ethereum/go-ethereum/pull/29986) trie, triedb/pathdb: prealloc capacity for map and slice `trie`, `trie/trienode`, `triedb/pathdb` **consensus**
+- [ ] [#29985](https://github.com/ethereum/go-ethereum/pull/29985) triedb/pathdb: use maps.Clone and maps.Keys `triedb/pathdb` **consensus**
+- [ ] [#30014](https://github.com/ethereum/go-ethereum/pull/30014) common/math: fix out of bounds access in json unmarshalling `common/math` **security?**
+- [ ] [#30011](https://github.com/ethereum/go-ethereum/pull/30011) core/state/snapshot: acquire the lock on Release `core/state` **consensus**
+- [ ] [#29948](https://github.com/ethereum/go-ethereum/pull/29948) cmd/geth, ethdb/pebble: improve database statistic `cmd/gqrl`, `core/rawdb`, `internal/qrlapi`, `internal/web3ext` **consensus**
+- [ ] [#30024](https://github.com/ethereum/go-ethereum/pull/30024) trie: don't reset tracer at the end of Commit `trie` **consensus**
+- [ ] [#30020](https://github.com/ethereum/go-ethereum/pull/30020) common: using `ParseUint` instead of `ParseInt` `common`
+- [-] [#29989](https://github.com/ethereum/go-ethereum/pull/29989) core/txpool/blobpool: change rw-lock to r-lock `core/txpool` — n/a
+- [ ] [#30019](https://github.com/ethereum/go-ethereum/pull/30019) trie/trienode: avoid unnecessary copy `qrl/protocols`, `trie/trienode` **consensus**
+- [ ] [#30029](https://github.com/ethereum/go-ethereum/pull/30029) p2p/rlpx: 2KB maximum size for handshake messages `p2p/rlpx`
+- [ ] [#29995](https://github.com/ethereum/go-ethereum/pull/29995) core/state/snapshot: tiny fixes `core/state` **consensus**
+- [ ] [#30039](https://github.com/ethereum/go-ethereum/pull/30039) Revert "core/state/snapshot: tiny fixes" `core/state` **consensus**
+- [ ] [#30023](https://github.com/ethereum/go-ethereum/pull/30023) p2p/discover: improve flaky revalidation tests `p2p/discover`
+- [-] [#30065](https://github.com/ethereum/go-ethereum/pull/30065) cmd/blsync: use debug.Setup for logging configuration `cmd/blsync` — n/a
+- [-] [#30062](https://github.com/ethereum/go-ethereum/pull/30062) .github: add lightclient as codeowner to relevant packages — build/CI/docs/release
+- [ ] [#30052](https://github.com/ethereum/go-ethereum/pull/30052) accounts/keystore: use t.TempDir in test `accounts/keystore`
+- [ ] [#30044](https://github.com/ethereum/go-ethereum/pull/30044) internal/debug: remove unnecessary log level assignment `internal/debug`
+- [ ] [#29719](https://github.com/ethereum/go-ethereum/pull/29719) all: stateless witness builder and (self-)cross validator `cmd/qrvm`, `core`, `core/state`, `core/stateless` **consensus**
+- [-] [#30048](https://github.com/ethereum/go-ethereum/pull/30048) core/txpool/blobpool: avoid use *map as parameter. `core/txpool` — n/a
+- [ ] [#30047](https://github.com/ethereum/go-ethereum/pull/30047) trie/trienode: remove unnecessary check in Summary `trie/trienode` **consensus**
+- [ ] [#30071](https://github.com/ethereum/go-ethereum/pull/30071) eth/tracers,trie: remove unnecessary check `qrl/tracers`, `trie` **consensus**
+- [ ] [#29861](https://github.com/ethereum/go-ethereum/pull/29861) trie: relocate state execution logic into pathdb package `trie`, `trie/triestate`, `triedb`, `triedb/database` **consensus**
+- [ ] [#29901](https://github.com/ethereum/go-ethereum/pull/29901) triedb/pathdb: fix flaky test in pathdb `triedb/pathdb` **consensus**
+- [-] [#30050](https://github.com/ethereum/go-ethereum/pull/30050) core/txpool/blobpool: improve newPriceHeap function `core/txpool` — n/a
+- [ ] [#30038](https://github.com/ethereum/go-ethereum/pull/30038) cmd/evm/internal/t8ntool: log writeTraceResult error message `cmd/qrvm`
+- [ ] [#29911](https://github.com/ethereum/go-ethereum/pull/29911) all: replace division with right shift if possible `cmd/qrvm`, `consensus/ethash`, `core/types`, `core/vm` **consensus**
+- [ ] [#30028](https://github.com/ethereum/go-ethereum/pull/30028) rpc: truncate call error data logs `rpc`
+- [ ] [#30058](https://github.com/ethereum/go-ethereum/pull/30058) accounts/usbwallet/trezor: upgrade to generate with protoc 27.1 `accounts/usbwallet`
+- [ ] [#30037](https://github.com/ethereum/go-ethereum/pull/30037) build:  add check for stale generated files `accounts/usbwallet`, `core/tracing`, `internal/build`
+- [ ] [#29753](https://github.com/ethereum/go-ethereum/pull/29753) core/state: fix inconsistent verkle test error messages `core/state` **consensus**
+- [ ] [#30098](https://github.com/ethereum/go-ethereum/pull/30098) accounts/abi: embed Go template instead of string literal `accounts/abi`
+- [-] [6f2e1cff47](https://github.com/ethereum/go-ethereum/commit/6f2e1cff47) params: release Geth v1.14.6 `params` — build/CI/docs/release
+- [-] [640e0f15fd](https://github.com/ethereum/go-ethereum/commit/640e0f15fd) params: begin v1.14.7 release cycle `params` — build/CI/docs/release
+- [-] [#30112](https://github.com/ethereum/go-ethereum/pull/30112) build: upgrade -dlgo version to Go 1.22.5 — build/CI/docs/release
+- [ ] [#30126](https://github.com/ethereum/go-ethereum/pull/30126) crypto: remove hardcoded value for secp256k1.N `crypto`
+- [-] [#30134](https://github.com/ethereum/go-ethereum/pull/30134) go.mod: update uint256 to 1.3.0 — build/CI/docs/release
+- [ ] [#30131](https://github.com/ethereum/go-ethereum/pull/30131) eth/catalyst: fix params in failure log `qrl/catalyst`
+- [-] [#30142](https://github.com/ethereum/go-ethereum/pull/30142) core/txpool/blobpool: revert #29989, WLock on Nonce `core/txpool` — n/a
+- [-] [0aafbb31ab](https://github.com/ethereum/go-ethereum/commit/0aafbb31ab) params: go-ethereum v1.14.7 stable `params` — build/CI/docs/release
+- [-] [bcaf3747f8](https://github.com/ethereum/go-ethereum/commit/bcaf3747f8) params: begin v1.14.8 release cycle `params` — build/CI/docs/release
+- [ ] [#29760](https://github.com/ethereum/go-ethereum/pull/29760) core/state: fix prefetcher for verkle `core/state` **consensus**
+- [-] [#30148](https://github.com/ethereum/go-ethereum/pull/30148) core/txpool/blobpool: use nonce from argument instead of tx.Nonce() `core/txpool` — n/a
+- [ ] [#30135](https://github.com/ethereum/go-ethereum/pull/30135) trie: add RollBackAccount function to verkle trees `trie` **consensus**
+- [~] [#30158](https://github.com/ethereum/go-ethereum/pull/30158) p2p: fix ip change log parameter `p2p` — port open
+- [ ] [#30127](https://github.com/ethereum/go-ethereum/pull/30127) cmd/utils: fix typo in flag description `cmd/utils`
+- [ ] [#30157](https://github.com/ethereum/go-ethereum/pull/30157) core/types: don't modify signature V when reading large chainID `core/types` **consensus**
+- [-] [#30123](https://github.com/ethereum/go-ethereum/pull/30123) SECURITY.md: correct PGP key block formatting — build/CI/docs/release
+- [ ] [#30150](https://github.com/ethereum/go-ethereum/pull/30150) all: simplify tests using t.TempDir() `accounts/keystore`, `cmd/clef`, `cmd/devp2p`, `cmd/gqrl`
+- [ ] [#30138](https://github.com/ethereum/go-ethereum/pull/30138) eth/catalyst: fix (*SimulatedBeacon).AdjustTime() conversion `qrl/catalyst`, `qrlclient/simulated`
+- [ ] [#30167](https://github.com/ethereum/go-ethereum/pull/30167) trie, triedb: remove unnecessary child resolver interface `trie`, `triedb`, `triedb/hashdb` **consensus**
+- [ ] [#30091](https://github.com/ethereum/go-ethereum/pull/30091) core/txpool/legacypool: use maps.Keys and maps.Copy `core/txpool`
+- [ ] [#30130](https://github.com/ethereum/go-ethereum/pull/30130) core/state: don't compute verkle storage tree roots `core/state` **consensus**
+- [ ] [#30105](https://github.com/ethereum/go-ethereum/pull/30105) core/rawdb, triedb, cmd: create an isolated disk namespace for verkle `cmd/gqrl`, `core`, `core/rawdb`, `triedb` **consensus**
+- [ ] [#30172](https://github.com/ethereum/go-ethereum/pull/30172) p2p/discover: remove type encPubkey `p2p/discover`
+- [ ] [#30181](https://github.com/ethereum/go-ethereum/pull/30181) go.mod: upgrade to btcsuite/btcd/btcec v2.3.4 `crypto`
+- [ ] [#30189](https://github.com/ethereum/go-ethereum/pull/30189) ethdb: remove snapshot `core/rawdb`, `qrldb`, `qrldb/dbtest`, `qrldb/leveldb` **consensus**
+- [ ] [#30080](https://github.com/ethereum/go-ethereum/pull/30080) eth/gasprice: remove default from config `qrl`, `qrl/gasprice`
+- [ ] [#30193](https://github.com/ethereum/go-ethereum/pull/30193) rpc: use stable object in notifier test `rpc`
+- [ ] [#30184](https://github.com/ethereum/go-ethereum/pull/30184) core/state: remove useless metrics `core/state` **consensus**
+- [ ] [#30191](https://github.com/ethereum/go-ethereum/pull/30191) rpc: show more error detail for `invalidMessageError` `rpc`
+- [-] [#30211](https://github.com/ethereum/go-ethereum/pull/30211) core/tracing: update latest release version — build/CI/docs/release
+- [ ] [#30208](https://github.com/ethereum/go-ethereum/pull/30208) core/txpool: use the cached address in ValidateTransactionWithState `core/txpool`
+- [ ] [#30171](https://github.com/ethereum/go-ethereum/pull/30171) core/state: check db error after intermediate call `core/state` **consensus**
+- [ ] [#30203](https://github.com/ethereum/go-ethereum/pull/30203) cmd/utils: allow configurating blob pool from flags `cmd/utils`
+- [ ] [#30185](https://github.com/ethereum/go-ethereum/pull/30185) core/state: fix SetStorage override behavior `core/state`, `internal/qrlapi` **consensus**
+- [ ] [#30200](https://github.com/ethereum/go-ethereum/pull/30200) triedb/pathdb: print out all trie owner and hash information `triedb/pathdb` **consensus**
+- [ ] [#30182](https://github.com/ethereum/go-ethereum/pull/30182) beacon/types, cmd/devp2p, p2p/enr: clean up uses of fmt.Errorf `beacon/types`, `cmd/devp2p`, `p2p/enr`
+- [ ] [#30094](https://github.com/ethereum/go-ethereum/pull/30094) eth/tracers, internal/ethapi: remove unnecessary map pointer in state override `internal/qrlapi`, `qrl/tracers`
+- [ ] [#30228](https://github.com/ethereum/go-ethereum/pull/30228) internal/ethapi: fix state override test `internal/qrlapi`
+- [ ] [#30234](https://github.com/ethereum/go-ethereum/pull/30234) p2p/nat: return correct port for ExtIP NAT `p2p/nat`
+- [ ] [#30241](https://github.com/ethereum/go-ethereum/pull/30241) p2p: fix flaky test TestServerPortMapping `p2p`
+- [ ] [#30239](https://github.com/ethereum/go-ethereum/pull/30239) p2p/discover: schedule revalidation also when all nodes are excluded `p2p/discover`
+- [ ] [#30248](https://github.com/ethereum/go-ethereum/pull/30248) miner: remove outdated comment `miner`
+- [ ] [#30219](https://github.com/ethereum/go-ethereum/pull/30219) eth/downloader: correct sync mode logging to show old mode `qrl/downloader`
+- [ ] [#30232](https://github.com/ethereum/go-ethereum/pull/30232) all: remove deprecated protobuf dependencies `accounts/usbwallet`
+- [ ] [#30195](https://github.com/ethereum/go-ethereum/pull/30195) accounts/abi/bind: add accessList support to base bond contract `accounts/abi`
+- [ ] [#30253](https://github.com/ethereum/go-ethereum/pull/30253) internal/debug: remove memsize `cmd/gqrl`, `internal/debug`
+- [ ] [#30261](https://github.com/ethereum/go-ethereum/pull/30261) eth/downloader: gofmt `qrl/downloader`
+- [ ] [#30259](https://github.com/ethereum/go-ethereum/pull/30259) cmd/evm: don't overwrite sender account `cmd/qrvm`
+- [ ] [#30267](https://github.com/ethereum/go-ethereum/pull/30267) eth/catalyst: get params.ExcessBlobGas but check with params.BlobGasUsed `qrl/catalyst`
+- [ ] [#30268](https://github.com/ethereum/go-ethereum/pull/30268) params: remove unused les parameters `params`
+- [ ] [#30257](https://github.com/ethereum/go-ethereum/pull/30257) core/vm/runtime: ensure tracer benchmark calls `OnTxStart` `core/vm` **consensus**
+- [ ] [#30263](https://github.com/ethereum/go-ethereum/pull/30263) ethclient: support networkID in hex format `qrlclient`
+- [ ] [#30249](https://github.com/ethereum/go-ethereum/pull/30249) core/vm: improved stack swap performance `core/vm` **consensus**
+- [ ] [#30277](https://github.com/ethereum/go-ethereum/pull/30277) signer/core: improve performance of isPrimitiveTypeValid function (#30274) `signer/core`
+- [ ] [#30252](https://github.com/ethereum/go-ethereum/pull/30252) core/vm: use uint64 in memory for indices everywhere `core/vm` **consensus**
+- [-] [#30273](https://github.com/ethereum/go-ethereum/pull/30273) build: upgrade -dlgo version to Go 1.22.6 — build/CI/docs/release
+- [ ] [#30272](https://github.com/ethereum/go-ethereum/pull/30272) tests: fix TransactionTest to actually run `tests`
+- [ ] [#30276](https://github.com/ethereum/go-ethereum/pull/30276) eth/downloader, core/types: take withdrawals-size into account in downloader queue `core/types`, `qrl/downloader` **consensus**
+- [ ] [#30281](https://github.com/ethereum/go-ethereum/pull/30281) cmd/evm: fix evm basefee `cmd/qrvm`
+- [-] [#30280](https://github.com/ethereum/go-ethereum/pull/30280) go.mod: update uint256 to 1.3.1 — build/CI/docs/release
+- [ ] [#29721](https://github.com/ethereum/go-ethereum/pull/29721) beacon/engine, consensus/beacon: use params.MaximumExtraDataSize instead of hard-coded value `beacon/engine`, `consensus/beacon` **consensus**
+- [ ] [#30250](https://github.com/ethereum/go-ethereum/pull/30250) p2p/simulations: remove packages `cmd/p2psim`, `p2p`, `p2p/pipes`, `p2p/rlpx`
+- [~] [#30258](https://github.com/ethereum/go-ethereum/pull/30258) eth/protocols/snap: cleanup dangling account trie nodes due to incomplete storage `qrl/protocols`, `trie` **consensus** — port open
+- [-] [880511dc39](https://github.com/ethereum/go-ethereum/commit/880511dc39) params: release go-ethereum v1.14.8 stable `params` — build/CI/docs/release
+- [-] [1cf3b5d38a](https://github.com/ethereum/go-ethereum/commit/1cf3b5d38a) params: begin v1.14.9 release cycle `params` — build/CI/docs/release
+- [-] [#30290](https://github.com/ethereum/go-ethereum/pull/30290) go.mod: remove github.com/julienschmidt/httprouter — build/CI/docs/release
+- [-] [#30291](https://github.com/ethereum/go-ethereum/pull/30291) build: run 'go mod tidy' check as part of lint — build/CI/docs/release
+- [-] [#30247](https://github.com/ethereum/go-ethereum/pull/30247) core/txpool/blobpool: fix error message `core/txpool` — n/a
+- [-] [#30297](https://github.com/ethereum/go-ethereum/pull/30297) go.mod: upgrade to pebble v1.1.2 — build/CI/docs/release
+- [ ] [#30299](https://github.com/ethereum/go-ethereum/pull/30299) core: only compute state root once `core` **consensus**
+- [-] [2f2e5b088a](https://github.com/ethereum/go-ethereum/commit/2f2e5b088a) .golangci.yml: remove lint warning for TxLookupLimit — build/CI/docs/release
+- [ ] [#30288](https://github.com/ethereum/go-ethereum/pull/30288) eth/fetcher: always expect transaction metadata in announcement `qrl/fetcher`
+- [ ] [#30298](https://github.com/ethereum/go-ethereum/pull/30298) eth/ethconfig: remove LES server config `cmd/gqrl`, `cmd/utils`, `qrl`, `qrl/ethconfig`
+- [ ] [#30231](https://github.com/ethereum/go-ethereum/pull/30231) eth/tracers/js: add coinbase addr to ctx `qrl/tracers`
+- [ ] [#30302](https://github.com/ethereum/go-ethereum/pull/30302) eth: dial nodes from discv5 `qrl`, `qrl/protocols`
+- [-] [#30306](https://github.com/ethereum/go-ethereum/pull/30306) beacon/light: handle endpoint URL more gracefully `beacon/light` — n/a
+- [ ] [#30286](https://github.com/ethereum/go-ethereum/pull/30286) core: remove withdrawal length check for state processor `core` **consensus**
+- [ ] [#30292](https://github.com/ethereum/go-ethereum/pull/30292) vm: simplify error handling in `vm.EVM.create()` `core/vm` **consensus**
+- [ ] [#30320](https://github.com/ethereum/go-ethereum/pull/30320) internal/build: include git-date on detached head `internal/build`
+- [-] [#30322](https://github.com/ethereum/go-ethereum/pull/30322) build: remove mantic from ppa builds — build/CI/docs/release
+- [ ] [#30325](https://github.com/ethereum/go-ethereum/pull/30325) gitignore: ignore upload-artefacts `.gitignore`
+- [ ] [#30264](https://github.com/ethereum/go-ethereum/pull/30264) eth/catalyst: ensure period zero mode leaves no pending txs in pool `qrl/catalyst`
+- [ ] [#30315](https://github.com/ethereum/go-ethereum/pull/30315) accounts/abi: handle ABIs with contract type parameter `accounts/abi`
+- [ ] [#30331](https://github.com/ethereum/go-ethereum/pull/30331) core/rawdb: drop MigrateTable `core/rawdb`, `qrldb`, `qrldb/remotedb`
+- [ ] [#30137](https://github.com/ethereum/go-ethereum/pull/30137) core/vm: reuse Memory instances `core/vm` **consensus**
+- [-] [#30321](https://github.com/ethereum/go-ethereum/pull/30321) build: attempt at reproducible builds — build/CI/docs/release
+- [ ] [#30323](https://github.com/ethereum/go-ethereum/pull/30323) all: update to go version 1.23.0 `internal/build`
+- [ ] [#30318](https://github.com/ethereum/go-ethereum/pull/30318) rpc: add timeout to rpc client Unsubscribe `rpc`
+- [ ] [#30326](https://github.com/ethereum/go-ethereum/pull/30326) cmd/devp2p: require dns:read, dns:edit permissions for cloudflare deploy `cmd/devp2p`
+- [ ] [#30289](https://github.com/ethereum/go-ethereum/pull/30289) all: clean up goerli flag and config `beacon/blsync`, `cmd/blsync`, `cmd/clef`, `cmd/devp2p` **consensus**
+- [ ] [#30327](https://github.com/ethereum/go-ethereum/pull/30327) cmd/utils,p2p: enable discv5 by default `cmd/utils`, `p2p/discover`
+- [-] [#30319](https://github.com/ethereum/go-ethereum/pull/30319) travis.yml: use focal for builds — build/CI/docs/release
+- [ ] [#30242](https://github.com/ethereum/go-ethereum/pull/30242) trie: use go-verkle helper for speedier (*VerkleTrie).RollBackAccount `trie` **consensus**
+- [ ] [#30305](https://github.com/ethereum/go-ethereum/pull/30305) eth/protocols/eth: handle zero-count header requests `qrl/protocols`
+- [ ] [#30332](https://github.com/ethereum/go-ethereum/pull/30332) eth/tracers: avoid panic in state test runner `qrl/tracers`, `tests` **security?**
+- [-] [#30335](https://github.com/ethereum/go-ethereum/pull/30335) build: fix hash for go1.23.0.linux-riscv64.tar.gz — build/CI/docs/release
+- [-] [#30342](https://github.com/ethereum/go-ethereum/pull/30342) build: make go buildid static — build/CI/docs/release
+- [ ] [#30343](https://github.com/ethereum/go-ethereum/pull/30343) trie: avoid un-needed map copy `trie` **consensus**
+- [-] [#30336](https://github.com/ethereum/go-ethereum/pull/30336) beacon/blsync: better error information in test `beacon/blsync` — n/a
+- [-] [#30269](https://github.com/ethereum/go-ethereum/pull/30269) beacon/light/sync: basic tests for rangeLock `beacon/light` — n/a
+- [-] [#30344](https://github.com/ethereum/go-ethereum/pull/30344) build: debug travis build — build/CI/docs/release
+- [ ] [#30346](https://github.com/ethereum/go-ethereum/pull/30346) gitignore: ignore build signatures `.gitignore`
+- [-] [#30351](https://github.com/ethereum/go-ethereum/pull/30351) doc: update 2021-08-22-split-postmortem — build/CI/docs/release
+- [ ] [#29465](https://github.com/ethereum/go-ethereum/pull/29465) core: implement EIP-2935 `cmd/qrvm`, `core`, `miner`, `params` **consensus**
+- [ ] [#30353](https://github.com/ethereum/go-ethereum/pull/30353) core: add metrics for state access `core`, `core/state`, `triedb/pathdb` **consensus**
+- [ ] [#30354](https://github.com/ethereum/go-ethereum/pull/30354) core/state: fix trie prefetcher for verkle `core/state` **consensus**
+- [ ] [#30355](https://github.com/ethereum/go-ethereum/pull/30355) p2p/discover: fix Write method in metered connection `p2p/discover`
+- [ ] [#30349](https://github.com/ethereum/go-ethereum/pull/30349) accounts/abi/bind, ethclient/simulated: check SendTransaction error in tests `accounts/abi`, `qrlclient/simulated`
+- [ ] [#28880](https://github.com/ethereum/go-ethereum/pull/28880) core/state: semantic journalling (part 1) `core/state` **consensus**
+- [ ] [#30175](https://github.com/ethereum/go-ethereum/pull/30175) signer/core/apitypes: support fixed size arrays for EIP-712 typed data `signer/core`
+- [ ] [#30129](https://github.com/ethereum/go-ethereum/pull/30129) consensus/beacon, core/types: add verkle witness builder `beacon/engine`, `consensus/beacon`, `core`, `core/state` **consensus**
+- [ ] [#30357](https://github.com/ethereum/go-ethereum/pull/30357) trie, core/state: Nyota EIP-6800 & EIP-4762 spec updates `core`, `core/state`, `core/vm`, `trie` **consensus**
+- [ ] [#30364](https://github.com/ethereum/go-ethereum/pull/30364) Include tracerConfig in created tracing test `qrl/tracers`
+- [ ] [#30369](https://github.com/ethereum/go-ethereum/pull/30369) core/state: pull the verkle trie from prefetcher for empty storage root `core/state` **consensus**
+- [ ] [#30385](https://github.com/ethereum/go-ethereum/pull/30385) funding.json: add funding information file `funding.json`
+- [ ] [#29431](https://github.com/ethereum/go-ethereum/pull/29431) all: implement EIP-6110, execution layer triggered deposits `beacon/engine`, `cmd/qrvm`, `core`, `core/types` **consensus**
+- [ ] [#29179](https://github.com/ethereum/go-ethereum/pull/29179) all: remove forkchoicer and reorgNeeded `cmd/utils`, `consensus/clique`, `core`, `internal/qrlapi` **consensus**
+- [ ] [#30394](https://github.com/ethereum/go-ethereum/pull/30394) core: fix compilation error `core`
+- [ ] [#30391](https://github.com/ethereum/go-ethereum/pull/30391) all: remove funding verifier `funding.json`
+- [x] [#30388](https://github.com/ethereum/go-ethereum/pull/30388) node: fix flaky jwt-test `node` — in go-qrl
+- [-] [#30398](https://github.com/ethereum/go-ethereum/pull/30398) build: increase go test timeout — build/CI/docs/release
+- [ ] [#29761](https://github.com/ethereum/go-ethereum/pull/29761) core/state: state reader abstraction `cmd/gqrl`, `cmd/qrvm`, `core`, `core/state` **consensus**
+- [ ] [#30361](https://github.com/ethereum/go-ethereum/pull/30361) core/state: get rid of field pointer in journal `core/state` **consensus**
+- [-] [#30404](https://github.com/ethereum/go-ethereum/pull/30404) build: upgrade -dlgo version to Go 1.23.1 — build/CI/docs/release
+- [ ] [#27720](https://github.com/ethereum/go-ethereum/pull/27720) internal/ethapi: eth_multicall `core`, `core/vm`, `graphql`, `internal/qrlapi` **consensus**
+- [ ] [#30125](https://github.com/ethereum/go-ethereum/pull/30125) eth/fetcher: fix blob transaction propagation `cmd/devp2p`, `qrl/fetcher`
+- [ ] [#30040](https://github.com/ethereum/go-ethereum/pull/30040) core/state/snapshot: port changes from 29995 `core/state` **consensus**
+- [ ] [#30415](https://github.com/ethereum/go-ethereum/pull/30415) beacon/engine/types: remove PayloadV4 `beacon/engine`, `qrl/catalyst`
+- [ ] [#30414](https://github.com/ethereum/go-ethereum/pull/30414) core/vm: remove panic when address is not present `core/vm` **consensus** **security?**
+- [-] [#30421](https://github.com/ethereum/go-ethereum/pull/30421) beacon/light/api: fixed blsync update query `beacon/light` — n/a
+- [ ] [#30401](https://github.com/ethereum/go-ethereum/pull/30401) eth/filters: prevent concurrent access in test `qrl/filters`
+- [ ] [#30393](https://github.com/ethereum/go-ethereum/pull/30393) core/rawdb: more accurate description of freezer in docs `core/rawdb`
+- [ ] [#30409](https://github.com/ethereum/go-ethereum/pull/30409) core/state, core/vm: Nyota contract create init simplification `core/state`, `core/tracing`, `core/vm` **consensus**
+- [ ] [#30283](https://github.com/ethereum/go-ethereum/pull/30283) p2p/enode: add quic ENR entry `p2p/enode`, `p2p/enr`
+- [ ] [#30431](https://github.com/ethereum/go-ethereum/pull/30431) core/tracing: fix copy/paste error+comments in reason listing `core/tracing`
+- [-] [#30430](https://github.com/ethereum/go-ethereum/pull/30430) core/txpool/blobpool: avoid possible zero index panic `core/txpool` — n/a
+- [ ] [#30433](https://github.com/ethereum/go-ethereum/pull/30433) core/rawdb: remove unused transition status state accessors `core/rawdb`
+- [ ] [#30381](https://github.com/ethereum/go-ethereum/pull/30381) internal: run tests in parallel `internal/era`, `internal/flags`, `internal/guide`, `internal/jsre`
+- [ ] [#30372](https://github.com/ethereum/go-ethereum/pull/30372) core/types: more easily extensible tx signing `core/types` **consensus**
+- [ ] [#30437](https://github.com/ethereum/go-ethereum/pull/30437) core, trie: prealloc capacity for maps `core/stateless`, `core/txpool`, `core/types`, `trie` **consensus**
+- [ ] [#30443](https://github.com/ethereum/go-ethereum/pull/30443) core/tracing: fix typo in comment `core/tracing`
+- [ ] [#30444](https://github.com/ethereum/go-ethereum/pull/30444) core/tracing: add verkle gas change reasons to changelog `core/tracing`
+- [ ] [#30449](https://github.com/ethereum/go-ethereum/pull/30449) Revert "core/rawdb: remove unused transition status state accessors" `core/rawdb`
+- [-] [#30455](https://github.com/ethereum/go-ethereum/pull/30455) params: release go-ethereum v1.14.9 stable `params` — build/CI/docs/release
+- [-] [#30457](https://github.com/ethereum/go-ethereum/pull/30457) params: begin v1.14.10 release cycle `params` — build/CI/docs/release
+- [ ] [#30460](https://github.com/ethereum/go-ethereum/pull/30460) genesis: fix dev mode alloc `core` **consensus**
+- [ ] [#30454](https://github.com/ethereum/go-ethereum/pull/30454) core: minor fix for the log wrapper with debug purpose `core`
+- [ ] [#30367](https://github.com/ethereum/go-ethereum/pull/30367) ethdb/pebble: handle errors `qrldb/pebble`
+- [-] [#30458](https://github.com/ethereum/go-ethereum/pull/30458) .github: add release maintainers to params/ CODEOWNERS — build/CI/docs/release
+- [-] [#30479](https://github.com/ethereum/go-ethereum/pull/30479) build: fix macos builds by working around travis osx flaw — build/CI/docs/release
+- [ ] [#30069](https://github.com/ethereum/go-ethereum/pull/30069) beacon, core, eth, miner: integrate witnesses into production Geth `beacon/engine`, `cmd/gqrl`, `cmd/utils`, `core` **consensus**
+- [-] [#30491](https://github.com/ethereum/go-ethereum/pull/30491) travis: work around travis/osx/go1.23 setup bug — build/CI/docs/release
+- [ ] [#30488](https://github.com/ethereum/go-ethereum/pull/30488) cmd/utils: fix `setEtherbase` `cmd/utils`
+- [ ] [#30490](https://github.com/ethereum/go-ethereum/pull/30490) core/state: fix comment of `mode` `core/state` **consensus**
+- [ ] [#30493](https://github.com/ethereum/go-ethereum/pull/30493) core/state: commit snapshot only if the base layer exists `core/state` **consensus**
+- [ ] [#30474](https://github.com/ethereum/go-ethereum/pull/30474) internal/ethapi/api: for simulated calls, set gaspool to max value if global gascap is 0 `internal/qrlapi`
+- [ ] [#30499](https://github.com/ethereum/go-ethereum/pull/30499) core/rawdb: make sure specified state scheme is valid `core/rawdb`
+- [ ] [#30496](https://github.com/ethereum/go-ethereum/pull/30496) internal/ethapi: fix gascap 0 for eth_simulateV1 `internal/qrlapi`
+- [ ] [#30466](https://github.com/ethereum/go-ethereum/pull/30466) core/tracing, core/vm: add ContractCode to the OpContext `core/tracing`, `core/vm` **consensus**
+- [ ] [#30459](https://github.com/ethereum/go-ethereum/pull/30459) core/vm: more benchmarks for bls g1/g2-multiexp precompiles `core/vm` **consensus**
+- [ ] [#30506](https://github.com/ethereum/go-ethereum/pull/30506) p2p/discover: fix flaky tests writing to test.log after completion `p2p/discover`, `p2p/enode`
+- [-] [#30504](https://github.com/ethereum/go-ethereum/pull/30504) deps: update supranational/blst — build/CI/docs/release
+- [ ] [#30495](https://github.com/ethereum/go-ethereum/pull/30495) core/txpool, eth/catalyst: ensure gas tip retains current value upon rollback `core/txpool`, `qrl/catalyst`
+- [-] [9274f28210](https://github.com/ethereum/go-ethereum/commit/9274f28210) core/txpool/blobpool: revert part of #30437, return all reinject-addresses `core/txpool` — n/a
+- [-] [abbd3d9d21](https://github.com/ethereum/go-ethereum/commit/abbd3d9d21) core/txpool/blobpool: add test to check internal shuffling `core/txpool` — n/a
+- [ ] [#30521](https://github.com/ethereum/go-ethereum/pull/30521) Revert "core/txpool, eth/catalyst:  ensure gas tip retains current value upon rollback" `core/txpool`, `qrl/catalyst`
+- [-] [269551876e](https://github.com/ethereum/go-ethereum/commit/269551876e) params: release Geth v1.14.10 `params` — build/CI/docs/release
+- [-] [283be23817](https://github.com/ethereum/go-ethereum/commit/283be23817) params: begin v1.14.11 release cycle `params` — build/CI/docs/release
+- [ ] [#30512](https://github.com/ethereum/go-ethereum/pull/30512) p2p/discover: add config option for disabling FINDNODE liveness check `p2p/discover`
+- [-] [#30473](https://github.com/ethereum/go-ethereum/pull/30473) core/txpool/blobpool: use types.Sender instead of signer.Sender `core/txpool` — n/a
+- [-] [#30530](https://github.com/ethereum/go-ethereum/pull/30530)  build: use buildx to build multi-platform docker images — build/CI/docs/release
+- [ ] [#30465](https://github.com/ethereum/go-ethereum/pull/30465) eth/catalyst: use setcanonical instead of sethead in simulated fork `qrl/catalyst`, `qrlclient/simulated`
+- [ ] [#30527](https://github.com/ethereum/go-ethereum/pull/30527) cmd/geth: remove deprecated lightchaindata db `cmd/gqrl`, `cmd/utils`
+- [ ] [#30386](https://github.com/ethereum/go-ethereum/pull/30386) internal/ethapi: remove td field from block `cmd/utils`, `graphql`, `internal/jsre`, `internal/qrlapi`
+- [-] [f14f13bac7](https://github.com/ethereum/go-ethereum/commit/f14f13bac7) params: go-ethereum v1.14.11 stable `params` — build/CI/docs/release
+- [-] [096c4d266e](https://github.com/ethereum/go-ethereum/commit/096c4d266e) params: begin v1.14.12 release cycle `params` — build/CI/docs/release
+- [ ] [#29792](https://github.com/ethereum/go-ethereum/pull/29792) core/rawdb: freezer index repair `core/rawdb`, `triedb/pathdb` **consensus**
+- [ ] [#30532](https://github.com/ethereum/go-ethereum/pull/30532) internal/web3ext: rm unused modules `internal/web3ext`
+- [ ] [#30418](https://github.com/ethereum/go-ethereum/pull/30418) core/vm, cmd/evm: implement eof validation `cmd/qrvm`, `core/asm`, `core/vm` **consensus**
+- [-] [#30485](https://github.com/ethereum/go-ethereum/pull/30485) beacon/light: optimize lock usage in `HeadTracker` `beacon/light` — n/a
+- [-] [#30544](https://github.com/ethereum/go-ethereum/pull/30544) build: upgrade -dlgo version to Go 1.23.2 — build/CI/docs/release
+- [ ] [#30432](https://github.com/ethereum/go-ethereum/pull/30432) log: remove unused parameter `log`
+- [ ] [#30425](https://github.com/ethereum/go-ethereum/pull/30425) all: implement flat deposit requests encoding `beacon/engine`, `cmd/qrvm`, `core`, `core/types` **consensus**
+- [ ] [#30520](https://github.com/ethereum/go-ethereum/pull/30520) eth/tracers: do system contract processing prior to parallel-tracing `qrl/tracers`
+- [ ] [#30563](https://github.com/ethereum/go-ethereum/pull/30563) eth/catalyst, core/txpool/blobpool: make tests output less logs `core/txpool`, `qrl/catalyst`
+- [ ] [#30562](https://github.com/ethereum/go-ethereum/pull/30562) eth/protocols/eth: remove Requests in block body `qrl/downloader`, `qrl/protocols`
+- [ ] [#30531](https://github.com/ethereum/go-ethereum/pull/30531) core/tracing: add GetTransientState method to StateDB interface `core/tracing`
+- [ ] [#30571](https://github.com/ethereum/go-ethereum/pull/30571) all: implement EIP-7002 & EIP-7251 `cmd/qrvm`, `core`, `core/types`, `internal/qrlapi` **consensus**
+- [-] [#30580](https://github.com/ethereum/go-ethereum/pull/30580) build: add support for ubuntu 24.10 — build/CI/docs/release
+- [ ] [#30584](https://github.com/ethereum/go-ethereum/pull/30584) cmd/evm: fixup issues with requests in t8n `cmd/qrvm`
+- [ ] [#30575](https://github.com/ethereum/go-ethereum/pull/30575) core: enable EIP-2935 in chain maker `core`
+- [ ] [#30545](https://github.com/ethereum/go-ethereum/pull/30545) trie: concurrent commit `trie`, `trie/trienode` **consensus**
+- [ ] [#30587](https://github.com/ethereum/go-ethereum/pull/30587) build: update to golangci-lint 1.61.0 `accounts/abi`, `cmd/devp2p`, `cmd/gqrl`, `cmd/qrvm` **consensus**
+- [ ] [#30576](https://github.com/ethereum/go-ethereum/pull/30576) beacon/engine: strip type byte in requests `beacon/blsync`, `beacon/engine`, `miner`, `qrl/catalyst`
+- [ ] [#30541](https://github.com/ethereum/go-ethereum/pull/30541) internal/ethapi: refactor `TxArgs.setCancunFeeDefaults` `internal/qrlapi`
+- [ ] [#30595](https://github.com/ethereum/go-ethereum/pull/30595) crypto: use decred secp256k1 directly `crypto`, `tests/fuzzers`
+- [ ] [#30597](https://github.com/ethereum/go-ethereum/pull/30597) beacon/engine: omit null witness field from payload envelope `beacon/engine`
+- [ ] [#30602](https://github.com/ethereum/go-ethereum/pull/30602) ethdb/pebble: switch to increasing level sizes `qrldb/pebble`
+- [ ] [#30573](https://github.com/ethereum/go-ethereum/pull/30573) core, ethdb/pebble: run pebble in non-sync mode `core`, `core/rawdb`, `qrldb/pebble`
+- [x] [#30601](https://github.com/ethereum/go-ethereum/pull/30601) core, eth, ethstats: simplify chain head events `core`, `core/txpool`, `internal/qrlapi`, `qrl` — in go-qrl
+- [ ] [#30600](https://github.com/ethereum/go-ethereum/pull/30600) core: reduce peak memory usage during reorg `core` **consensus**
+- [ ] [#30540](https://github.com/ethereum/go-ethereum/pull/30540) eth/tracers: various fixes `cmd/qrvm`, `cmd/utils`, `core/tracing`, `core/vm` **consensus**
+- [ ] [#30615](https://github.com/ethereum/go-ethereum/pull/30615) miner: send full request when resolving full payload `miner`
+- [ ] [#30603](https://github.com/ethereum/go-ethereum/pull/30603) beacon/engine,eth/catalyst: hex marshal requests in engine api `qrl/catalyst`
+- [ ] [#30537](https://github.com/ethereum/go-ethereum/pull/30537) beacon/engine, core/txpool, eth/catalyst: add engine_getBlobsV1 API `beacon/engine`, `core/txpool`, `qrl/catalyst`
+- [-] [#30622](https://github.com/ethereum/go-ethereum/pull/30622) swarm: nuke this leftover — build/CI/docs/release
+- [ ] [#30623](https://github.com/ethereum/go-ethereum/pull/30623) gitignore: get rid of some relics `.gitignore`
+- [-] [#30626](https://github.com/ethereum/go-ethereum/pull/30626) build: reenable building arm64 concurrently — build/CI/docs/release
+- [ ] [#30599](https://github.com/ethereum/go-ethereum/pull/30599) core, trie, triedb: minor changes from snapshot integration `cmd/gqrl`, `core`, `core/state`, `qrl` **consensus**
+- [ ] [#30629](https://github.com/ethereum/go-ethereum/pull/30629) core/state: fix runaway alloc caused by prefetcher heap escape `core/state` **consensus**
+- [ ] [#30636](https://github.com/ethereum/go-ethereum/pull/30636) all: get rid of custom MaxUint64 and MaxUint64 `common/math`, `core`, `core/rawdb`, `core/state` **consensus**
+- [ ] [#30637](https://github.com/ethereum/go-ethereum/pull/30637) build: get rid of ci.go -> common direct dependency `common`, `internal/build`
+- [ ] [#30639](https://github.com/ethereum/go-ethereum/pull/30639) common/math: delete some further dead code `common/math`
+- [ ] [5c3b792e61](https://github.com/ethereum/go-ethereum/commit/5c3b792e61) common/math: sigh, keep deleting dead code `common/math`
+- [ ] [#30638](https://github.com/ethereum/go-ethereum/pull/30638) build, internal, version: break ci.go/version->common dependency `cmd/gqrl`, `internal/flags`, `internal/version`, `params`
+- [ ] [#30640](https://github.com/ethereum/go-ethereum/pull/30640) eth/tracers/js: avoid compiling js bigint when not needed `qrl/tracers`
+- [ ] [#30642](https://github.com/ethereum/go-ethereum/pull/30642) consensus/clique, miner: remove clique -> accounts dependency `consensus/clique`, `miner` **consensus**
+- [ ] [#30645](https://github.com/ethereum/go-ethereum/pull/30645) common: drop BigMin and BigMax, they pollute our dep graph `common/math`, `consensus/ethash`, `consensus/misc`, `core` **consensus**
+- [ ] [#30569](https://github.com/ethereum/go-ethereum/pull/30569) core/state: move state log mechanism to a separate layer `consensus`, `consensus/beacon`, `consensus/clique`, `consensus/ethash` **consensus**
+- [ ] [#30585](https://github.com/ethereum/go-ethereum/pull/30585) crypto, tests/fuzzers: add gnark bn254 precompile methods for fuzzing `crypto/bn256`, `tests/fuzzers`
+- [ ] [#30609](https://github.com/ethereum/go-ethereum/pull/30609) all: remove TerminalTotalDifficultyPassed `cmd/devp2p`, `cmd/gqrl`, `cmd/utils`, `consensus/beacon` **consensus**
+- [ ] [#30652](https://github.com/ethereum/go-ethereum/pull/30652) eth/tracers/internal/tracertest: add missing Random to call context `qrl/tracers`
+- [-] [#30606](https://github.com/ethereum/go-ethereum/pull/30606) docs: update security policy — build/CI/docs/release
+- [ ] [#30666](https://github.com/ethereum/go-ethereum/pull/30666) core: fix tracing of system calls `core` **consensus**
+- [ ] [#30665](https://github.com/ethereum/go-ethereum/pull/30665) core/vm: remove debug printout in eof test `core/vm` **consensus**
+- [-] [#30671](https://github.com/ethereum/go-ethereum/pull/30671) beacon/blsync: add holesky config and update checkpoints `beacon/blsync`, `cmd/blsync` — n/a
+- [ ] [#30668](https://github.com/ethereum/go-ethereum/pull/30668) ethdb: add DeleteRange feature `core/rawdb`, `qrldb`, `qrldb/dbtest`, `qrldb/leveldb` **consensus**
+- [-] [#30685](https://github.com/ethereum/go-ethereum/pull/30685) build: document doGoModTidy function in ci.go — build/CI/docs/release
+- [ ] [#30687](https://github.com/ethereum/go-ethereum/pull/30687) cmd/geth: avoid hard coding the IPC name `cmd/gqrl`
+- [ ] [#30648](https://github.com/ethereum/go-ethereum/pull/30648) eth/tracers: add disableCode/Storage options for prestateTracer `qrl/tracers`
+- [ ] [#30689](https://github.com/ethereum/go-ethereum/pull/30689) core, eth, node: break rawdb -> {leveldb, pebble} dependency `core`, `core/rawdb`, `node`, `qrl/filters`
+- [ ] [#30693](https://github.com/ethereum/go-ethereum/pull/30693) ethdb: refactor Database interface `core/rawdb`, `qrldb`
+- [ ] [#30696](https://github.com/ethereum/go-ethereum/pull/30696) appveyor, build, internal: ci.go cleanups, add package dep checker `internal/build`
+- [-] [#30484](https://github.com/ethereum/go-ethereum/pull/30484) beacon/light: remove unused CommitteeChain.signerThreshold `beacon/light` — n/a
+- [ ] [#30662](https://github.com/ethereum/go-ethereum/pull/30662) core/vm: speed up push and interpreter loop `core/vm` **consensus**
+- [ ] [#30698](https://github.com/ethereum/go-ethereum/pull/30698) core: add code to witness when state object is accessed `core/state`, `core/vm` **consensus**
+- [ ] [#30705](https://github.com/ethereum/go-ethereum/pull/30705) cmd/utils, eth/ethconfig: remove some ancient leftover flag `cmd/utils`, `qrl/ethconfig`
+- [ ] [#30706](https://github.com/ethereum/go-ethereum/pull/30706) internal/flags: remove Merge, it's identical to slices.Concat `cmd/blsync`, `cmd/devp2p`, `cmd/gqrl`, `cmd/qrvm`
+- [ ] [#30707](https://github.com/ethereum/go-ethereum/pull/30707) internal/flags: remove low-use type TextMarshalerFlag `cmd/utils`, `internal/flags`
+- [ ] [#30704](https://github.com/ethereum/go-ethereum/pull/30704) all: remove `personal` RPC namespace `cmd/gqrl`, `cmd/utils`, `console`, `internal/qrlapi`
+- [ ] [#30497](https://github.com/ethereum/go-ethereum/pull/30497) eth/tracers:  flatCallTracer error compatible with parity `qrl/tracers`
+- [-] [#30716](https://github.com/ethereum/go-ethereum/pull/30716) build: use slices.Clone for copying slice — build/CI/docs/release
+- [ ] [#30724](https://github.com/ethereum/go-ethereum/pull/30724) tests/fuzzers/bls12381: more verbose fuzzing-output `tests/fuzzers`
+- [ ] [#30715](https://github.com/ethereum/go-ethereum/pull/30715) core/txpool: improve error responses with wrapped errors `core/txpool`
+- [ ] [#30713](https://github.com/ethereum/go-ethereum/pull/30713) eth/catalyst: make engine api test time independent `qrl/catalyst`
+- [ ] [#30711](https://github.com/ethereum/go-ethereum/pull/30711) core/vm/runtime: invoke tx-end hook `core/vm` **consensus**
+- [ ] [#30672](https://github.com/ethereum/go-ethereum/pull/30672) core, trie: verkle state processor tests `consensus/beacon`, `core`, `core/state`, `trie` **consensus**
+- [ ] [#30667](https://github.com/ethereum/go-ethereum/pull/30667) all: fix issues with benchmarks `core`, `core/rawdb`, `core/txpool`, `log` **consensus**
+- [ ] [#30539](https://github.com/ethereum/go-ethereum/pull/30539) eth/tracers: fill the creationMethod in flatCall `qrl/tracers`
+- [ ] [#30732](https://github.com/ethereum/go-ethereum/pull/30732) core/state: small fix in hooked statedb `core/state` **consensus**
+- [ ] [#30729](https://github.com/ethereum/go-ethereum/pull/30729) cmd/utils: change blssync.JWTSecretFlag to DirectoryFlag `cmd/utils`
+- [-] [#30728](https://github.com/ethereum/go-ethereum/pull/30728) build(deps): bump github.com/golang-jwt/jwt/v4 from 4.5.0 to 4.5.1 — build/CI/docs/release
+- [ ] [#30669](https://github.com/ethereum/go-ethereum/pull/30669) ethclient: add RevertErrorData function and example `qrlclient`
+- [ ] [#30194](https://github.com/ethereum/go-ethereum/pull/30194) ethclient/gethclient: testcase for createAccessList, make tabledriven `qrlclient/gethclient`
+- [ ] [#30538](https://github.com/ethereum/go-ethereum/pull/30538) internal/ethapi:  Set basefee for `AccessList` based on given block, not chain tip `internal/qrlapi`
+- [ ] [#30180](https://github.com/ethereum/go-ethereum/pull/30180) accounts/usbwallet: support dynamic tx `accounts/usbwallet`
+- [ ] [#30620](https://github.com/ethereum/go-ethereum/pull/30620) signer/core: extended support for EIP-712 array types `signer/core`
+- [ ] [#30442](https://github.com/ethereum/go-ethereum/pull/30442) cmd/evm:  benchmarking via `statetest` command + filter by name, index and fork `cmd/qrvm`, `tests`
+- [ ] [#30720](https://github.com/ethereum/go-ethereum/pull/30720) beacon/blsync: remove cli dependencies `beacon/blsync`, `beacon/light`, `beacon/params`, `cmd/blsync`
+- [ ] [#30686](https://github.com/ethereum/go-ethereum/pull/30686) core/state: invoke OnCodeChange-hook on selfdestruct `core/state` **consensus**
+- [ ] [#30472](https://github.com/ethereum/go-ethereum/pull/30472) trie/utils: remove unneeded initialization `trie/utils` **consensus**
+- [-] [#30739](https://github.com/ethereum/go-ethereum/pull/30739) travis: build and upload RISC-V docker images too — build/CI/docs/release
+- [ ] [#30712](https://github.com/ethereum/go-ethereum/pull/30712) core/state, triedb/database: refactor state reader `core/state`, `triedb/database` **consensus**
+- [ ] [#30417](https://github.com/ethereum/go-ethereum/pull/30417) eth/protocols/eth: add ETH68 protocol handler fuzzers `oss-fuzz.sh`, `qrl/protocols`
+- [ ] [#30741](https://github.com/ethereum/go-ethereum/pull/30741) tests: fix test panic `tests` **security?**
+- [ ] [#30439](https://github.com/ethereum/go-ethereum/pull/30439) p2p/netutil: unittests for addrutil `p2p/netutil`
+- [-] [#30740](https://github.com/ethereum/go-ethereum/pull/30740) docs: fix typo — build/CI/docs/release
+- [ ] [#30754](https://github.com/ethereum/go-ethereum/pull/30754) core/state: tests on the binary iterator `core/state` **consensus**
+- [ ] [#30737](https://github.com/ethereum/go-ethereum/pull/30737) cmd/geth: remove unlock commandline flag `accounts`, `accounts/keystore`, `cmd/gqrl`, `cmd/utils`
+- [-] [#30742](https://github.com/ethereum/go-ethereum/pull/30742) build: upgrade -dlgo version to Go 1.23.3 — build/CI/docs/release
+- [ ] [#30767](https://github.com/ethereum/go-ethereum/pull/30767) core: fix typos `core`, `core/state` **consensus**
+- [ ] [#30296](https://github.com/ethereum/go-ethereum/pull/30296) all: remove kilic dependency from bls12381 fuzzers `oss-fuzz.sh`, `tests/fuzzers`
+- [ ] [#30534](https://github.com/ethereum/go-ethereum/pull/30534) core/txpool, eth/catalyst: clear transaction pool in Rollback `core/txpool`, `qrl/catalyst`
+- [ ] [#30384](https://github.com/ethereum/go-ethereum/pull/30384) rpc: run tests in parallel `rpc`
+- [-] [c64cf28f9c](https://github.com/ethereum/go-ethereum/commit/c64cf28f9c) version: go-ethereum v1.14.12 stable `version` — build/CI/docs/release
+- [-] [66d8185aad](https://github.com/ethereum/go-ethereum/commit/66d8185aad) version: begin v1.14.13 release cycle `version` — build/CI/docs/release
+- [-] [aa63692129](https://github.com/ethereum/go-ethereum/commit/aa63692129) version: fix typo in v1.14.13 release cycle name `version` — build/CI/docs/release
+- [ ] [#30725](https://github.com/ethereum/go-ethereum/pull/30725) core/vm/program: evm bytecode-building utility `core/vm` **consensus**
+- [ ] [#30745](https://github.com/ethereum/go-ethereum/pull/30745) core, eth, internal, cmd: rework EVM constructor `cmd/qrvm`, `core`, `core/vm`, `internal/qrlapi` **consensus**
+- [ ] [#30776](https://github.com/ethereum/go-ethereum/pull/30776) core, eth, internal, miner: remove unnecessary parameters `cmd/qrvm`, `core`, `internal/qrlapi`, `miner` **consensus**
+- [ ] [#30788](https://github.com/ethereum/go-ethereum/pull/30788) internal/ethapi: remove double map-clone `internal/qrlapi`
+- [ ] [#30779](https://github.com/ethereum/go-ethereum/pull/30779) all: typos in comments `core`, `core/vm`, `trie/utils` **consensus**
+- [ ] [#30771](https://github.com/ethereum/go-ethereum/pull/30771) trie: replace custom logic with bytes.HasPrefix `trie` **consensus**
+- [ ] [#30752](https://github.com/ethereum/go-ethereum/pull/30752) core, triedb: remove destruct flag in state snapshot `core/state`, `triedb` **consensus**
+- [ ] [#30796](https://github.com/ethereum/go-ethereum/pull/30796) internal/flags: fix "flag redefined" bug for alias on custom flags `internal/flags`
+- [ ] [#30804](https://github.com/ethereum/go-ethereum/pull/30804) eth/tracers/logger: fix json-logger output missing `qrl/tracers`
+- [ ] [#30805](https://github.com/ethereum/go-ethereum/pull/30805) eth/tracers/logger: improve markdown logger `qrl/tracers`
+- [ ] [#30803](https://github.com/ethereum/go-ethereum/pull/30803) internal/ethapi: remove double map-clone `internal/qrlapi`
+- [ ] [#30785](https://github.com/ethereum/go-ethereum/pull/30785) accounts/abi:  fix MakeTopics mutation of big.Int inputs `accounts/abi`, `signer/core`
+- [ ] [#30772](https://github.com/ethereum/go-ethereum/pull/30772) core/state/snapshot: simplify snapshot rebuild `core/state` **consensus**
+- [ ] [#30807](https://github.com/ethereum/go-ethereum/pull/30807) eth/ethconfig: improve error message if TTD missing `qrl/ethconfig`
+- [ ] [#30784](https://github.com/ethereum/go-ethereum/pull/30784) core/tracing: add GetCodeHash to StateDB `core/tracing`
+- [ ] [#30810](https://github.com/ethereum/go-ethereum/pull/30810) Revert "core/state/snapshot: simplify snapshot rebuild (#30772)" `core/state` **consensus**
+- [ ] [#30780](https://github.com/ethereum/go-ethereum/pull/30780) cmd/evm: don't reuse state between iterations, show errors `cmd/qrvm`
+- [ ] [#30811](https://github.com/ethereum/go-ethereum/pull/30811) core: better document reason for dropping error on return `core`
+- [ ] [#30802](https://github.com/ethereum/go-ethereum/pull/30802) core/state/snapshot: handle legacy journal `core/state` **consensus**
+- [ ] [#30823](https://github.com/ethereum/go-ethereum/pull/30823) trie: combine validation loops in VerifyRangeProof `trie` **consensus**
+- [ ] [#30670](https://github.com/ethereum/go-ethereum/pull/30670) all: exclude empty outputs in requests commitment `beacon/engine`, `cmd/qrvm`, `core`, `core/types` **consensus**
+- [ ] [#30813](https://github.com/ethereum/go-ethereum/pull/30813) cmd/bootnode: remove bootnode utility `cmd/bootnode`
+- [ ] [#30829](https://github.com/ethereum/go-ethereum/pull/30829) core/types: add length check in CalcRequestsHash `core/types` **consensus**
+- [ ] [#30643](https://github.com/ethereum/go-ethereum/pull/30643) triedb/pathdb: track flat state changes in pathdb (snapshot integration pt 2) `triedb`, `triedb/hashdb`, `triedb/pathdb` **consensus**
+- [ ] [#30816](https://github.com/ethereum/go-ethereum/pull/30816) core/state: introduce code reader interface `core`, `core/state`, `qrl/protocols` **consensus**
+- [ ] [#30809](https://github.com/ethereum/go-ethereum/pull/30809) core: switch EVM tx context in ApplyMessage `cmd/qrvm`, `core`, `core/tracing`, `core/vm` **consensus**
+- [ ] [#30830](https://github.com/ethereum/go-ethereum/pull/30830) eth/tracers: fix state hooks in API `qrl/tracers`
+- [ ] [#30633](https://github.com/ethereum/go-ethereum/pull/30633) cmd/evm: improve block/state test runner `cmd/qrvm`, `core`, `qrl/catalyst` **consensus**
+- [ ] [#30845](https://github.com/ethereum/go-ethereum/pull/30845) fuzzing: fix oss-fuzz fuzzer `oss-fuzz.sh`
+- [ ] [#30846](https://github.com/ethereum/go-ethereum/pull/30846) internal/debug: rename --trace to --go-execution-trace `internal/debug`
+- [ ] [#30847](https://github.com/ethereum/go-ethereum/pull/30847) eth/downloader: move SyncMode to package eth/ethconfig `cmd/utils`, `qrl`, `qrl/catalyst`, `qrl/downloader`
+- [-] [#30851](https://github.com/ethereum/go-ethereum/pull/30851) CODEOWNERS: add some more entries for auto assignment — build/CI/docs/release
+- [ ] [#30806](https://github.com/ethereum/go-ethereum/pull/30806) cmd/evm, eth/tracers: refactor structlogger and make it streaming `cmd/qrvm`, `core/vm`, `qrl/tracers` **consensus**
+- [ ] [#30786](https://github.com/ethereum/go-ethereum/pull/30786) core/tracing: extends tracing.Hooks with OnSystemCallStartV2 `core`, `core/tracing` **consensus**
+- [ ] [#30856](https://github.com/ethereum/go-ethereum/pull/30856) trie/utils: ensure master can generate a correct genesis for kaustinen7 `core`, `trie`, `trie/utils` **consensus**
+- [ ] [#30871](https://github.com/ethereum/go-ethereum/pull/30871) core/txpool: remove unused parameter `local` `core/txpool`
+- [ ] [#30650](https://github.com/ethereum/go-ethereum/pull/30650) core/state: enable partial-functional reader (snapshot integration pt 3) `core/state` **consensus**
+- [ ] [#30849](https://github.com/ethereum/go-ethereum/pull/30849) cmd/evm: consolidate evm output switches `cmd/qrvm`, `qrl/tracers`
+- [ ] [#30887](https://github.com/ethereum/go-ethereum/pull/30887) core/vm: remove unnecessary comment `core/vm` **consensus**
+- [ ] [#30814](https://github.com/ethereum/go-ethereum/pull/30814) metrics, cmd/geth: change init-process of metrics `cmd/gqrl`, `cmd/utils`, `core/rawdb`, `core/state` **consensus**
+- [-] [#30872](https://github.com/ethereum/go-ethereum/pull/30872) build: update to Go 1.23.4 — build/CI/docs/release
+- [ ] [#30738](https://github.com/ethereum/go-ethereum/pull/30738) accounts/abi: support unpacking solidity errors `accounts/abi`
+- [ ] [#30891](https://github.com/ethereum/go-ethereum/pull/30891) core/state: remove pointless wrapper functions `core/state` **consensus**
+- [ ] [#30855](https://github.com/ethereum/go-ethereum/pull/30855) p2p: fix DiscReason encoding/decoding `p2p`
+- [ ] [#30695](https://github.com/ethereum/go-ethereum/pull/30695) internal/ethapi: add block override to estimateGas `.gitignore`, `graphql`, `internal/qrlapi`, `internal/web3ext`
+- [ ] [#30822](https://github.com/ethereum/go-ethereum/pull/30822) p2p: DNS resolution for static nodes `p2p`, `p2p/enode`
+- [ ] [#30078](https://github.com/ethereum/go-ethereum/pull/30078) all: implement eip-7702 set code tx `accounts/external`, `cmd/qrvm`, `core`, `core/state` **consensus**
+- [ ] [#30654](https://github.com/ethereum/go-ethereum/pull/30654) trie/pathdb: state iterator (snapshot integration pt 4) `triedb/pathdb` **consensus**
+- [ ] [#30868](https://github.com/ethereum/go-ethereum/pull/30868) core/vm, go.mod: update uint256 and use faster method to write to memory `core/vm` **consensus**
+- [ ] [#30079](https://github.com/ethereum/go-ethereum/pull/30079) accounts/abi/bind: make it possible to wait for tx hash `accounts/abi`
+- [ ] [#30924](https://github.com/ethereum/go-ethereum/pull/30924) core: fixes for Prague fork in GenerateChain `core`
+- [-] [#30921](https://github.com/ethereum/go-ethereum/pull/30921) build(deps): bump golang.org/x/crypto from 0.26.0 to 0.31.0 — build/CI/docs/release
+- [ ] [#30925](https://github.com/ethereum/go-ethereum/pull/30925) core/vm: make all opcodes proper type `core/vm` **consensus**
+- [ ] [#30926](https://github.com/ethereum/go-ethereum/pull/30926) core/types, internal/ethapi: fixes for prague RPC encoding `core/types`, `internal/qrlapi` **consensus**
+- [ ] [#30927](https://github.com/ethereum/go-ethereum/pull/30927) cmd/evm: make evm statetest accept non-json files `cmd/qrvm`
+- [ ] [#30933](https://github.com/ethereum/go-ethereum/pull/30933) core/types: updates for EIP-7702 API functions `core`, `core/types`, `internal/qrlapi`, `tests` **consensus**
+- [ ] [73a4ecf675](https://github.com/ethereum/go-ethereum/commit/73a4ecf675) core/types: rename SetCodeAuthorization 'v' to 'yParity' `core/types` **consensus**
+- [ ] [#30936](https://github.com/ethereum/go-ethereum/pull/30936) cmd/evm: update tests for SetCodeAuthorization JSON encoding change `cmd/qrvm`
+- [ ] [#30935](https://github.com/ethereum/go-ethereum/pull/30935) core, core/types: rename AuthList to SetCodeAuthorizations `cmd/qrvm`, `core`, `core/txpool`, `core/types` **consensus**
+- [ ] [#30938](https://github.com/ethereum/go-ethereum/pull/30938) params: update system contracts for prague devnet-5 `params` **consensus**
+- [ ] [#30976](https://github.com/ethereum/go-ethereum/pull/30976) internal/flags: update copyright year to 2025 `internal/flags`
+- [-] [#30974](https://github.com/ethereum/go-ethereum/pull/30974) crypto/bn256: fix MulScalar `crypto/bn256` — n/a
+- [ ] [#30958](https://github.com/ethereum/go-ethereum/pull/30958) all: use cmp.Compare `cmd/devp2p`, `core/state`, `p2p`, `triedb/pathdb` **consensus**
+- [ ] [#30923](https://github.com/ethereum/go-ethereum/pull/30923) eth/tracers/logger: skip system calls `qrl/tracers`
+- [ ] [#30981](https://github.com/ethereum/go-ethereum/pull/30981) internal/ethapi: update default simulation timestamp increment to 12 `internal/qrlapi`
+- [~] [#30973](https://github.com/ethereum/go-ethereum/pull/30973) core/rawdb: fix panic in freezer `core/rawdb` **security?** — port open
+- [ ] [#30969](https://github.com/ethereum/go-ethereum/pull/30969) core/types: improve printList in DeriveSha test `core/types` **consensus**
+- [~] [#30918](https://github.com/ethereum/go-ethereum/pull/30918) eth/protocols/eth: prevent hanging dispatch `qrl`, `qrl/protocols` — port open
+- [-] [#30980](https://github.com/ethereum/go-ethereum/pull/30980) cmd/clef: fix JS issues in documentation — build/CI/docs/release
+- [ ] [#30972](https://github.com/ethereum/go-ethereum/pull/30972) triedb/pathdb: fix tester generator `triedb/pathdb` **consensus**
+- [-] [#31005](https://github.com/ethereum/go-ethereum/pull/31005) README: remove private network section from readme — build/CI/docs/release
+- [ ] [#31008](https://github.com/ethereum/go-ethereum/pull/31008) triedb/pathdb: configure different node hasher in pathdb `core`, `core/state`, `core/types`, `internal/qrlapi` **consensus**
+- [ ] [#31019](https://github.com/ethereum/go-ethereum/pull/31019) build: upgrade golangci-lint to v1.63.4 `core/txpool`
+- [ ] [#31013](https://github.com/ethereum/go-ethereum/pull/31013) eth/tracers/logger: return revert reason `qrl/tracers`
+- [ ] [#31012](https://github.com/ethereum/go-ethereum/pull/31012) cmd/devp2p/internal/ethtest: using slices.SortFunc to simplify the code `cmd/devp2p`
+- [ ] [#30975](https://github.com/ethereum/go-ethereum/pull/30975) core/txpool/legacypool: fix flaky test TestAllowedTxSize `core/txpool`
+- [ ] [#31001](https://github.com/ethereum/go-ethereum/pull/31001) core: remove unused function parameters `core` **consensus**
+- [ ] [#30907](https://github.com/ethereum/go-ethereum/pull/30907) cmd, core, miner: rework genesis setup `cmd/gqrl`, `cmd/utils`, `core`, `miner` **consensus**
+- [x] [#31023](https://github.com/ethereum/go-ethereum/pull/31023) all: fix some typos in comments and names `accounts`, `cmd/devp2p`, `consensus/clique`, `core/tracing` — in go-qrl
+- [ ] [#30982](https://github.com/ethereum/go-ethereum/pull/30982) core/types: change SetCodeTx.ChainID to uint256 `core`, `core/types`, `internal/qrlapi`, `tests` **consensus**
+- [ ] [#31025](https://github.com/ethereum/go-ethereum/pull/31025) eth/gasprice: ensure cache purging goroutine terminates with subscription `qrl/gasprice`
+- [ ] [#31010](https://github.com/ethereum/go-ethereum/pull/31010) beacon/engine: check for empty requests `qrl/catalyst`
+- [ ] [#31029](https://github.com/ethereum/go-ethereum/pull/31029) core: use sync.Once for SenderCacher initialization `core`, `core/txpool` **consensus**
+- [ ] [#31020](https://github.com/ethereum/go-ethereum/pull/31020) core/txpool/legacypool: ensure pending nonces are reset by SubPool.Clear `core/txpool`, `qrlclient/simulated`
+- [-] [#31007](https://github.com/ethereum/go-ethereum/pull/31007) core/tracing: document `OnCodeChange` now being called from SelfDestruct — build/CI/docs/release
+- [ ] [#30107](https://github.com/ethereum/go-ethereum/pull/30107) all: implement state history v2 `cmd/gqrl`, `cmd/qrvm`, `core`, `core/state` **consensus**
+- [ ] [#31038](https://github.com/ethereum/go-ethereum/pull/31038) ethdb/memorydb: faster DeleteRange `qrldb/memorydb`
+- [ ] [#31045](https://github.com/ethereum/go-ethereum/pull/31045) cmd/abigen: require either `--abi` or `--combined-json` `cmd/abigen`
+- [ ] [#31032](https://github.com/ethereum/go-ethereum/pull/31032) core/types: correct chainId check for pragueSigner `core/types` **consensus**
+- [-] [#31037](https://github.com/ethereum/go-ethereum/pull/31037) build: upgrade -dlgo version to Go 1.23.5 — build/CI/docs/release
+- [ ] [#31054](https://github.com/ethereum/go-ethereum/pull/31054) core/types: initialize ChainID in SetCodeTx copy method `core/types` **consensus**
+- [ ] [#31030](https://github.com/ethereum/go-ethereum/pull/31030) core/txpool:  terminate subpool reset goroutine if pool was closed `core/txpool`
+- [ ] [#30854](https://github.com/ethereum/go-ethereum/pull/30854) cmd/evm: refactor handling output-files for `t8n` `cmd/qrvm`, `core/vm` **consensus**
+- [ ] [#31056](https://github.com/ethereum/go-ethereum/pull/31056) eth/filters: ensure API timeoutLoop terminates with event system `qrl/filters`
+- [-] [#31057](https://github.com/ethereum/go-ethereum/pull/31057) go.mod: remove toolchain line — build/CI/docs/release
+- [ ] [#31055](https://github.com/ethereum/go-ethereum/pull/31055) cmd/evm: restore --bench flag to evm statetest `cmd/qrvm`
+- [ ] [#31041](https://github.com/ethereum/go-ethereum/pull/31041) p2p: support configuring NAT in TOML file `p2p`, `p2p/nat`
+- [-] [#31062](https://github.com/ethereum/go-ethereum/pull/31062) go.mod: gencodec stable v0.1.0 — build/CI/docs/release
+- [ ] [#31060](https://github.com/ethereum/go-ethereum/pull/31060) triedb/pathdb: fix state revert on v2 history `triedb/pathdb` **consensus**
+- [ ] [#30743](https://github.com/ethereum/go-ethereum/pull/30743) trie: reduce allocations in stacktrie `trie` **consensus**
+- [ ] [#31071](https://github.com/ethereum/go-ethereum/pull/31071) eth/catalyst: fail on duplicate request types `qrl/catalyst`
+- [ ] [#31004](https://github.com/ethereum/go-ethereum/pull/31004) accounts/usbwallet: fix ledger access for latest firmware and add Ledger Flex `accounts/usbwallet`
+- [ ] [#30978](https://github.com/ethereum/go-ethereum/pull/30978) core/vm: implement EIP-2537 spec updates `core/vm`, `params`, `tests`, `tests/fuzzers` **consensus**
+- [ ] [#31064](https://github.com/ethereum/go-ethereum/pull/31064) p2p/nat: add stun protocol `cmd/utils`, `p2p/nat`
+- [-] [#31076](https://github.com/ethereum/go-ethereum/pull/31076) fix README.md — build/CI/docs/release
+- [ ] [#31082](https://github.com/ethereum/go-ethereum/pull/31082) chore: fix various comments `core/vm`, `tests/fuzzers`, `triedb/pathdb` **consensus**
+- [x] [#30744](https://github.com/ethereum/go-ethereum/pull/30744) all: nuke total difficulty `cmd/devp2p`, `cmd/utils`, `consensus`, `consensus/beacon` — in go-qrl
+- [-] [#31068](https://github.com/ethereum/go-ethereum/pull/31068) .github: add lint step — build/CI/docs/release
+- [ ] [#31036](https://github.com/ethereum/go-ethereum/pull/31036) core/{.,state,vm},miner,eth/tracers,tests: implement 7709 with a syscall flag `core`, `core/state`, `core/vm` **consensus**
+- [-] [#31095](https://github.com/ethereum/go-ethereum/pull/31095) build: bump test timeout — build/CI/docs/release
+- [-] [#31096](https://github.com/ethereum/go-ethereum/pull/31096) .travis.yml: change arch for Docker build to arm64 — build/CI/docs/release
+- [-] [d80da7c3b4](https://github.com/ethereum/go-ethereum/commit/d80da7c3b4) Revert ".travis.yml: change arch for Docker build to arm64 (#31096)" — build/CI/docs/release
+- [-] [#31099](https://github.com/ethereum/go-ethereum/pull/31099) build: retry PPA upload up to three times — build/CI/docs/release
+- [ ] [#31100](https://github.com/ethereum/go-ethereum/pull/31100) crypto: add IsOnCurve check `crypto`
+- [-] [#31098](https://github.com/ethereum/go-ethereum/pull/31098) build: provide a flag to disable publishing in dockerx build — build/CI/docs/release
+- [-] [9bc8256a09](https://github.com/ethereum/go-ethereum/commit/9bc8256a09) version: begin v1.15.0 release cycle `version` — build/CI/docs/release
+- [ ] [#31090](https://github.com/ethereum/go-ethereum/pull/31090) all: add build tags for wasip1 `cmd/utils`, `crypto`, `crypto/kzg4844`, `metrics`
+- [ ] [#30946](https://github.com/ethereum/go-ethereum/pull/30946) core: implement eip-7623 floor data gas `cmd/qrvm`, `core`, `core/tracing`, `core/txpool` **consensus**
+- [ ] [#31089](https://github.com/ethereum/go-ethereum/pull/31089) core/vm: EXTCODE* return delegation designator for 7702 `core/vm` **consensus**
+- [ ] [#31102](https://github.com/ethereum/go-ethereum/pull/31102) params: update system contract addresses for devnet-6 `params` **consensus**
+- [ ] [#31103](https://github.com/ethereum/go-ethereum/pull/31103) eth/catalyst: fix validation of type 0 request `qrl/catalyst`
+- [ ] [#31074](https://github.com/ethereum/go-ethereum/pull/31074) core/vm: simplify tracer hook invocation in interpreter loop `core/vm` **consensus**
+- [ ] [#31113](https://github.com/ethereum/go-ethereum/pull/31113) tests/fuzzers/bls12381: fix error message in fuzzCrossG2Add `tests/fuzzers`
+- [ ] [#30392](https://github.com/ethereum/go-ethereum/pull/30392) core/rawdb: introduce flush offset in freezer `core`, `core/rawdb` **consensus**
+- [ ] [#31097](https://github.com/ethereum/go-ethereum/pull/31097) core: copy genesis before modifying `core` **consensus**
+- [ ] [#31125](https://github.com/ethereum/go-ethereum/pull/31125) params: start osaka fork `core`, `core/vm`, `params`, `params/forks` **consensus**
+- [ ] [#31002](https://github.com/ethereum/go-ethereum/pull/31002) params,core: add max and target value to chain config `cmd/devp2p`, `cmd/qrvm`, `consensus/beacon`, `consensus/misc` **consensus**
+- [ ] [#31067](https://github.com/ethereum/go-ethereum/pull/31067) core: assign default difficulty to zero for chain without ethash `core` **consensus**
+- [ ] [#30559](https://github.com/ethereum/go-ethereum/pull/30559) core/txpool: remove locals-tracking from txpools `core/txpool`, `miner`, `qrl`, `qrl/catalyst`
+- [-] [#31127](https://github.com/ethereum/go-ethereum/pull/31127) core/txpool/blobpool: fix incorrect arguments in test `core/txpool` — n/a
+- [ ] [#31101](https://github.com/ethereum/go-ethereum/pull/31101) consensus/misc/eip4844: use head's target blobs, not parent `cmd/qrvm`, `consensus/misc`, `core`, `internal/qrlapi` **consensus**
+- [ ] [#31128](https://github.com/ethereum/go-ethereum/pull/31128) consensus/misc/eip4844: more changes for blob gas calculation `cmd/qrvm`, `consensus/misc`, `core`, `internal/qrlapi` **consensus**
+- [ ] [#30441](https://github.com/ethereum/go-ethereum/pull/30441) core/tracing: state journal wrapper `cmd/qrvm`, `core`, `core/state`, `core/tracing` **consensus**
+- [ ] [#31133](https://github.com/ethereum/go-ethereum/pull/31133) all: update license comments and AUTHORS `beacon/light`, `beacon/params`, `cmd/abigen`, `cmd/blsync` **consensus**
+- [-] [#31130](https://github.com/ethereum/go-ethereum/pull/31130) build: update to Go 1.23.6 — build/CI/docs/release
+- [ ] [#31088](https://github.com/ethereum/go-ethereum/pull/31088) build: update EEST fixtures to prague devnet-6 `tests`
+- [-] [756cca7c6f](https://github.com/ethereum/go-ethereum/commit/756cca7c6f) version: release go-ethereum v1.15.0 `version` — build/CI/docs/release
+
+## v1.15.1 (2025-02-13): 13 commits, 10 to review
+
+- [-] [d74c47f8db](https://github.com/ethereum/go-ethereum/commit/d74c47f8db) version: begin v1.15.1 release cycle `version` — build/CI/docs/release
+- [ ] [#31137](https://github.com/ethereum/go-ethereum/pull/31137) cmd/devp2p/internal/ethtest: remove TD from status validation `cmd/devp2p`
+- [ ] [#31139](https://github.com/ethereum/go-ethereum/pull/31139) params,core/forkid: enable prague on holesky and sepolia `core/forkid`, `params` **consensus**
+- [ ] [#31153](https://github.com/ethereum/go-ethereum/pull/31153) consensus/beacon: remove TestingTTDBlock `consensus/beacon`, `graphql`, `qrl/catalyst`, `qrl/gasprice` **consensus**
+- [ ] [#31155](https://github.com/ethereum/go-ethereum/pull/31155) p2p/discover: remove unused parameter in revalidationList.get `p2p/discover`
+- [ ] [#31119](https://github.com/ethereum/go-ethereum/pull/31119) p2p/discover: make discv5 response timeout configurable `p2p/discover`
+- [ ] [#31073](https://github.com/ethereum/go-ethereum/pull/31073) core/txpool/legacypool: add support for SetCode transactions `core/txpool`, `core/types` **consensus**
+- [ ] [#31157](https://github.com/ethereum/go-ethereum/pull/31157) internal/ethapi: fix panic in debug methods `internal/qrlapi` **security?**
+- [ ] [#31158](https://github.com/ethereum/go-ethereum/pull/31158) trie: copy preimage store pointer in StateTrie.Copy `cmd/qrvm`, `trie` **consensus**
+- [-] [#31165](https://github.com/ethereum/go-ethereum/pull/31165) go.mod: update blst to v0.3.14 — build/CI/docs/release
+- [ ] [#31171](https://github.com/ethereum/go-ethereum/pull/31171) core: sanity-check fork configuration in genesis `core`, `params` **consensus**
+- [ ] [#31173](https://github.com/ethereum/go-ethereum/pull/31173) core/rawdb: skip setting flushOffset in read-only mode `core/rawdb`
+- [-] [b027a90ac0](https://github.com/ethereum/go-ethereum/commit/b027a90ac0) version: release go-ethereum v1.15.1 stable `version` — build/CI/docs/release
+
+## v1.15.2 (2025-02-17): 6 commits, 4 to review
+
+- [-] [77762820c9](https://github.com/ethereum/go-ethereum/commit/77762820c9) version: begin v1.15.2 release cycle `version` — build/CI/docs/release
+- [ ] [#31129](https://github.com/ethereum/go-ethereum/pull/31129) core/types: create block's bloom by merging receipts' bloom `cmd/qrvm`, `core`, `core/rawdb`, `core/types` **consensus**
+- [ ] [#31191](https://github.com/ethereum/go-ethereum/pull/31191) consensus/beacon: fix isPostMerge for mainnet `consensus/beacon` **consensus**
+- [ ] [#31192](https://github.com/ethereum/go-ethereum/pull/31192) p2p: fix marshaling of NAT in TOML `p2p`
+- [ ] [#31185](https://github.com/ethereum/go-ethereum/pull/31185) eth/protocols/eth: add discovery iterator to protocol `qrl/protocols`
+- [-] [c8c62dafc7](https://github.com/ethereum/go-ethereum/commit/c8c62dafc7) version: release go-ethereum v1.15.2 stable `version` — build/CI/docs/release
+
+## v1.15.3 (2025-02-25): 28 commits, 22 to review
+
+- [-] [aec1964410](https://github.com/ethereum/go-ethereum/commit/aec1964410) version: begin v1.15.3 release cycle `version` — build/CI/docs/release
+- [ ] [#31170](https://github.com/ethereum/go-ethereum/pull/31170) trie: do not expect ordering in stacktrie during fuzzing `trie` **consensus**
+- [ ] [#31164](https://github.com/ethereum/go-ethereum/pull/31164) utils: clarify description for history.state flag `cmd/utils`
+- [ ] [#30984](https://github.com/ethereum/go-ethereum/pull/30984) ethclient: add comment describing block number tags `qrlclient`
+- [ ] [#31061](https://github.com/ethereum/go-ethereum/pull/31061) core/vm: clean up EVM environmental structure `core`, `core/vm`, `qrl/tracers`, `tests` **consensus**
+- [ ] [#31174](https://github.com/ethereum/go-ethereum/pull/31174) params: add osaka blob schedule `consensus/misc`, `core`, `params`, `tests` **consensus**
+- [ ] [#31084](https://github.com/ethereum/go-ethereum/pull/31084) eth/catalyst: support earlier forks in SimulatedBeacon `qrl/catalyst`
+- [-] [#31159](https://github.com/ethereum/go-ethereum/pull/31159) build: upgrade -dlgo version to Go 1.24.0 — build/CI/docs/release
+- [ ] [#31211](https://github.com/ethereum/go-ethereum/pull/31211) core/asm: delete assembler/disassembler `core/asm`, `core/vm` **consensus**
+- [-] [#31217](https://github.com/ethereum/go-ethereum/pull/31217) .github: downgrade go for lint step — build/CI/docs/release
+- [ ] [#31206](https://github.com/ethereum/go-ethereum/pull/31206) core/txpool/legacypool: add setCodeTx reorg test `core/txpool`
+- [ ] [#31176](https://github.com/ethereum/go-ethereum/pull/31176) internal/ethapi: handle prague system calls in eth_simulate `internal/qrlapi`
+- [ ] [#29450](https://github.com/ethereum/go-ethereum/pull/29450) eth/tracers: refactor block context in test runner `qrl/tracers`
+- [ ] [#31224](https://github.com/ethereum/go-ethereum/pull/31224) oss-fuzz: remove deprecated targets `oss-fuzz.sh`
+- [ ] [#31225](https://github.com/ethereum/go-ethereum/pull/31225) p2p/nat: remove test with default servers `p2p/nat`
+- [ ] [#31179](https://github.com/ethereum/go-ethereum/pull/31179) core/types: remove unneeded todo marker `core/types` **consensus**
+- [ ] [#31049](https://github.com/ethereum/go-ethereum/pull/31049) signer/core:  fix encoding of `bytes` nested within array `signer/core`
+- [ ] [#31122](https://github.com/ethereum/go-ethereum/pull/31122) internal/ethapi: fix prev hashes in eth_simulate `internal/qrlapi`
+- [-] [#31218](https://github.com/ethereum/go-ethereum/pull/31218) cmd/clef: improve documentation in readme — build/CI/docs/release
+- [ ] [#31172](https://github.com/ethereum/go-ethereum/pull/31172) build: replace `tenv` linter with `usetesting` `cmd/clef`, `cmd/utils`, `core/txpool`, `crypto`
+- [ ] [#31233](https://github.com/ethereum/go-ethereum/pull/31233) eth: report error from setupDiscovery at startup `p2p/dnsdisc`, `qrl`
+- [-] [#31240](https://github.com/ethereum/go-ethereum/pull/31240) go.mod: update cloudflare-go — build/CI/docs/release
+- [ ] [#31241](https://github.com/ethereum/go-ethereum/pull/31241) crypto: add comment to FromECDSAPub `crypto`
+- [ ] [#31209](https://github.com/ethereum/go-ethereum/pull/31209) core/txpool: move setcode tx validation into legacyPool `core/txpool`
+- [ ] [#31247](https://github.com/ethereum/go-ethereum/pull/31247) params: add deposit contract addresses `params` **consensus**
+- [ ] [#31033](https://github.com/ethereum/go-ethereum/pull/31033) ethclient/simulated: add goroutine leak test `qrlclient/simulated`
+- [ ] [#31251](https://github.com/ethereum/go-ethereum/pull/31251) eth/protocols/eth: fix loading "eth" ENR key in dial filter `qrl/protocols`
+- [-] [612c9e0f4a](https://github.com/ethereum/go-ethereum/commit/612c9e0f4a) version: release go-ethereum v1.15.3 stable `version` — build/CI/docs/release
+
+## v1.15.4 (2025-03-01): 16 commits, 10 to review
+
+- [-] [f485e213b6](https://github.com/ethereum/go-ethereum/commit/f485e213b6) version: begin v1.15.4 release cycle `version` — build/CI/docs/release
+- [-] [#31265](https://github.com/ethereum/go-ethereum/pull/31265) build: filter out .git folder for go generate check — build/CI/docs/release
+- [ ] [#31246](https://github.com/ethereum/go-ethereum/pull/31246) eth/gasprice: fix eth_feeHistory blobGasRatio `qrl/gasprice`
+- [ ] [#31189](https://github.com/ethereum/go-ethereum/pull/31189) cmd/workload: RPC workload tests for filters and history `cmd/abigen`, `cmd/utils`, `cmd/workload`, `internal/flags`
+- [ ] [#31270](https://github.com/ethereum/go-ethereum/pull/31270) eth/gasprice: sanity check ratio values `qrl/gasprice`
+- [ ] [#31249](https://github.com/ethereum/go-ethereum/pull/31249) core/txpool: fix error logs flood caused by removeAuthorities `core/txpool`, `core/types` **consensus**
+- [-] [#31282](https://github.com/ethereum/go-ethereum/pull/31282) build: update PPA Go bootstrap version to 1.23 — build/CI/docs/release
+- [-] [#31266](https://github.com/ethereum/go-ethereum/pull/31266) build: simplify go mod tidy check — build/CI/docs/release
+- [ ] [#30558](https://github.com/ethereum/go-ethereum/pull/30558) all: drop x/exp direct dependency `cmd/devp2p`, `cmd/qrvm`, `core/state`, `core/txpool` **consensus**
+- [-] [#31283](https://github.com/ethereum/go-ethereum/pull/31283) build/deb: add step for new Go bootstrap to debian rules — build/CI/docs/release
+- [ ] [#31234](https://github.com/ethereum/go-ethereum/pull/31234) core/tracing: stringer for gas and nonce change reasons `core/state`, `core/tracing` **consensus**
+- [ ] [#30017](https://github.com/ethereum/go-ethereum/pull/30017) eth: remove EventMux accessors `qrl`
+- [ ] [#31202](https://github.com/ethereum/go-ethereum/pull/31202) eth: do not add failed tx to localTxTracker `core/txpool`, `qrl`
+- [ ] [#31219](https://github.com/ethereum/go-ethereum/pull/31219) eth: check blob transaction validity on the peer goroutine when received `cmd/devp2p`, `core/txpool`, `core/types`, `qrl` **consensus**
+- [ ] [#31290](https://github.com/ethereum/go-ethereum/pull/31290) ethclient: add BlobBaseFee method `qrlclient`
+- [-] [8ccca244f1](https://github.com/ethereum/go-ethereum/commit/8ccca244f1) version: release go-ethereum v1.15.4 stable `version` — build/CI/docs/release
+
+## v1.15.5 (2025-03-05): 5 commits, 2 to review
+
+- [-] [ebff2f42c0](https://github.com/ethereum/go-ethereum/commit/ebff2f42c0) version: begin v1.15.5 release cycle `version` — build/CI/docs/release
+- [ ] [#31289](https://github.com/ethereum/go-ethereum/pull/31289) eth/tracers: fix omitempty for memory and storage `qrl/tracers`
+- [-] [#31313](https://github.com/ethereum/go-ethereum/pull/31313) build: upgrade to Go 1.24.1 and golangci-lint 1.64.4 — build/CI/docs/release
+- [ ] [#31317](https://github.com/ethereum/go-ethereum/pull/31317) core: match on deposit contract log topic `core` **consensus**
+- [-] [4263936a04](https://github.com/ethereum/go-ethereum/commit/4263936a04) version: release v1.15.5 stable `version` — build/CI/docs/release
+
+## v1.15.6 (2025-03-25): 57 commits, 49 to review
+
+- [-] [2645b4e0bf](https://github.com/ethereum/go-ethereum/commit/2645b4e0bf) version: begin v1.15.6 release cycle `version` — build/CI/docs/release
+- [-] [#31314](https://github.com/ethereum/go-ethereum/pull/31314) build: fix execution-spec-tests sanitycheck URL — build/CI/docs/release
+- [ ] [#31295](https://github.com/ethereum/go-ethereum/pull/31295) core/rawdb,state: add preimage miss metric `core/rawdb`, `core/state` **consensus**
+- [ ] [#31341](https://github.com/ethereum/go-ethereum/pull/31341) cmd,eth,les: replace Cancun override flag with Prague `cmd/gqrl`, `cmd/utils`, `core`, `qrl` **consensus**
+- [ ] [#31332](https://github.com/ethereum/go-ethereum/pull/31332) core/txpool: demote error log to warn `core/txpool`
+- [ ] [#31342](https://github.com/ethereum/go-ethereum/pull/31342) core: prefund pectra precompiles in developer genesis `core`, `miner` **consensus**
+- [ ] [#31243](https://github.com/ethereum/go-ethereum/pull/31243) beacon/types, beacon/blsync: update for electra `beacon/blsync`, `beacon/light`, `beacon/params`, `beacon/types`
+- [ ] [#31353](https://github.com/ethereum/go-ethereum/pull/31353) ethdb: no need to check the metric nilness `qrldb/leveldb`, `qrldb/pebble`
+- [-] [#31334](https://github.com/ethereum/go-ethereum/pull/31334) go.mod: update crypto to remove dependency warning — build/CI/docs/release
+- [ ] [#31360](https://github.com/ethereum/go-ethereum/pull/31360) cmd: ctrl-c to halt the whole import process `cmd/gqrl`, `cmd/utils`
+- [-] [#31242](https://github.com/ethereum/go-ethereum/pull/31242) crypto/secp256k1: update libsecp256k1 `crypto/secp256k1` — n/a
+- [ ] [#31365](https://github.com/ethereum/go-ethereum/pull/31365) eth/ethconfig: add HistoryMode `cmd/gqrl`, `cmd/utils`, `core`, `qrl` **consensus**
+- [ ] [#31065](https://github.com/ethereum/go-ethereum/pull/31065) core: update blockProcFeed in insertChain `core` **consensus**
+- [ ] [#31117](https://github.com/ethereum/go-ethereum/pull/31117) p2p/discover: expose discv5 functions for portal JSON-RPC interface `cmd/devp2p`, `p2p/discover`
+- [-] [#31355](https://github.com/ethereum/go-ethereum/pull/31355) cmd/workload: implement checks for history-pruned node `cmd/workload` — n/a
+- [ ] [#31383](https://github.com/ethereum/go-ethereum/pull/31383) eth/ethconfig: fix history prune blocks `qrl/ethconfig`
+- [ ] [#31079](https://github.com/ethereum/go-ethereum/pull/31079) core/filtermaps: FilterMaps log index generator and search logic `core/filtermaps`, `core/rawdb`
+- [ ] [#31387](https://github.com/ethereum/go-ethereum/pull/31387) accounts/abi: improve unpack performance `accounts/abi`
+- [ ] [#31368](https://github.com/ethereum/go-ethereum/pull/31368) log: fix SetDefault for custom loggers `log`
+- [ ] [#31374](https://github.com/ethereum/go-ethereum/pull/31374) cmd/evm: fix statetest with multi-fork statetest fixtures `cmd/qrvm`
+- [ ] [#31381](https://github.com/ethereum/go-ethereum/pull/31381) tests: update ethereum/tests to v17.0 `tests`
+- [ ] [#31357](https://github.com/ethereum/go-ethereum/pull/31357) cmd/utils: fix geth test issue on OpenBSD `cmd/utils`
+- [ ] [#31400](https://github.com/ethereum/go-ethereum/pull/31400) metrics: spin up meter ticker routine when enabling metric system `metrics`
+- [ ] [#31403](https://github.com/ethereum/go-ethereum/pull/31403) eth/catalyst: fix flaky test `qrl/catalyst`
+- [-] [#31369](https://github.com/ethereum/go-ethereum/pull/31369) go.mod: bump golang.org/x/net from 0.34.0 to 0.36.0 — build/CI/docs/release
+- [ ] [#31316](https://github.com/ethereum/go-ethereum/pull/31316) eth/catalyst: set FeeRecipient in dev mode `cmd/gqrl`, `cmd/utils`, `qrl/catalyst`, `qrlclient/simulated`
+- [ ] [#31379](https://github.com/ethereum/go-ethereum/pull/31379) cmd/abigen, accounts/abi/bind: implement abigen version 2 `accounts/abi`, `cmd/abigen`
+- [ ] [#31362](https://github.com/ethereum/go-ethereum/pull/31362) core/rawdb: allow for truncation in the freezer `core/rawdb`, `qrldb`
+- [ ] [#31080](https://github.com/ethereum/go-ethereum/pull/31080) eth/filters: implement log filter using new log index `cmd/gqrl`, `cmd/utils`, `common`, `core/filtermaps`
+- [ ] [#31348](https://github.com/ethereum/go-ethereum/pull/31348) eth/tracers: fix precompile move feat for debug_traceCall `qrl/tracers`
+- [ ] [#31406](https://github.com/ethereum/go-ethereum/pull/31406) params: add hoodi testnet definition `beacon/params`, `cmd/blsync`, `cmd/devp2p`, `cmd/gqrl` **consensus**
+- [ ] [#31411](https://github.com/ethereum/go-ethereum/pull/31411) internal/ethapi: fix logs bloom in eth_simulateV1 `internal/qrlapi`
+- [ ] [#31419](https://github.com/ethereum/go-ethereum/pull/31419) core/filtermaps: fixed indexer checkpoint initialization `core/filtermaps`
+- [ ] [#31352](https://github.com/ethereum/go-ethereum/pull/31352) cmd: set name to chaindata for all the opened db `cmd/utils`
+- [ ] [#27508](https://github.com/ethereum/go-ethereum/pull/27508) ethclient: Add EstimateGasAtBlock[Hash] to estimate against a specific block `qrlclient`
+- [ ] [#31307](https://github.com/ethereum/go-ethereum/pull/31307) core/txpool, eth: add GetRLP to transaction pool `core/txpool`, `qrl`, `qrl/protocols`
+- [ ] [#31258](https://github.com/ethereum/go-ethereum/pull/31258) core/types: reduce allocs in transaction signing `core/types` **consensus**
+- [ ] [#31434](https://github.com/ethereum/go-ethereum/pull/31434) core/types: cleanup tx signer logic `cmd/qrvm`, `core/types`, `params/forks` **consensus**
+- [ ] [#31439](https://github.com/ethereum/go-ethereum/pull/31439) cmd/utils: force hash scheme for archive mode `cmd/utils`
+- [-] [#31424](https://github.com/ethereum/go-ethereum/pull/31424) cmd/workload: fixed filter test request error handling `cmd/workload` — n/a
+- [ ] [#31216](https://github.com/ethereum/go-ethereum/pull/31216) eth/tracers: hex-encode returnValue `qrl/tracers`
+- [ ] [#31445](https://github.com/ethereum/go-ethereum/pull/31445) eth/tracers: fix test `qrl/tracers`
+- [ ] [#31429](https://github.com/ethereum/go-ethereum/pull/31429) core/filtermaps: allow log search while head indexing `core/filtermaps`
+- [ ] [#31356](https://github.com/ethereum/go-ethereum/pull/31356) p2p/discover: repeat WHOAREYOU challenge when handshake in progress `p2p/discover`
+- [ ] [#31430](https://github.com/ethereum/go-ethereum/pull/31430) core/txpool/legacypool: reject gapped tx from delegated account `core/txpool`
+- [ ] [#31081](https://github.com/ethereum/go-ethereum/pull/31081) core/bloombits: remove old bloombits logic and chain indexer `core`, `core/bloombits`, `core/filtermaps`, `core/rawdb` **consensus**
+- [ ] [#31393](https://github.com/ethereum/go-ethereum/pull/31393) core: respect history cutoff in txindexer `core`, `core/rawdb`
+- [ ] [#31384](https://github.com/ethereum/go-ethereum/pull/31384) cmd/geth: add prune history command `cmd/gqrl`, `core`, `core/rawdb`, `tests` **consensus**
+- [ ] [#31450](https://github.com/ethereum/go-ethereum/pull/31450) eth/filter: downgrade log level `qrl/filters`
+- [ ] [#31456](https://github.com/ethereum/go-ethereum/pull/31456) internal/ethapi: return code 3 from call/estimateGas even if a revert reason was not returned `internal/qrlapi`
+- [ ] [#31463](https://github.com/ethereum/go-ethereum/pull/31463) core/rawdb: improve database stats output `core/rawdb`
+- [ ] [#31455](https://github.com/ethereum/go-ethereum/pull/31455) core/filtermaps: fix log indexer init conditions `core/filtermaps`, `qrl`
+- [ ] [#31470](https://github.com/ethereum/go-ethereum/pull/31470) beacon/params: new checkpoints `beacon/params`
+- [ ] [#31479](https://github.com/ethereum/go-ethereum/pull/31479) tests: update test submodule `tests`
+- [ ] [#31304](https://github.com/ethereum/go-ethereum/pull/31304) internal/ethapi: support for beacon root and withdrawals in simulate api `internal/qrlapi`, `qrl/gasestimator`, `qrl/tracers`
+- [ ] [#31473](https://github.com/ethereum/go-ethereum/pull/31473) core/txpool: reject stale transaction for local tracking `core/txpool`
+- [-] [19d2b4c880](https://github.com/ethereum/go-ethereum/commit/19d2b4c880) version: release v1.15.6 stable `version` — build/CI/docs/release
+
+## v1.15.7 (2025-03-31): 22 commits, 18 to review
+
+- [ ] [7cbf934488](https://github.com/ethereum/go-ethereum/commit/7cbf934488) Fix flakey behavior in simulated backend Rollback `core/txpool`
+- [ ] [18faa251b3](https://github.com/ethereum/go-ethereum/commit/18faa251b3) Update core/txpool/txpool.go `core/txpool`
+- [-] [aa6d0ef5f2](https://github.com/ethereum/go-ethereum/commit/aa6d0ef5f2) version: begin v1.15.7 release cycle `version` — build/CI/docs/release
+- [ ] [#31175](https://github.com/ethereum/go-ethereum/pull/31175) core: process EL requests in GenerateVerkleChain `core`
+- [ ] [#31301](https://github.com/ethereum/go-ethereum/pull/31301) all: use fmt.Appendf instead of fmt.Sprintf where possible `cmd/utils`, `common/math`, `core/state`, `p2p/nat` **consensus**
+- [ ] [#30932](https://github.com/ethereum/go-ethereum/pull/30932) trie: optimize memory allocation `trie`, `triedb/database` **consensus**
+- [ ] [#31336](https://github.com/ethereum/go-ethereum/pull/31336) internal/ethapi: exclude 7702 authorities from result in eth_createAccessList `internal/qrlapi`, `qrl/tracers`
+- [ ] [#31493](https://github.com/ethereum/go-ethereum/pull/31493) core/state: fix double-increment of accountLoaded counter `core/state` **consensus**
+- [ ] [#31495](https://github.com/ethereum/go-ethereum/pull/31495) core/rawdb: remove LES database stats `core/rawdb`
+- [ ] [#31492](https://github.com/ethereum/go-ethereum/pull/31492) eth: downgrade peer removal error to warning level `qrl`
+- [ ] [#31394](https://github.com/ethereum/go-ethereum/pull/31394) accounts/abi: include access-list in gas estimation `accounts/abi`
+- [ ] [#31497](https://github.com/ethereum/go-ethereum/pull/31497) internal/ethapi: CreateAccessList with stateOverrides `internal/qrlapi`
+- [ ] [#31293](https://github.com/ethereum/go-ethereum/pull/31293) cmd/geth: update geth subcommand arguments `cmd/gqrl`
+- [ ] [#31475](https://github.com/ethereum/go-ethereum/pull/31475) core/txpool/legacypool: fix data race in checkDelegationLimit `core/txpool`
+- [ ] [#31496](https://github.com/ethereum/go-ethereum/pull/31496) core/txpool: fix nonce assignment in local tracker `core/txpool`, `qrl`
+- [ ] [#31500](https://github.com/ethereum/go-ethereum/pull/31500) core/filtermaps: revert to unindexed mode in case of indexing error `core/filtermaps`
+- [ ] [#31531](https://github.com/ethereum/go-ethereum/pull/31531) .gitignore: ignore binaries `.gitignore`
+- [ ] [#31525](https://github.com/ethereum/go-ethereum/pull/31525) core/filtermaps: hashdb safe delete range `core/filtermaps`, `core/rawdb`, `qrl`, `qrldb`
+- [-] [82fc77a865](https://github.com/ethereum/go-ethereum/commit/82fc77a865) version: release go-ethereum v1.15.7 stable `version` — build/CI/docs/release
+- [-] [9c970d80a2](https://github.com/ethereum/go-ethereum/commit/9c970d80a2) version: begin v1.15.8 release cycle `version` — build/CI/docs/release
+- [ ] [9af88d1100](https://github.com/ethereum/go-ethereum/commit/9af88d1100) version: back to v1.15.7, to fix the build `version`
+- [-] [827d3fccf7](https://github.com/ethereum/go-ethereum/commit/827d3fccf7) .travis.yml: remove macos build — build/CI/docs/release
+
+## v1.15.8 (2025-04-11): 35 commits, 27 to review
+
+- [-] [f0cdc40ceb](https://github.com/ethereum/go-ethereum/commit/f0cdc40ceb) version: begin v1.15.8 release cycle reloaded `version` — build/CI/docs/release
+- [ ] [#31361](https://github.com/ethereum/go-ethereum/pull/31361) eth, eth/filters: implement API error code for pruned blocks `core`, `internal/qrlapi`, `qrl`, `qrl/ethconfig`
+- [ ] [#31486](https://github.com/ethereum/go-ethereum/pull/31486) p2p/nat: improve AddMapping code `p2p/nat`
+- [ ] [#31534](https://github.com/ethereum/go-ethereum/pull/31534) cmd: apply snapshot cache flag in the MakeChain `cmd/utils`
+- [ ] [#31511](https://github.com/ethereum/go-ethereum/pull/31511) core/filtermaps: add metrics `core/filtermaps`
+- [ ] [#31501](https://github.com/ethereum/go-ethereum/pull/31501) accounts/abi/abigen: fix a flaky bind test case `NewSingleStructArgument` `accounts/abi`
+- [ ] [#31306](https://github.com/ethereum/go-ethereum/pull/31306) triedb/pathdb: improve perf by separating nodes map `triedb/pathdb` **consensus**
+- [ ] [#31433](https://github.com/ethereum/go-ethereum/pull/31433) core/txpool: add GetMetadata to transaction pool `core/txpool`, `qrl`, `qrl/protocols`
+- [ ] [#31543](https://github.com/ethereum/go-ethereum/pull/31543) p2p/discover: repeat exact encoding when resending WHOAREYOU packet `p2p/discover`
+- [ ] [#31075](https://github.com/ethereum/go-ethereum/pull/31075) p2p/discover: pass node instead of node ID to TALKREQ handler `p2p/discover`
+- [-] [#31540](https://github.com/ethereum/go-ethereum/pull/31540) README: fixup typos — build/CI/docs/release
+- [ ] [#31548](https://github.com/ethereum/go-ethereum/pull/31548) all: fix typos in docs and comments `cmd/qrvm`, `internal/guide`, `qrl/downloader`
+- [ ] [#31522](https://github.com/ethereum/go-ethereum/pull/31522) eth/protocols/eth: improve over/underflow handling in  `GetBlockHeaders` `qrl/protocols`
+- [ ] [#31414](https://github.com/ethereum/go-ethereum/pull/31414) core, eth/downloader: implement pruning mode sync `cmd/gqrl`, `cmd/utils`, `core`, `core/rawdb` **consensus**
+- [-] [#31530](https://github.com/ethereum/go-ethereum/pull/31530) build: upgrade to golangci-lint v2 — build/CI/docs/release
+- [ ] [#31552](https://github.com/ethereum/go-ethereum/pull/31552) eth: fix calls to HistoryPruningCutoff `internal/qrlapi`, `qrl`
+- [ ] [#31551](https://github.com/ethereum/go-ethereum/pull/31551) cmd/devp2p/internal/v5test: log test descriptions `cmd/devp2p`
+- [ ] [#31519](https://github.com/ethereum/go-ethereum/pull/31519) core, eth, node: use sync write option in pebble `core`, `node`, `qrldb/pebble`
+- [ ] [#31469](https://github.com/ethereum/go-ethereum/pull/31469) beacon/blsync: add checkpoint import/export file feature `beacon/blsync`, `beacon/light`, `beacon/params`, `cmd/blsync`
+- [~] [#30265](https://github.com/ethereum/go-ethereum/pull/30265) p2p/nat: remove forceful port mapping in upnp `p2p`, `p2p/nat` — port open
+- [-] [#31544](https://github.com/ethereum/go-ethereum/pull/31544) internal/era: random access to header and receipts `internal/era` — n/a
+- [ ] [#31577](https://github.com/ethereum/go-ethereum/pull/31577) cmd/geth: set trie,gc and other cache flags for import chain `cmd/gqrl`
+- [ ] [#31331](https://github.com/ethereum/go-ethereum/pull/31331) eth/remotedb: improve error handling `qrldb/remotedb`
+- [ ] [#31526](https://github.com/ethereum/go-ethereum/pull/31526) core/txpool: add 7702 protection to blobpool `core/txpool`, `qrl`, `qrl/protocols`
+- [ ] [#31267](https://github.com/ethereum/go-ethereum/pull/31267) core/vm: optimize push2 opcode `core/vm` **consensus**
+- [~] [#31566](https://github.com/ethereum/go-ethereum/pull/31566) p2p/nat: fix UPnP port reset `p2p`, `p2p/nat` — port open
+- [ ] [#31567](https://github.com/ethereum/go-ethereum/pull/31567) core/txpool: add notice to` Clear` that is not meant for production code `core/txpool`
+- [ ] [#31373](https://github.com/ethereum/go-ethereum/pull/31373) core/txpool: allow tx and authority regardless of admission order `core/txpool`
+- [ ] [#31468](https://github.com/ethereum/go-ethereum/pull/31468) eth/fetcher: Fix flaky TestTransactionForgotten test using mock clock `qrl/fetcher`, `tests/fuzzers`
+- [ ] [#17439](https://github.com/ethereum/go-ethereum/pull/17439) accounts/usbwallet: full 32bit chainId support for Trezor `accounts/usbwallet`
+- [ ] [#31595](https://github.com/ethereum/go-ethereum/pull/31595) eth/catalyst:  in tests, manually sync txpool after initial chain insertion to prevent race between txpool head reset and promotion of txs that will be subsequently added `qrl/catalyst`
+- [ ] [#31539](https://github.com/ethereum/go-ethereum/pull/31539) internal/testlog: fix log output from sub-loggers `internal/testlog`, `tests`
+- [ ] [a9444ea312](https://github.com/ethereum/go-ethereum/commit/a9444ea312) tests/testdata: revert to v17.0 `tests`
+- [-] [#31538](https://github.com/ethereum/go-ethereum/pull/31538) build: upgrade -dlgo version to Go 1.24.2 — build/CI/docs/release
+- [-] [f8ff24e8cf](https://github.com/ethereum/go-ethereum/commit/f8ff24e8cf) version: release go-ethereum v1.15.8 stable `version` — build/CI/docs/release
+
+## v1.15.9 (2025-04-21): 25 commits, 21 to review
+
+- [-] [80753ba147](https://github.com/ethereum/go-ethereum/commit/80753ba147) version: begin v1.15.9 release cycle `version` — build/CI/docs/release
+- [ ] [#31629](https://github.com/ethereum/go-ethereum/pull/31629) p2p: better dial/serve success metrics `p2p`
+- [x] [#31476](https://github.com/ethereum/go-ethereum/pull/31476) eth: add logic to drop peers randomly when saturated `p2p`, `qrl` — in go-qrl
+- [ ] [#31636](https://github.com/ethereum/go-ethereum/pull/31636) core: initialize history pruning in BlockChain `cmd/gqrl`, `cmd/workload`, `core`, `core/history` **consensus**
+- [-] [#31637](https://github.com/ethereum/go-ethereum/pull/31637) all: remove martin from CODEOWNERS — build/CI/docs/release
+- [ ] [#31621](https://github.com/ethereum/go-ethereum/pull/31621) p2p: fix dial metrics not picking up the right error `p2p`
+- [ ] [#31646](https://github.com/ethereum/go-ethereum/pull/31646) cmd/geth: remove the unused bloomfilter.size flag `cmd/gqrl`
+- [ ] [#31642](https://github.com/ethereum/go-ethereum/pull/31642) core/filtermaps: fix map renderer reorg issue `core/filtermaps`, `core/rawdb`
+- [ ] [#31610](https://github.com/ethereum/go-ethereum/pull/31610) core/state: fix log format `core/state` **consensus**
+- [ ] [#31641](https://github.com/ethereum/go-ethereum/pull/31641) core/txpool/legacypool: fix data race of txlookup access `core/txpool`
+- [ ] [#31656](https://github.com/ethereum/go-ethereum/pull/31656) core: fix history pruning initialization for empty DB `core` **consensus**
+- [ ] [#31638](https://github.com/ethereum/go-ethereum/pull/31638) core: fix sync reset in pruned nodes `core`, `core/txpool` **consensus**
+- [ ] [#31657](https://github.com/ethereum/go-ethereum/pull/31657) eth: fix transaction sender cache miss before broadcast `qrl`
+- [ ] [#31535](https://github.com/ethereum/go-ethereum/pull/31535) params: add prague timestamp for mainnet `core/forkid`, `params` **consensus**
+- [ ] [#31340](https://github.com/ethereum/go-ethereum/pull/31340) core,params: add fork readiness indicator in logs `core`, `params`, `params/forks` **consensus**
+- [ ] [#31407](https://github.com/ethereum/go-ethereum/pull/31407) eth/catalyst: sanitize simulated beacon period to avoid overflowing time.Duration `qrl/catalyst`
+- [ ] [#31618](https://github.com/ethereum/go-ethereum/pull/31618) eth: add tx to locals only if it has a chance of acceptance `core/txpool`, `qrl`, `qrl/fetcher`, `qrlclient/simulated`
+- [ ] [#31668](https://github.com/ethereum/go-ethereum/pull/31668) core/filtermaps: only use common ancestor snapshots `core/filtermaps`
+- [ ] [#31671](https://github.com/ethereum/go-ethereum/pull/31671) core/filtermaps: make ChainView thread safe `core/filtermaps`
+- [ ] [#31639](https://github.com/ethereum/go-ethereum/pull/31639) core: fail execution if system call fails to execute `cmd/qrvm`, `core`, `internal/qrlapi`, `miner` **consensus**
+- [ ] [#31663](https://github.com/ethereum/go-ethereum/pull/31663) eth/gasprice: fix eth_feeHistory blobGasUsedRatio divide zero `qrl/gasprice`
+- [ ] [#31590](https://github.com/ethereum/go-ethereum/pull/31590) eth/filters, core/filtermaps: safe chain view update `accounts/abi`, `core/filtermaps`, `internal/qrlapi`, `qrl`
+- [ ] [#31674](https://github.com/ethereum/go-ethereum/pull/31674) beacon/params, core/filtermaps: update checkpoints `beacon/params`, `core/filtermaps`
+- [ ] [#31680](https://github.com/ethereum/go-ethereum/pull/31680) core/filtermaps: clone cached slices, fix tempRange `core/filtermaps`
+- [-] [74165a8fe3](https://github.com/ethereum/go-ethereum/commit/74165a8fe3) version: release go-ethereum v1.15.9 stable `version` — build/CI/docs/release
+
+## v1.15.10 (2025-04-25): 7 commits, 5 to review
+
+- [-] [263aef9cc4](https://github.com/ethereum/go-ethereum/commit/263aef9cc4) version: begin v1.15.10 release cycle `version` — build/CI/docs/release
+- [ ] [#31441](https://github.com/ethereum/go-ethereum/pull/31441) internal/debug: add debug_setMemoryLimit `internal/debug`, `internal/web3ext`
+- [ ] [#31198](https://github.com/ethereum/go-ethereum/pull/31198) ethclient: allow passing AuthorizationList to calls `core`, `interfaces.go`, `internal/qrlapi`, `qrlclient` **consensus**
+- [ ] [#31705](https://github.com/ethereum/go-ethereum/pull/31705) miner: increase default gas limit to 36M `miner` **security?**
+- [ ] [#31706](https://github.com/ethereum/go-ethereum/pull/31706) beacon/params: add mainnet electra config `beacon/params`
+- [ ] [#31708](https://github.com/ethereum/go-ethereum/pull/31708) core/filtermaps: fix deadlock in filtermap callback `core/filtermaps`
+- [-] [2bf8a78984](https://github.com/ethereum/go-ethereum/commit/2bf8a78984) version: release go-ethereum v1.15.10 stable `version` — build/CI/docs/release
+
+## v1.15.11 (2025-05-05): 25 commits, 23 to review
+
+- [-] [f750117ad1](https://github.com/ethereum/go-ethereum/commit/f750117ad1) version: begin v1.15.11 release cycle `version` — build/CI/docs/release
+- [ ] [#31715](https://github.com/ethereum/go-ethereum/pull/31715) core/txpool/legacypool: refactor truncatePending `core/txpool`
+- [ ] [#31667](https://github.com/ethereum/go-ethereum/pull/31667) trie: add edgecase for rangeproof correctness `trie` **consensus**
+- [ ] [#31733](https://github.com/ethereum/go-ethereum/pull/31733) core: apply overrides to mainnet chainconfig `core` **consensus**
+- [ ] [#31739](https://github.com/ethereum/go-ethereum/pull/31739) beacon/engine: omit empty witness in payload response `beacon/engine`, `qrl/catalyst`
+- [ ] [#31378](https://github.com/ethereum/go-ethereum/pull/31378) crypto/kzg4844: add ComputeCells functionality `cmd/utils`, `crypto/kzg4844`
+- [ ] [#31743](https://github.com/ethereum/go-ethereum/pull/31743) cmd/geth: print crit log if chain config is not compatible `cmd/gqrl`
+- [ ] [#31742](https://github.com/ethereum/go-ethereum/pull/31742) eth/fetcher: define BatchSize as a constant `qrl/fetcher`
+- [ ] [#31716](https://github.com/ethereum/go-ethereum/pull/31716) core/filtermaps: do not derive full receipts during rendering `core`, `core/filtermaps`, `qrl/filters`
+- [ ] [#31746](https://github.com/ethereum/go-ethereum/pull/31746) cmd/geth: fix compatErr in initGenesis `cmd/gqrl`
+- [ ] [#31504](https://github.com/ethereum/go-ethereum/pull/31504) ethclient: fix retrieval of pending block `qrlclient`
+- [ ] [#31506](https://github.com/ethereum/go-ethereum/pull/31506) cmd/devp2p: test for non-existent block request `cmd/devp2p`
+- [ ] [#31710](https://github.com/ethereum/go-ethereum/pull/31710) node: avoid double close resp.Body `node`
+- [ ] [#31735](https://github.com/ethereum/go-ethereum/pull/31735) core, eth/gasestimator: introduce MaxGasUsed for estimation `core`, `qrl/gasestimator` **consensus**
+- [ ] [#31734](https://github.com/ethereum/go-ethereum/pull/31734) core/filtermaps: fix log value search range `core/filtermaps`
+- [ ] [#31750](https://github.com/ethereum/go-ethereum/pull/31750) core/filtermaps: fix log index initialization `core/filtermaps`
+- [ ] [#31758](https://github.com/ethereum/go-ethereum/pull/31758) core/txpool/legacypool: fix data race of pricedList access `core/txpool`
+- [ ] [#31760](https://github.com/ethereum/go-ethereum/pull/31760) params: fix comment for `DefaultBlobSchedule` `params` **consensus**
+- [ ] [#31752](https://github.com/ethereum/go-ethereum/pull/31752) core: reduce load on txindexer from API `core`, `graphql`, `internal/qrlapi`, `qrl`
+- [ ] [#31761](https://github.com/ethereum/go-ethereum/pull/31761) logs(indexer)Clean up log format in head index progress messages `core/filtermaps`
+- [ ] [#31574](https://github.com/ethereum/go-ethereum/pull/31574) triedb: add test suite for preimage store `triedb` **consensus**
+- [ ] [#31480](https://github.com/ethereum/go-ethereum/pull/31480) internal/ethapi: fix tx.from in eth_simulateV1 `internal/qrlapi`
+- [ ] [#31711](https://github.com/ethereum/go-ethereum/pull/31711) rpc: add method name length limit `rpc` **security?**
+- [ ] [#31763](https://github.com/ethereum/go-ethereum/pull/31763) eth/tracers: fix `standardTraceBlockToFile` `qrl/tracers`
+- [-] [36b2371c59](https://github.com/ethereum/go-ethereum/commit/36b2371c59) version: release go-ethereum v1.15.11 stable `version` — build/CI/docs/release
+
+## v1.16.0 (2025-06-26): 140 commits, 102 to review
+
+- [-] [d6655cb450](https://github.com/ethereum/go-ethereum/commit/d6655cb450) version: begin v1.15.12 release cycle `version` — build/CI/docs/release
+- [-] [#31541](https://github.com/ethereum/go-ethereum/pull/31541) go.mod: update pebble to v1.1.5 to reduce clutter in go.sum — build/CI/docs/release
+- [ ] [#31630](https://github.com/ethereum/go-ethereum/pull/31630) cmd/utils:  don't allow network ID override if a preset network is specified `cmd/gqrl`, `cmd/utils`
+- [-] [#31775](https://github.com/ethereum/go-ethereum/pull/31775) beacon/blsync: fix requests encoding in engine_newPayloadV4 `beacon/blsync` — n/a
+- [ ] [#31652](https://github.com/ethereum/go-ethereum/pull/31652) p2p: add metrics for inbound connection errors `p2p`
+- [ ] [#31783](https://github.com/ethereum/go-ethereum/pull/31783) internal/web3ext: remove the legacy backtraceAt method `internal/web3ext`
+- [ ] [#31703](https://github.com/ethereum/go-ethereum/pull/31703) core, ethdb: introduce database sync function `core`, `core/rawdb`, `node`, `qrldb` **consensus**
+- [ ] [#31784](https://github.com/ethereum/go-ethereum/pull/31784) cmd/geth, internal: fix flaky console tests `cmd/gqrl`, `internal/cmdtest`, `qrl`
+- [ ] [#31776](https://github.com/ethereum/go-ethereum/pull/31776) core/types: delete unused test variable `core/types` **consensus**
+- [ ] [#31781](https://github.com/ethereum/go-ethereum/pull/31781) core, triedb/pathdb: bail out error if write state history fails `core/rawdb`, `triedb/pathdb` **consensus**
+- [ ] [#31557](https://github.com/ethereum/go-ethereum/pull/31557) core: implement in-block prefetcher `core`, `core/state`, `triedb/pathdb` **consensus**
+- [ ] [#31769](https://github.com/ethereum/go-ethereum/pull/31769) all: create global hasher pool `core/rawdb`, `core/state`, `core/types`, `core/vm` **consensus**
+- [ ] [#31598](https://github.com/ethereum/go-ethereum/pull/31598) core/types: reduce allocations in tx.EffectiveGasTip `core/types`, `qrl/tracers` **consensus**
+- [ ] [#31753](https://github.com/ethereum/go-ethereum/pull/31753) metrics: add chain/mgasps to track gas usage rate `core` **consensus**
+- [ ] [#31782](https://github.com/ethereum/go-ethereum/pull/31782) ethdb/pebble: expose stall counter of pebble `qrldb/pebble`
+- [ ] [#31809](https://github.com/ethereum/go-ethereum/pull/31809) core/state: fix incorrect description of function behavior `core/state`, `core/vm` **consensus**
+- [ ] [#31804](https://github.com/ethereum/go-ethereum/pull/31804) accounts/abi/abigen: remove unnecessary test files `accounts/abi`
+- [-] [#31806](https://github.com/ethereum/go-ethereum/pull/31806) crypto/kzg4844: use package github.com/crate-crypto/go-eth-kzg `crypto/kzg4844` — n/a
+- [ ] [#31768](https://github.com/ethereum/go-ethereum/pull/31768) eth: fix returned blockContext for empty blocks in stateAtTransaction `qrl`
+- [ ] [#31800](https://github.com/ethereum/go-ethereum/pull/31800) core: use unix time to check fork readiness `core` **consensus**
+- [ ] [#31182](https://github.com/ethereum/go-ethereum/pull/31182) eth/catalyst: refactor engine api checks `qrl/catalyst`
+- [ ] [#31821](https://github.com/ethereum/go-ethereum/pull/31821) cmd/utils: always record preimages in dev mode `cmd/utils`
+- [ ] [#31779](https://github.com/ethereum/go-ethereum/pull/31779) p2p/enode: add support for naming iterator sources `p2p/enode`
+- [ ] [#31014](https://github.com/ethereum/go-ethereum/pull/31014) core/state, core/vm: update stateless gas costs to follow the verkle-gen-7 testnet `core`, `core/state`, `core/vm` **consensus**
+- [-] [#31624](https://github.com/ethereum/go-ethereum/pull/31624) AUTHORS, .mailmap: update name and email attribution — build/CI/docs/release
+- [ ] [#31823](https://github.com/ethereum/go-ethereum/pull/31823) cmd/geth, internal/era/eradl: add era1 downloader tool `cmd/gqrl`, `internal/build`, `internal/download`, `internal/era`
+- [-] [#31774](https://github.com/ethereum/go-ethereum/pull/31774) build: upgrade -dlgo version to Go 1.24.3 — build/CI/docs/release
+- [ ] [#31838](https://github.com/ethereum/go-ethereum/pull/31838) cmd/utils: remove deprecated LES flags `cmd/gqrl`, `cmd/utils`
+- [ ] [#30661](https://github.com/ethereum/go-ethereum/pull/30661) core, triedb/pathdb: final integration (snapshot integration pt 5) `core`, `core/state`, `qrl`, `qrl/protocols` **consensus**
+- [ ] [#29158](https://github.com/ethereum/go-ethereum/pull/29158) eth/protocols/eth: implement eth/69 `cmd/devp2p`, `cmd/utils`, `core`, `core/filtermaps` **consensus**
+- [ ] [#31765](https://github.com/ethereum/go-ethereum/pull/31765) eth: use headers in debug.GetModifiedAccountsBy* `qrl`
+- [ ] [#31843](https://github.com/ethereum/go-ethereum/pull/31843) cmd/devp2p/internal/ethtest: tests for BlockRangeUpdate `cmd/devp2p`
+- [ ] [#31845](https://github.com/ethereum/go-ethereum/pull/31845) core: don't emit the warning of log indexing if the db was not initialized `core/filtermaps`, `core/rawdb`
+- [ ] [#31786](https://github.com/ethereum/go-ethereum/pull/31786) trie: use common.Hash as the key in secKeyCache map `trie` **consensus**
+- [ ] [#31854](https://github.com/ethereum/go-ethereum/pull/31854) cmd/utils: remove duplicate code for influxDB tags `cmd/utils`
+- [ ] [#31856](https://github.com/ethereum/go-ethereum/pull/31856) internal: remove eth_{compile,getWork,submitWork} from console `internal/jsre`
+- [ ] [#31859](https://github.com/ethereum/go-ethereum/pull/31859) internal/reexec: fix broken link to Docker/Moby in comment `internal/reexec`
+- [-] [#31860](https://github.com/ethereum/go-ethereum/pull/31860) README: update broken JSON-RPC API documentation link — build/CI/docs/release
+- [ ] [#31836](https://github.com/ethereum/go-ethereum/pull/31836) core/txpool/legacypool: fix flaky test TestAllowedTxSize #30975 `core/txpool`
+- [ ] [#31006](https://github.com/ethereum/go-ethereum/pull/31006) eth/tracers/native: add erc7562 tracer `qrl/tracers`
+- [ ] [#31861](https://github.com/ethereum/go-ethereum/pull/31861) core/state: reduce allocation in updateStateObject `core/state` **consensus**
+- [ ] [#31867](https://github.com/ethereum/go-ethereum/pull/31867) eth/catalyst: move witness methods from engine api `qrl/catalyst`
+- [ ] [#31846](https://github.com/ethereum/go-ethereum/pull/31846) eth/tracers: Improve test coverage for toWord `qrl/tracers`
+- [ ] [#31837](https://github.com/ethereum/go-ethereum/pull/31837) core/txpool: add explicit max blob count limit `core/txpool` **security?**
+- [ ] [#31880](https://github.com/ethereum/go-ethereum/pull/31880) build: Update EEST to v4.5.0 `tests`
+- [-] [#31879](https://github.com/ethereum/go-ethereum/pull/31879) internal/era: update link to documentation `internal/era` — n/a
+- [ ] [#31878](https://github.com/ethereum/go-ethereum/pull/31878) crypto: use pure Go signature implementation in tinygo `crypto`
+- [ ] [#31875](https://github.com/ethereum/go-ethereum/pull/31875) consensus: remove clique RPC APIs `consensus`, `consensus/beacon`, `consensus/clique`, `consensus/ethash` **consensus**
+- [-] [#31885](https://github.com/ethereum/go-ethereum/pull/31885) .gitea: add initial workflow file — build/CI/docs/release
+- [-] [#31886](https://github.com/ethereum/go-ethereum/pull/31886) .gitea: update release build actions — build/CI/docs/release
+- [ ] [#31874](https://github.com/ethereum/go-ethereum/pull/31874) core/state: fix copy of storageChange `core/state` **consensus**
+- [-] [#31890](https://github.com/ethereum/go-ethereum/pull/31890) .gitea: add cron build script — build/CI/docs/release
+- [ ] [#31891](https://github.com/ethereum/go-ethereum/pull/31891) internal/build: add support for Github Actions CI environment `internal/build`
+- [ ] [#31870](https://github.com/ethereum/go-ethereum/pull/31870) core: remove unused queued import status `core`
+- [ ] [#31896](https://github.com/ethereum/go-ethereum/pull/31896) core/vm: fix bls benchmark `core/vm` **consensus**
+- [ ] [#30971](https://github.com/ethereum/go-ethereum/pull/30971) triedb/pathdb: introduce lookup structure to optimize state access `triedb/pathdb` **consensus**
+- [-] [#31915](https://github.com/ethereum/go-ethereum/pull/31915) .gitea: adjust cron schedule — build/CI/docs/release
+- [-] [#31918](https://github.com/ethereum/go-ethereum/pull/31918) .gitea: add env to scheduled builds — build/CI/docs/release
+- [-] [#31919](https://github.com/ethereum/go-ethereum/pull/31919) .gitea: port more builds from travis and fix PPA env — build/CI/docs/release
+- [-] [#31920](https://github.com/ethereum/go-ethereum/pull/31920) .gitea: fix secrets passing — build/CI/docs/release
+- [-] [#31921](https://github.com/ethereum/go-ethereum/pull/31921) .gitea: fix apt update — build/CI/docs/release
+- [-] [#31922](https://github.com/ethereum/go-ethereum/pull/31922) .gitea: fix archive uploads and run PPA upload on release push — build/CI/docs/release
+- [-] [#31923](https://github.com/ethereum/go-ethereum/pull/31923) .gitea: fix arm64 build — build/CI/docs/release
+- [-] [#31924](https://github.com/ethereum/go-ethereum/pull/31924) .gitea: run release build on tag push — build/CI/docs/release
+- [ ] [#31898](https://github.com/ethereum/go-ethereum/pull/31898) cmd/geth, cmd/utils: log prefunded account/key in ephemeral development mode `cmd/gqrl`, `cmd/utils`
+- [-] [#31927](https://github.com/ethereum/go-ethereum/pull/31927) .travis.yml: remove master branch push builds — build/CI/docs/release
+- [-] [#31909](https://github.com/ethereum/go-ethereum/pull/31909) go.mod: bump flock package version — build/CI/docs/release
+- [-] [#31946](https://github.com/ethereum/go-ethereum/pull/31946) .gitea: modify scheduled workflow times — build/CI/docs/release
+- [ ] [#31949](https://github.com/ethereum/go-ethereum/pull/31949) eth: return null for not-found in BlockByNumberOrHash `qrl`
+- [ ] [#31604](https://github.com/ethereum/go-ethereum/pull/31604) core/rawdb: integrate eradb backend for RPC `cmd/gqrl`, `cmd/utils`, `common/lru`, `core` **consensus**
+- [ ] [#31852](https://github.com/ethereum/go-ethereum/pull/31852) core/filtermaps: remove filter base row cache, add group read `core/filtermaps`
+- [ ] [#31940](https://github.com/ethereum/go-ethereum/pull/31940) eth/catalyst: change warning to error for 'too many bad block attempts' `qrl/catalyst`
+- [ ] [#31941](https://github.com/ethereum/go-ethereum/pull/31941) eth/filters: fix pruned history error for genesis block `qrl/filters`
+- [ ] [#31953](https://github.com/ethereum/go-ethereum/pull/31953) metrics: disable CPU metrics on tinygo `metrics`
+- [ ] [#31955](https://github.com/ethereum/go-ethereum/pull/31955) eth/catalyst: use atomics instead of locks `qrl/catalyst`
+- [ ] [#31790](https://github.com/ethereum/go-ethereum/pull/31790) accounts/abi:  error when packing negative values in unsigned types `accounts/abi`
+- [ ] [#31961](https://github.com/ethereum/go-ethereum/pull/31961) cmd/utils: update SepoliaFlag usage `cmd/utils`
+- [ ] [#31952](https://github.com/ethereum/go-ethereum/pull/31952) eth/downloader: fix missing receipt `qrl/downloader`
+- [ ] [#31818](https://github.com/ethereum/go-ethereum/pull/31818) core/vm: implement EIP 7823 - Set upper bounds for MODEXP `core/vm` **consensus**
+- [-] [#31911](https://github.com/ethereum/go-ethereum/pull/31911) crypto/kzg4844: avoid copying blobs for marshaling `crypto/kzg4844` — n/a
+- [ ] [#31944](https://github.com/ethereum/go-ethereum/pull/31944) eth, p2p: improve dial speed by pre-fetching dial candidates `p2p`, `p2p/enode`, `qrl`
+- [ ] [#31951](https://github.com/ethereum/go-ethereum/pull/31951) cmd/geth: fix era1 download location to match store `cmd/gqrl`
+- [ ] [#31606](https://github.com/ethereum/go-ethereum/pull/31606) core/vm: implement EIP 7883 - ModExp Gas Cost Increase `core/vm` **consensus**
+- [ ] [#31791](https://github.com/ethereum/go-ethereum/pull/31791) eth/catalyst: implement getBlobsV2 `beacon/engine`, `core/txpool`, `core/types`, `crypto/kzg4844` **consensus**
+- [ ] [#31970](https://github.com/ethereum/go-ethereum/pull/31970) ethdb/pebble: adjust the number of memory tables `qrldb/pebble`
+- [ ] [#31992](https://github.com/ethereum/go-ethereum/pull/31992) eth: initialize blobTxPool `qrl`
+- [ ] [#31288](https://github.com/ethereum/go-ethereum/pull/31288) cmd/workload: introduce transaction-trace test `cmd/workload`, `qrl/tracers`, `qrlclient/gethclient`
+- [ ] [#31993](https://github.com/ethereum/go-ethereum/pull/31993) params: enable osaka fork in MergedTestChainConfig `params` **consensus**
+- [ ] [#31887](https://github.com/ethereum/go-ethereum/pull/31887) eth/filters: add timestamp to derived logs `cmd/qrvm`, `core`, `core/rawdb`, `core/state` **consensus**
+- [ ] [#32000](https://github.com/ethereum/go-ethereum/pull/32000) core/vm, cmd/evm: remove EOF `cmd/qrvm`, `core/vm` **consensus**
+- [-] [#32017](https://github.com/ethereum/go-ethereum/pull/32017) crypto/kzg4844: remove kzg initialization `crypto/kzg4844` — n/a
+- [ ] [#32004](https://github.com/ethereum/go-ethereum/pull/32004) metrics: add chain/gas for cumulative gas usage `core` **consensus**
+- [ ] [#32012](https://github.com/ethereum/go-ethereum/pull/32012) trie: no need to store preimage if not enabled `trie`, `triedb` **consensus**
+- [ ] [#31962](https://github.com/ethereum/go-ethereum/pull/31962) metrics: remove use of reflect in metrics registration code `metrics`
+- [ ] [#32015](https://github.com/ethereum/go-ethereum/pull/32015) core/vm: implement updates to modexp gas cost changes in EIP-7883 `core/vm` **consensus**
+- [-] [#32029](https://github.com/ethereum/go-ethereum/pull/32029) Makefile: add make evm — build/CI/docs/release
+- [ ] [#31855](https://github.com/ethereum/go-ethereum/pull/31855) eth/tracers: flag for empty acounts in prestateTracer `qrl/tracers`
+- [-] [#32024](https://github.com/ethereum/go-ethereum/pull/32024) crypto/bn256: default to gnark `crypto/bn256` — n/a
+- [-] [#32034](https://github.com/ethereum/go-ethereum/pull/32034) go.mod: update gnark-crypto to v0.18.0 — build/CI/docs/release
+- [ ] [#31427](https://github.com/ethereum/go-ethereum/pull/31427) tracers/prestate: always remove empty accounts from pre-state `qrl/tracers`
+- [ ] [#32047](https://github.com/ethereum/go-ethereum/pull/32047) node: fix data race on httpConfig.prefix `node`
+- [-] [65d77c5129](https://github.com/ethereum/go-ethereum/commit/65d77c5129) Revert "crypto/bn256: default to gnark (#32024)" `crypto/bn256` — n/a
+- [ ] [#32051](https://github.com/ethereum/go-ethereum/pull/32051) fix: skip storage entries with missing preimage keys `core/state` **consensus**
+- [ ] [#31988](https://github.com/ethereum/go-ethereum/pull/31988) ethdb/pebble: lower the compaction debt `qrldb/pebble`
+- [ ] [#31982](https://github.com/ethereum/go-ethereum/pull/31982) accounts: fix data race when closing manager `accounts`
+- [-] [#31658](https://github.com/ethereum/go-ethereum/pull/31658) go.mod: bump golang.org/x/net from 0.36.0 to 0.38.0 — build/CI/docs/release
+- [-] [#32055](https://github.com/ethereum/go-ethereum/pull/32055) crypto/bn256: fix gnark deserialisation `crypto/bn256` — n/a
+- [ ] [#32053](https://github.com/ethereum/go-ethereum/pull/32053) tests/fuzzers: added bn marshaling fuzzers `crypto/bn256`, `oss-fuzz.sh`, `tests/fuzzers`
+- [-] [#31978](https://github.com/ethereum/go-ethereum/pull/31978) build: upgrade -dlgo version to Go 1.24.4 — build/CI/docs/release
+- [ ] [#31928](https://github.com/ethereum/go-ethereum/pull/31928) eth/catalyst: fetch header on forkchoiceUpdated `qrl/catalyst`, `qrl/downloader`
+- [ ] [#31839](https://github.com/ethereum/go-ethereum/pull/31839) all: reuse the global hash buffer `core/rawdb`, `core/state`, `crypto`, `triedb/pathdb` **consensus**
+- [-] [#32057](https://github.com/ethereum/go-ethereum/pull/32057) crypto/bn256/cloudflare: pull in upstream fix for R27 and R29 usage `crypto/bn256` — n/a
+- [ ] [#32062](https://github.com/ethereum/go-ethereum/pull/32062) eth,core: terminate the downloader immediately when shutdown signal is received `core`, `qrl/downloader` **consensus**
+- [ ] [#32027](https://github.com/ethereum/go-ethereum/pull/32027) core/rawdb: don't decode the full block body in ReadTransaction `core/rawdb`
+- [ ] [#31771](https://github.com/ethereum/go-ethereum/pull/31771) core: simplify effectiveTip calculation `core` **consensus**
+- [ ] [#31925](https://github.com/ethereum/go-ethereum/pull/31925) core: consolidate BlockChain constructor options `cmd/utils`, `consensus/clique`, `core`, `core/txpool` **consensus**
+- [-] [d4462828e9](https://github.com/ethereum/go-ethereum/commit/d4462828e9) .gitea: touch cron workflow files — build/CI/docs/release
+- [ ] [#31785](https://github.com/ethereum/go-ethereum/pull/31785) trie: delete secKeyCacheOwner `trie` **consensus**
+- [-] [35dd61a3bf](https://github.com/ethereum/go-ethereum/commit/35dd61a3bf) .gitea: show environment in release-ppa.yml — build/CI/docs/release
+- [-] [#32065](https://github.com/ethereum/go-ethereum/pull/32065) crypto/bn256/gnark: align marshaling behavior `crypto/bn256` — n/a
+- [-] [#32066](https://github.com/ethereum/go-ethereum/pull/32066) crypto/bn256: add documentation on subgroup checks for G2 `crypto/bn256` — n/a
+- [ ] [#31947](https://github.com/ethereum/go-ethereum/pull/31947) ethdb: Implement DeleteRange in batch `core/rawdb`, `qrldb`, `qrldb/dbtest`, `qrldb/leveldb` **consensus**
+- [ ] [#31998](https://github.com/ethereum/go-ethereum/pull/31998) core/state: expose the state reader stats `core`, `core/state` **consensus**
+- [ ] [#32071](https://github.com/ethereum/go-ethereum/pull/32071) core/state: improve the prefetcher concurrency allowance `core`
+- [ ] [#32075](https://github.com/ethereum/go-ethereum/pull/32075) core/state: fix prefetch on single core CPU `core`
+- [ ] [#30464](https://github.com/ethereum/go-ethereum/pull/30464) triedb/pathdb, eth: use double-buffer mechanism in pathdb `core`, `core/state`, `triedb/pathdb` **consensus**
+- [ ] [#32067](https://github.com/ethereum/go-ethereum/pull/32067) eth: quick canceling block inserting when debug_setHead is invoked `core`, `internal/qrlapi`, `qrl/downloader` **consensus**
+- [-] [#32070](https://github.com/ethereum/go-ethereum/pull/32070) cmd/clef: update readme — build/CI/docs/release
+- [ ] [#32080](https://github.com/ethereum/go-ethereum/pull/32080) eth/tracers: prestate lookup EIP7702 delegation account `qrl/tracers`
+- [ ] [#32081](https://github.com/ethereum/go-ethereum/pull/32081) cmd/geth: era-download logic fix `cmd/gqrl`
+- [ ] [#32087](https://github.com/ethereum/go-ethereum/pull/32087) miner: default gaslimit 45M `miner`
+- [ ] [#31156](https://github.com/ethereum/go-ethereum/pull/31156) core/rawdb, triedb/pathdb: implement history indexer `cmd/utils`, `core`, `core/rawdb`, `qrldb/pebble` **consensus**
+- [ ] [#32086](https://github.com/ethereum/go-ethereum/pull/32086) cmd/geth, triedb: add pathdb state verification `cmd/gqrl`, `triedb`, `triedb/pathdb` **consensus**
+- [ ] [#31725](https://github.com/ethereum/go-ethereum/pull/31725) core, consensus/beacon: defer trie resolution `consensus/beacon`, `core`, `core/state` **consensus**
+- [ ] [#32090](https://github.com/ethereum/go-ethereum/pull/32090) cmd/utils: fix formatting for beacon flag errors to fit Fatalf form `cmd/utils`
+- [ ] [#32091](https://github.com/ethereum/go-ethereum/pull/32091) eth, triedb/pathdb: permit write buffer allowance in PBSS archive mode `qrl`, `triedb/pathdb` **consensus**
+- [ ] [#31161](https://github.com/ethereum/go-ethereum/pull/31161) core, eth, triedb: serve historical states over RPC `core`, `core/state`, `qrl`, `triedb` **consensus**
+- [ ] [#32097](https://github.com/ethereum/go-ethereum/pull/32097) triedb/pathdb: fix journal resolution in pathdb `triedb/pathdb` **consensus**
+- [ ] [#32099](https://github.com/ethereum/go-ethereum/pull/32099) all: incorporate state history indexing status into eth_syncing response `core`, `graphql`, `interfaces.go`, `internal/jsre` **consensus**
+- [-] [57f8971b89](https://github.com/ethereum/go-ethereum/commit/57f8971b89) version: release go-ethereum v1.16.0 stable `version` — build/CI/docs/release
+
+## v1.16.1 (2025-07-02): 23 commits, 15 to review
+
+- [-] [3941fe0a5f](https://github.com/ethereum/go-ethereum/commit/3941fe0a5f) version: begin v1.16.1 release cycle `version` — build/CI/docs/release
+- [-] [094db92d68](https://github.com/ethereum/go-ethereum/commit/094db92d68) .gitea: trigger PPA upload on tag — build/CI/docs/release
+- [-] [668c3a7278](https://github.com/ethereum/go-ethereum/commit/668c3a7278) .travis.yml: remove travis configuration — build/CI/docs/release
+- [ ] [#32093](https://github.com/ethereum/go-ethereum/pull/32093) all: replace override.prague with osaka `cmd/gqrl`, `cmd/utils`, `core`, `qrl` **consensus**
+- [ ] [#32089](https://github.com/ethereum/go-ethereum/pull/32089) node: do not double-wrap KV stores `node`
+- [ ] [#32107](https://github.com/ethereum/go-ethereum/pull/32107) eth: correct tracer initialization in BlockchainConfig `qrl`
+- [-] [#32118](https://github.com/ethereum/go-ethereum/pull/32118) .gitea: switch release builds to static linking — build/CI/docs/release
+- [-] [9eed26d1b0](https://github.com/ethereum/go-ethereum/commit/9eed26d1b0) .gitea: fix 386 upload — build/CI/docs/release
+- [-] [87d7c2aa12](https://github.com/ethereum/go-ethereum/commit/87d7c2aa12) .gitea: disable cron schedule — build/CI/docs/release
+- [ ] [#32104](https://github.com/ethereum/go-ethereum/pull/32104) triedb: reset state indexer after snap synced `triedb/pathdb` **consensus**
+- [~] [#31876](https://github.com/ethereum/go-ethereum/pull/31876) eth/filters: add address limit to filters `qrl/filters` **security?** — port open
+- [ ] [#31934](https://github.com/ethereum/go-ethereum/pull/31934) Fix log indexer noise after debug_setHead operations `core/filtermaps`
+- [ ] [#32123](https://github.com/ethereum/go-ethereum/pull/32123) core/filtermaps: clean up log format of unindexing message `core/filtermaps`
+- [ ] [#32125](https://github.com/ethereum/go-ethereum/pull/32125) eth/catalyst: fix the log message in newPayloadV4 `qrl/catalyst`
+- [ ] [#32110](https://github.com/ethereum/go-ethereum/pull/32110) internal/ethapi: prealloc map for the txpool api `internal/qrlapi`
+- [ ] [#32021](https://github.com/ethereum/go-ethereum/pull/32021) ethapi: reduce some of the wasted effort in GetTransactionReceipt `core`, `core/rawdb`, `core/types`, `graphql` **consensus**
+- [ ] [#32073](https://github.com/ethereum/go-ethereum/pull/32073) internal: remove unused shh and swarm modules from console `internal/jsre`, `rpc`
+- [ ] [#31659](https://github.com/ethereum/go-ethereum/pull/31659) core/filtermaps: define APIs for map, epoch calculation `core/filtermaps`, `core/rawdb`, `qrl`, `qrl/filters`
+- [ ] [#32129](https://github.com/ethereum/go-ethereum/pull/32129) core/types: blockTimestamp in logs is hex-encoded `core/types`, `internal/qrlapi`, `qrl/filters` **consensus**
+- [ ] [#32130](https://github.com/ethereum/go-ethereum/pull/32130) core/rawdb, triedb/pathdb: fix two inaccurate comments `core/rawdb`, `triedb/pathdb` **consensus**
+- [ ] [#31871](https://github.com/ethereum/go-ethereum/pull/31871) eth/catalyst: fix edge case in simulated backend `qrl/catalyst`
+- [ ] [#31692](https://github.com/ethereum/go-ethereum/pull/31692) accounts/abi: generate TryPack* methods for abigen v2 bindings `accounts/abi`
+- [-] [12b4131ff7](https://github.com/ethereum/go-ethereum/commit/12b4131ff7) version: release go-ethereum v1.16.1 stable `version` — build/CI/docs/release
+
+## v1.16.2 (2025-08-04): 84 commits, 68 to review
+
+- [-] [41408af9b9](https://github.com/ethereum/go-ethereum/commit/41408af9b9) version: begin v1.16.2 release cycle `version` — build/CI/docs/release
+- [ ] [#32046](https://github.com/ethereum/go-ethereum/pull/32046) beacon/blsync: update logs for blsync (Fixes #31968 ) `qrl/downloader`
+- [ ] [#32092](https://github.com/ethereum/go-ethereum/pull/32092) cmd/workload: rework tracegen to run tracing at block level `cmd/workload`, `qrlclient/gethclient`
+- [ ] [#31585](https://github.com/ethereum/go-ethereum/pull/31585) core/state: add GetStateAndCommittedState `core/state`, `core/vm`, `qrl/tracers` **consensus**
+- [ ] [#32128](https://github.com/ethereum/go-ethereum/pull/32128) cmd/utils, internal/debug: hide the deprecated flags `cmd/utils`, `internal/debug`
+- [-] [ef6e92e51d](https://github.com/ethereum/go-ethereum/commit/ef6e92e51d) .gitea: add windows build (experimental) — build/CI/docs/release
+- [ ] [#32141](https://github.com/ethereum/go-ethereum/pull/32141) cmd/utils: show full deprecated flags `cmd/utils`
+- [ ] [#32145](https://github.com/ethereum/go-ethereum/pull/32145) cmd/utils: update flag description of gcmode `cmd/utils`
+- [-] [7088e87dce](https://github.com/ethereum/go-ethereum/commit/7088e87dce) .gitea: add workflow_dispatch for release build — build/CI/docs/release
+- [-] [e225983a06](https://github.com/ethereum/go-ethereum/commit/e225983a06) .gitea: update PATH — build/CI/docs/release
+- [-] [3f4555abc6](https://github.com/ethereum/go-ethereum/commit/3f4555abc6) .gitea: set PATH — build/CI/docs/release
+- [-] [db1806efa2](https://github.com/ethereum/go-ethereum/commit/db1806efa2) gitea: try with cmd — build/CI/docs/release
+- [-] [9efe1c16e2](https://github.com/ethereum/go-ethereum/commit/9efe1c16e2) gitea: set PATH in script — build/CI/docs/release
+- [-] [063033834b](https://github.com/ethereum/go-ethereum/commit/063033834b) .gitea: fix typo in windows workflow — build/CI/docs/release
+- [ ] [#32068](https://github.com/ethereum/go-ethereum/pull/32068) core/vm: move nil-check out of the interpreter loop `core/vm` **consensus**
+- [ ] [#31989](https://github.com/ethereum/go-ethereum/pull/31989) core/vm: implement EIP-7939 - CLZ opcode `core/vm` **consensus**
+- [-] [#32142](https://github.com/ethereum/go-ethereum/pull/32142) core/txpool/blobpool: lower log level for warnings `core/txpool` — n/a
+- [ ] [#32150](https://github.com/ethereum/go-ethereum/pull/32150) .github, internal/flags: improve actions test runs `internal/flags`
+- [ ] [#31965](https://github.com/ethereum/go-ethereum/pull/31965) consensus/misc/eip4844: implement EIP-7918 `consensus/misc`, `params` **consensus**
+- [ ] [#31991](https://github.com/ethereum/go-ethereum/pull/31991) core/vm: implement EIP-7951 - precompile for secp256r1 `core/vm`, `crypto/secp256r1`, `params` **consensus**
+- [ ] [#32149](https://github.com/ethereum/go-ethereum/pull/32149) cmd, eth/catalyst: exit geth only if exitWhenSynced is specified `cmd/gqrl`, `cmd/utils`, `qrl/catalyst`
+- [ ] [#32166](https://github.com/ethereum/go-ethereum/pull/32166) eth/catalyst:  abort dev mode block commit if shut down is triggered `qrl/catalyst`
+- [ ] [#31824](https://github.com/ethereum/go-ethereum/pull/31824) miner, core, core/txpool: implement EIP 7825 - TX Gas Limit Cap `cmd/qrvm`, `core`, `core/txpool`, `miner` **consensus** **security?**
+- [ ] [#32172](https://github.com/ethereum/go-ethereum/pull/32172) core/vm: update gas cost of CLZ to five `core/vm` **consensus**
+- [ ] [#31990](https://github.com/ethereum/go-ethereum/pull/31990) core,miner: implement EIP-7934 - RLP Execution Block Size Limit `core`, `core/types`, `miner`, `params` **consensus** **security?**
+- [ ] [#32179](https://github.com/ethereum/go-ethereum/pull/32179) cmd/utils: add the missing check for the HoodiFlag in blsync `cmd/utils`, `node`
+- [-] [#32136](https://github.com/ethereum/go-ethereum/pull/32136) cmd/clef: update Safe API documentation links in changelog — build/CI/docs/release
+- [ ] [#31948](https://github.com/ethereum/go-ethereum/pull/31948) core/types:  add block-level access list structures with encoding/decoding `core/types` **consensus**
+- [ ] [#32188](https://github.com/ethereum/go-ethereum/pull/32188) eth/downloader: fix ancient limit in snap sync `qrl/downloader` **security?**
+- [-] [8cf87c65e9](https://github.com/ethereum/go-ethereum/commit/8cf87c65e9) .github: remove karalabe from CODEOWNERS — build/CI/docs/release
+- [ ] [#32121](https://github.com/ethereum/go-ethereum/pull/32121) cmd/geth: update vcheck testdata, add docs on generating signatures `cmd/gqrl`
+- [ ] [#32197](https://github.com/ethereum/go-ethereum/pull/32197) signer/core/apitypes: require blob txs to have tx.to set `signer/core`
+- [ ] [#32194](https://github.com/ethereum/go-ethereum/pull/32194) accounts/keystore: update links to documenation `accounts/keystore`
+- [ ] [#32206](https://github.com/ethereum/go-ethereum/pull/32206) ethclient/gethclient: remove race condition in tests `qrlclient/gethclient`
+- [ ] [#32193](https://github.com/ethereum/go-ethereum/pull/32193) params: EIP-7892 - Blob Parameter Only Hardforks `consensus/misc`, `params` **consensus**
+- [~] [#32210](https://github.com/ethereum/go-ethereum/pull/32210) eth/fetcher: fix announcement drop logic `qrl/fetcher` — port open
+- [ ] [#32199](https://github.com/ethereum/go-ethereum/pull/32199) miner: set sidecar version when recomputing proofs `miner`
+- [ ] [#32209](https://github.com/ethereum/go-ethereum/pull/32209) all: fix outdated ethereum wiki json-rpc json-rpc doc links `internal/qrlapi`
+- [ ] [#32198](https://github.com/ethereum/go-ethereum/pull/32198) core/types: fix CellProofsAt method `core/types`, `qrl/catalyst` **consensus**
+- [ ] [#32060](https://github.com/ethereum/go-ethereum/pull/32060) triedb/pathdb: introduce file-based state journal `cmd/utils`, `core`, `core/rawdb`, `qrl` **consensus**
+- [ ] [#32135](https://github.com/ethereum/go-ethereum/pull/32135) core/rawdb: change the mechanism to schedule freezer sync `core/rawdb`
+- [ ] [#32214](https://github.com/ethereum/go-ethereum/pull/32214) eth/protocols/snap, p2p/discover: improve zero time checks `p2p/discover`, `qrl/protocols`
+- [ ] [#32215](https://github.com/ethereum/go-ethereum/pull/32215) all: update dead wiki links `rpc`, `tests`
+- [ ] [#31913](https://github.com/ethereum/go-ethereum/pull/31913) core/rawdb: reduce allocations in rawdb.ReadHeaderNumber `cmd/gqrl`, `core`, `core/rawdb`, `qrl/filters`
+- [ ] [#32220](https://github.com/ethereum/go-ethereum/pull/32220) trie: avoid spawning goroutines for empty children `trie` **consensus**
+- [ ] [#32222](https://github.com/ethereum/go-ethereum/pull/32222) eth/downloader: improve nil pointer protection `qrl/downloader`
+- [ ] [#32212](https://github.com/ethereum/go-ethereum/pull/32212) account/abi/bind/v2: fix TestDeploymentWithOverrides `accounts/abi`
+- [ ] [#32183](https://github.com/ethereum/go-ethereum/pull/32183) eth/tracers: apply block header overrides correctly `qrl/tracers`
+- [ ] [#32226](https://github.com/ethereum/go-ethereum/pull/32226) triedb/pathdb: avoid duplicate metadata reads `triedb/pathdb` **consensus**
+- [ ] [#32225](https://github.com/ethereum/go-ethereum/pull/32225) eth/protocols/snap: fix negative eta in state progress logging `qrl/protocols`
+- [ ] [#32219](https://github.com/ethereum/go-ethereum/pull/32219) triedb/pathdb: improve the performance of parse index block `triedb/pathdb` **consensus**
+- [ ] [#32213](https://github.com/ethereum/go-ethereum/pull/32213) all: define constructor for BlobSidecar `beacon/engine`, `cmd/devp2p`, `core/txpool`, `core/types` **consensus**
+- [ ] [#32230](https://github.com/ethereum/go-ethereum/pull/32230) params: update tx gas limit cap `core`, `params` **consensus** **security?**
+- [-] [#32237](https://github.com/ethereum/go-ethereum/pull/32237) core/txpool/blobpool: remove unused `txValidationFn` from BlobPool `core/txpool` — n/a
+- [ ] [#32248](https://github.com/ethereum/go-ethereum/pull/32248) triedb/pathdb: fix incorrect address length in history searching `triedb/pathdb` **consensus**
+- [ ] [#32231](https://github.com/ethereum/go-ethereum/pull/32231) core/vm: triple modexp cost post-cancun `core/vm` **consensus**
+- [ ] [#32246](https://github.com/ethereum/go-ethereum/pull/32246) core, params: add limit for max blobs in blob transaction `core`, `core/txpool`, `params` **consensus** **security?**
+- [-] [#32251](https://github.com/ethereum/go-ethereum/pull/32251) build: update tests to fusaka-devnet-3 — build/CI/docs/release
+- [-] [#32241](https://github.com/ethereum/go-ethereum/pull/32241) core/types: minimize this invalid intermediate state `core/types` — n/a
+- [ ] [#32253](https://github.com/ethereum/go-ethereum/pull/32253) core/rawdb: downgrade log level in chain freezer `core/rawdb`
+- [ ] [#32250](https://github.com/ethereum/go-ethereum/pull/32250) triedb/pathdb:  use binary.append to eliminate the tmp scratch slice `triedb/pathdb` **consensus**
+- [ ] [#32217](https://github.com/ethereum/go-ethereum/pull/32217) p2p/rlpx: optimize XOR operation using bitutil.XORBytes `p2p/rlpx`
+- [ ] [#32255](https://github.com/ethereum/go-ethereum/pull/32255) eth/gasestimator: fix potential overflow `qrl/gasestimator` **security?**
+- [ ] [#32260](https://github.com/ethereum/go-ethereum/pull/32260) triedb/pathdb: fix an deadlock in history indexer `triedb/pathdb` **consensus**
+- [ ] [#32258](https://github.com/ethereum/go-ethereum/pull/32258) eth/protocols/snap: add healing and syncing metrics `qrl/protocols`
+- [ ] [#32274](https://github.com/ethereum/go-ethereum/pull/32274) core: replace the empty fmt.Errorf with errors.New `core`, `core/vm` **consensus**
+- [ ] [#32269](https://github.com/ethereum/go-ethereum/pull/32269) eth/catalyst: fix error message in ExecuteStatelessPayloadV4 `qrl/catalyst`
+- [ ] [#32177](https://github.com/ethereum/go-ethereum/pull/32177) cmd, eth, internal: introduce debug_sync `cmd/gqrl`, `cmd/utils`, `internal/web3ext`, `qrl/catalyst`
+- [ ] [#32286](https://github.com/ethereum/go-ethereum/pull/32286) all: replace fmt.Errorf with errors.New `cmd/devp2p`, `cmd/gqrl`, `cmd/workload`, `core/state` **consensus**
+- [ ] [#32288](https://github.com/ethereum/go-ethereum/pull/32288) downloader: fix typos, grammar and formatting `qrl/downloader`
+- [ ] [#32280](https://github.com/ethereum/go-ethereum/pull/32280) ethclient/simulated: Fix flaky rollback test `qrlclient/simulated`
+- [ ] [#32291](https://github.com/ethereum/go-ethereum/pull/32291) core/state: preallocate capacity for logs list `core/state` **consensus**
+- [ ] [#32293](https://github.com/ethereum/go-ethereum/pull/32293) core/state: improve PrettyPrint function `core/state` **consensus**
+- [ ] [#32298](https://github.com/ethereum/go-ethereum/pull/32298) core/types: expose sigHash as Hash for SetCodeAuthorization `core/types` **consensus**
+- [ ] [#32304](https://github.com/ethereum/go-ethereum/pull/32304) common/hexutil: replace customized bit sizer with bit.Uintsize `common/hexutil`
+- [ ] [#32301](https://github.com/ethereum/go-ethereum/pull/32301) accounts/abi: precompile regex `accounts/abi`
+- [ ] [#32303](https://github.com/ethereum/go-ethereum/pull/32303) cmd/devp2p/internal/v4test: add test for ENRRequest `cmd/devp2p`
+- [ ] [#31902](https://github.com/ethereum/go-ethereum/pull/31902) trie: reduce the memory allocation in trie hashing `trie` **consensus**
+- [ ] [#32143](https://github.com/ethereum/go-ethereum/pull/32143) core/vm: add configurable jumpdest analysis cache `core/vm` **consensus**
+- [ ] [#32324](https://github.com/ethereum/go-ethereum/pull/32324) eth: fix typos and outdated comments `qrl/ethconfig`, `qrl/filters`
+- [ ] [#31877](https://github.com/ethereum/go-ethereum/pull/31877) eth/filters: fix error when blockHash is used with fromBlock/toBlock `qrl/filters`
+- [ ] [#31148](https://github.com/ethereum/go-ethereum/pull/31148) rlp/rlpgen: implement package renaming support `rlp/rlpgen`
+- [ ] [#32336](https://github.com/ethereum/go-ethereum/pull/32336) beacon/params, core/filtermaps: update checkpoints `beacon/params`, `core/filtermaps`
+- [-] [#32343](https://github.com/ethereum/go-ethereum/pull/32343) version: release v1.16.2 `version` — build/CI/docs/release
+
+## v1.17.0 (2026-02-17): 552 commits, 473 to review
+
+- [-] [#32345](https://github.com/ethereum/go-ethereum/pull/32345) version: begin v1.16.3 release cycle `version` — build/CI/docs/release
+- [ ] [#31634](https://github.com/ethereum/go-ethereum/pull/31634) core/state: introduce the TransitionState object (verkle transition part 1) `core`, `core/overlay`, `core/rawdb`, `core/state` **consensus**
+- [ ] [#32190](https://github.com/ethereum/go-ethereum/pull/32190) eth/catalyst: avoid load the same blob tx multi times `core/txpool`, `qrl/catalyst`
+- [ ] [#32348](https://github.com/ethereum/go-ethereum/pull/32348) eth/gasestimator: check ErrGasLimitTooHigh conditions `internal/qrlapi`, `qrl/gasestimator`
+- [ ] [#32309](https://github.com/ethereum/go-ethereum/pull/32309) core/filtermaps: remove unnecessary nil check and add cv2 lock `core/filtermaps`
+- [-] [#32356](https://github.com/ethereum/go-ethereum/pull/32356) go.mod: upgraded github.com/golang-jwt/jwt/v4 v4.5.1 => v4.5.2 — build/CI/docs/release
+- [ ] [#32316](https://github.com/ethereum/go-ethereum/pull/32316) rpc: use reflect.TypeFor `rpc`
+- [-] [#32319](https://github.com/ethereum/go-ethereum/pull/32319) crypto/kzg4844: use reflect.TypeFor `crypto/kzg4844` — n/a
+- [ ] [#32321](https://github.com/ethereum/go-ethereum/pull/32321) common, common/hexutil: use reflect.TypeFor `common`, `common/hexutil`
+- [ ] [#32322](https://github.com/ethereum/go-ethereum/pull/32322) beacon/merkle: use reflect.TypeFor `beacon/merkle`
+- [ ] [#32320](https://github.com/ethereum/go-ethereum/pull/32320) core: use reflect.TypeFor `core/forkid`, `core/tracing`, `core/types` **consensus**
+- [ ] [#32360](https://github.com/ethereum/go-ethereum/pull/32360) p2p/enode: use atomic.Pointer in LocalNode `p2p/enode`
+- [ ] [#32315](https://github.com/ethereum/go-ethereum/pull/32315) signer/core/apitypes: simplify reflect []byte creation `signer/core`
+- [ ] [#32317](https://github.com/ethereum/go-ethereum/pull/32317) rlp: use reflect.TypeFor `rlp`
+- [ ] [#32354](https://github.com/ethereum/go-ethereum/pull/32354) eth/downloader: fix incomplete code comment `qrl/downloader`
+- [ ] [#32361](https://github.com/ethereum/go-ethereum/pull/32361) metrics: use atomic.Pointer in runtimeHistogram `metrics`
+- [ ] [#32352](https://github.com/ethereum/go-ethereum/pull/32352) core/vm: fold EVMInterpreter into EVM `core/vm`, `qrl/tracers` **consensus**
+- [ ] [#32380](https://github.com/ethereum/go-ethereum/pull/32380) ethclient: fix flaky pending tx test `qrlclient`
+- [ ] [#32384](https://github.com/ethereum/go-ethereum/pull/32384) ethdb/leveldb: check iterator error in Database.DeleteRange `qrldb/leveldb`
+- [ ] [#32378](https://github.com/ethereum/go-ethereum/pull/32378) core/vm: make types consistent in makeDup `core/vm` **consensus**
+- [ ] [#32389](https://github.com/ethereum/go-ethereum/pull/32389) miner: remove todo comment `miner`
+- [ ] [#32382](https://github.com/ethereum/go-ethereum/pull/32382) downloader: fix comment `qrl/downloader`
+- [ ] [#32323](https://github.com/ethereum/go-ethereum/pull/32323) accounts/abi, accounts/keystore: use reflect.TypeFor `accounts/abi`, `accounts/keystore`
+- [ ] [#32369](https://github.com/ethereum/go-ethereum/pull/32369) eth/downloader: skip nil peer in GetHeader `qrl/downloader`
+- [ ] [#32306](https://github.com/ethereum/go-ethereum/pull/32306) trie, core: rework tracer and track origin value of dirty nodes `core/state`, `trie`, `trie/trienode` **consensus**
+- [ ] [#32405](https://github.com/ethereum/go-ethereum/pull/32405) consensus: fix ambiguous invalid gas limit error `consensus/misc` **consensus** **security?**
+- [ ] [#32401](https://github.com/ethereum/go-ethereum/pull/32401) trie: refactor to use slices.Concat `trie` **consensus**
+- [ ] [#32411](https://github.com/ethereum/go-ethereum/pull/32411) cmd: fix inconsistent function name in comment `cmd/gqrl`, `cmd/workload`
+- [ ] [#32413](https://github.com/ethereum/go-ethereum/pull/32413) eth: abort `requiredBlocks` check if peer handler terminated `qrl`
+- [ ] [#32398](https://github.com/ethereum/go-ethereum/pull/32398) node: remove unused err var `node`
+- [ ] [#32421](https://github.com/ethereum/go-ethereum/pull/32421) rlp: optimize intsize `rlp`
+- [ ] [#32391](https://github.com/ethereum/go-ethereum/pull/32391) eth/tracers: Adds codeHash to prestateTracer's response `qrl/tracers`
+- [ ] [#32427](https://github.com/ethereum/go-ethereum/pull/32427) eth/syncer: fix typo `qrl/syncer`
+- [ ] [#32402](https://github.com/ethereum/go-ethereum/pull/32402) p2p: refactor to use time.Now().UnixMilli() in golang std lib `p2p/enode`
+- [-] [#32425](https://github.com/ethereum/go-ethereum/pull/32425) .github: upgrade workflows to Go 1.25 — build/CI/docs/release
+- [-] [#32412](https://github.com/ethereum/go-ethereum/pull/32412) build: upgrade -dlgo version to Go 1.25.0 — build/CI/docs/release
+- [-] [#32430](https://github.com/ethereum/go-ethereum/pull/32430) crypto/secp256k1: use ReadBits from common/math `crypto/secp256k1` — n/a
+- [ ] [#32393](https://github.com/ethereum/go-ethereum/pull/32393) build: remove unused functions `internal/build`
+- [ ] [#32366](https://github.com/ethereum/go-ethereum/pull/32366) trie, core/state: add the transition tree (verkle transition part 2) `core/state`, `trie` **consensus**
+- [ ] [#32444](https://github.com/ethereum/go-ethereum/pull/32444) cmd/evm: use PathScheme in blockrunner `cmd/qrvm`
+- [ ] [#32434](https://github.com/ethereum/go-ethereum/pull/32434) core/vm: refactor to use bitutil.TestBytes `core/vm` **consensus**
+- [-] [#32435](https://github.com/ethereum/go-ethereum/pull/32435) crypto/bn256: refactor to use bitutil.TestBytes `crypto/bn256` — n/a
+- [-] [#32424](https://github.com/ethereum/go-ethereum/pull/32424) consensus/misc/eip4844: use blob parameters of current header `consensus/misc` — n/a
+- [ ] [#32433](https://github.com/ethereum/go-ethereum/pull/32433) rlp: remove workaround for Value.Bytes `rlp`
+- [ ] [#32363](https://github.com/ethereum/go-ethereum/pull/32363) core/vm: fix EIP-7823 modexp input length check `core/vm` **consensus**
+- [ ] [#32454](https://github.com/ethereum/go-ethereum/pull/32454) metrics: add tinygo build flag for CPU time `metrics`
+- [ ] [#32455](https://github.com/ethereum/go-ethereum/pull/32455) core/rawdb: add non-unix alternative for tablewriter `core/rawdb`
+- [ ] [#32443](https://github.com/ethereum/go-ethereum/pull/32443) eth/syncer: stop ticker to prevent resource leak `qrl/syncer`
+- [ ] [#32431](https://github.com/ethereum/go-ethereum/pull/32431) core/rawdb: enhance database key construction `core/rawdb`
+- [ ] [#32279](https://github.com/ethereum/go-ethereum/pull/32279) rpc: add SetWebsocketReadLimit in Server `rpc`
+- [-] [#32466](https://github.com/ethereum/go-ethereum/pull/32466) CODEOWNERS: add gballet as the owner of trie package — build/CI/docs/release
+- [ ] [#32404](https://github.com/ethereum/go-ethereum/pull/32404) ethclient/gethclient: use common.Hash to debug_traceTransaction `qrlclient/gethclient`
+- [ ] [#32344](https://github.com/ethereum/go-ethereum/pull/32344) graphql: add query depth limit to prevent DoS attacks `graphql` **security?**
+- [ ] [#32414](https://github.com/ethereum/go-ethereum/pull/32414) p2p: update MaxPeers comment `p2p`
+- [ ] [#32300](https://github.com/ethereum/go-ethereum/pull/32300) eth/catalyst: return methods by reflect `qrl/catalyst`
+- [ ] [#32461](https://github.com/ethereum/go-ethereum/pull/32461) internal/ethapi, miner: fix GetBlockReceipts for pending `internal/qrlapi`, `miner`
+- [ ] [#32134](https://github.com/ethereum/go-ethereum/pull/32134) trie, core/state: introduce trie Prefetch for optimizing preload `core`, `core/state`, `trie` **consensus**
+- [ ] [#32357](https://github.com/ethereum/go-ethereum/pull/32357) p2p: using math.MaxInt32 from go std lib `p2p/msgrate`
+- [ ] [#32432](https://github.com/ethereum/go-ethereum/pull/32432) rlp: refactor to use maths.ReadBits `rlp`
+- [ ] [#32186](https://github.com/ethereum/go-ethereum/pull/32186) fixes missing protection of nil pointer dereference in scwallet `accounts/scwallet`
+- [ ] [#32417](https://github.com/ethereum/go-ethereum/pull/32417) accounts/usbwallet: correct version comparison logic `accounts/usbwallet`
+- [x] [#32397](https://github.com/ethereum/go-ethereum/pull/32397) p2p: remove todo comment, as it's unnecessary `p2p` — in go-qrl
+- [ ] [#31912](https://github.com/ethereum/go-ethereum/pull/31912) core/types: reduce allocations for transaction comparison `core/txpool`, `core/types` **consensus**
+- [ ] [#32477](https://github.com/ethereum/go-ethereum/pull/32477) triedb/pathdb: improve err message in historical state reader `triedb/pathdb` **consensus**
+- [ ] [#32388](https://github.com/ethereum/go-ethereum/pull/32388) core, miner, trie: add metrics tracking state trie depth `core`, `core/state`, `core/stateless`, `core/vm` **consensus**
+- [x] [#32481](https://github.com/ethereum/go-ethereum/pull/32481) p2p/discover: add discv5 invalid findnodes result test cases `p2p/discover` — in go-qrl
+- [ ] [#32488](https://github.com/ethereum/go-ethereum/pull/32488) node: fix vhosts for adminAPI `node`
+- [ ] [#32491](https://github.com/ethereum/go-ethereum/pull/32491) core,trie: fix typo in TransitionTrie `core/state`, `trie` **consensus**
+- [-] [#32480](https://github.com/ethereum/go-ethereum/pull/32480) .github/workflows: naive PR format checker — build/CI/docs/release
+- [x] [#32428](https://github.com/ethereum/go-ethereum/pull/32428) p2p: use slices.Clone `p2p/discover` — in go-qrl
+- [ ] [#32127](https://github.com/ethereum/go-ethereum/pull/32127) params: fix history serve window for verkle test `params` **consensus**
+- [ ] [#32472](https://github.com/ethereum/go-ethereum/pull/32472) eth/tracers: add missing teardown in TestTraceChain `qrl/tracers`
+- [ ] [#32495](https://github.com/ethereum/go-ethereum/pull/32495) internal/web3ext: remove deprecated method debug_seedHash `internal/web3ext`
+- [ ] [#32498](https://github.com/ethereum/go-ethereum/pull/32498) triedb/pathdb: rename history to state history `triedb/pathdb` **consensus**
+- [-] [#31666](https://github.com/ethereum/go-ethereum/pull/31666) build: add support for ubuntu 25.04 — build/CI/docs/release
+- [-] [#32501](https://github.com/ethereum/go-ethereum/pull/32501) cmd: fix typo in comment `cmd/workload` — n/a
+- [ ] [#31882](https://github.com/ethereum/go-ethereum/pull/31882) eth/tracers: fix supply tracer uncle accounting `qrl/tracers`
+- [ ] [#32497](https://github.com/ethereum/go-ethereum/pull/32497) triedb/pathdb: refactor state history write `triedb/pathdb` **consensus**
+- [ ] [#32494](https://github.com/ethereum/go-ethereum/pull/32494) rpc: refactor read limit test `rpc` **security?**
+- [ ] [#32499](https://github.com/ethereum/go-ethereum/pull/32499) eth: replace hardcoded sleep with polling loop in snap sync test `qrl`
+- [ ] [#31795](https://github.com/ethereum/go-ethereum/pull/31795) internal/ethapi: fix precompile override for eth_estimateGas `internal/qrlapi`
+- [ ] [#32503](https://github.com/ethereum/go-ethereum/pull/32503) accounts/abi: fix panic when check event with log has empty or nil topics `accounts/abi` **security?**
+- [ ] [#32347](https://github.com/ethereum/go-ethereum/pull/32347) core, internal, miner, signer: convert legacy sidecar in Osaka fork `core/txpool`, `internal/qrlapi`, `miner`, `signer/core`
+- [ ] [#32349](https://github.com/ethereum/go-ethereum/pull/32349) eth/tracers: fix testcase 7702_delegate `qrl/tracers`
+- [ ] [#32510](https://github.com/ethereum/go-ethereum/pull/32510) node: fix problematic function name in comment `node`
+- [ ] [#31714](https://github.com/ethereum/go-ethereum/pull/31714) eth: stabilize tx relay peer selection `qrl`
+- [ ] [#32509](https://github.com/ethereum/go-ethereum/pull/32509) core: improve error context in state processor for Prague EIPs `core` **consensus**
+- [ ] [#32513](https://github.com/ethereum/go-ethereum/pull/32513) all: fix problematic function name in comment `beacon/light`, `core`, `core/filtermaps`, `core/state` **consensus**
+- [ ] [#32502](https://github.com/ethereum/go-ethereum/pull/32502) triedb/pathdb, core: keep root->id mappings after truncation `core/rawdb`, `triedb/pathdb` **consensus**
+- [-] [#32516](https://github.com/ethereum/go-ethereum/pull/32516) README: add twitter badge to documentation — build/CI/docs/release
+- [ ] [#32506](https://github.com/ethereum/go-ethereum/pull/32506) core/rawdb: inspect database in parallel `core/rawdb`
+- [ ] [#32521](https://github.com/ethereum/go-ethereum/pull/32521) all: improve ETA calculation across all progress indicators `common`, `core/state`, `triedb/pathdb` **consensus**
+- [ ] [#32507](https://github.com/ethereum/go-ethereum/pull/32507) core/stateless: only report leaf depth in witness stats `core/stateless`
+- [ ] [#32365](https://github.com/ethereum/go-ethereum/pull/32365) trie/bintrie: add eip7864 binary trees and run its tests `core/types`, `trie`, `trie/bintrie` **consensus**
+- [ ] [#32239](https://github.com/ethereum/go-ethereum/pull/32239) internal/ethapi,params: add `eth_config` `core/vm`, `internal/qrlapi`, `internal/web3ext`, `params` **consensus**
+- [-] [#32528](https://github.com/ethereum/go-ethereum/pull/32528) version: release v1.16.3 `version` — build/CI/docs/release
+- [-] [#32529](https://github.com/ethereum/go-ethereum/pull/32529) version: begin v1.16.4 release cycle `version` — build/CI/docs/release
+- [ ] [#32533](https://github.com/ethereum/go-ethereum/pull/32533) core/stateless: track number of leaf nodes at each trie depth `core/stateless`
+- [ ] [#32526](https://github.com/ethereum/go-ethereum/pull/32526) core/tracing: fix selfdestruct 6780 balance change emit `core/state` **consensus**
+- [ ] [#32525](https://github.com/ethereum/go-ethereum/pull/32525) core/tracing: add code change reason `cmd/qrvm`, `core`, `core/state`, `core/tracing` **consensus**
+- [-] [#32524](https://github.com/ethereum/go-ethereum/pull/32524) core/txpool: fix duplicate function comment `core/txpool` — n/a
+- [ ] [#32536](https://github.com/ethereum/go-ethereum/pull/32536) core/txpool/blobpool, eth/catalyst: place null for missing blob `core/txpool`, `qrl/catalyst`
+- [-] [#32535](https://github.com/ethereum/go-ethereum/pull/32535) core/tracing: update changelog — build/CI/docs/release
+- [ ] [#32538](https://github.com/ethereum/go-ethereum/pull/32538) core/txpool/blobpool: fix getblobs error handling `core/txpool`, `qrl/catalyst`
+- [ ] [#32542](https://github.com/ethereum/go-ethereum/pull/32542) core/rawdb: remove outdated functions `core/rawdb`
+- [ ] [#32418](https://github.com/ethereum/go-ethereum/pull/32418) cmd, core, eth, triedb/pathdb: track node origins in the path database `core`, `trie/trienode`, `triedb/pathdb` **consensus**
+- [ ] [#32531](https://github.com/ethereum/go-ethereum/pull/32531) cmd/geth: set trie journal for pathdb `cmd/gqrl`, `cmd/utils`
+- [ ] [#32362](https://github.com/ethereum/go-ethereum/pull/32362) core/state: state size tracking `cmd/gqrl`, `cmd/utils`, `core`, `core/state` **consensus**
+- [ ] [#32447](https://github.com/ethereum/go-ethereum/pull/32447) triedb/pathdb: add recovery mechanism in state indexer `triedb/pathdb` **consensus**
+- [ ] [#32551](https://github.com/ethereum/go-ethereum/pull/32551) cmd/devp2p/internal/ethtest: fix possible infinite wait `cmd/devp2p`
+- [ ] [#32527](https://github.com/ethereum/go-ethereum/pull/32527) core/vm: switch modexp gas computation to uint64 `core/vm` **consensus**
+- [ ] [#32554](https://github.com/ethereum/go-ethereum/pull/32554) rlp: fix typo in decode test message `rlp`
+- [ ] [#32555](https://github.com/ethereum/go-ethereum/pull/32555) core/rawdb: improve the test suite for ancient store `core/rawdb`
+- [~] [#32557](https://github.com/ethereum/go-ethereum/pull/32557) triedb/pathdb: sync ancient store before journal `triedb/pathdb` **consensus** — port open
+- [-] [#32534](https://github.com/ethereum/go-ethereum/pull/32534) core/txpool/blobpool: disallow legacy sidecar after osaka `core/txpool` — n/a
+- [ ] [#32564](https://github.com/ethereum/go-ethereum/pull/32564) params: use spaces instead of tabs in config description `params` **consensus**
+- [ ] [#32544](https://github.com/ethereum/go-ethereum/pull/32544) core/txpool: add sanity overflow check `core/txpool` **security?**
+- [ ] [#32568](https://github.com/ethereum/go-ethereum/pull/32568) core/vm: fix modexp gas calculation `core/vm` **consensus**
+- [ ] [#32553](https://github.com/ethereum/go-ethereum/pull/32553) core/vm: fix comment and remove unused divisor in osakaModexpGas `core/vm` **consensus**
+- [ ] [#32517](https://github.com/ethereum/go-ethereum/pull/32517) p2p/discover: remove delay from discv5 RandomNodes `p2p/discover`
+- [ ] [46e4f0b5c1](https://github.com/ethereum/go-ethereum/commit/46e4f0b5c1) p2p/discover: add waitForNodes `p2p/discover`
+- [ ] [f8e0e8dc55](https://github.com/ethereum/go-ethereum/commit/f8e0e8dc55) p2p/discover: add context in waitForNodes `p2p/discover`
+- [ ] [f4046b0cfb](https://github.com/ethereum/go-ethereum/commit/f4046b0cfb) p2p/discover: move wait condition to lookupIterator `p2p/discover`
+- [ ] [4ed8f5ee2b](https://github.com/ethereum/go-ethereum/commit/4ed8f5ee2b) p2p/discover: improve iterator `p2p/discover`
+- [ ] [e58e7f7927](https://github.com/ethereum/go-ethereum/commit/e58e7f7927) p2p/discover: fix bug in lookup `p2p/discover`
+- [ ] [721c8de738](https://github.com/ethereum/go-ethereum/commit/721c8de738) p2p/discover: trigger refresh in lookupIterator `p2p/discover`
+- [ ] [cf0503da7c](https://github.com/ethereum/go-ethereum/commit/cf0503da7c) p2p/discover: track missing nodes in test `p2p/discover`
+- [ ] [3946708935](https://github.com/ethereum/go-ethereum/commit/3946708935) p2p/discover: fix two bugs in lookup iterator `p2p/discover`
+- [ ] [3133fd369a](https://github.com/ethereum/go-ethereum/commit/3133fd369a) p2p/discover: remove print in test `p2p/discover`
+- [ ] [a9f9e0d589](https://github.com/ethereum/go-ethereum/commit/a9f9e0d589) p2p/discover: add imports in test `p2p/discover`
+- [ ] [#32579](https://github.com/ethereum/go-ethereum/pull/32579) params: add bpo forks to eth_config `params`, `params/forks` **consensus**
+- [ ] [#32563](https://github.com/ethereum/go-ethereum/pull/32563) ethdb/pebble: set metric namespace correctly `qrldb/pebble`
+- [ ] [#32584](https://github.com/ethereum/go-ethereum/pull/32584) go.mod, build: require go 1.24 and upgrade linter `crypto/blake2b`, `crypto/bn256`
+- [ ] [#32590](https://github.com/ethereum/go-ethereum/pull/32590) .github: run tests with ci.go `cmd/gqrl`
+- [-] [#32593](https://github.com/ethereum/go-ethereum/pull/32593) build: upgrade to go 1.25.1 — build/CI/docs/release
+- [ ] [#32589](https://github.com/ethereum/go-ethereum/pull/32589) eth/catalyst: enable newpayloadV4 on BPOs `qrl/catalyst`
+- [ ] [72d3e881b3](https://github.com/ethereum/go-ethereum/commit/72d3e881b3) p2p/discover: clarify lookup behavior on empty table `p2p/discover`
+- [ ] [3eab4616a6](https://github.com/ethereum/go-ethereum/commit/3eab4616a6) p2p/discover: add test for lookup returning immediately `p2p/discover`
+- [-] [#32597](https://github.com/ethereum/go-ethereum/pull/32597) .github: remove redundant regexp check for heading dot — build/CI/docs/release
+- [ ] [97afa2815b](https://github.com/ethereum/go-ethereum/commit/97afa2815b) Revert "p2p/discover: add test for lookup returning immediately" `p2p/discover`
+- [ ] [68c18ede06](https://github.com/ethereum/go-ethereum/commit/68c18ede06) Update lookup.go `p2p/discover`
+- [ ] [#32559](https://github.com/ethereum/go-ethereum/pull/32559) accounts/abi/bind/v2: add Address method to BoundContract `accounts/abi`
+- [ ] [0643427965](https://github.com/ethereum/go-ethereum/commit/0643427965) p2p/discover: continue `p2p/discover`
+- [ ] [#32604](https://github.com/ethereum/go-ethereum/pull/32604) core/vm: fix typo in CLZ doc `core/vm` **consensus**
+- [ ] [#32602](https://github.com/ethereum/go-ethereum/pull/32602) core/filtermaps: use slices.Sort to remove duplicated elements `core/filtermaps`
+- [ ] [#32599](https://github.com/ethereum/go-ethereum/pull/32599) core/rawdb: fix misleading comment in HasTrieNode `core/rawdb`
+- [ ] [#32613](https://github.com/ethereum/go-ethereum/pull/32613) core/overlay: copy BaseRoot in TransitionState.Copy `core/overlay`
+- [ ] [#32577](https://github.com/ethereum/go-ethereum/pull/32577) core/txpool/blobpool: filter blob txs with sidecar version `core/txpool`, `miner`, `qrl`
+- [-] [#31966](https://github.com/ethereum/go-ethereum/pull/31966) core/txpool/blobpool: migrate billy to new slot size `core/txpool`, `crypto/kzg4844` — n/a
+- [ ] [#32614](https://github.com/ethereum/go-ethereum/pull/32614) rlp: remove duplicate optionalAndTailField test case `rlp`
+- [ ] [#32615](https://github.com/ethereum/go-ethereum/pull/32615) eth/catalyst: allow fcuV3 for BPO forks `qrl/catalyst`
+- [-] [#32598](https://github.com/ethereum/go-ethereum/pull/32598) go.mod: add tool section in module file — build/CI/docs/release
+- [ ] [#32543](https://github.com/ethereum/go-ethereum/pull/32543) cmd/keeper: add the keeper zkvm guest program `cmd/keeper`, `go.work`
+- [ ] [#32618](https://github.com/ethereum/go-ethereum/pull/32618) cmd/evm/internal/t8ntool: use ApplyTransaction instead of ApplyMessage `cmd/qrvm`
+- [ ] [#32622](https://github.com/ethereum/go-ethereum/pull/32622) core/tracing: remove unnecessary 'copy' field skip in TestAllHooksCalled `core/tracing`
+- [ ] [3589c0d59b](https://github.com/ethereum/go-ethereum/commit/3589c0d59b) p2p/discover: expose timeout in lookupFailed `p2p/discover`
+- [ ] [#32587](https://github.com/ethereum/go-ethereum/pull/32587) core/rawdb: fix typo in TestWriteAncientHeaderChain `core/rawdb`
+- [ ] [03b77d1a49](https://github.com/ethereum/go-ethereum/commit/03b77d1a49) core/stateless: API methods to get execution witness of block `core`, `core/stateless`, `qrl` **consensus**
+- [ ] [#32576](https://github.com/ethereum/go-ethereum/pull/32576) core/vm: use go-bigmodexpfix for modexp `core/vm` **consensus**
+- [ ] [de9fb9722b](https://github.com/ethereum/go-ethereum/commit/de9fb9722b) revert to using table parameter `p2p/discover`
+- [-] [#32639](https://github.com/ethereum/go-ethereum/pull/32639) go.mod: update c-kzg — build/CI/docs/release
+- [-] [#32640](https://github.com/ethereum/go-ethereum/pull/32640) go.mod: update go-eth-kzg — build/CI/docs/release
+- [ ] [#32619](https://github.com/ethereum/go-ethereum/pull/32619) core/stateless: add vmwitnessstats cli flag to report leaf stats + log to console `cmd/gqrl`, `cmd/utils`, `core`, `core/stateless` **consensus**
+- [ ] [#32523](https://github.com/ethereum/go-ethereum/pull/32523) triedb/pathdb: generalize the history indexer `triedb/pathdb` **consensus**
+- [ ] [#32520](https://github.com/ethereum/go-ethereum/pull/32520) trie: add sub-trie iterator support `trie` **consensus**
+- [-] [#32638](https://github.com/ethereum/go-ethereum/pull/32638) cmd/keeper: disable GC for zkvm execution `cmd/keeper` — n/a
+- [ ] [#32623](https://github.com/ethereum/go-ethereum/pull/32623) core: fix fork readiness log `core`, `params/forks` **consensus**
+- [ ] [#32651](https://github.com/ethereum/go-ethereum/pull/32651) core/rawdb: report truncateErr in concurrent truncate failure `core/rawdb`
+- [ ] [#32592](https://github.com/ethereum/go-ethereum/pull/32592) build: update to execution-spec-tests v5.0.0 `core`, `params`, `tests` **consensus**
+- [ ] [#32636](https://github.com/ethereum/go-ethereum/pull/32636) eth/catalyst, beacon/engine: enable BPO and Osaka on stateless APIs `beacon/engine`, `qrl/catalyst`
+- [~] [#32327](https://github.com/ethereum/go-ethereum/pull/32327) eth/filters, cmd: add config of eth_getLogs address limit `cmd/gqrl`, `cmd/utils`, `qrl/ethconfig`, `qrl/filters` **security?** — port open
+- [ ] [#32609](https://github.com/ethereum/go-ethereum/pull/32609) beacon/config: fix LoadForks with non-string values `beacon/params`, `cmd/utils`
+- [ ] [#32641](https://github.com/ethereum/go-ethereum/pull/32641) internal/ethapi: skip tx gas limit check for calls `core`, `internal/qrlapi`, `qrl/tracers` **consensus** **security?**
+- [-] [#32633](https://github.com/ethereum/go-ethereum/pull/32633) beacon/blsync: test validated finality `beacon/blsync` — n/a
+- [ ] [#32676](https://github.com/ethereum/go-ethereum/pull/32676) core/state: add missing address key in state_object log `core/state` **consensus**
+- [-] [#32659](https://github.com/ethereum/go-ethereum/pull/32659) crypto/bn256: switch to gnark again `crypto/bn256` — n/a
+- [ ] [#32578](https://github.com/ethereum/go-ethereum/pull/32578) core/txpool/blobpool: remove conversion in GetBlobs `core/txpool`, `qrl/catalyst`
+- [ ] [#32664](https://github.com/ethereum/go-ethereum/pull/32664) p2p: using testing.B.Loop `p2p/discover`, `p2p/netutil`, `p2p/rlpx`
+- [ ] [#32658](https://github.com/ethereum/go-ethereum/pull/32658) core/state: using testing.B.Loop `core/state` **consensus**
+- [ ] [#32657](https://github.com/ethereum/go-ethereum/pull/32657) eth: using testing.B.Loop `qrl/filters`, `qrl/protocols`, `qrl/tracers`
+- [ ] [#32663](https://github.com/ethereum/go-ethereum/pull/32663) log: using testing.B.Loop `log`
+- [ ] [#32662](https://github.com/ethereum/go-ethereum/pull/32662) core: using testing.B.Loop `core`
+- [ ] [#32660](https://github.com/ethereum/go-ethereum/pull/32660) core/vm: using testing.B.Loop `core/vm` **consensus**
+- [ ] [#32643](https://github.com/ethereum/go-ethereum/pull/32643) core/types: using testing.B.Loop `core/types` **consensus**
+- [ ] [#32645](https://github.com/ethereum/go-ethereum/pull/32645) crypto: using testing.B.Loop `crypto`, `crypto/blake2b`, `crypto/ecies`, `crypto/kzg4844`
+- [ ] [#32648](https://github.com/ethereum/go-ethereum/pull/32648) fix: correct typo in TestMustParseUint64Panic error message `common/math`
+- [ ] [#32624](https://github.com/ethereum/go-ethereum/pull/32624) common, eth: remove duplicate test cases `common/hexutil`, `qrl/protocols`
+- [ ] [#32627](https://github.com/ethereum/go-ethereum/pull/32627) core/rawdb: fix bad blocks sorted failure message to map index→number correctly `core/rawdb`
+- [ ] [#32681](https://github.com/ethereum/go-ethereum/pull/32681) params: update config description links to new format `params` **consensus**
+- [ ] [#32656](https://github.com/ethereum/go-ethereum/pull/32656) core/txpool/blobpool: introduce sidecar conversion for legacy blob transactions `core/txpool`
+- [ ] [#32677](https://github.com/ethereum/go-ethereum/pull/32677) go.work.sum: add to repo `go.work.sum`
+- [ ] [#32678](https://github.com/ethereum/go-ethereum/pull/32678) core/state: fix committed-state expectations in StateDB tests `core/state` **consensus**
+- [ ] [#32649](https://github.com/ethereum/go-ethereum/pull/32649) triedb/pathdb: move head truncation log `triedb/pathdb` **consensus**
+- [ ] [#32650](https://github.com/ethereum/go-ethereum/pull/32650) cmd, tests: fix snapshot dump and export-preimages `cmd/gqrl`, `cmd/utils`, `tests`
+- [ ] [#32699](https://github.com/ethereum/go-ethereum/pull/32699) go.work, build: remove workspace file `cmd/keeper`, `go.work`, `go.work.sum`, `internal/build`
+- [-] [#32698](https://github.com/ethereum/go-ethereum/pull/32698) cmd/era: fix iterator error source handling in checkAccumulator `cmd/era` — n/a
+- [ ] [#32714](https://github.com/ethereum/go-ethereum/pull/32714) cmd/evm/internal/t8ntool: fix nil pointer dereference in Osaka blob gas calculation `cmd/qrvm`
+- [-] [#32688](https://github.com/ethereum/go-ethereum/pull/32688) core/txpool/blobpool: add legacy sidecar conversion in reinject `core/txpool`, `crypto/kzg4844` — n/a
+- [ ] [#32610](https://github.com/ethereum/go-ethereum/pull/32610) accounts/keystore: use runtime.AddCleanup `accounts/keystore`
+- [ ] [#32616](https://github.com/ethereum/go-ethereum/pull/32616) internal/ethapi: fix merge transition in eth_simulate `consensus/beacon`, `internal/qrlapi`, `params` **consensus**
+- [ ] [#32719](https://github.com/ethereum/go-ethereum/pull/32719) trie: align AllFFPrefix test assertion and message `trie` **consensus**
+- [ ] [#32736](https://github.com/ethereum/go-ethereum/pull/32736) build: module-aware FindMainPackages `internal/build`
+- [ ] [#32734](https://github.com/ethereum/go-ethereum/pull/32734) miner: default gaslimit 60M `miner`
+- [-] [#32716](https://github.com/ethereum/go-ethereum/pull/32716) core/txpool/blobpool: fork boundary conversion 3 `core/txpool` — n/a
+- [ ] [#32738](https://github.com/ethereum/go-ethereum/pull/32738) trie: fix TestOneElementProof expected value message `trie` **consensus**
+- [ ] [#32732](https://github.com/ethereum/go-ethereum/pull/32732) accounts/keystore: use ticker to avoid timer allocations `accounts/keystore`
+- [ ] [#32740](https://github.com/ethereum/go-ethereum/pull/32740) accounts/abi/bind: fix data race in TestWaitDeployedCornerCases `accounts/abi`
+- [ ] [#32737](https://github.com/ethereum/go-ethereum/pull/32737) all: add bpo1 and bpo2 overrides `cmd/gqrl`, `cmd/utils`, `core`, `qrl` **consensus**
+- [-] [#32718](https://github.com/ethereum/go-ethereum/pull/32718) core/txpool/blobpool: convert and add one-by-one `core/txpool` — n/a
+- [-] [#32742](https://github.com/ethereum/go-ethereum/pull/32742) build: upgrade to execution-spec-tests v5.1.0 — build/CI/docs/release
+- [ ] [#32726](https://github.com/ethereum/go-ethereum/pull/32726) core/txpool: add eip2681 check for incoming transactions `core/txpool`, `qrl`
+- [ ] [#32694](https://github.com/ethereum/go-ethereum/pull/32694) all: refactor to use builtin max/min `cmd/utils`, `metrics`
+- [ ] [#32735](https://github.com/ethereum/go-ethereum/pull/32735) params: schedule Osaka/BPO1/BPO2 for testnets `core/forkid`, `params`, `tests` **consensus**
+- [-] [b964b6574f](https://github.com/ethereum/go-ethereum/commit/b964b6574f) version: release go-ethereum v1.16.4 stable `version` — build/CI/docs/release
+- [-] [b1eb33ce8b](https://github.com/ethereum/go-ethereum/commit/b1eb33ce8b) version: begin v1.16.5 release cycle `version` — build/CI/docs/release
+- [ ] [#32751](https://github.com/ethereum/go-ethereum/pull/32751) internal/ethapi: fix outdated comments `internal/qrlapi`
+- [ ] [#32750](https://github.com/ethereum/go-ethereum/pull/32750) ethapi: reject oversize storage keys before hex decode `internal/qrlapi`
+- [ ] [#32749](https://github.com/ethereum/go-ethereum/pull/32749) signer/core: fix TestSignTx to decode res2 `signer/core`
+- [ ] [#32746](https://github.com/ethereum/go-ethereum/pull/32746) trie: correct error messages for UpdateStorage operations `trie` **consensus**
+- [ ] [#32569](https://github.com/ethereum/go-ethereum/pull/32569) eth/tracers/native: add keccak256preimage tracer `qrl/tracers`
+- [ ] [#32687](https://github.com/ethereum/go-ethereum/pull/32687) params: add amsterdam fork config `params`, `params/forks` **consensus**
+- [ ] [#32768](https://github.com/ethereum/go-ethereum/pull/32768) build: remove duplicated func FileExist `internal/build`
+- [ ] [#32731](https://github.com/ethereum/go-ethereum/pull/32731) eth/catalyst: check osaka in engine_getBlobsV1 `qrl/catalyst`
+- [ ] [#32772](https://github.com/ethereum/go-ethereum/pull/32772) trie: fix error message in test `trie` **consensus**
+- [ ] [#32760](https://github.com/ethereum/go-ethereum/pull/32760) internal/ethapi: remove redundant check in test `internal/qrlapi`
+- [ ] [#32776](https://github.com/ethereum/go-ethereum/pull/32776) cmd/evm/internal/t8ntool: panic on database corruption `cmd/qrvm` **security?**
+- [ ] [#32755](https://github.com/ethereum/go-ethereum/pull/32755) params: fix bpo config comments `params` **consensus**
+- [ ] [#32668](https://github.com/ethereum/go-ethereum/pull/32668) core/rawdb: update comments `core/rawdb`
+- [ ] [#32766](https://github.com/ethereum/go-ethereum/pull/32766) params: implement String() method for ChainConfig `params` **consensus**
+- [ ] [#32771](https://github.com/ethereum/go-ethereum/pull/32771) params: add blob config information in the banner `params` **consensus**
+- [ ] [#32787](https://github.com/ethereum/go-ethereum/pull/32787) core/txpool: remove unused signer field from TxPool `core/txpool`
+- [ ] [#32780](https://github.com/ethereum/go-ethereum/pull/32780) core/state: correct expected value in TestMessageCallGas `core/state` **consensus**
+- [-] [#32720](https://github.com/ethereum/go-ethereum/pull/32720) go.mod, cmd/keeper/go.mod: upgrade victoria metrics dependency `cmd/keeper` — n/a
+- [ ] [#32800](https://github.com/ethereum/go-ethereum/pull/32800) eth/catalyst: extend payloadVersion support to osaka/post-osaka forks `qrl/catalyst`
+- [ ] [#32804](https://github.com/ethereum/go-ethereum/pull/32804) p2p: fix error message in test `p2p/enode`
+- [ ] [#32807](https://github.com/ethereum/go-ethereum/pull/32807) signer/core: fix error message in test `signer/core`
+- [ ] [#32796](https://github.com/ethereum/go-ethereum/pull/32796) params: fix banner message `params` **consensus**
+- [ ] [#30747](https://github.com/ethereum/go-ethereum/pull/30747) core/types, trie: reduce allocations in derivesha `core/types`, `internal/blocktest`, `trie` **consensus**
+- [ ] [#32572](https://github.com/ethereum/go-ethereum/pull/32572)   p2p/enode: fix discovery AyncFilter deadlock on shutdown `p2p/enode`
+- [ ] [#32739](https://github.com/ethereum/go-ethereum/pull/32739) core: refactor StateProcessor to accept ChainContext interface `core`, `core/vm`, `internal/qrlapi`, `qrl/tracers` **consensus**
+- [ ] [#32823](https://github.com/ethereum/go-ethereum/pull/32823) p2p/enode: fix asyncfilter comment `p2p/enode`
+- [ ] [#32756](https://github.com/ethereum/go-ethereum/pull/32756) trie: cleaner array concatenation `trie` **consensus**
+- [ ] [#32831](https://github.com/ethereum/go-ethereum/pull/32831) internal/ethapi: add timestamp to logs in eth_simulate `internal/qrlapi`
+- [-] [#32829](https://github.com/ethereum/go-ethereum/pull/32829) build: faster gh actions workflow, no ubuntu on appveyor — build/CI/docs/release
+- [ ] [#32850](https://github.com/ethereum/go-ethereum/pull/32850) cmd/devp2p/internal/ethtest: update to PoS-only test chain `cmd/devp2p`
+- [ ] [#32820](https://github.com/ethereum/go-ethereum/pull/32820) core/rawdb: remove duplicated type storedReceiptRLP `core/rawdb`
+- [ ] [#32847](https://github.com/ethereum/go-ethereum/pull/32847) eth/protocols/eth: use BlockChain interface in Handshake `qrl/protocols`
+- [ ] [#32834](https://github.com/ethereum/go-ethereum/pull/32834) cmd/devp2p/internal/ethtest: accept responses in any order `cmd/devp2p`
+- [ ] [#32783](https://github.com/ethereum/go-ethereum/pull/32783) core/rawdb: correct misleading comments for state history accessors `core/rawdb`
+- [ ] [#32794](https://github.com/ethereum/go-ethereum/pull/32794) eth/filters: terminate pending tx subscription on error `qrl/filters`
+- [ ] [#32697](https://github.com/ethereum/go-ethereum/pull/32697) eth/filters: add `transactionReceipts` subscription `core`, `internal/qrlapi`, `qrl/filters` **consensus**
+- [ ] [#32845](https://github.com/ethereum/go-ethereum/pull/32845) core/txpool/legacypool: fix validTxMeter to count transactions `core/txpool`
+- [ ] [#32748](https://github.com/ethereum/go-ethereum/pull/32748) eth/protocols/snap: optimize incHash `qrl/protocols`
+- [ ] [#32596](https://github.com/ethereum/go-ethereum/pull/32596) core/rawdb, triedb/pathdb: introduce trienode history `core/rawdb`, `triedb/pathdb` **consensus**
+- [ ] [#32869](https://github.com/ethereum/go-ethereum/pull/32869) ethclient: add SubscribeTransactionReceipts `interfaces.go`, `qrl/filters`, `qrlclient`
+- [ ] [#32896](https://github.com/ethereum/go-ethereum/pull/32896) node: fix error condition in gzipResponseWriter.init() `node`
+- [ ] [#32882](https://github.com/ethereum/go-ethereum/pull/32882) core/types: optimize MergeBloom by using bitutil `core/types` **consensus**
+- [ ] [#32876](https://github.com/ethereum/go-ethereum/pull/32876) p2p: rm unused var seedMinTableTime `p2p/discover`
+- [ ] [#32894](https://github.com/ethereum/go-ethereum/pull/32894) eth/filters: uninstall subscription in filter apis on error `qrl/filters`
+- [ ] [#32132](https://github.com/ethereum/go-ethereum/pull/32132) triedb, core/rawdb: implement the partial read in freezer `core/rawdb`, `qrldb`, `qrldb/remotedb`, `triedb/pathdb` **consensus**
+- [ ] [#32887](https://github.com/ethereum/go-ethereum/pull/32887) p2p/enode: optimize LogDist `p2p/enode`
+- [ ] [#32888](https://github.com/ethereum/go-ethereum/pull/32888) p2p/enode: optimize DistCmp `p2p/enode`
+- [ ] [#32270](https://github.com/ethereum/go-ethereum/pull/32270) core/txpool/legacypool: move queue out of main txpool `core/txpool`
+- [-] [#31613](https://github.com/ethereum/go-ethereum/pull/31613) cmd/workload: filter fuzzer test `cmd/workload` — n/a
+- [ ] [#32881](https://github.com/ethereum/go-ethereum/pull/32881) p2p/discover: wait for bootstrap to be done `p2p/discover`
+- [ ] [#32899](https://github.com/ethereum/go-ethereum/pull/32899) triedb/pathdb: catch int conversion overflow in 32-bit `triedb/pathdb` **consensus** **security?**
+- [ ] [#32901](https://github.com/ethereum/go-ethereum/pull/32901) eth/catalyst: remove useless log on enabling Engine API `qrl/catalyst`
+- [ ] [#32900](https://github.com/ethereum/go-ethereum/pull/32900) eth: do not warn on switching from snap sync to full sync `qrl`
+- [ ] [#32906](https://github.com/ethereum/go-ethereum/pull/32906) core/txpool/legacypool: fix pricedList updates `core/txpool`
+- [ ] [#32374](https://github.com/ethereum/go-ethereum/pull/32374) accounts/abi: check presence of payable fallback or receive before proceeding with transfer `accounts/abi`
+- [ ] [#32849](https://github.com/ethereum/go-ethereum/pull/32849) internal/ethapi: convert legacy blobtx proofs in sendRawTransaction `internal/qrlapi`
+- [ ] [#32889](https://github.com/ethereum/go-ethereum/pull/32889) rpc: fix flaky test TestServerWebsocketReadLimit `rpc`
+- [ ] [#32728](https://github.com/ethereum/go-ethereum/pull/32728) eth/protocols/eth: reject message containing duplicated txs and drop peer `qrl/protocols`
+- [ ] [#32912](https://github.com/ethereum/go-ethereum/pull/32912) p2p/discover: remove hot-spin in table refresh trigger `p2p/discover`
+- [-] [32ccb548d3](https://github.com/ethereum/go-ethereum/commit/32ccb548d3) version: release go-ethereum v1.16.5 stable `version` — build/CI/docs/release
+- [-] [367b5fbe42](https://github.com/ethereum/go-ethereum/commit/367b5fbe42) version: begin v1.16.6 release cycle `version` — build/CI/docs/release
+- [ ] [#32689](https://github.com/ethereum/go-ethereum/pull/32689) cmd/geth: log current key in expandVerkle instead of keylist[0] `cmd/gqrl`
+- [ ] [#32856](https://github.com/ethereum/go-ethereum/pull/32856) ethclient: add support for eth_simulateV1 `interfaces.go`, `qrlclient`, `qrlclient/gethclient`
+- [ ] [#32830](https://github.com/ethereum/go-ethereum/pull/32830) internal/ethapi: add eth_SendRawTransactionSync `cmd/gqrl`, `cmd/utils`, `internal/qrlapi`, `qrl`
+- [ ] [#31696](https://github.com/ethereum/go-ethereum/pull/31696) core/state: state copy bugfixes with Verkle Trees `core/state`, `trie` **consensus**
+- [ ] [#32929](https://github.com/ethereum/go-ethereum/pull/32929) eth/ethconfig : fix eth generate config `qrl/ethconfig`
+- [ ] [#32930](https://github.com/ethereum/go-ethereum/pull/32930) eth, internal: add blob conversion for SendRawTransactionSync `internal/qrlapi`
+- [ ] [#32934](https://github.com/ethereum/go-ethereum/pull/32934) cmd/utils: use maximum uint64 value for receipt chain insertion `cmd/utils`
+- [ ] [#32964](https://github.com/ethereum/go-ethereum/pull/32964) eth/fetcher: add metrics for tracking slow peers `qrl/fetcher`
+- [~] [#32947](https://github.com/ethereum/go-ethereum/pull/32947) eth/fetcher: remove dangling peers from alternates `qrl/fetcher` — port open
+- [ ] [#32937](https://github.com/ethereum/go-ethereum/pull/32937) triedb/pathdb: fix index out of range panic in decodeSingle `triedb/pathdb` **consensus** **security?**
+- [ ] [#32946](https://github.com/ethereum/go-ethereum/pull/32946) core/types: prealloc map in HashDifference as in TxDifference `core/types` **consensus**
+- [ ] [#32965](https://github.com/ethereum/go-ethereum/pull/32965) eth/filters: avoid rebuild the hash map multi times `qrl/filters`
+- [ ] [#32916](https://github.com/ethereum/go-ethereum/pull/32916) core/vm: don't call SetCode after contract creation if initcode didn't return anything `core/vm` **consensus**
+- [ ] [#32816](https://github.com/ethereum/go-ethereum/pull/32816) cmd/keeper: use the ziren keccak precompile `cmd/keeper`, `crypto`
+- [ ] [#32917](https://github.com/ethereum/go-ethereum/pull/32917) params: enable osaka on dev mode `core`, `params` **consensus**
+- [ ] [#32921](https://github.com/ethereum/go-ethereum/pull/32921) core/txpool: Initialize journal writer for tx tracker `core/txpool`
+- [ ] [#32980](https://github.com/ethereum/go-ethereum/pull/32980) core/state: prevent SetCode hook if contract code is not changed `core/state` **consensus**
+- [ ] [#32914](https://github.com/ethereum/go-ethereum/pull/32914) triedb/pathdb: make batch with pre-allocated size `triedb/pathdb` **consensus**
+- [ ] [#32844](https://github.com/ethereum/go-ethereum/pull/32844) cmd/geth: add flag to set genesis `cmd/gqrl`, `cmd/utils`
+- [ ] [#32989](https://github.com/ethereum/go-ethereum/pull/32989) core/types: remove unused `ErrInvalidTxType` var `core/types` **consensus**
+- [ ] [#32993](https://github.com/ethereum/go-ethereum/pull/32993) core/state: fix the flaky TestSizeTracker `core/state` **consensus**
+- [ ] [#32972](https://github.com/ethereum/go-ethereum/pull/32972) cmd/devp2p: distinguish the jwt in devp2p and geth `cmd/devp2p`
+- [ ] [#33001](https://github.com/ethereum/go-ethereum/pull/33001) p2p: silence on listener shutdown `p2p`
+- [ ] [#32997](https://github.com/ethereum/go-ethereum/pull/32997) cmd/utils: use IsHexAddress method `cmd/utils`
+- [ ] [#32996](https://github.com/ethereum/go-ethereum/pull/32996) crypto: implement ziren keccak state `crypto`
+- [ ] [#33002](https://github.com/ethereum/go-ethereum/pull/33002) rpc: fix a flaky test of the websocket `rpc`
+- [ ] [#33015](https://github.com/ethereum/go-ethereum/pull/33015) eth/tracers: fix crasher in TraceCall with BlockOverrides `qrl/tracers`
+- [ ] [#32632](https://github.com/ethereum/go-ethereum/pull/32632) .gitea/workflows, build: add release build for keeper `.gitignore`
+- [-] [#33018](https://github.com/ethereum/go-ethereum/pull/33018) build: fix keeper build — build/CI/docs/release
+- [ ] [#32907](https://github.com/ethereum/go-ethereum/pull/32907) core/rawdb, triedb/pathdb: re-structure the trienode history header `core/rawdb`, `triedb/pathdb` **consensus**
+- [ ] [#33012](https://github.com/ethereum/go-ethereum/pull/33012) rpc: remove unused vars `rpc`
+- [ ] [#33024](https://github.com/ethereum/go-ethereum/pull/33024) core/state: improve accessList copy `core/state` **consensus**
+- [ ] [#33020](https://github.com/ethereum/go-ethereum/pull/33020) core: don't modify the shared chainId between tests `core`
+- [ ] [#32971](https://github.com/ethereum/go-ethereum/pull/32971) core/types: optimize modernSigner.Equal `core/types` **consensus**
+- [ ] [#33032](https://github.com/ethereum/go-ethereum/pull/33032) core: refine condition for using legacy chain freezer directory `common`, `core/rawdb`, `node`
+- [ ] [#32936](https://github.com/ethereum/go-ethereum/pull/32936) internal/jsre: pass correct args to setTimeout/setInterval callbacks `internal/jsre`
+- [ ] [#32911](https://github.com/ethereum/go-ethereum/pull/32911) .github: add 32-bit CI targets `beacon/params`
+- [ ] [#33041](https://github.com/ethereum/go-ethereum/pull/33041) accounts/abi/bind/v2: fix error assertion in test `accounts/abi`
+- [ ] [#33005](https://github.com/ethereum/go-ethereum/pull/33005) p2p: cleanup v4 if v5 failed `p2p`
+- [ ] [#32969](https://github.com/ethereum/go-ethereum/pull/32969) common: simplify FileExist helper `common`
+- [ ] [#33047](https://github.com/ethereum/go-ethereum/pull/33047) eth/downloader: fix incorrect waitgroup in test `XTestDelivery` `qrl/downloader`
+- [ ] [#33050](https://github.com/ethereum/go-ethereum/pull/33050) eth/tracers: fix prestateTracer for EIP-6780 SELFDESTRUCT `qrl/tracers`
+- [ ] [#33064](https://github.com/ethereum/go-ethereum/pull/33064) common: fix duration comparison in PrettyAge `common`
+- [ ] [#33087](https://github.com/ethereum/go-ethereum/pull/33087) core/rawdb: fix db inspector by supporting trienode history `core/rawdb`
+- [ ] [#33063](https://github.com/ethereum/go-ethereum/pull/33063) params: set osaka and BPO1 & BPO2 mainnet dates `core/forkid`, `core/txpool`, `params` **consensus**
+- [-] [044828e660](https://github.com/ethereum/go-ethereum/commit/044828e660) version: release go-ethereum v1.16.6 `version` — build/CI/docs/release
+- [-] [5b77af394e](https://github.com/ethereum/go-ethereum/commit/5b77af394e) version: begin v1.16.7 release cycle `version` — build/CI/docs/release
+- [-] [#33093](https://github.com/ethereum/go-ethereum/pull/33093) go.mod: update to c-kzg v2.1.5 `cmd/keeper` — n/a
+- [-] [07129d21c0](https://github.com/ethereum/go-ethereum/commit/07129d21c0) version: release go-ethereum v1.16.7 stable `version` — build/CI/docs/release
+- [-] [d39af344dc](https://github.com/ethereum/go-ethereum/commit/d39af344dc) version: begin v1.16.8 release cycle `version` — build/CI/docs/release
+- [ ] [#32998](https://github.com/ethereum/go-ethereum/pull/32998) common: introduce IsHexHash and use it `cmd/gqrl`, `common`
+- [ ] [#33025](https://github.com/ethereum/go-ethereum/pull/33025) core/rawdb: fix readOnly mode for database `core/rawdb`
+- [ ] [#33105](https://github.com/ethereum/go-ethereum/pull/33105) common: fix size comparison in StorageSize `common`
+- [ ] [#33082](https://github.com/ethereum/go-ethereum/pull/33082) core/state: fix bug about getting stable LogsHash result. `core/state` **consensus**
+- [ ] [#33113](https://github.com/ethereum/go-ethereum/pull/33113) accounts/usbwallet: fix version check in SignTypedMessage `accounts/usbwallet`
+- [ ] [#33120](https://github.com/ethereum/go-ethereum/pull/33120) core/vm: remove todo `core/vm` **consensus**
+- [ ] [#33098](https://github.com/ethereum/go-ethereum/pull/33098) triedb/pathdb: fix 32-bit integer overflow in history trienode decoder `triedb/pathdb` **consensus** **security?**
+- [ ] [#33104](https://github.com/ethereum/go-ethereum/pull/33104) crypto: validate hash length in no cgo Sign `crypto`
+- [-] [#32991](https://github.com/ethereum/go-ethereum/pull/32991) consensus/misc/eip4844: expose TargetBlobsPerBlock `consensus/misc` — n/a
+- [ ] [#33146](https://github.com/ethereum/go-ethereum/pull/33146) eth/catalyst: always reset timer after sealing error `qrl/catalyst`
+- [-] [#33124](https://github.com/ethereum/go-ethereum/pull/33124) build: add wasm targets for keeper — build/CI/docs/release
+- [ ] [#33148](https://github.com/ethereum/go-ethereum/pull/33148) core/state: fixed hooked StateDB handling of `OnCodeChangeV2` `core/state`, `qrl/tracers` **consensus**
+- [ ] [#33147](https://github.com/ethereum/go-ethereum/pull/33147) core/rawdb: capture open file error and fix resource leak `core/rawdb`
+- [ ] [#33122](https://github.com/ethereum/go-ethereum/pull/33122) rpc: avoid unnecessary RST_STREAM, PING frames sent by client `rpc`
+- [ ] [#33155](https://github.com/ethereum/go-ethereum/pull/33155) core: remove unused peek function in insertIterator `core`
+- [-] [#33161](https://github.com/ethereum/go-ethereum/pull/33161) core/txpool/blobpool: fix benchmarkPoolPending `core/txpool` — n/a
+- [ ] [#33108](https://github.com/ethereum/go-ethereum/pull/33108) eth/filters: further optimize tx hash map in #32965 `qrl/filters`
+- [ ] [#33103](https://github.com/ethereum/go-ethereum/pull/33103) triedb/pathdb: fix ID assignment in history inspection `triedb/pathdb` **consensus**
+- [ ] [#33038](https://github.com/ethereum/go-ethereum/pull/33038) eth/syncer: advance safe and finalized block `qrl/syncer`
+- [ ] [#33168](https://github.com/ethereum/go-ethereum/pull/33168)  core: use scheme-aware empty root in flushAlloc `core` **consensus**
+- [ ] [#33090](https://github.com/ethereum/go-ethereum/pull/33090) accounts/keystore: clear decrypted key after use `accounts/keystore`
+- [ ] [#33184](https://github.com/ethereum/go-ethereum/pull/33184) graphql: add nil check in Transaction.Type() method `graphql`
+- [ ] [#33188](https://github.com/ethereum/go-ethereum/pull/33188) core/rawdb: return iterator error in findTxInBlockBody `core/rawdb`
+- [ ] [#33186](https://github.com/ethereum/go-ethereum/pull/33186) core/rawdb: delete dead code to avoid more useless AI submissions `core/rawdb`
+- [ ] [#32445](https://github.com/ethereum/go-ethereum/pull/32445) cmd/evm/internal/t8ntool, trie: support for verkle-at-genesis, use UBT, and move the transition tree to its own package `cmd/qrvm`, `core`, `core/state`, `tests` **consensus**
+- [ ] [#33192](https://github.com/ethereum/go-ethereum/pull/33192) ethapi: deref gasUsed pointer in eth_simulate log `internal/qrlapi`
+- [ ] [#33193](https://github.com/ethereum/go-ethereum/pull/33193) eth: fix panic in randomDuration when min equals max `qrl` **security?**
+- [ ] [#33214](https://github.com/ethereum/go-ethereum/pull/33214) core: initialize tracer before DAO fork logic `core` **consensus**
+- [ ] [#33252](https://github.com/ethereum/go-ethereum/pull/33252) cmd/utils: make datadir.minfreedisk an IntFlag `cmd/utils`
+- [ ] [#33218](https://github.com/ethereum/go-ethereum/pull/33218) core, cmd: removed tablewriter from the dependencies `cmd/gqrl`, `cmd/keeper`, `core/rawdb`
+- [ ] [#33251](https://github.com/ethereum/go-ethereum/pull/33251) eth/catalyst: remove the outdated comments of ForkchoiceUpdatedV1 `qrl/catalyst`
+- [ ] [#33201](https://github.com/ethereum/go-ethereum/pull/33201) consensus/beacon: fix blob gas error message formatting `consensus/beacon` **consensus**
+- [-] [#33260](https://github.com/ethereum/go-ethereum/pull/33260) core/txpool/blobpool: drain and signal pending conversion tasks on shutdown `core/txpool` — n/a
+- [ ] [#33203](https://github.com/ethereum/go-ethereum/pull/33203) core/rawdb: fix underflow in freezer inspect for empty ancients `core/rawdb`
+- [ ] [#33265](https://github.com/ethereum/go-ethereum/pull/33265) cmd/geth: skip resolver for zero-commitment verkle children `cmd/gqrl`
+- [-] [#33275](https://github.com/ethereum/go-ethereum/pull/33275) consensus/misc: fix blob gas error message formatting `consensus/misc` — n/a
+- [ ] [#32981](https://github.com/ethereum/go-ethereum/pull/32981) triedb/pathdb: implement iterator of history index `triedb/pathdb` **consensus**
+- [ ] [#33272](https://github.com/ethereum/go-ethereum/pull/33272) beacon: update beacon light client for fusaka `beacon/blsync`, `beacon/params`, `core/filtermaps`
+- [ ] [#33245](https://github.com/ethereum/go-ethereum/pull/33245) rlp: finalize listIterator on parse error to prevent non-advancing loops `rlp`
+- [ ] [#33138](https://github.com/ethereum/go-ethereum/pull/33138) accounts/usbwallet: fix double hashing in SignTextWithPassphrase `accounts/usbwallet`
+- [x] [#33180](https://github.com/ethereum/go-ethereum/pull/33180) p2p/discover/v5wire: remove redundant bytes clone in WHOAREYOU encoding `p2p/discover` — in go-qrl
+- [ ] [#33129](https://github.com/ethereum/go-ethereum/pull/33129) miner: add --miner.maxblobs flag `cmd/gqrl`, `cmd/utils`, `miner`
+- [ ] [#33095](https://github.com/ethereum/go-ethereum/pull/33095) core/vm: implement EIP-8024 `core/vm` **consensus**
+- [ ] [#32674](https://github.com/ethereum/go-ethereum/pull/32674) beacon/config: add ELECTRA, FULU to knownForks `beacon/params`
+- [ ] [#33065](https://github.com/ethereum/go-ethereum/pull/33065) beacon/config: ignore nil values in config file `beacon/params`
+- [ ] [#33056](https://github.com/ethereum/go-ethereum/pull/33056) core/vm: improve memory resize `core/vm` **consensus**
+- [-] [#33289](https://github.com/ethereum/go-ethereum/pull/33289) .github/workflows: validate that the directories exist — build/CI/docs/release
+- [-] [#33292](https://github.com/ethereum/go-ethereum/pull/33292) beacon/light: optimize database key assembling `beacon/light` — n/a
+- [-] [#33296](https://github.com/ethereum/go-ethereum/pull/33296) consensus/clique: fix blob gas error message formatting `consensus/clique` — n/a
+- [ ] [#33227](https://github.com/ethereum/go-ethereum/pull/33227) eth/tracers/logger: rename WriteTo to Write `qrl/tracers`
+- [-] [#33301](https://github.com/ethereum/go-ethereum/pull/33301) core/txpool/blobpool: auto-start next conversion batch after completion `core/txpool` — n/a
+- [-] [#33256](https://github.com/ethereum/go-ethereum/pull/33256) cmd/keeper/go.mod: bump github.com/consensys/gnark-crypto from 0.18.0 to 0.18.1 in /cmd/keeper `cmd/keeper` — n/a
+- [-] [#33305](https://github.com/ethereum/go-ethereum/pull/33305) go.mod: bump gnark-crypto to 0.18.1 — build/CI/docs/release
+- [ ] [#33309](https://github.com/ethereum/go-ethereum/pull/33309) eth/downloader: remove dead proc counter `qrl/downloader`
+- [-] [#33300](https://github.com/ethereum/go-ethereum/pull/33300) consensus/ethash: fix blob gas error message formatting `consensus/ethash` — n/a
+- [ ] [#33302](https://github.com/ethereum/go-ethereum/pull/33302) cmd/utils: fix dumpconfig `cmd/utils`, `miner`
+- [ ] [#33279](https://github.com/ethereum/go-ethereum/pull/33279) cmd/utils: fix disabling discovery through config file `cmd/utils`, `node`
+- [ ] [#32824](https://github.com/ethereum/go-ethereum/pull/32824) cmd/evm: add stdin support to blocktest command `cmd/qrvm`, `tests`
+- [ ] [#33282](https://github.com/ethereum/go-ethereum/pull/33282) internal/ethapi: return error code -32602 for invalid storage key `internal/qrlapi`
+- [ ] [#32754](https://github.com/ethereum/go-ethereum/pull/32754) eth/catalyst: check fork timestamps during `engine_getPayload` `qrl/catalyst`
+- [ ] [#33322](https://github.com/ethereum/go-ethereum/pull/33322) eth/catalyst: fix tests for getPayload change `qrl/catalyst`
+- [ ] [#32999](https://github.com/ethereum/go-ethereum/pull/32999) cmd/utils: allow --networkid to override other config options `cmd/gqrl`, `cmd/utils`
+- [ ] [#33058](https://github.com/ethereum/go-ethereum/pull/33058) internal/ethapi: change default tx type to 0x2 `internal/qrlapi`, `qrl/tracers`
+- [ ] [#33330](https://github.com/ethereum/go-ethereum/pull/33330) cmd/utils: fix disabling cache preimages  through config file `cmd/utils`
+- [ ] [#33329](https://github.com/ethereum/go-ethereum/pull/33329) triedb/pathdb: allow single-element history ranges `triedb/pathdb` **consensus**
+- [ ] [#33336](https://github.com/ethereum/go-ethereum/pull/33336) internal/debug: fix log memory limit format `internal/debug` **security?**
+- [ ] [#32812](https://github.com/ethereum/go-ethereum/pull/32812) core: log detailed statistics for slow block `cmd/gqrl`, `cmd/utils`, `core`, `core/state` **consensus**
+- [ ] [#33338](https://github.com/ethereum/go-ethereum/pull/33338) cmd/utils: fix handling of boolean flags when they are set to false `cmd/utils`
+- [ ] [#33315](https://github.com/ethereum/go-ethereum/pull/33315) ethdb/pebble: add configuration changes `qrldb/pebble`
+- [ ] [#33254](https://github.com/ethereum/go-ethereum/pull/33254) core/state: export statistics to metrics `core/state` **consensus**
+- [ ] [#33196](https://github.com/ethereum/go-ethereum/pull/33196) eth/catalyst: benchmark GetBlobsV2 at API level `qrl/catalyst`
+- [ ] [#33349](https://github.com/ethereum/go-ethereum/pull/33349) beacon/types: update for fulu `beacon/types`
+- [ ] [#33320](https://github.com/ethereum/go-ethereum/pull/33320) eth/filters: change error code for invalid parameter errors `qrl/filters`
+- [ ] [#33280](https://github.com/ethereum/go-ethereum/pull/33280) core/filtermaps: fix operator precedence in delete logging condition `core/filtermaps`
+- [ ] [#33353](https://github.com/ethereum/go-ethereum/pull/33353) ethdb/pebble: change the Pebble database configuration `qrldb/pebble`
+- [~] [#33355](https://github.com/ethereum/go-ethereum/pull/33355) p2p/nat: fix err shadowing in UPnP addAnyPortMapping `p2p/nat` — port open
+- [ ] [#33331](https://github.com/ethereum/go-ethereum/pull/33331) common/bitutil: deprecate XORBytes in favor of stdlib crypto/subtle `common/bitutil`, `p2p/rlpx`
+- [ ] [#33361](https://github.com/ethereum/go-ethereum/pull/33361) core/vm: fix PC increment for EIP-8024 opcodes `core/vm` **consensus**
+- [ ] [#33157](https://github.com/ethereum/go-ethereum/pull/33157) eth/downloader: keep current syncmode in downloader only `qrl`, `qrl/catalyst`, `qrl/downloader`, `qrl/syncer`
+- [ ] [#33299](https://github.com/ethereum/go-ethereum/pull/33299) build: fix check_generate not printing changed files `internal/build`
+- [ ] [#33376](https://github.com/ethereum/go-ethereum/pull/33376) core/state: fix incorrect contract code state metrics `core`, `core/state` **consensus**
+- [ ] [#33383](https://github.com/ethereum/go-ethereum/pull/33383) tests: integrate BlockTest.run into BlockTest.Run `tests`
+- [ ] [#33363](https://github.com/ethereum/go-ethereum/pull/33363) internal/ethapi: select precompiles using the simulated header `internal/qrlapi`
+- [ ] [#33381](https://github.com/ethereum/go-ethereum/pull/33381) eth/tracers/native: include SWAP16 in default ignored opcodes `qrl/tracers`
+- [ ] [#33370](https://github.com/ethereum/go-ethereum/pull/33370) p2p/tracker: fix head detection in Fulfil to avoid unnecessary timer reschedules `p2p/tracker`
+- [ ] [#33344](https://github.com/ethereum/go-ethereum/pull/33344) core/rawdb: fix size counting in memory freezer `core/rawdb`
+- [ ] [#33044](https://github.com/ethereum/go-ethereum/pull/33044) triedb/pathdb: use copy instead of append to reduce memory alloc `triedb/pathdb` **consensus**
+- [ ] [#33378](https://github.com/ethereum/go-ethereum/pull/33378) eth/fetcher: add metadata validation in tx announcement `core/txpool`, `qrl`, `qrl/fetcher`, `tests/fuzzers`
+- [ ] [#33389](https://github.com/ethereum/go-ethereum/pull/33389) core/stateless: cap witness depth metrics buckets `core/stateless`
+- [ ] [#33379](https://github.com/ethereum/go-ethereum/pull/33379) cmd/utils: fix DeveloperFlag handling when set to false `cmd/utils`
+- [ ] [#33400](https://github.com/ethereum/go-ethereum/pull/33400) core/state: make test output message readable `core/state` **consensus**
+- [ ] [#33402](https://github.com/ethereum/go-ethereum/pull/33402) crypto/signify: fix fuzz test compilation `crypto/signify`
+- [ ] [#32637](https://github.com/ethereum/go-ethereum/pull/32637) core/overlay: fix incorrect debug log key/value in LoadTransitionState `core/overlay`
+- [ ] [#33415](https://github.com/ethereum/go-ethereum/pull/33415) core/state: fix code existence not marked correctly `core/state` **consensus**
+- [ ] [#32247](https://github.com/ethereum/go-ethereum/pull/32247) cmd/workload, eth/tracers/native: introduce state proof tests `cmd/workload`, `qrl/tracers`, `qrlclient/gethclient`
+- [ ] [#33440](https://github.com/ethereum/go-ethereum/pull/33440) eth/catalyst: fix invalid timestamp log message `qrl/catalyst`
+- [ ] [#33442](https://github.com/ethereum/go-ethereum/pull/33442) core: add code read statistics `core`, `core/state` **consensus**
+- [ ] [#33352](https://github.com/ethereum/go-ethereum/pull/33352) core/txpool/blobpool: remove legacy sidecar conversion `core/txpool`, `qrl/catalyst`
+- [ ] [#33447](https://github.com/ethereum/go-ethereum/pull/33447) tests/fuzzers: remove unused field from kv struct in rangeproof fuzzer `tests/fuzzers`
+- [ ] [#33444](https://github.com/ethereum/go-ethereum/pull/33444) eth/catalyst: return empty response for GetBlobsV2 before Osaka `qrl/catalyst`
+- [~] [#33428](https://github.com/ethereum/go-ethereum/pull/33428) core, eth: add lock protection in snap sync `core`, `qrl/catalyst`, `qrl/downloader`, `triedb/pathdb` **consensus** — port open
+- [ ] [#33225](https://github.com/ethereum/go-ethereum/pull/33225) graphql: add nil check in block resolver `graphql`
+- [-] [#33474](https://github.com/ethereum/go-ethereum/pull/33474) core/txpool/blobpool: fix slotter size limit `core/txpool` — n/a
+- [~] [#33481](https://github.com/ethereum/go-ethereum/pull/33481) eth/downloader: fix stale beacon header deletion `qrl/downloader` — port open
+- [ ] [#33445](https://github.com/ethereum/go-ethereum/pull/33445) console/prompt: use PromptInput in PromptConfirm method `console/prompt`
+- [ ] [#33503](https://github.com/ethereum/go-ethereum/pull/33503) params: fix wrong comment `params` **consensus**
+- [ ] [#33461](https://github.com/ethereum/go-ethereum/pull/33461) trie, go.mod: remove all references to go-verkle and go-ipa `beacon/engine`, `cmd/gqrl`, `cmd/keeper`, `consensus/beacon` **consensus**
+- [-] [#33414](https://github.com/ethereum/go-ethereum/pull/33414) .github/workflows: preventively close PRs that seem AI-generated — build/CI/docs/release
+- [ ] [#33303](https://github.com/ethereum/go-ethereum/pull/33303) triedb/pathdb: optimize history indexing efficiency `triedb/pathdb` **consensus**
+- [-] [#33483](https://github.com/ethereum/go-ethereum/pull/33483) beacon/light/sync: clear reqFinalityEpoch on server unregistration `beacon/light` — n/a
+- [ ] [#33498](https://github.com/ethereum/go-ethereum/pull/33498) cmd/geth: remove deprecated vulnerability check command `cmd/gqrl`
+- [ ] [#33505](https://github.com/ethereum/go-ethereum/pull/33505) core/state/snapshot: fix storageList memory accounting `core/state` **consensus**
+- [ ] [#33404](https://github.com/ethereum/go-ethereum/pull/33404) eth/catalyst: implement getBlobsV3 `qrl/catalyst`
+- [~] [#33486](https://github.com/ethereum/go-ethereum/pull/33486) core/blockchain.go: cleanup finalized block on rewind in setHeadBeyondRoot `core` **consensus** — port open
+- [ ] [#32725](https://github.com/ethereum/go-ethereum/pull/32725) eth/fetcher: improve the condition to stall peer in tx fetcher `qrl/fetcher`
+- [ ] [#33515](https://github.com/ethereum/go-ethereum/pull/33515) core/rawdb: add trienode freezer support to InspectFreezerTable `core/rawdb`
+- [ ] [#33395](https://github.com/ethereum/go-ethereum/pull/33395) ethstats: report newPayload processing time to stats server `core`, `qrl`, `qrl/catalyst`, `qrlstats` **consensus**
+- [ ] [#33525](https://github.com/ethereum/go-ethereum/pull/33525) core: re-organize the stats category `core`
+- [ ] [#33541](https://github.com/ethereum/go-ethereum/pull/33541) eth: txs fetch/send log at trace level only `qrl`, `qrl/protocols`
+- [ ] [#33537](https://github.com/ethereum/go-ethereum/pull/33537) core/vm: avoid escape to heap `core/vm` **consensus**
+- [ ] [#33490](https://github.com/ethereum/go-ethereum/pull/33490) core/state, core/tracing: new state update hook `cmd/gqrl`, `core`, `core/state`, `core/tracing` **consensus**
+- [ ] [#33532](https://github.com/ethereum/go-ethereum/pull/33532) core/state: add cache statistics of contract code reader `core/state` **consensus**
+- [ ] [#33550](https://github.com/ethereum/go-ethereum/pull/33550) internal/flags: update copyright year to 2026 `internal/flags`
+- [ ] [#33542](https://github.com/ethereum/go-ethereum/pull/33542) graphql: fix GasPrice for blob and setcode transactions `graphql`
+- [ ] [#33399](https://github.com/ethereum/go-ethereum/pull/33399) triedb/pathdb: introduce extension to history index structure `triedb/pathdb` **consensus**
+- [ ] [#33464](https://github.com/ethereum/go-ethereum/pull/33464) ethclient: omit nil address/topics from filter args `qrlclient`
+- [ ] [#32913](https://github.com/ethereum/go-ethereum/pull/32913) rlp, trie, triedb/pathdb: compress trienode history `rlp`, `trie`, `triedb/pathdb` **consensus**
+- [-] [#32717](https://github.com/ethereum/go-ethereum/pull/32717) core/txpool/blobpool: allow gaps in blobpool `core/txpool` — n/a
+- [ ] [#33242](https://github.com/ethereum/go-ethereum/pull/33242) ethclient: restore BlockReceipts support for `BlockNumberOrHash` objects `qrlclient`
+- [ ] [#33543](https://github.com/ethereum/go-ethereum/pull/33543) tests: check correct revert on invalid tests `tests`
+- [ ] [#33563](https://github.com/ethereum/go-ethereum/pull/33563) core: remove duplicate chainHeadFeed.Send code `core` **consensus**
+- [ ] [#33573](https://github.com/ethereum/go-ethereum/pull/33573) core/rawdb: skip missing block bodies during tx unindexing `core/rawdb`
+- [ ] [#33582](https://github.com/ethereum/go-ethereum/pull/33582) internal/ethapi: refactor RPC tx formatter `internal/qrlapi`
+- [ ] [#33304](https://github.com/ethereum/go-ethereum/pull/33304) tests: repair oss-fuzz coverage command `oss-fuzz.sh`
+- [ ] [#33545](https://github.com/ethereum/go-ethereum/pull/33545) rpc: fix limitedBuffer.Write to properly enforce size limit `rpc` **security?**
+- [-] [ea4935430b](https://github.com/ethereum/go-ethereum/commit/ea4935430b) version: begin v1.17.0 release cycle `version` — build/CI/docs/release
+- [ ] [5b99d2bba4](https://github.com/ethereum/go-ethereum/commit/5b99d2bba4) core/txpool: drop peers on invalid KZG proofs `core/txpool`, `qrl/fetcher`
+- [ ] [3b17e78274](https://github.com/ethereum/go-ethereum/commit/3b17e78274) crypto/ecies: use aes blocksize `crypto/ecies`
+- [ ] [#33602](https://github.com/ethereum/go-ethereum/pull/33602) accounts/keystore: fix panic in decryptPreSaleKey `accounts/keystore` **security?**
+- [ ] [#33452](https://github.com/ethereum/go-ethereum/pull/33452) rpc, internal/telemetry: add OpenTelemetry tracing for JSON-RPC calls `cmd/keeper`, `internal/telemetry`, `rpc`
+- [ ] [#33599](https://github.com/ethereum/go-ethereum/pull/33599) rpc: extract OpenTelemetry trace context from request headers `rpc`
+- [ ] [#33584](https://github.com/ethereum/go-ethereum/pull/33584) triedb/pathdb: change the bitmap to big endian `triedb/pathdb` **consensus**
+- [ ] [#33610](https://github.com/ethereum/go-ethereum/pull/33610) eth/fetcher: refactor test code `qrl/fetcher`
+- [ ] [#33281](https://github.com/ethereum/go-ethereum/pull/33281) core/vm: check if read-only in gas handlers `core/vm` **consensus**
+- [ ] [#33450](https://github.com/ethereum/go-ethereum/pull/33450) core/vm: in selfdestruct gas calculation, return early if there isn't enough gas to cover cold account access costs `core/vm` **consensus**
+- [ ] [#32919](https://github.com/ethereum/go-ethereum/pull/32919) core: invoke selfdestruct tracer hooks during finalisation `core/state`, `core/tracing`, `core/vm`, `qrl/tracers` **consensus**
+- [ ] [#33551](https://github.com/ethereum/go-ethereum/pull/33551) triedb/pathdb: implement trienode history indexing scheme `cmd/keeper`, `triedb/pathdb` **consensus**
+- [ ] [#32621](https://github.com/ethereum/go-ethereum/pull/32621) triedb/pathdb: enable trienode history `cmd/gqrl`, `cmd/utils`, `core`, `qrl` **consensus**
+- [~] [#33163](https://github.com/ethereum/go-ethereum/pull/33163) rpc: add a rpc.rangelimit flag `cmd/gqrl`, `cmd/utils`, `graphql`, `qrl/ethconfig` — port open
+- [ ] [#33612](https://github.com/ethereum/go-ethereum/pull/33612) accounts/abi/bind/v2: replace rng in test `accounts/abi`
+- [ ] [#33616](https://github.com/ethereum/go-ethereum/pull/33616) build: remove circleci config `circle.yml`
+- [ ] [#33554](https://github.com/ethereum/go-ethereum/pull/33554) rlp: improve SplitListValues allocation efficiency `rlp`
+- [ ] [#33637](https://github.com/ethereum/go-ethereum/pull/33637) core/vm: add read only protection for opcodes `core/vm` **consensus**
+- [ ] [#33622](https://github.com/ethereum/go-ethereum/pull/33622) triedb/pathdb: double check the list availability before regeneration `triedb/pathdb` **consensus**
+- [ ] [#33623](https://github.com/ethereum/go-ethereum/pull/33623) internal/debug: add integration with Grafana Pyroscope `cmd/keeper`, `internal/debug`
+- [ ] [#33606](https://github.com/ethereum/go-ethereum/pull/33606) accounts/scwallet: fix panic in decryptAPDU `accounts/scwallet` **security?**
+- [ ] [#33644](https://github.com/ethereum/go-ethereum/pull/33644) core/state: ensure deterministic hook emission order in Finalise `core/state` **consensus**
+- [ ] [#33646](https://github.com/ethereum/go-ethereum/pull/33646) core/txpool/legacypool: add metric for accounts in txpool `core/txpool`
+- [ ] [#33647](https://github.com/ethereum/go-ethereum/pull/33647) core/types: fix panic on invalid signature length `core/types` **consensus** **security?**
+- [ ] [#33654](https://github.com/ethereum/go-ethereum/pull/33654) core/txpool/legacypool: reset gauges on clear `core/txpool`
+- [ ] [#32727](https://github.com/ethereum/go-ethereum/pull/32727) core, eth, internal, triedb/pathdb: enable eth_getProofs for history `cmd/gqrl`, `cmd/keeper`, `cmd/utils`, `core` **consensus**
+- [ ] [#33614](https://github.com/ethereum/go-ethereum/pull/33614) core/vm: update EIP-8024 - Missing immediate byte is now treated as 0x00 `core/vm` **consensus**
+- [ ] [#33653](https://github.com/ethereum/go-ethereum/pull/33653) core/txpool/legacypool: fix stale counter `core/txpool`
+- [ ] [#33659](https://github.com/ethereum/go-ethereum/pull/33659) core: extend the code reader statistics `core`, `core/state` **consensus**
+- [ ] [#33689](https://github.com/ethereum/go-ethereum/pull/33689) trie: preallocate slice capacity `trie` **consensus**
+- [ ] [#33681](https://github.com/ethereum/go-ethereum/pull/33681) triedb/pathdb: improve trienode reader for searching `triedb/pathdb` **consensus**
+- [-] [#33686](https://github.com/ethereum/go-ethereum/pull/33686) cmd/keeper: export getInput in wasm builds `cmd/keeper` — n/a
+- [ ] [#33690](https://github.com/ethereum/go-ethereum/pull/33690) core/rawdb: preallocate slice in iterateTransactions `core/rawdb`
+- [ ] [#33694](https://github.com/ethereum/go-ethereum/pull/33694) trie/bintrie: fix tree key hashing to match spec `core`, `trie/bintrie` **consensus**
+- [ ] [#33629](https://github.com/ethereum/go-ethereum/pull/33629) eth/tracers/native: add index to callTracer log `qrl/tracers`
+- [ ] [#33655](https://github.com/ethereum/go-ethereum/pull/33655) core: standardize slow block JSON output for cross-client metrics `cmd/utils`, `core`, `core/state`, `qrl/ethconfig` **consensus**
+- [ ] [#33698](https://github.com/ethereum/go-ethereum/pull/33698) eth/gasprice: reduce allocations `qrl/gasprice`
+- [-] [#33703](https://github.com/ethereum/go-ethereum/pull/33703) crypto/kzg4844: preallocate proof slice in ComputeCellProofs `crypto/kzg4844` — n/a
+- [ ] [#33711](https://github.com/ethereum/go-ethereum/pull/33711) trie: fix flaky test `trie` **consensus**
+- [ ] [#33697](https://github.com/ethereum/go-ethereum/pull/33697) ethdb/pebble: disable seek compaction for Pebble `qrldb/pebble`
+- [ ] [#33704](https://github.com/ethereum/go-ethereum/pull/33704) core/txpool/legacypool: clarify and fix non-executable tx heartbeat `core/txpool`
+- [ ] [#33669](https://github.com/ethereum/go-ethereum/pull/33669) crypto/ecies: fix ECIES invalid-curve handling `crypto/ecies`, `p2p/rlpx`
+- [ ] [#33712](https://github.com/ethereum/go-ethereum/pull/33712) core/state: add bounds check in heap eviction loop `core/state` **consensus**
+- [ ] [#33693](https://github.com/ethereum/go-ethereum/pull/33693) ethclient: fix timeout param for eth_sendRawTransactionSync `internal/qrlapi`, `qrlclient`
+- [ ] [#33715](https://github.com/ethereum/go-ethereum/pull/33715) triedb/pathdb: preallocate slices in decodeRestartTrailer `triedb/pathdb` **consensus**
+- [ ] [#32910](https://github.com/ethereum/go-ethereum/pull/32910) signer/core/apitypes: add cell proofs `signer/core`
+- [ ] [#33736](https://github.com/ethereum/go-ethereum/pull/33736) triedb/pathdb: preallocate slices in encode methods `triedb/pathdb` **consensus**
+- [ ] [#33709](https://github.com/ethereum/go-ethereum/pull/33709) internal/ethapi: Add timestamp to eth_getTransactionByHash `internal/qrlapi`
+- [ ] [#33375](https://github.com/ethereum/go-ethereum/pull/33375) core: miner: reduce allocations in block building `consensus/misc`, `core`, `core/state`, `core/types` **consensus**
+- [ ] [#33739](https://github.com/ethereum/go-ethereum/pull/33739) trie/bintrie: fix debug_executionWitness for binary tree `trie/bintrie` **consensus**
+- [ ] [#33297](https://github.com/ethereum/go-ethereum/pull/33297) accounts/usbwallet: add support for Ledger Nano Gen5 `accounts/usbwallet`
+- [ ] [#33717](https://github.com/ethereum/go-ethereum/pull/33717) core/types, internal/ethapi, signer/core/apitypes: avoid copying 128KB blobs in range loops `core/types`, `internal/qrlapi`, `signer/core` **consensus**
+- [ ] [#33323](https://github.com/ethereum/go-ethereum/pull/33323) crypto/keccak: vendor in golang.org/x/crypto/sha3 `accounts`, `cmd/qrvm`, `common`, `consensus/clique` **consensus**
+- [ ] [#33701](https://github.com/ethereum/go-ethereum/pull/33701) core/txpool/legacypool: reduce unnecessary allocations during add `core/txpool`
+- [ ] [#33748](https://github.com/ethereum/go-ethereum/pull/33748) metrics: add missing GaugeInfo case in GetAll() `metrics`
+- [ ] [#33755](https://github.com/ethereum/go-ethereum/pull/33755) rlp: add RawList for working with un-decoded lists `rlp`
+- [ ] [#33007](https://github.com/ethereum/go-ethereum/pull/33007) internal/ethapi: fix error code for revert in eth_simulateV1 `internal/qrlapi`
+- [-] [#33775](https://github.com/ethereum/go-ethereum/pull/33775) core/txpool/blobpool: reset counters and gapped on Clear `core/txpool` — n/a
+- [ ] [#33749](https://github.com/ethereum/go-ethereum/pull/33749) metrics: add missing ResettingTimer case in GetAll() `metrics`
+- [ ] [#33747](https://github.com/ethereum/go-ethereum/pull/33747) core/rawdb: check pruning tail in HasBody and HasReceipts `core/rawdb`
+- [ ] [#33699](https://github.com/ethereum/go-ethereum/pull/33699) metrics: reduce allocations for metrics `metrics`
+- [ ] [#33776](https://github.com/ethereum/go-ethereum/pull/33776) core/rawdb: close freezer table in InspectFreezerTable `core/rawdb`
+- [ ] [#33785](https://github.com/ethereum/go-ethereum/pull/33785) core/vm: add missing PUSH0 handler in EIP-8024 test mini-interpreter `core/vm` **consensus**
+- [ ] [#33796](https://github.com/ethereum/go-ethereum/pull/33796) core/rawdb: fix incorrect tail value in unindexTransactions log output `core/rawdb`
+- [ ] [#32157](https://github.com/ethereum/go-ethereum/pull/32157) internal/era: New EraE implementation `cmd/era`, `cmd/gqrl`, `cmd/utils`, `core/rawdb` **consensus**
+- [ ] [#33804](https://github.com/ethereum/go-ethereum/pull/33804) cmd/geth: fix wrong flag names in influxdb metrics error messages `cmd/gqrl`
+- [ ] [#33798](https://github.com/ethereum/go-ethereum/pull/33798) core/rawdb: close directory fd on Readdirnames error in cleanup `core/rawdb`
+- [ ] [#33787](https://github.com/ethereum/go-ethereum/pull/33787) core/vm: 8024 tests should enforce explicit errors `core/vm` **consensus**
+- [ ] [#33810](https://github.com/ethereum/go-ethereum/pull/33810) eth: fix targetView==nil case `qrl`
+- [ ] [#33805](https://github.com/ethereum/go-ethereum/pull/33805) ethdb/pebble: fix CompactionDebtConcurrency comment `qrldb/pebble`
+- [ ] [#33803](https://github.com/ethereum/go-ethereum/pull/33803) trie: fix embedded node size validation `trie` **consensus**
+- [ ] [#31510](https://github.com/ethereum/go-ethereum/pull/31510) ethclient/gethclient: callTracer methods `qrlclient/gethclient`
+- [ ] [#33807](https://github.com/ethereum/go-ethereum/pull/33807) trie/bintrie: use correct key mapping in GetStorage and DeleteStorage `trie/bintrie` **consensus**
+- [ ] [#33818](https://github.com/ethereum/go-ethereum/pull/33818) rlp: return Iterator as non-pointer `rlp`
+- [ ] [#33820](https://github.com/ethereum/go-ethereum/pull/33820) cmd/evm/internal/t8ntool, core/rawdb: fix RLP iterator error handling `cmd/qrvm`, `core/rawdb`
+- [ ] [#33819](https://github.com/ethereum/go-ethereum/pull/33819) triedb/pathdb: return nodeLoc by value to avoid heap allocation `triedb/pathdb` **consensus**
+- [ ] [#33821](https://github.com/ethereum/go-ethereum/pull/33821) eth/tracers: tests for bad block tracing `qrl/tracers`
+- [-] [#33827](https://github.com/ethereum/go-ethereum/pull/33827) internal/era: update eraE type IDs to match spec `internal/era` — n/a
+- [ ] [#33812](https://github.com/ethereum/go-ethereum/pull/33812) node: http2 for JSON-RPC API `node`
+- [ ] [#33834](https://github.com/ethereum/go-ethereum/pull/33834) rlp: add AppendRaw method to RawList `rlp`
+- [ ] [#33840](https://github.com/ethereum/go-ethereum/pull/33840) rlp: validate and cache element count in RawList `rlp`
+- [ ] [#33841](https://github.com/ethereum/go-ethereum/pull/33841) rlp: add back Iterator.Count, with fixes `rlp`, `trie` **consensus**
+- [ ] [#33772](https://github.com/ethereum/go-ethereum/pull/33772) rpc,internal/telemetry: fix deferred spanEnd to capture errors via pointer `internal/telemetry`, `rpc`
+- [ ] [#33484](https://github.com/ethereum/go-ethereum/pull/33484) cmd/geth, internal/telemetry: wire OpenTelemetry tracing via CLI flags `cmd/gqrl`, `cmd/keeper`, `cmd/utils`, `core/tracing`
+- [ ] [#33842](https://github.com/ethereum/go-ethereum/pull/33842) internal/download: show progress bar only if server gives length `internal/download`
+- [ ] [#33835](https://github.com/ethereum/go-ethereum/pull/33835) eth/protocols/eth, eth/protocols/snap: delayed p2p message decoding `cmd/devp2p`, `p2p/tracker`, `qrl`, `qrl/downloader`
+- [ ] [#33780](https://github.com/ethereum/go-ethereum/pull/33780) internal/telemetry: don't create internal spans without parents `internal/telemetry`
+- [ ] [#33860](https://github.com/ethereum/go-ethereum/pull/33860) consensus/misc: hardening header verification `consensus/misc` **consensus**
+- [ ] [#33521](https://github.com/ethereum/go-ethereum/pull/33521) eth/catalyst: add initial OpenTelemetry tracing for newPayload `cmd/keeper`, `core`, `qrl`, `qrl/catalyst` **consensus**
+- [ ] [9b78f45e33](https://github.com/ethereum/go-ethereum/commit/9b78f45e33) crypto/secp256k1: fix coordinate check `crypto`, `crypto/secp256k1`
+- [-] [0cf3d3ba4f](https://github.com/ethereum/go-ethereum/commit/0cf3d3ba4f) version: release go-ethereum v1.17.0 stable `version` — build/CI/docs/release
+
+## v1.17.1 (2026-03-03): 40 commits, 24 to review
+
+- [-] [1054276906](https://github.com/ethereum/go-ethereum/commit/1054276906) version: begin v1.17.1 release cycle `version` — build/CI/docs/release
+- [ ] [#33800](https://github.com/ethereum/go-ethereum/pull/33800) cmd/evm: add --opcode.count flag to t8n `cmd/qrvm`, `qrl/tracers`
+- [ ] [#33741](https://github.com/ethereum/go-ethereum/pull/33741) core/vm: disable the value transfer in syscall `core/vm` **consensus**
+- [-] [#33866](https://github.com/ethereum/go-ethereum/pull/33866) .github: fix actions 32bit test — build/CI/docs/release
+- [ ] [#33865](https://github.com/ethereum/go-ethereum/pull/33865) core/rawdb: revert "check pruning tail in HasBody and HasReceipts" `core/rawdb`
+- [-] [#33874](https://github.com/ethereum/go-ethereum/pull/33874) build: upgrade -dlgo version to 1.25.7 — build/CI/docs/release
+- [-] [#33875](https://github.com/ethereum/go-ethereum/pull/33875) build: upgrade to golangci-lint v2.10.1 — build/CI/docs/release
+- [ ] [#31547](https://github.com/ethereum/go-ethereum/pull/31547) p2p/discover/v5wire: use Whoareyou.ChallengeData instead of storing encoded packet `cmd/devp2p`, `p2p/discover`
+- [ ] [#33767](https://github.com/ethereum/go-ethereum/pull/33767) metrics: allow changing influxdb interval `cmd/gqrl`, `cmd/utils`, `metrics`
+- [ ] [#33656](https://github.com/ethereum/go-ethereum/pull/33656) eth/catalyst: implement testing_buildBlockV1 `beacon/engine`, `cmd/gqrl`, `internal/qrlapi`, `miner`
+- [-] [#33628](https://github.com/ethereum/go-ethereum/pull/33628) beacon/blsync: ignore beacon syncer reorging errors `beacon/blsync` — n/a
+- [ ] [#33849](https://github.com/ethereum/go-ethereum/pull/33849) internal/ethapi: include AuthorizationList in gas estimation `internal/qrlapi`
+- [ ] [#32591](https://github.com/ethereum/go-ethereum/pull/32591) internal/ethapi: add eth_getStorageValues method `internal/qrlapi`, `internal/web3ext`
+- [~] [#33790](https://github.com/ethereum/go-ethereum/pull/33790) eth/protocols/snap: restore peers to idle pool on request revert `qrl/protocols` — port open
+- [ ] [#33607](https://github.com/ethereum/go-ethereum/pull/33607) eth: check for tx on chain as well `qrl`, `qrl/fetcher`, `tests/fuzzers`
+- [-] [#33887](https://github.com/ethereum/go-ethereum/pull/33887) core/txpool/blobpool: remove unused adds slice in Add() `core/txpool` — n/a
+- [ ] [#33774](https://github.com/ethereum/go-ethereum/pull/33774) core/types/bal: change code change type to list `core/types` **consensus**
+- [ ] [#33742](https://github.com/ethereum/go-ethereum/pull/33742) core/vm: touch precompile object with Amsterdam enabled `core/vm` **consensus**
+- [ ] [#33743](https://github.com/ethereum/go-ethereum/pull/33743) core/state: track slot reads for empty storage `core/state` **consensus**
+- [ ] [#33576](https://github.com/ethereum/go-ethereum/pull/33576) core: reduce alloc `core` **consensus**
+- [ ] [#28892](https://github.com/ethereum/go-ethereum/pull/28892) cmd/geth: add inspect trie tool to analysis trie storage `cmd/gqrl`, `cmd/utils`, `core/rawdb`, `core/stateless` **consensus**
+- [~] [#33539](https://github.com/ethereum/go-ethereum/pull/33539) eth/protocols/eth: fix handshake timeout metrics classification `qrl/protocols` — port open
+- [-] [#33890](https://github.com/ethereum/go-ethereum/pull/33890) AGENTS.md: add AGENTS.md — build/CI/docs/release
+- [ ] [#33589](https://github.com/ethereum/go-ethereum/pull/33589) core/vm: implement eip-7843: SLOTNUM `beacon/engine`, `cmd/qrvm`, `consensus/beacon`, `consensus/clique` **consensus**
+- [-] [#33864](https://github.com/ethereum/go-ethereum/pull/33864) build: update ubuntu distros list — build/CI/docs/release
+- [ ] [#33898](https://github.com/ethereum/go-ethereum/pull/33898) trie: error out for unexpected key-value pairs preceding the range `trie` **consensus**
+- [-] [#33901](https://github.com/ethereum/go-ethereum/pull/33901) go.mod: update ckzg `cmd/keeper` — n/a
+- [-] [#33899](https://github.com/ethereum/go-ethereum/pull/33899) Dockerfile: upgrade to Go 1.26 — build/CI/docs/release
+- [ ] [#33900](https://github.com/ethereum/go-ethereum/pull/33900) trie/bintrie: fix endianness in code chunk key computation `trie/bintrie` **consensus**
+- [ ] [#33896](https://github.com/ethereum/go-ethereum/pull/33896) eth: fix the flaky test of TestSnapSyncDisabling68 `qrl`
+- [ ] [#33511](https://github.com/ethereum/go-ethereum/pull/33511) eth/protocols/eth: drop protocol version eth/68 `cmd/devp2p`, `qrl`, `qrl/downloader`, `qrl/protocols`
+- [-] [#33921](https://github.com/ethereum/go-ethereum/pull/33921) AGENTS.md: add instruction not to commit binaries — build/CI/docs/release
+- [-] [#33920](https://github.com/ethereum/go-ethereum/pull/33920) .github: set @gballet as codeowner for keeper — build/CI/docs/release
+- [ ] [#33928](https://github.com/ethereum/go-ethereum/pull/33928) core/vm: enable 8024 instructions in Amsterdam `core/vm` **consensus**
+- [ ] [#33923](https://github.com/ethereum/go-ethereum/pull/33923) core/types: fix transaction pool price-heap comparison `core/txpool`, `core/types` **consensus**
+- [-] [#33893](https://github.com/ethereum/go-ethereum/pull/33893) core/txpool/blobpool: delay announcement of low fee txs `core/txpool` — n/a
+- [ ] [#33908](https://github.com/ethereum/go-ethereum/pull/33908) miner: account for generateWork elapsed time in payload rebuild timer `miner`
+- [ ] [#33922](https://github.com/ethereum/go-ethereum/pull/33922) node: disable http2 for auth API `node`
+- [ ] [#33940](https://github.com/ethereum/go-ethereum/pull/33940) p2p/tracker: fix crash in clean when tracker is stopped `p2p/tracker` **security?**
+- [-] [16783c167c](https://github.com/ethereum/go-ethereum/commit/16783c167c) version: release go-ethereum v1.17.1 stable `version` — build/CI/docs/release
+
+## v1.17.2 (2026-03-30): 77 commits, 70 to review
+
+- [-] [db7d3a4e0e](https://github.com/ethereum/go-ethereum/commit/db7d3a4e0e) version: begin v1.17.2 release cycle `version` — build/CI/docs/release
+- [-] [#33946](https://github.com/ethereum/go-ethereum/pull/33946) go.mod: bump go.opentelemetry.io/otel/sdk from 1.39.0 to 1.40.0 `cmd/keeper` — n/a
+- [ ] [#33945](https://github.com/ethereum/go-ethereum/pull/33945) miner: enable trie prefetcher in block builder `miner`
+- [ ] [#33943](https://github.com/ethereum/go-ethereum/pull/33943) miner: avoid unnecessary work after payload resolution `miner`
+- [ ] [#33947](https://github.com/ethereum/go-ethereum/pull/33947) core/vm: use amsterdam jump table in lookup `core/vm` **consensus**
+- [ ] [#33931](https://github.com/ethereum/go-ethereum/pull/33931) cmd, core, eth, tests: prevent state flushing in RPC `cmd/utils`, `core`, `core/vm`, `internal/web3ext` **consensus**
+- [ ] [#33869](https://github.com/ethereum/go-ethereum/pull/33869) core/vm: Switch to branchless normalization and extend EXCHANGE `core/vm` **consensus**
+- [ ] [#33708](https://github.com/ethereum/go-ethereum/pull/33708) core, ethdb, triedb: add batch close `core`, `core/rawdb`, `core/state`, `qrldb` **consensus**
+- [ ] [#33593](https://github.com/ethereum/go-ethereum/pull/33593) core: implement eip-7778: block gas accounting without refunds `cmd/qrvm`, `core`, `core/tracing`, `internal/qrlapi` **consensus**
+- [ ] [#33836](https://github.com/ethereum/go-ethereum/pull/33836) cmd/geth: set default cache to 4096 `cmd/gqrl`, `cmd/utils`
+- [ ] [#33927](https://github.com/ethereum/go-ethereum/pull/33927) internal/telemetry: fix undersized span queue causing dropped spans `internal/telemetry`
+- [ ] [#32789](https://github.com/ethereum/go-ethereum/pull/32789) internal/ethapi: add MaxUsedGas field to eth_simulateV1 response `internal/qrlapi`
+- [ ] [#33952](https://github.com/ethereum/go-ethereum/pull/33952) internal/ethapi: fix gas cap for eth_simulateV1 `internal/qrlapi`
+- [ ] [#33950](https://github.com/ethereum/go-ethereum/pull/33950) eth/fetcher: fix flaky test by improving event unsubscription `qrl/fetcher`
+- [ ] [#33951](https://github.com/ethereum/go-ethereum/pull/33951) trie/bintrie: fix overflow management in slot key computation `core`, `trie/bintrie` **consensus** **security?**
+- [ ] [#33961](https://github.com/ethereum/go-ethereum/pull/33961) trie/bintrie: cache hashes of clean nodes so as not to rehash the whole tree `trie/bintrie` **consensus**
+- [ ] [#33971](https://github.com/ethereum/go-ethereum/pull/33971) core: fix TestProcessVerkle flaky test `core`
+- [ ] [#33829](https://github.com/ethereum/go-ethereum/pull/33829) signer/core: prevent nil pointer panics in keystore operations `signer/core`
+- [ ] [#33523](https://github.com/ethereum/go-ethereum/pull/33523) core/types: reduce alloc in hot code path `core/types` **consensus**
+- [-] [#33963](https://github.com/ethereum/go-ethereum/pull/33963) go.mod: update go-eth-kzg `cmd/keeper` — n/a
+- [ ] [#33932](https://github.com/ethereum/go-ethereum/pull/33932) eth/catalyst: allow getPayloadV2 for pre-shanghai payloads `qrl/catalyst`
+- [ ] [#33975](https://github.com/ethereum/go-ethereum/pull/33975) cmd/utils, eth/ethconfig: change default cache settings `cmd/utils`, `qrl/ethconfig`
+- [ ] [#33816](https://github.com/ethereum/go-ethereum/pull/33816) core, miner, tests: introduce codedb and simplify cachingDB `core`, `core/state`, `miner`, `tests` **consensus**
+- [ ] [#33978](https://github.com/ethereum/go-ethereum/pull/33978) core/tracing: fix nonce revert edge case `core/tracing`
+- [ ] [#33150](https://github.com/ethereum/go-ethereum/pull/33150) eth: resolve finalized from disk if it's not recently announced `qrl/catalyst`, `qrl/downloader`
+- [ ] [#33976](https://github.com/ethereum/go-ethereum/pull/33976) eth/tracers: fix accessList StorageKeys return null `qrl/tracers`
+- [ ] [#33955](https://github.com/ethereum/go-ethereum/pull/33955) core: end telemetry span for ApplyTransactionWithEVM if error is returned `core` **consensus**
+- [ ] [#33984](https://github.com/ethereum/go-ethereum/pull/33984) cmd/geth: correct misleading flag description in removedb command `cmd/gqrl`
+- [ ] [#33657](https://github.com/ethereum/go-ethereum/pull/33657) cmd/geth: add Prague pruning points `cmd/gqrl`, `cmd/utils`, `core`, `core/history` **consensus**
+- [ ] [#33919](https://github.com/ethereum/go-ethereum/pull/33919) cmd/fetchpayload: add payload-building utility `cmd/fetchpayload`, `core/stateless`
+- [ ] [#33934](https://github.com/ethereum/go-ethereum/pull/33934) core/rawdb, triedb/pathdb: enable trienode history alongside existing data `core/rawdb`, `triedb/pathdb` **consensus**
+- [ ] [#33990](https://github.com/ethereum/go-ethereum/pull/33990) eth/filters: fix race in pending tx and new heads subscriptions `qrl/filters`
+- [ ] [#33832](https://github.com/ethereum/go-ethereum/pull/33832) core: Implement eip-7954 increase Maximum Contract Size `cmd/qrvm`, `core`, `core/txpool`, `core/vm` **consensus**
+- [ ] [#33989](https://github.com/ethereum/go-ethereum/pull/33989) trie/bintrie: use a sync.Pool when hashing binary tree nodes `trie/bintrie` **consensus**
+- [ ] [#34000](https://github.com/ethereum/go-ethereum/pull/34000) core/rawdb: enforce exact key length for num->hash and td in db inspect `core/rawdb`
+- [ ] [#34003](https://github.com/ethereum/go-ethereum/pull/34003) console: fix autocomplete digit range to include 0 `console`
+- [ ] [#33823](https://github.com/ethereum/go-ethereum/pull/33823) eth/filters: check history pruning cutoff in GetFilterLogs `qrl/filters`
+- [ ] [#34005](https://github.com/ethereum/go-ethereum/pull/34005) internal/ethapi: encode slotNumber as hex in RPCMarshalHeader `internal/qrlapi`
+- [-] [#34006](https://github.com/ethereum/go-ethereum/pull/34006) build: fix signify flag name in doWindowsInstaller — build/CI/docs/release
+- [-] [#34008](https://github.com/ethereum/go-ethereum/pull/34008) go.mod, go.sum: update karalabe/hid to fix broken FreeBSD ports build — build/CI/docs/release
+- [ ] [#34011](https://github.com/ethereum/go-ethereum/pull/34011) core: fix code database initialization in stateless mode `core`
+- [ ] [#33773](https://github.com/ethereum/go-ethereum/pull/33773) miner: add OpenTelemetry spans for block building path `consensus`, `consensus/beacon`, `consensus/clique`, `consensus/ethash` **consensus**
+- [ ] [#34025](https://github.com/ethereum/go-ethereum/pull/34025) core/state: avoid Bytes() allocation in flatReader hash computations `core/state` **consensus**
+- [ ] [#34021](https://github.com/ethereum/go-ethereum/pull/34021) core/state: skip redundant trie Commit for Verkle in stateObject.commit `core/state` **consensus**
+- [ ] [#34016](https://github.com/ethereum/go-ethereum/pull/34016) internal/ethapi: warn on reaching global gas cap for eth_simulateV1 `internal/qrlapi`
+- [ ] [#33640](https://github.com/ethereum/go-ethereum/pull/33640) triedb/pathdb: enhance history index initer `triedb/pathdb` **consensus**
+- [ ] [#33997](https://github.com/ethereum/go-ethereum/pull/33997) cmd/evm: don't strip prefixes on requests over t8n `cmd/qrvm`
+- [ ] [#34039](https://github.com/ethereum/go-ethereum/pull/34039) core: fix txLookupLock mutex leak on error returns in reorg() `core` **consensus**
+- [ ] [#34032](https://github.com/ethereum/go-ethereum/pull/34032) trie/bintrie: parallelize InternalNode.Hash at shallow tree depths `trie/bintrie` **consensus**
+- [ ] [#34036](https://github.com/ethereum/go-ethereum/pull/34036) core/history: refactor pruning configuration `cmd/gqrl`, `cmd/workload`, `core`, `core/history` **consensus**
+- [ ] [#34044](https://github.com/ethereum/go-ethereum/pull/34044) build: fix missing '!' in shebang of generated oss-fuzz scripts `oss-fuzz.sh`
+- [ ] [#33763](https://github.com/ethereum/go-ethereum/pull/33763) eth/filters: rangeLogs should error on invalid block range `qrl/filters`
+- [ ] [#34048](https://github.com/ethereum/go-ethereum/pull/34048) rlp: add AppendList method to RawList `rlp`
+- [ ] [#34051](https://github.com/ethereum/go-ethereum/pull/34051) cmd: add support for enumerating a single storage trie `cmd/gqrl`, `cmd/utils`
+- [ ] [#33648](https://github.com/ethereum/go-ethereum/pull/33648) core/vm: rework gas measurement for call variants `core/vm` **consensus**
+- [ ] [#34052](https://github.com/ethereum/go-ethereum/pull/34052) rlp: add Size method to EncoderBuffer `rlp`
+- [ ] [#33198](https://github.com/ethereum/go-ethereum/pull/33198) p2p: track in-progress inbound node IDs `p2p`
+- [ ] [#34022](https://github.com/ethereum/go-ethereum/pull/34022) core/state: bypass per-account updateTrie in IntermediateRoot for binary trie `core/state` **consensus**
+- [ ] [#34056](https://github.com/ethereum/go-ethereum/pull/34056) trie/bintrie: fix NodeIterator Empty node handling and expose tree accessors `trie/bintrie` **consensus**
+- [ ] [#34074](https://github.com/ethereum/go-ethereum/pull/34074) core/rawdb: fix key length check for num -- hash in db inspect `core/rawdb`
+- [ ] [#34067](https://github.com/ethereum/go-ethereum/pull/34067) core, internal/ethapi: fix incorrect max-initcode RPC error mapping `core`, `internal/qrlapi`
+- [ ] [#33645](https://github.com/ethereum/go-ethereum/pull/33645) core, core/vm: implement EIP-7708 `core`, `core/state`, `core/types`, `core/vm` **consensus**
+- [ ] [#34062](https://github.com/ethereum/go-ethereum/pull/34062) cmd/utils: guard SampleRatio flag with IsSet check `cmd/utils`
+- [ ] [#34031](https://github.com/ethereum/go-ethereum/pull/34031) cmd/devp2p: fix discv5 PingMultiIP test session key mismatch `cmd/devp2p`
+- [ ] [#33894](https://github.com/ethereum/go-ethereum/pull/33894) cmd/utils: optimize history import with batched insertion `cmd/utils`
+- [ ] [#34085](https://github.com/ethereum/go-ethereum/pull/34085) core/tracing: fix NonceChangeAuthorization comment `core/tracing`
+- [ ] [#34092](https://github.com/ethereum/go-ethereum/pull/34092) core/txpool/legacypool: remove redundant nil check in Get `core/txpool`
+- [ ] [#34100](https://github.com/ethereum/go-ethereum/pull/34100) miner: fix txFitsSize comment `miner`
+- [ ] [#34094](https://github.com/ethereum/go-ethereum/pull/34094) miner: set slot number when building test payload `miner`
+- [ ] [#34106](https://github.com/ethereum/go-ethereum/pull/34106) core, miner, trie: relocate witness stats `core`, `core/state`, `core/stateless`, `miner` **consensus**
+- [ ] [#34101](https://github.com/ethereum/go-ethereum/pull/34101) p2p/discover: resolve DNS hostnames for bootstrap nodes `p2p/discover`
+- [-] [#34079](https://github.com/ethereum/go-ethereum/pull/34079) build, cmd/keeper: add "womir" target `cmd/keeper` — n/a
+- [ ] [#34059](https://github.com/ethereum/go-ethereum/pull/34059) core/txpool/legacypool: use types.Sender instead of signer.Sender `core/txpool`
+- [ ] [#34115](https://github.com/ethereum/go-ethereum/pull/34115) core/rawdb: fix freezer dir.Sync() failure on Windows `core/rawdb`
+- [ ] [#34616](https://github.com/ethereum/go-ethereum/pull/34616) internal/ethapi: limit number of calls to eth_simulateV1 `internal/qrlapi` **security?**
+- [ ] [#34617](https://github.com/ethereum/go-ethereum/pull/34617) internal/ethapi: limit number of getProofs keys `internal/qrlapi` **security?**
+- [-] [#34618](https://github.com/ethereum/go-ethereum/pull/34618) version: release go-ethereum v1.17.2 stable `version` — build/CI/docs/release
+
+## v1.17.3 (2026-05-11): 137 commits, 117 to review
+
+- [-] [#34619](https://github.com/ethereum/go-ethereum/pull/34619) version: start v1.17.3 release cycle `version` — build/CI/docs/release
+- [ ] [#33153](https://github.com/ethereum/go-ethereum/pull/33153) eth: implement EIP-7975 (eth/70 - partial block receipt lists) `cmd/devp2p`, `qrl`, `qrl/downloader`, `qrl/protocols`
+- [ ] [#34064](https://github.com/ethereum/go-ethereum/pull/34064) core/rawdb: BAL storage layer `consensus/beacon`, `core/rawdb`, `core/types` **consensus**
+- [ ] [#34110](https://github.com/ethereum/go-ethereum/pull/34110) core/state: fix storage counters in binary trie IntermediateRoot `core/state` **consensus**
+- [ ] [#34093](https://github.com/ethereum/go-ethereum/pull/34093) eth/tracers/logger: conform structLog tracing to spec `qrl`, `qrl/tracers`
+- [-] [#33966](https://github.com/ethereum/go-ethereum/pull/33966) beacon/light: keep retrying checkpoint init if failed `beacon/light` — n/a
+- [ ] [#34081](https://github.com/ethereum/go-ethereum/pull/34081) eth/gasestimator: fix block overrides in estimate gas `internal/qrlapi`, `qrl/gasestimator`
+- [ ] [#33999](https://github.com/ethereum/go-ethereum/pull/33999) triedb/pathdb: implement history index pruner `triedb/pathdb` **consensus**
+- [ ] [#34636](https://github.com/ethereum/go-ethereum/pull/34636) core/types: copy block access list hash in CopyHeader `core/types` **consensus**
+- [ ] [#33102](https://github.com/ethereum/go-ethereum/pull/33102) core/state: introduce state iterator interface `core/state`, `qrl` **consensus**
+- [ ] [#34083](https://github.com/ethereum/go-ethereum/pull/34083) core, eth/protocols/snap: Snap/2 Protocol + BAL Serving `core`, `qrl/downloader`, `qrl/protocols`
+- [ ] [#34649](https://github.com/ethereum/go-ethereum/pull/34649) eth/protocols/snap: restore Bytes soft limit to GetAccessListsPacket `qrl/protocols` **security?**
+- [ ] [#34633](https://github.com/ethereum/go-ethereum/pull/34633) core, eth, ethclient, triedb: report trienode index progress `core`, `graphql`, `interfaces.go`, `internal/qrlapi` **consensus**
+- [ ] [#34671](https://github.com/ethereum/go-ethereum/pull/34671) tests: enable execution of amsterdam statetests `tests`
+- [ ] [#34654](https://github.com/ethereum/go-ethereum/pull/34654) triedb, triedb/internal, triedb/pathdb: add GenerateTrie + extract shared pipeline into triedb/internal `triedb`, `triedb/internal`, `triedb/pathdb` **consensus**
+- [ ] [#34644](https://github.com/ethereum/go-ethereum/pull/34644) eth/protocols/snap: fix block accessList encoding rule `qrl/protocols`
+- [ ] [#34642](https://github.com/ethereum/go-ethereum/pull/34642) triedb/pathdb: skip duplicate-root layer insertion `triedb/pathdb` **consensus**
+- [ ] [#34651](https://github.com/ethereum/go-ethereum/pull/34651) core/types: add accessList to WithSeal and WithBody `core/types` **consensus**
+- [ ] [#33884](https://github.com/ethereum/go-ethereum/pull/33884) ethclient: omit empty address/topics fields in RPC filter requests `qrlclient`
+- [ ] [#34637](https://github.com/ethereum/go-ethereum/pull/34637) core: merge access events for all system calls `core` **consensus**
+- [~] [#34647](https://github.com/ethereum/go-ethereum/pull/34647) eth/filters: return -32602 when exceeding the block range limit `qrl/filters` **security?** — port open
+- [ ] [#34688](https://github.com/ethereum/go-ethereum/pull/34688) core/state: fix tracer hook for EIP-7708 burn logs `core`, `core/state`, `core/vm` **consensus**
+- [ ] [#34683](https://github.com/ethereum/go-ethereum/pull/34683) core/stateless: fix parsing an empty witness `core/stateless`
+- [ ] [#34680](https://github.com/ethereum/go-ethereum/pull/34680) triedb/pathdb: fix lookup sentinel collision with zero disk layer root `triedb/pathdb` **consensus**
+- [ ] [#33740](https://github.com/ethereum/go-ethereum/pull/33740) cmd/geth: add subcommand for offline binary tree conversion `cmd/gqrl`
+- [ ] [#34695](https://github.com/ethereum/go-ethereum/pull/34695) core/filtermaps: remove dead condition check `core/filtermaps`
+- [ ] [#34676](https://github.com/ethereum/go-ethereum/pull/34676) trie/bintrie: fix DeleteAccount no-op `trie/bintrie` **consensus**
+- [ ] [#34690](https://github.com/ethereum/go-ethereum/pull/34690) trie/bintrie: fix GetAccount/GetStorage non-membership — verify stem before returning values `trie/bintrie` **consensus**
+- [ ] [#34691](https://github.com/ethereum/go-ethereum/pull/34691) core: turn gas into a vector <regularGas, stateGas> `core/vm`, `qrl/tracers` **consensus**
+- [ ] [#34670](https://github.com/ethereum/go-ethereum/pull/34670) trie/bintrie: spec change, big endian hashing of slot key `core`, `trie/bintrie` **consensus**
+- [ ] [#34704](https://github.com/ethereum/go-ethereum/pull/34704) beacon/engine, miner: fix testing_buildBlockV1 response `beacon/engine`, `miner`
+- [-] [#34659](https://github.com/ethereum/go-ethereum/pull/34659) crypto/bn256: fix comment in MulXi `crypto/bn256` — n/a
+- [ ] [#34084](https://github.com/ethereum/go-ethereum/pull/34084) accounts/keystore: fix flaky TestUpdatedKeyfileContents `accounts/keystore`
+- [ ] [#34635](https://github.com/ethereum/go-ethereum/pull/34635) core/vm: include operand in error message `core/vm` **consensus**
+- [ ] [#34076](https://github.com/ethereum/go-ethereum/pull/34076) cmd/abigen/v2: add package-level errors `accounts/abi`
+- [ ] [#33702](https://github.com/ethereum/go-ethereum/pull/33702) signer/core/apitypes: fix encoding of opening parenthesis `signer/core`
+- [ ] [#33510](https://github.com/ethereum/go-ethereum/pull/33510) core/vm/runtime: don't overwrite user input with default value `core/vm` **consensus**
+- [-] [#34707](https://github.com/ethereum/go-ethereum/pull/34707) build: upgrade -dlgo version to Go 1.25.9 — build/CI/docs/release
+- [x] [#34109](https://github.com/ethereum/go-ethereum/pull/34109) p2p/discover: fix flaky TestUDPv5_findnodeHandling `p2p/discover` — in go-qrl
+- [x] [#34043](https://github.com/ethereum/go-ethereum/pull/34043) cmd/devp2p/internal/v5test: fix hive test for discv5 findnode results `cmd/devp2p` — in go-qrl
+- [-] [#34078](https://github.com/ethereum/go-ethereum/pull/34078) .github/workflows: add freebsd test github action — build/CI/docs/release
+- [ ] [#34714](https://github.com/ethereum/go-ethereum/pull/34714) cmd/geth: add Prague pruning points for hoodi `core/history`
+- [ ] [#33695](https://github.com/ethereum/go-ethereum/pull/33695) core/state: optimize transient storage `core/state` **consensus**
+- [ ] [#34718](https://github.com/ethereum/go-ethereum/pull/34718) cmd/geth, core/state, tests: rework EIP7610 check `cmd/gqrl`, `core/state`, `core/vm`, `tests` **consensus**
+- [ ] [#34719](https://github.com/ethereum/go-ethereum/pull/34719) core/types: remove redundant ')' `core/types` **consensus**
+- [ ] [#34722](https://github.com/ethereum/go-ethereum/pull/34722) eth/catalyst: respect slot num if specified in payload attributes for `testing_buildBlockV1` `qrl/catalyst`
+- [ ] [#34723](https://github.com/ethereum/go-ethereum/pull/34723) core/state: ignore the root returned in Commit function for simplicity `core/state` **consensus**
+- [ ] [#34729](https://github.com/ethereum/go-ethereum/pull/34729) cmd/utils: fix witness stats auto-enable to respect config file `cmd/utils`
+- [x] [#33111](https://github.com/ethereum/go-ethereum/pull/33111) log: allow –vmodule to downgrade log levels `log` — in go-qrl
+- [ ] [#34731](https://github.com/ethereum/go-ethereum/pull/34731) cmd/evm: fix trace.noreturndata usage string `cmd/qrvm`
+- [ ] [#34675](https://github.com/ethereum/go-ethereum/pull/34675) eth/tracers: fix codehash in prestate diffmode `qrl/tracers`
+- [ ] [#34700](https://github.com/ethereum/go-ethereum/pull/34700) cmd, core, trie, triedb: split CachingDB into merkle + binary dbs. `cmd/gqrl`, `cmd/qrvm`, `cmd/utils`, `core` **consensus**
+- [ ] [#34696](https://github.com/ethereum/go-ethereum/pull/34696) cmd/geth: add code exporter for db export `cmd/gqrl`
+- [ ] [#34733](https://github.com/ethereum/go-ethereum/pull/34733) cmd/evm: compare errors by value in timedExec instead of interface identity `cmd/qrvm`
+- [ ] [#34728](https://github.com/ethereum/go-ethereum/pull/34728) core/rawdb: fix incorrect fsync ordering for index file truncation `core/rawdb`
+- [ ] [#34754](https://github.com/ethereum/go-ethereum/pull/34754) trie/bintrie: skip clean nodes in CollectNodes to reduce commit write amplification `trie/bintrie` **consensus**
+- [ ] [#34758](https://github.com/ethereum/go-ethereum/pull/34758) core/state: handle *bintrie.BinaryTrie in mustCopyTrie `core/state` **consensus**
+- [ ] [#34762](https://github.com/ethereum/go-ethereum/pull/34762) triedb/pathdb: fix typo `triedb/pathdb` **consensus**
+- [ ] [#34750](https://github.com/ethereum/go-ethereum/pull/34750) tests: fix invalid eip parse error `tests`
+- [ ] [#34735](https://github.com/ethereum/go-ethereum/pull/34735) core/rawdb: fix file descriptor leak in freezer error paths `core/rawdb`
+- [ ] [#34712](https://github.com/ethereum/go-ethereum/pull/34712) core/vm, eth, tests: introduce gas budget `cmd/qrvm`, `core`, `core/tracing`, `core/txpool` **consensus**
+- [ ] [#34055](https://github.com/ethereum/go-ethereum/pull/34055) trie/bintrie: replace BinaryNode interface with GC-free NodeRef arena `trie/bintrie`, `triedb/pathdb` **consensus**
+- [ ] [#34763](https://github.com/ethereum/go-ethereum/pull/34763) core/state: separate trie reader to mptReader and ubtReader `core/state` **consensus**
+- [ ] [#34724](https://github.com/ethereum/go-ethereum/pull/34724) core/state: export StateUpdate struct `core/state` **consensus**
+- [ ] [#34773](https://github.com/ethereum/go-ethereum/pull/34773) core/rawdb: clarify ReadLastPivotNumber comment `core/rawdb`
+- [ ] [#34748](https://github.com/ethereum/go-ethereum/pull/34748) core: implement eip-7976: Increase Calldata Floor Cost `cmd/qrvm`, `core`, `core/txpool`, `params` **consensus**
+- [ ] [#34761](https://github.com/ethereum/go-ethereum/pull/34761) metrics: reset internal value slice in Clear `metrics`
+- [ ] [#33941](https://github.com/ethereum/go-ethereum/pull/33941) internal/telemetry: add gRPC transport for OTLP trace export `cmd/keeper`, `cmd/utils`, `internal/telemetry`
+- [ ] [#34777](https://github.com/ethereum/go-ethereum/pull/34777) trie/bintrie: print todot path in binary `trie/bintrie` **consensus**
+- [ ] [#34726](https://github.com/ethereum/go-ethereum/pull/34726) consensus, core, internal, miner: remove FinalizeAndAssemble `consensus`, `consensus/beacon`, `consensus/clique`, `consensus/ethash` **consensus**
+- [ ] [#34786](https://github.com/ethereum/go-ethereum/pull/34786) core: pre-allocate the receipt slice `core` **consensus**
+- [ ] [#34780](https://github.com/ethereum/go-ethereum/pull/34780) core/state: use address hash cache if available `core/state` **consensus**
+- [ ] [#34776](https://github.com/ethereum/go-ethereum/pull/34776) core: track the state access footprint `core/state`, `core/types`, `core/vm` **consensus**
+- [ ] [#34742](https://github.com/ethereum/go-ethereum/pull/34742) .github: add windows runner `rlp/rlpgen`
+- [ ] [#34784](https://github.com/ethereum/go-ethereum/pull/34784) accounts/usbwallet: revert github.com/karalabe/hid to fix freebsd build `accounts/usbwallet`
+- [-] [#34793](https://github.com/ethereum/go-ethereum/pull/34793) .gitea: add installer and archive steps for windows — build/CI/docs/release
+- [ ] [#34781](https://github.com/ethereum/go-ethereum/pull/34781) cmd/devp2p: fix disconnect decoding in rlpx ping `cmd/devp2p`
+- [ ] [2ca74d2ef9](https://github.com/ethereum/go-ethereum/commit/2ca74d2ef9) eth/fetcher: lazy-allocate hashes slice in scheduleFetches `qrl/fetcher`
+- [-] [#34766](https://github.com/ethereum/go-ethereum/pull/34766) crypto/kzg4844: add cell-related functions `crypto/kzg4844` — n/a
+- [ ] [#34811](https://github.com/ethereum/go-ethereum/pull/34811) crypto: fix unit test `crypto`
+- [ ] [#33909](https://github.com/ethereum/go-ethereum/pull/33909) rpc: send WebSocket close frame on client disconnect `rpc`
+- [ ] [c876755839](https://github.com/ethereum/go-ethereum/commit/c876755839) Update eth/fetcher/tx_fetcher.go `qrl/fetcher`
+- [ ] [#34802](https://github.com/ethereum/go-ethereum/pull/34802) eth/protocols/snap: fix data race on testPeer counters `qrl/protocols`
+- [ ] [b70d9a4b8e](https://github.com/ethereum/go-ethereum/commit/b70d9a4b8e) core/state,core/types/bal: copy stateReadList in StateDB.Copy `core/state`, `core/types` **consensus**
+- [ ] [#34819](https://github.com/ethereum/go-ethereum/pull/34819) core/state: and instead of or `core/state` **consensus**
+- [ ] [#34799](https://github.com/ethereum/go-ethereum/pull/34799) core/types/bal: update the BAL definition to the latest spec `core/types`, `qrl/protocols` **consensus**
+- [ ] [#34828](https://github.com/ethereum/go-ethereum/pull/34828) triedb/pathdb: compute size in StateSetWithOrigin.decode `triedb/pathdb` **consensus**
+- [ ] [#34785](https://github.com/ethereum/go-ethereum/pull/34785) cmd/evm/internal/t8ntool: stream t8n alloc to ease heavy memory cases `cmd/qrvm`
+- [ ] [#34815](https://github.com/ethereum/go-ethereum/pull/34815) accounts/scwallet: truncate before write `accounts/scwallet`
+- [~] [#34743](https://github.com/ethereum/go-ethereum/pull/34743) p2p/discover: fix timeout loop early exit when removing expired matchers `p2p/discover` — port open
+- [ ] [#33960](https://github.com/ethereum/go-ethereum/pull/33960) core/vm: implement stack arena `core`, `core/vm`, `internal/qrlapi`, `miner` **consensus**
+- [ ] [#33737](https://github.com/ethereum/go-ethereum/pull/33737) core: implement BAL reader for prefetching `core/state` **consensus**
+- [ ] [#34825](https://github.com/ethereum/go-ethereum/pull/34825) core/state: opt stateObject.GetState `core/state` **consensus**
+- [ ] [#34834](https://github.com/ethereum/go-ethereum/pull/34834) accounts/keystore: enable fsnotify watcher on linux/arm64 `accounts/keystore`
+- [ ] [#34841](https://github.com/ethereum/go-ethereum/pull/34841) core: skip tx gas cap after Amsterdam `cmd/qrvm`, `core`, `core/txpool`, `miner` **consensus**
+- [ ] [#34745](https://github.com/ethereum/go-ethereum/pull/34745) eth/downloader: drop peers sending invalid bodies or receipts `qrl/downloader`
+- [ ] [#34639](https://github.com/ethereum/go-ethereum/pull/34639) triedb/pathdb: fix layer 5 key range in account iterator traversal test `triedb/pathdb` **consensus**
+- [-] [#34816](https://github.com/ethereum/go-ethereum/pull/34816) internal/era/onedb: return false if err `cmd/era`, `internal/era` — n/a
+- [ ] [#34794](https://github.com/ethereum/go-ethereum/pull/34794) trie: group 2^N binary trie nodes in serialization `cmd/gqrl`, `cmd/qrvm`, `cmd/utils`, `core` **consensus**
+- [ ] [#34862](https://github.com/ethereum/go-ethereum/pull/34862) eth/tracers: fix evm trace for t8n `qrl/tracers`
+- [ ] [#34820](https://github.com/ethereum/go-ethereum/pull/34820) ethclient: add maxUsedGas to simulate call results `qrlclient`
+- [ ] [#34638](https://github.com/ethereum/go-ethereum/pull/34638) core/state/snapshot: fix condition in iterator traversal test `core/state` **consensus**
+- [ ] [#32594](https://github.com/ethereum/go-ethereum/pull/32594)  ethclient/simulated: disable log indexing by default `qrlclient/simulated`
+- [ ] [#34842](https://github.com/ethereum/go-ethereum/pull/34842) internal/ethapi: apply block overrides to header in eth_call `internal/qrlapi`
+- [-] [#34831](https://github.com/ethereum/go-ethereum/pull/34831) core/txpool/blobpool: fix gapped queue size cap `core/txpool` — n/a
+- [ ] [#34869](https://github.com/ethereum/go-ethereum/pull/34869) eth/tracers: forward V2 state hooks through mux tracer `qrl/tracers`
+- [ ] [#34868](https://github.com/ethereum/go-ethereum/pull/34868) accounts/abi/bind: re-export event signature errors `accounts/abi`
+- [ ] [#34870](https://github.com/ethereum/go-ethereum/pull/34870) eth/downloader: use batch index in deliver reconstruct `qrl/downloader`
+- [~] [#34878](https://github.com/ethereum/go-ethereum/pull/34878) p2p/discover: restore nextTimeout update in UDPv4 resetTimeout loop `p2p/discover` — port open
+- [ ] [#34849](https://github.com/ethereum/go-ethereum/pull/34849) internal/download: only report stale existing downloads `internal/download`
+- [ ] [#34860](https://github.com/ethereum/go-ethereum/pull/34860) beacon/engine: fix wrong presize bound `beacon/engine`
+- [~] [#34767](https://github.com/ethereum/go-ethereum/pull/34767) eth/catalyst: allow reorging the head block to a parent `beacon/engine`, `core`, `qrl/catalyst` **consensus** — port open
+- [ ] [#34755](https://github.com/ethereum/go-ethereum/pull/34755) core: implement eip-7981: Increase Access List Cost `cmd/qrvm`, `core`, `core/txpool`, `tests` **consensus**
+- [ ] [#34866](https://github.com/ethereum/go-ethereum/pull/34866) internal/download: don't discard `dst.Close` error `internal/download`
+- [ ] [#34874](https://github.com/ethereum/go-ethereum/pull/34874) triedb/pathdb: add AdoptSyncedState for snap/2 completion path `triedb`, `triedb/pathdb` **consensus**
+- [ ] [#34787](https://github.com/ethereum/go-ethereum/pull/34787) eth/protocols/eth: stop serving on unavailable responses `qrl/protocols`
+- [ ] [#32924](https://github.com/ethereum/go-ethereum/pull/32924) core/txpool: change lock in Pending method of legacy pool to read lock `core/txpool`
+- [ ] [#34887](https://github.com/ethereum/go-ethereum/pull/34887) eth/tracers/logger: fix exclude address list `qrl/tracers`
+- [ ] [#34888](https://github.com/ethereum/go-ethereum/pull/34888) p2p/discover: copy buffer before sending read errors to unhandled `p2p/discover`
+- [ ] [#34899](https://github.com/ethereum/go-ethereum/pull/34899) core/state: fix StateDB Reader Error Discard After Commit `core/state` **consensus**
+- [ ] [#32585](https://github.com/ethereum/go-ethereum/pull/32585) eth,node: replace the deprecated TypeMux  with Feed `cmd/gqrl`, `cmd/utils`, `node`, `qrl`
+- [ ] [#34898](https://github.com/ethereum/go-ethereum/pull/34898) p2p/discover: decouple nodeFeed from Table mutex in waitForNodes `p2p/discover`
+- [-] [#34891](https://github.com/ethereum/go-ethereum/pull/34891) core/txpool/blobpool: continue on cell proof error in `GetBlobs` `core/txpool` — n/a
+- [ ] [#34889](https://github.com/ethereum/go-ethereum/pull/34889) .gitea, build: cross-compile windows binaries `internal/build`
+- [ ] [#34908](https://github.com/ethereum/go-ethereum/pull/34908) signer/core: avoid mutating the input `signer/core`
+- [ ] [#34909](https://github.com/ethereum/go-ethereum/pull/34909) cmd/devp2p: fix typo in ENR IP printing code `cmd/devp2p`
+- [ ] [#34914](https://github.com/ethereum/go-ethereum/pull/34914) cmd/geth: respect --graphql=false `cmd/gqrl`
+- [-] [#34911](https://github.com/ethereum/go-ethereum/pull/34911) build: upgrade -dlgo version to Go 1.25.10 — build/CI/docs/release
+- [ ] [#33839](https://github.com/ethereum/go-ethereum/pull/33839) crypto: add hash length check in nocgo VerifySignature `crypto`
+- [ ] [#34916](https://github.com/ethereum/go-ethereum/pull/34916) p2p: handle return false from TCPEndpoint `p2p`
+- [ ] [#34918](https://github.com/ethereum/go-ethereum/pull/34918) core/txpool: use cmp.Compare instead of subtraction `core/txpool`
+- [ ] [#34910](https://github.com/ethereum/go-ethereum/pull/34910) internal/download: close dst on io.Copy error `internal/download`
+- [-] [#34720](https://github.com/ethereum/go-ethereum/pull/34720) appveyor.yml: remove appveyor configuration — build/CI/docs/release
+- [ ] [#34883](https://github.com/ethereum/go-ethereum/pull/34883) triedb/pathdb: fix layer 5 key range in storage iterator traversal test `triedb/pathdb` **consensus**
+- [ ] [#34920](https://github.com/ethereum/go-ethereum/pull/34920) cmd/geth: respect --dev=false `cmd/gqrl`
+- [ ] [#34934](https://github.com/ethereum/go-ethereum/pull/34934) core: use uint256 in core.Message `common/hexutil`, `core`, `internal/qrlapi`, `qrl/gasestimator` **consensus**
+- [-] [#34937](https://github.com/ethereum/go-ethereum/pull/34937) version: release go-ethereum v1.17.3 stable `version` — build/CI/docs/release
+
+## v1.17.4 (2026-06-22): 124 commits, 104 to review
+
+- [ ] [#34938](https://github.com/ethereum/go-ethereum/pull/34938) version: start release 1.17.4 cycle `version`
+- [ ] [#34827](https://github.com/ethereum/go-ethereum/pull/34827) eth/tracers: fix data race on interruption reason across tracers `qrl/tracers`
+- [ ] [#34732](https://github.com/ethereum/go-ethereum/pull/34732) cmd/evm: fix gasUsed in evm run cmd `cmd/qrvm`
+- [ ] [#34812](https://github.com/ethereum/go-ethereum/pull/34812) cmd, core, internal, miner: wrap pre/post-execution `cmd/qrvm`, `core`, `internal/qrlapi`, `miner` **consensus**
+- [ ] [#34939](https://github.com/ethereum/go-ethereum/pull/34939) internal/ethapi: fix withdrawal regression in eth_simulateV1 `internal/qrlapi`
+- [~] [#34912](https://github.com/ethereum/go-ethereum/pull/34912) core: write head hash to db after snap sync is complete `core` **consensus** — port open
+- [ ] [#34666](https://github.com/ethereum/go-ethereum/pull/34666) eth/catalyst: fix getBlobsV3 partial/complete metrics `qrl/catalyst`
+- [-] [#34882](https://github.com/ethereum/go-ethereum/pull/34882) core/txpool/blobpool: add blobTxForPool type `core/txpool` — n/a
+- [ ] [#34652](https://github.com/ethereum/go-ethereum/pull/34652) internal/ethapi: add balHash to block results `internal/qrlapi`
+- [ ] [#34740](https://github.com/ethereum/go-ethereum/pull/34740) accounts/abi: fix unittest code `accounts/abi`
+- [ ] [#34943](https://github.com/ethereum/go-ethereum/pull/34943) cmd/abigen: respect --v2=false `cmd/abigen`
+- [ ] [#34946](https://github.com/ethereum/go-ethereum/pull/34946) core: introduce GasChangeHook v2 `core`, `core/tracing`, `core/vm`, `qrl/tracers` **consensus**
+- [ ] [#34803](https://github.com/ethereum/go-ethereum/pull/34803) core/state: track the block-level accessList `cmd/qrvm`, `core`, `core/state`, `core/types` **consensus**
+- [ ] [#34948](https://github.com/ethereum/go-ethereum/pull/34948) node: default OpenTelemetry SampleRatio to 1.0 `cmd/utils`, `node`
+- [ ] [#34783](https://github.com/ethereum/go-ethereum/pull/34783) miner: re-use basefee and big.Int in loop `miner`
+- [-] [#34965](https://github.com/ethereum/go-ethereum/pull/34965) core/txpool/blobpool: silence GetRLP miss-log spam `core/txpool` — n/a
+- [-] [#34960](https://github.com/ethereum/go-ethereum/pull/34960) core/txpool: use blobTxForPool inside of `Reset` function `core/txpool` — n/a
+- [~] [#34693](https://github.com/ethereum/go-ethereum/pull/34693) node: normalize HTTP vhost host matching `node` — port open
+- [ ] [#34653](https://github.com/ethereum/go-ethereum/pull/34653) signer/core: fix unconditional http request metadata scheme overwrite `signer/core`
+- [ ] [#34904](https://github.com/ethereum/go-ethereum/pull/34904) internal/ethapi: add eth_baseFee RPC method `internal/qrlapi`, `qrl`
+- [-] [#34818](https://github.com/ethereum/go-ethereum/pull/34818) beacon/light/sync: check error `beacon/light` — n/a
+- [-] [#34800](https://github.com/ethereum/go-ethereum/pull/34800) beacon/light: fix lock after lock deadlock `beacon/light` — n/a
+- [ ] [#35001](https://github.com/ethereum/go-ethereum/pull/35001) internal/ethapi: propagate SetHead errors to API `internal/qrlapi`, `qrl`
+- [ ] [#34957](https://github.com/ethereum/go-ethereum/pull/34957) core, consensus, internal, eth, miner: construct block accessList `beacon/engine`, `cmd/qrvm`, `consensus`, `consensus/beacon` **consensus**
+- [ ] [#34879](https://github.com/ethereum/go-ethereum/pull/34879) eth/protocols/eth: implement eth71 bal response `core`, `qrl/protocols`
+- [ ] [#34967](https://github.com/ethereum/go-ethereum/pull/34967) core/types/bal: add additional static validation for access lists `core`, `core/types` **consensus**
+- [ ] [#34972](https://github.com/ethereum/go-ethereum/pull/34972) core, cmd, internal: rework BAL json marshalling to adhere EELS `cmd/qrvm`, `core`, `core/types`, `internal/qrlapi` **consensus**
+- [ ] [#33969](https://github.com/ethereum/go-ethereum/pull/33969) beacon/engine, rpc: optimize JSON encoding for large blob payloads `beacon/engine`, `qrl/catalyst`, `rpc`
+- [ ] [#34859](https://github.com/ethereum/go-ethereum/pull/34859) eth/catalyst: engine_hasBlobs `core/txpool`, `qrl/catalyst`
+- [ ] [#35019](https://github.com/ethereum/go-ethereum/pull/35019) beacon/engine: preserve nil blob list JSON `beacon/engine`, `qrl/catalyst`
+- [ ] [#33797](https://github.com/ethereum/go-ethereum/pull/33797) accounts/usbwallet: add support for blob and setcode transactions `accounts/usbwallet`
+- [ ] [#35009](https://github.com/ethereum/go-ethereum/pull/35009) eth/catalyst: implement engine_newPayloadWithWitnessV5 and use witness field spec ordering `core/stateless`, `qrl/catalyst`
+- [ ] [#35026](https://github.com/ethereum/go-ethereum/pull/35026) eth/catalyst, core/txpool/blobpool: add tracing to GetBlobs endpoints `core/txpool`, `qrl/catalyst`
+- [ ] [#34821](https://github.com/ethereum/go-ethereum/pull/34821) core: add code cache hit/miss meters `core` **consensus**
+- [ ] [#35025](https://github.com/ethereum/go-ethereum/pull/35025) cmd/evm/internal/t8ntool: Amsterdam t8n updates; adds BAL and slotNum `cmd/qrvm`
+- [ ] [#35028](https://github.com/ethereum/go-ethereum/pull/35028) eth/catalyst: count actually-available blobs in getBlobs `qrl/catalyst`
+- [ ] [#35027](https://github.com/ethereum/go-ethereum/pull/35027) graphql: handle missing block body in Raw resolver `graphql`
+- [ ] [#34951](https://github.com/ethereum/go-ethereum/pull/34951) internal/ethapi: fix base fee too low error code in eth_simulateV1 `internal/qrlapi`
+- [~] [#35046](https://github.com/ethereum/go-ethereum/pull/35046) accounts/abi: forEachUnpack ABI error message arguments swapped `accounts/abi` — port open
+- [ ] [#35036](https://github.com/ethereum/go-ethereum/pull/35036) core: add slot number `core`
+- [ ] [#35043](https://github.com/ethereum/go-ethereum/pull/35043) p2p/discover: waitForNodes hangs on RespCount=0 from peer `p2p/discover`
+- [ ] [#35032](https://github.com/ethereum/go-ethereum/pull/35032) graphql: end == 0 and begin > 0 should be reject `graphql`
+- [ ] [#35011](https://github.com/ethereum/go-ethereum/pull/35011) cmd/utils: respect --state.size-tracking=false `cmd/utils`
+- [-] [#34964](https://github.com/ethereum/go-ethereum/pull/34964) .github: cancel CI run for stale PR commits — build/CI/docs/release
+- [ ] [#34976](https://github.com/ethereum/go-ethereum/pull/34976) eth/protocols/snap: fix error message `qrl/protocols`
+- [ ] [#34850](https://github.com/ethereum/go-ethereum/pull/34850) core/vm: global cache for jumpdest bitmaps `core`, `qrl` **consensus**
+- [ ] [#33880](https://github.com/ethereum/go-ethereum/pull/33880) cmd/utils: fix archive mode detection for TransactionHistory override `cmd/utils`
+- [ ] [#33886](https://github.com/ethereum/go-ethereum/pull/33886) internal/ethapi: add eth_capabilities RPC method `internal/qrlapi`, `internal/web3ext`, `qrl`
+- [ ] [#35023](https://github.com/ethereum/go-ethereum/pull/35023) eth: should return basefee for the next block as doc says `qrl`
+- [~] [#35034](https://github.com/ethereum/go-ethereum/pull/35034) graphql: limit request body size `graphql` **security?** — port open
+- [ ] [#32673](https://github.com/ethereum/go-ethereum/pull/32673) eth/catalyst: import new payload if at genesis, regardless of sync status `qrl/catalyst`
+- [ ] [#34980](https://github.com/ethereum/go-ethereum/pull/34980) p2p/nat: bump pion/stun to v3 to pull in fixed pion/dtls `p2p/nat`
+- [ ] [#35021](https://github.com/ethereum/go-ethereum/pull/35021) cmd/clef, cmd/geth: remove CLI flags that were deprecated for more than a year `cmd/clef`, `cmd/gqrl`, `cmd/utils`, `node`
+- [ ] [#35037](https://github.com/ethereum/go-ethereum/pull/35037) crypto/ecies: correctly return ErrInvalidMessage `crypto/ecies`
+- [ ] [#35038](https://github.com/ethereum/go-ethereum/pull/35038) rpc: fix method-name matched before maxMethodNameLength `rpc`
+- [ ] [#35055](https://github.com/ethereum/go-ethereum/pull/35055) log: return TerminalHandler write errors from Handle `log`
+- [ ] [#35057](https://github.com/ethereum/go-ethereum/pull/35057) node, cmd/clef, graphql: disable gzip on engine API `cmd/clef`, `graphql`, `node`
+- [ ] [#35056](https://github.com/ethereum/go-ethereum/pull/35056) eth/protocols/eth: fix track-before-send `qrl/protocols`
+- [-] [#35062](https://github.com/ethereum/go-ethereum/pull/35062) go.mod: update pion/dtls — build/CI/docs/release
+- [ ] [#34985](https://github.com/ethereum/go-ethereum/pull/34985) rpc: reject empty batch in BatchCallContext `rpc`
+- [ ] [#34792](https://github.com/ethereum/go-ethereum/pull/34792) miner: set slot number for pending block post-Amsterdam `miner`
+- [ ] [#34843](https://github.com/ethereum/go-ethereum/pull/34843) trie/bintrie: record inserted leaves for t8n `cmd/qrvm`, `core/state`, `tests`, `trie/bintrie` **consensus**
+- [ ] [#35067](https://github.com/ethereum/go-ethereum/pull/35067) triedb/pathdb: fix swapped want/got args in journal-root mismatch error `triedb/pathdb` **consensus**
+- [ ] [#35044](https://github.com/ethereum/go-ethereum/pull/35044) accounts/usbwallet: check ledger versions for typed txs `accounts/usbwallet`
+- [ ] [#35072](https://github.com/ethereum/go-ethereum/pull/35072) rpc: always set content-length on HTTP responses `rpc`
+- [~] [#35077](https://github.com/ethereum/go-ethereum/pull/35077) accounts/abi: fix wrong want count for events `accounts/abi` — port open
+- [-] [#35073](https://github.com/ethereum/go-ethereum/pull/35073) go.mod: bump go.opentelemetry.io from 1.40.0 to 1.41.0 `cmd/keeper` — n/a
+- [x] [#35048](https://github.com/ethereum/go-ethereum/pull/35048) core, core/txpool, eth: move subscriptions to constructor `core`, `core/txpool`, `qrl` — in go-qrl
+- [ ] [#35094](https://github.com/ethereum/go-ethereum/pull/35094) internal: SetCodeTx tx.To must not be nil `internal/qrlapi`
+- [ ] [#35086](https://github.com/ethereum/go-ethereum/pull/35086) eth/protocols/eth: only track after send is okay `qrl/protocols`
+- [ ] [#35083](https://github.com/ethereum/go-ethereum/pull/35083) node: only delete db ref on close successfully `node`
+- [-] [#35075](https://github.com/ethereum/go-ethereum/pull/35075) core/txpool/blobpool: blob pool with status queue `core/txpool` — n/a
+- [ ] [#34977](https://github.com/ethereum/go-ethereum/pull/34977) core/rawdb, ethdb, cmd, triedb: manage finalized block-accessList in freezer `cmd/gqrl`, `core`, `core/rawdb`, `qrldb` **consensus**
+- [ ] [#35096](https://github.com/ethereum/go-ethereum/pull/35096) core/txpool/locals: fix data race `core/txpool`
+- [ ] [#35098](https://github.com/ethereum/go-ethereum/pull/35098) eth/protocols/snap: introduce snapv2 skeleton `qrl/protocols`
+- [ ] [#35049](https://github.com/ethereum/go-ethereum/pull/35049) rpc, internal/telemetry: trace JSON-RPC response writes `core`, `internal/telemetry`, `miner`, `qrl/catalyst` **consensus**
+- [ ] [#35084](https://github.com/ethereum/go-ethereum/pull/35084) p2p/nat: server list contains IPv6 servers `p2p/nat`
+- [ ] [#35101](https://github.com/ethereum/go-ethereum/pull/35101) rpc: fix flaky otel tests `rpc`
+- [ ] [#34807](https://github.com/ethereum/go-ethereum/pull/34807) triedb: reconcile stale storage roots in GenerateTrie, add cancel support `cmd/gqrl`, `core/rawdb`, `trie`, `triedb` **consensus**
+- [ ] [#34896](https://github.com/ethereum/go-ethereum/pull/34896) internal/era: update to latest ere spec `cmd/era`, `cmd/gqrl`, `cmd/utils`, `internal/era`
+- [ ] [#35100](https://github.com/ethereum/go-ethereum/pull/35100) internal/ethapi: default block parameter to latest on state methods `internal/qrlapi`, `internal/web3ext`
+- [-] [#35099](https://github.com/ethereum/go-ethereum/pull/35099) core/txpool: drop reorged v0 blob sidecars `core/txpool` — n/a
+- [ ] [#35097](https://github.com/ethereum/go-ethereum/pull/35097) build, cmd/geth, signer: remove clef `cmd/clef`, `signer/core`, `signer/rules`
+- [ ] [#35104](https://github.com/ethereum/go-ethereum/pull/35104) cmd/utils: avoid extra newlines when reading era checksums `cmd/utils`
+- [ ] [#35065](https://github.com/ethereum/go-ethereum/pull/35065) core/types: fix length of BlobVersionedHashed can not be zero `core/types` **consensus**
+- [ ] [#34928](https://github.com/ethereum/go-ethereum/pull/34928) rpc: accept Windows reset error in websocket read limit test `rpc` **security?**
+- [-] [#35109](https://github.com/ethereum/go-ethereum/pull/35109) core/types: BlobHashes should iterate Commitments `core/types` — n/a
+- [ ] [#33540](https://github.com/ethereum/go-ethereum/pull/33540) core/state/snapshot: snapshot generation shutdown race condition `cmd/keeper`, `core/state` **consensus**
+- [ ] [#35110](https://github.com/ethereum/go-ethereum/pull/35110) core/types/bal: improve the bal validation `core/types` **consensus**
+- [~] [#35106](https://github.com/ethereum/go-ethereum/pull/35106) accounts/abi: array-parse error reports the wrong character `accounts/abi` — port open
+- [ ] [#35121](https://github.com/ethereum/go-ethereum/pull/35121) accounts/abi, core, metrics, miner, rlp, signer, triedb: fix all incorrect variable usages in error strings `accounts/abi`, `core`, `metrics`, `miner` **consensus**
+- [ ] [#35125](https://github.com/ethereum/go-ethereum/pull/35125) cmd/devp2p: swap want and got `cmd/devp2p`
+- [ ] [#35116](https://github.com/ethereum/go-ethereum/pull/35116) cmd/utils: validates trimmed string but parses the untrimmed one `cmd/utils`
+- [ ] [#35122](https://github.com/ethereum/go-ethereum/pull/35122) eth/protocols/eth: track announced tx hashes only after send `qrl/protocols`
+- [ ] [#35112](https://github.com/ethereum/go-ethereum/pull/35112) beacon/engine: only print the bad hash on error `beacon/engine`
+- [ ] [#33347](https://github.com/ethereum/go-ethereum/pull/33347) eth: add debug_clearTxpool api `internal/web3ext`, `qrl`
+- [ ] [#35130](https://github.com/ethereum/go-ethereum/pull/35130) eth: fix borked test introduced in merging #33347 `qrl`
+- [ ] [#35111](https://github.com/ethereum/go-ethereum/pull/35111) node: fix wrong status code in ws `node`
+- [ ] [#35008](https://github.com/ethereum/go-ethereum/pull/35008) all: fix all typos, as reported by crates-ci/typos `accounts/abi`, `cmd/devp2p`, `core`, `core/filtermaps` **consensus**
+- [ ] [#35132](https://github.com/ethereum/go-ethereum/pull/35132) rpc: add option to configure TextMapPropagator on client `rpc`
+- [ ] [#35140](https://github.com/ethereum/go-ethereum/pull/35140) beacon/engine: ensure nil ExecutionPayloadEnvelope.BlockValue doesn't crash `beacon/engine` **security?**
+- [x] [#35074](https://github.com/ethereum/go-ethereum/pull/35074) log: share mutex in log handles with same writer and other fields `log` — in go-qrl
+- [ ] [#34626](https://github.com/ethereum/go-ethereum/pull/34626) core, eth/protocols/snap, eth/downloader: snap/2 sync logic `cmd/devp2p`, `cmd/gqrl`, `cmd/utils`, `core` **consensus**
+- [ ] [#35124](https://github.com/ethereum/go-ethereum/pull/35124) core/txpool/blobpool: add cache for GetBlobs request `core/txpool`, `miner`, `qrl`, `qrl/catalyst`
+- [ ] [#33348](https://github.com/ethereum/go-ethereum/pull/33348) p2p/discover: optimize findnodeByID `p2p/discover`
+- [ ] [#34947](https://github.com/ethereum/go-ethereum/pull/34947) internal/memlimit: respect cgroup memory cap `cmd/utils`, `internal/memlimit`
+- [ ] [#33601](https://github.com/ethereum/go-ethereum/pull/33601) core: implement EIP-8037, state creation gas cost increase `cmd/qrvm`, `core`, `core/tracing`, `core/txpool` **consensus**
+- [ ] [#35134](https://github.com/ethereum/go-ethereum/pull/35134) core/vm: fix test error message `core/vm` **consensus**
+- [ ] [#35136](https://github.com/ethereum/go-ethereum/pull/35136) cmd/geth: fix logging line count error `cmd/gqrl`
+- [ ] [#35155](https://github.com/ethereum/go-ethereum/pull/35155) eth/downloader, eth/protocols/snap: freeze pivot once state is downloaded `core/rawdb`, `qrl/downloader`, `qrl/protocols`, `triedb` **consensus**
+- [ ] [#35158](https://github.com/ethereum/go-ethereum/pull/35158) eth/protocols/snap: fix catchup stall `qrl/protocols`
+- [ ] [#35163](https://github.com/ethereum/go-ethereum/pull/35163) core: re-enable the legacy snapshot after sync `core`, `core/state` **consensus**
+- [ ] [#35172](https://github.com/ethereum/go-ethereum/pull/35172) rpc: fix flaky TestTracingHTTPTimeout `rpc`
+- [ ] [#35156](https://github.com/ethereum/go-ethereum/pull/35156) core/vm: compute stack operations in place `core/vm` **consensus**
+- [ ] [#35170](https://github.com/ethereum/go-ethereum/pull/35170) cmd/devp2p/internal/ethtest: validate received txs, not the sent ones `cmd/devp2p`
+- [ ] [#35180](https://github.com/ethereum/go-ethereum/pull/35180) eth: reserve peer slot for usable snap peer `qrl`, `qrl/downloader`
+- [ ] [#35181](https://github.com/ethereum/go-ethereum/pull/35181) eth/protocols/snap: redo the snap sync if the bal is unavailable `qrl/protocols`
+- [ ] [#35178](https://github.com/ethereum/go-ethereum/pull/35178) eth, triedb, internal: add snap/2 sync progress `interfaces.go`, `internal/qrlapi`, `qrl/downloader`, `qrl/protocols` **consensus**
+- [ ] [#35159](https://github.com/ethereum/go-ethereum/pull/35159) eth/protocols/snap: remove uncovered states before resuming `qrl/protocols`
+- [ ] [#34995](https://github.com/ethereum/go-ethereum/pull/34995) eth/catalyst: add testing_commitBlockV1 `miner`, `qrl/catalyst`
+- [ ] [#35176](https://github.com/ethereum/go-ethereum/pull/35176) all: change reflect.Ptr to reflect.Pointer `accounts/abi`, `log`, `rlp`, `rlp/internal`
+- [ ] [#35002](https://github.com/ethereum/go-ethereum/pull/35002) p2p/discover: fix waiting wrong duration `p2p/discover`
+- [ ] [#35194](https://github.com/ethereum/go-ethereum/pull/35194) triedb/pathdb: log the expected version in obsolete-index cleanup `triedb/pathdb` **consensus**
+- [-] [36a7dc72e9](https://github.com/ethereum/go-ethereum/commit/36a7dc72e9) version: release go-ethereum v1.17.4 `version` — build/CI/docs/release
+
+## v1.17.5 (2026-07-27): 110 commits, 91 to review
+
+- [-] [af7bf37b53](https://github.com/ethereum/go-ethereum/commit/af7bf37b53) version: begin v1.17.5 release cycle `version` — build/CI/docs/release
+- [ ] [#35191](https://github.com/ethereum/go-ethereum/pull/35191) core/txpool: drop support for v0 blob sidecar `cmd/devp2p`, `core/txpool`, `qrl/catalyst`, `qrl/protocols`
+- [ ] [#35203](https://github.com/ethereum/go-ethereum/pull/35203) core/vm: inline the gas deduction `core/vm` **consensus**
+- [ ] [#34933](https://github.com/ethereum/go-ethereum/pull/34933) p2p/discover: return errNoUDPEndpoint in RequestENR `p2p/discover`
+- [ ] [#34009](https://github.com/ethereum/go-ethereum/pull/34009) ethdb/pebble, cmd, node: add pebble v2 support `cmd/gqrl`, `cmd/keeper`, `core/rawdb`, `node`
+- [ ] [#34978](https://github.com/ethereum/go-ethereum/pull/34978) core/rawdb/eradb: support ere files in era store `core/rawdb`, `internal/era`
+- [ ] [#34772](https://github.com/ethereum/go-ethereum/pull/34772) trie/bintrie: use bitarray for path encoding + fix serialization issues `trie/bintrie` **consensus**
+- [ ] [#35173](https://github.com/ethereum/go-ethereum/pull/35173) core/vm: implements EIP-8037 spec change `core`, `core/tracing`, `core/vm` **consensus**
+- [ ] [#35190](https://github.com/ethereum/go-ethereum/pull/35190) core: add debug log and repair the missing hash and receipts `core`, `core/rawdb`, `qrl/downloader` **consensus**
+- [ ] [#35217](https://github.com/ethereum/go-ethereum/pull/35217) params: bump max code size as per EIP-7954 `params` **consensus**
+- [ ] [#35215](https://github.com/ethereum/go-ethereum/pull/35215) eth/downloader: fix test panic `qrl/downloader` **security?**
+- [ ] [#35175](https://github.com/ethereum/go-ethereum/pull/35175) core: implement EIP-8282: Builder Execution Requests `core`, `params` **consensus**
+- [ ] [#35222](https://github.com/ethereum/go-ethereum/pull/35222) cmd/geth: release storage iterator in snapshot dump `cmd/gqrl`
+- [ ] [#35212](https://github.com/ethereum/go-ethereum/pull/35212) core: implement EIP-2780 `cmd/qrvm`, `core`, `core/txpool`, `params` **consensus**
+- [ ] [#32448](https://github.com/ethereum/go-ethereum/pull/32448) trie: introduce UpdateBatch `core/state`, `trie`, `trie/bintrie`, `trie/transitiontrie` **consensus**
+- [ ] [#35246](https://github.com/ethereum/go-ethereum/pull/35246) core/rawdb: fix freezer metadata log field ordering `core/rawdb`
+- [ ] [#35250](https://github.com/ethereum/go-ethereum/pull/35250) cmd/geth: release account iterator in listEIP7610EligibleAccounts `cmd/gqrl`
+- [ ] [#35220](https://github.com/ethereum/go-ethereum/pull/35220) cmd/devp2p: support dual-stack discovery listener `cmd/devp2p`
+- [ ] [#35219](https://github.com/ethereum/go-ethereum/pull/35219) core: implement EIP-8246 `core`, `core/state`, `core/types`, `core/vm` **consensus**
+- [ ] [#35256](https://github.com/ethereum/go-ethereum/pull/35256) core/state: fix account prefetching for absent accounts `core/state` **consensus**
+- [ ] [#35232](https://github.com/ethereum/go-ethereum/pull/35232) triedb/pathdb: prealloc node map in nodeSet.write `triedb/pathdb` **consensus**
+- [x] [#35141](https://github.com/ethereum/go-ethereum/pull/35141) log: clone terminal handler attrs `log` — in go-qrl
+- [ ] [#35258](https://github.com/ethereum/go-ethereum/pull/35258) core/rawdb: prevent truncateHead from returning an error for empty tables `core/rawdb`
+- [ ] [#35245](https://github.com/ethereum/go-ethereum/pull/35245) accounts/keystore: fix negative timezone sign in toISO8601 `accounts/keystore`
+- [ ] [#35237](https://github.com/ethereum/go-ethereum/pull/35237) eth: prealloc seen map in handleTransactions `qrl`
+- [ ] [#35248](https://github.com/ethereum/go-ethereum/pull/35248) internal/ethapi: skip transfer capture for callcode in log tracer `internal/qrlapi`
+- [ ] [#35221](https://github.com/ethereum/go-ethereum/pull/35221) accounts/abi/abigen: add GetABI() method to abigen v2 generated bindings `accounts/abi`
+- [ ] [#35260](https://github.com/ethereum/go-ethereum/pull/35260) core: implement EIP-7928 spec change `core`, `core/vm` **consensus**
+- [ ] [#35029](https://github.com/ethereum/go-ethereum/pull/35029) params: remove named hardforks from bpo schedule `consensus/misc`, `core`, `core/txpool`, `miner/stress` **consensus**
+- [-] [#35209](https://github.com/ethereum/go-ethereum/pull/35209) core/txpool: add blobTxForPool migration in limbo `core/txpool` — n/a
+- [ ] [#35213](https://github.com/ethereum/go-ethereum/pull/35213) cmd: add amsterdam override flag `cmd/gqrl`, `cmd/utils`, `core`, `core/vm` **consensus**
+- [ ] [#35247](https://github.com/ethereum/go-ethereum/pull/35247) cmd/devp2p/internal/ethtest: fix swapped args in readAccounts error `cmd/devp2p`
+- [ ] [#35216](https://github.com/ethereum/go-ethereum/pull/35216) core: implement EIP-8038 `core`, `core/vm`, `params` **consensus**
+- [ ] [#35031](https://github.com/ethereum/go-ethereum/pull/35031) cmd/devp2p: add already used flag crawlParallelismFlag `cmd/devp2p`
+- [ ] [#35234](https://github.com/ethereum/go-ethereum/pull/35234) core/types: reduce allocs in CreateBloom `core/types` **consensus**
+- [ ] [#35135](https://github.com/ethereum/go-ethereum/pull/35135) core/rawdb: fix freezer close sync error message `core/rawdb`
+- [ ] [#35138](https://github.com/ethereum/go-ethereum/pull/35138) cmd/devp2p: fix test error message formats `cmd/devp2p`
+- [ ] [#35223](https://github.com/ethereum/go-ethereum/pull/35223) core, consensus/misc, params: implement EIP-7997 `consensus/misc`, `core`, `params` **consensus**
+- [ ] [#35167](https://github.com/ethereum/go-ethereum/pull/35167) accounts/external: forward blob fee cap to external signer `accounts/external`
+- [~] [#35022](https://github.com/ethereum/go-ethereum/pull/35022) node: match auth-schema case insensitively `node` — port open
+- [ ] [#35206](https://github.com/ethereum/go-ethereum/pull/35206) cmd/devp2p: close the iterator in discv4 LookupRandom `cmd/devp2p`
+- [ ] [#35281](https://github.com/ethereum/go-ethereum/pull/35281) core/types/bal: enhance the bal validation `core/types` **consensus**
+- [ ] [#35271](https://github.com/ethereum/go-ethereum/pull/35271) rpc: reject block parameter with neither number nor hash `rpc`
+- [ ] [#35168](https://github.com/ethereum/go-ethereum/pull/35168) cmd/utils: keep metrics tag values containing '=' `cmd/utils`
+- [ ] [#35286](https://github.com/ethereum/go-ethereum/pull/35286) eth/protocols/eth: fix blockAccessList empty marker `qrl/protocols`
+- [~] [#35243](https://github.com/ethereum/go-ethereum/pull/35243) p2p/discover: always increment TALKREQ drop counter on timeout `p2p/discover` — port open
+- [ ] [#35133](https://github.com/ethereum/go-ethereum/pull/35133) accounts: fix missing wallet drop `accounts`
+- [ ] [#35193](https://github.com/ethereum/go-ethereum/pull/35193) cmd/devp2p: fix swapped args in private-key error message
+- [~] [#35298](https://github.com/ethereum/go-ethereum/pull/35298) p2p/enode: close sources added after FairMix shutdown `p2p/enode` — port open
+- [ ] [#35279](https://github.com/ethereum/go-ethereum/pull/35279) core: remaining spec fixes for glamsterdam `core`, `core/vm`, `params` **consensus**
+- [ ] [#35293](https://github.com/ethereum/go-ethereum/pull/35293) params: return AmsterdamTime from ChainConfig.Timestamp `params` **consensus**
+- [ ] [#35224](https://github.com/ethereum/go-ethereum/pull/35224) rpc: add --rpc.http-body-limit flag for HTTP request body size `cmd/gqrl`, `cmd/utils`, `node` **security?**
+- [ ] [#35200](https://github.com/ethereum/go-ethereum/pull/35200) eth/tracers: include log index in erc7562 tracer output `qrl/tracers`
+- [ ] [#34975](https://github.com/ethereum/go-ethereum/pull/34975) cmd/evm: respect --fuzz=false `cmd/gqrl`, `cmd/qrvm`, `cmd/utils`, `cmd/workload`
+- [ ] [#35300](https://github.com/ethereum/go-ethereum/pull/35300) core/txpool/locals: nil journal writer before checking close error `core/txpool`
+- [ ] [#35261](https://github.com/ethereum/go-ethereum/pull/35261) core/vm: add access cost check `core/vm` **consensus**
+- [ ] [#35285](https://github.com/ethereum/go-ethereum/pull/35285) cmd, core, eth, miner: apply 7997 in block building `cmd/qrvm`, `core`, `internal/qrlapi`, `miner` **consensus**
+- [ ] [#35321](https://github.com/ethereum/go-ethereum/pull/35321) eth/downloader, eth/protocols/snap: snap v2 catchup failure `qrl/protocols`
+- [ ] [#35320](https://github.com/ethereum/go-ethereum/pull/35320) internal/ethapi: reject gasPrice together with authorizationList `internal/qrlapi`
+- [ ] [#35252](https://github.com/ethereum/go-ethereum/pull/35252) core: improve chain reset head `core`, `core/rawdb`, `qrl`, `qrl/downloader` **consensus**
+- [ ] [#35323](https://github.com/ethereum/go-ethereum/pull/35323) eth/protocols/snap: fix access list sync progress double counting `qrl/protocols`
+- [ ] [#35301](https://github.com/ethereum/go-ethereum/pull/35301) core/vm/runtime: cap regular gas budget at MaxTxGas for Amsterdam `core/vm` **consensus**
+- [ ] [#35283](https://github.com/ethereum/go-ethereum/pull/35283) cmd/evm, core: fixes for eels tests@v20.0.0 release `tests`
+- [-] [#35317](https://github.com/ethereum/go-ethereum/pull/35317) build: upgrade -dlgo version to Go 1.25.12 — build/CI/docs/release
+- [ ] [#34702](https://github.com/ethereum/go-ethereum/pull/34702) eth: protect high-value peers from random dropping based on tx inclusion stats `qrl`, `qrl/fetcher`, `qrl/txtracker`, `tests/fuzzers`
+- [-] [#35336](https://github.com/ethereum/go-ethereum/pull/35336) go.mod: update ckzg `cmd/keeper` — n/a
+- [ ] [#35341](https://github.com/ethereum/go-ethereum/pull/35341) params: update contract addresses `params` **consensus**
+- [ ] [#35342](https://github.com/ethereum/go-ethereum/pull/35342) core: charge floorDataGas if it exceeds regularGas `core` **consensus**
+- [ ] [#35347](https://github.com/ethereum/go-ethereum/pull/35347) beacon/engine, eth/catalyst: return block access lists in payload bodies v2 `beacon/engine`, `qrl/catalyst`
+- [ ] [#35344](https://github.com/ethereum/go-ethereum/pull/35344) core/rawdb: fix off-by-one in freezer init progress log `core/rawdb`
+- [ ] [#35324](https://github.com/ethereum/go-ethereum/pull/35324) internal/testlog: clone attributes before appending `internal/testlog`
+- [ ] [#35295](https://github.com/ethereum/go-ethereum/pull/35295) miner: cap configured MaxBlobsPerBlock to protocol limit `miner` **security?**
+- [ ] [#35349](https://github.com/ethereum/go-ethereum/pull/35349) eth/tracers/logger: respect logging limit `qrl/tracers` **security?**
+- [ ] [#35348](https://github.com/ethereum/go-ethereum/pull/35348) beacon/engine: correct rlp encoding/decoding `beacon/engine`, `qrl/catalyst`
+- [~] [#35335](https://github.com/ethereum/go-ethereum/pull/35335) eth/catalyst, eth/ethconfig, cmd: make engine API max reorg depth configurable `cmd/gqrl`, `cmd/utils`, `qrl`, `qrl/catalyst` — port open
+- [ ] [#35318](https://github.com/ethereum/go-ethereum/pull/35318) core: implement EIP-2780 and EIP-8037 changes `cmd/qrvm`, `core`, `core/tracing`, `core/txpool` **consensus**
+- [ ] [#34057](https://github.com/ethereum/go-ethereum/pull/34057) all: add bogota fork to config `core/vm`, `params`, `params/forks`, `qrl/catalyst` **consensus**
+- [ ] [#32164](https://github.com/ethereum/go-ethereum/pull/32164) accounts/abi:  fix abigen v1 bindings for deployment of library dependencies `accounts/abi`
+- [x] [#35312](https://github.com/ethereum/go-ethereum/pull/35312) p2p/dnsdisc, cmd/devp2p: keep invalid and unreachable nodes out of DNS trees `cmd/devp2p`, `p2p/dnsdisc` — in go-qrl
+- [ ] [#35289](https://github.com/ethereum/go-ethereum/pull/35289) eth/protocols/eth: discard message before size check `qrl/protocols`
+- [ ] [#35351](https://github.com/ethereum/go-ethereum/pull/35351) core/rawdb: drop stray %d verb from freezer metadata log message `core/rawdb`
+- [ ] [#35355](https://github.com/ethereum/go-ethereum/pull/35355) eth/catalyst: handle bogota fork in payloadVersion `qrl/catalyst`
+- [ ] [#34851](https://github.com/ethereum/go-ethereum/pull/34851) cmd/utils: tune GOGC for large cache values `cmd/gqrl`, `cmd/utils`
+- [ ] [#34047](https://github.com/ethereum/go-ethereum/pull/34047) core/txpool/blobpool, eth: implement sparse blobpool `beacon/engine`, `cmd/devp2p`, `cmd/gqrl`, `cmd/utils` **consensus**
+- [-] [#35366](https://github.com/ethereum/go-ethereum/pull/35366) .mailmap: consolidate healthykim committer names — build/CI/docs/release
+- [-] [#35365](https://github.com/ethereum/go-ethereum/pull/35365) .github: rm s1na from CODEOWNERS — build/CI/docs/release
+- [ ] [#35362](https://github.com/ethereum/go-ethereum/pull/35362) cmd/devp2p/internal/ethtest: fix header stride in reverse GetHeaders `cmd/devp2p`
+- [ ] [#35369](https://github.com/ethereum/go-ethereum/pull/35369) cmd/utils: export chain with block-level accessList `cmd/utils`
+- [ ] [#35378](https://github.com/ethereum/go-ethereum/pull/35378) miner, core: reuse the chain's jumpdest cache when building payloads `core`, `miner`
+- [ ] [#35373](https://github.com/ethereum/go-ethereum/pull/35373) cmd/geth, eth/ethconfig: preserve zero engine reorg depth `qrl/ethconfig`
+- [ ] [#35372](https://github.com/ethereum/go-ethereum/pull/35372) eth/catalyst: pass TargetGasLimit via engine api `beacon/engine`, `miner`, `qrl/catalyst`
+- [ ] [#35384](https://github.com/ethereum/go-ethereum/pull/35384) eth/protocols/eth: track announced tx hashes only after send `qrl/protocols`
+- [ ] [#35383](https://github.com/ethereum/go-ethereum/pull/35383) core/vm: initialize the bogota instructions from Amsterdam `core/vm` **consensus**
+- [-] [#35387](https://github.com/ethereum/go-ethereum/pull/35387) core/txpool/blobpool: serialize legacy data conversions `core/txpool` — n/a
+- [ ] [#35364](https://github.com/ethereum/go-ethereum/pull/35364) core: improve amsterdam fork test coverage `core`, `core/vm` **consensus**
+- [ ] [#35396](https://github.com/ethereum/go-ethereum/pull/35396) core: fix tracer panic `core`, `core/tracing` **consensus** **security?**
+- [ ] [#35393](https://github.com/ethereum/go-ethereum/pull/35393) eth/fetcher: count unique hashes in blob queueing metric `qrl/fetcher`
+- [ ] [#35363](https://github.com/ethereum/go-ethereum/pull/35363) cmd: add gogc flag `cmd/gqrl`, `cmd/utils`
+- [ ] [#35400](https://github.com/ethereum/go-ethereum/pull/35400) triedb/pathdb: report nothing recoverable during state sync `triedb/pathdb` **consensus**
+- [~] [#35402](https://github.com/ethereum/go-ethereum/pull/35402) eth/downloader: disable snap mode after committing pivot block `qrl/downloader` — port open
+- [ ] [#35399](https://github.com/ethereum/go-ethereum/pull/35399) eth/fetcher: clear partial map when dropping last waitlist peer `qrl/fetcher`
+- [ ] [#35403](https://github.com/ethereum/go-ethereum/pull/35403) core: optimize block validation `core`
+- [~] [#35391](https://github.com/ethereum/go-ethereum/pull/35391) eth/catalyst: allow reorg depth equal to maxReorgDepth `qrl/catalyst` — port open
+- [ ] [#35404](https://github.com/ethereum/go-ethereum/pull/35404) core: coordinate the state prefetcher with block processing `core`, `qrl` **consensus**
+- [ ] [#35407](https://github.com/ethereum/go-ethereum/pull/35407) cmd/utils: skip memory-limit sanitize when total memory is unknown `cmd/utils` **security?**
+- [~] [#35408](https://github.com/ethereum/go-ethereum/pull/35408) node: check authorization header case-insensitivity `node` — port open
+- [ ] [#35405](https://github.com/ethereum/go-ethereum/pull/35405) eth/downloader: hold pivotLock when marking pivot committed `qrl/downloader`
+- [-] [#35406](https://github.com/ethereum/go-ethereum/pull/35406) core: fix tx size calculation `core/txpool`, `core/types` — n/a
+- [-] [#35422](https://github.com/ethereum/go-ethereum/pull/35422) go.mod: update snappy dependency `cmd/keeper` — n/a
+- [-] [#35421](https://github.com/ethereum/go-ethereum/pull/35421) version: release v1.17.5 `version` — build/CI/docs/release
+
+## v1.17.6 (2026-09-23): 136 commits, 114 to review
+
+- [-] [#35425](https://github.com/ethereum/go-ethereum/pull/35425) version: start v1.17.6 release cycle `version` — build/CI/docs/release
+- [ ] [#35427](https://github.com/ethereum/go-ethereum/pull/35427) miner: don't seal block if a db error occurred `miner`
+- [ ] [#35388](https://github.com/ethereum/go-ethereum/pull/35388) core, core/vm: precompile result caching `core`, `core/vm`, `miner`, `qrl` **consensus**
+- [ ] [#35428](https://github.com/ethereum/go-ethereum/pull/35428) eth/protocols: fix Cells/GetCells RLP encoding `qrl/protocols`
+- [ ] [#35264](https://github.com/ethereum/go-ethereum/pull/35264) core: implement parallel block execution with BAL `core`, `core/state`, `core/types`, `core/vm` **consensus**
+- [ ] [#35316](https://github.com/ethereum/go-ethereum/pull/35316) eth/protocols/snap: purge stale sync state when snap sync v2 is re-enabled `qrl/protocols`
+- [-] [#35439](https://github.com/ethereum/go-ethereum/pull/35439) core/txpool/blobpool: fall back to pool in GetCells for blob-mode cache entries `core/txpool` — n/a
+- [ ] [#35441](https://github.com/ethereum/go-ethereum/pull/35441) core: fix data race on the BLOCKHASH cache in parallel block execution `core` **consensus**
+- [ ] [#35454](https://github.com/ethereum/go-ethereum/pull/35454) core: update 2780 and 8038 parameters `core`, `params` **consensus**
+- [ ] [#35458](https://github.com/ethereum/go-ethereum/pull/35458) cmd, consensus, core, miner: update 7997 `cmd/qrvm`, `consensus/misc`, `core`, `miner` **consensus**
+- [ ] [#35442](https://github.com/ethereum/go-ethereum/pull/35442) eth/syncer: fix nil deref when the target block is missing `qrl/syncer`
+- [ ] [#35457](https://github.com/ethereum/go-ethereum/pull/35457) core, eth: rename regular gas to execution gas `core`, `core/tracing`, `core/vm`, `qrl/tracers` **consensus**
+- [ ] [#35443](https://github.com/ethereum/go-ethereum/pull/35443) core: attach the precompile cache in parallel block execution `core` **consensus**
+- [ ] [#35459](https://github.com/ethereum/go-ethereum/pull/35459) core, core/state: fix preimage recording in parallel block execution `core`, `core/state` **consensus**
+- [ ] [#35460](https://github.com/ethereum/go-ethereum/pull/35460) common/mclock: rename symbol to remove conflicts with other languages `common/mclock`
+- [ ] [#35464](https://github.com/ethereum/go-ethereum/pull/35464) core: genesis slot number parsing `core` **consensus**
+- [ ] [#35462](https://github.com/ethereum/go-ethereum/pull/35462) eth/downloader: hold pivotLock when reading pivot header in progress report `qrl/downloader`
+- [ ] [#35461](https://github.com/ethereum/go-ethereum/pull/35461) core: surface database errors in parallel block execution `core` **consensus**
+- [ ] [#35302](https://github.com/ethereum/go-ethereum/pull/35302) cmd/geth: return storage slot count from traverseStorage `cmd/gqrl`
+- [ ] [#35345](https://github.com/ethereum/go-ethereum/pull/35345) accounts/abi: set stringKind for contract-typed arguments `accounts/abi`
+- [ ] [#35465](https://github.com/ethereum/go-ethereum/pull/35465) core: fail fast on transaction error in parallel block execution `core` **consensus**
+- [ ] [#35376](https://github.com/ethereum/go-ethereum/pull/35376) cmd/geth: release iterator in checkStateContent `cmd/gqrl`
+- [ ] [#35392](https://github.com/ethereum/go-ethereum/pull/35392) eth/catalyst: use IsAmsterdam when sealing simulated beacon blocks `qrl/catalyst`
+- [ ] [#35386](https://github.com/ethereum/go-ethereum/pull/35386) eth/downloader: implement BAL downloading `core/rawdb`, `qrl/downloader`
+- [ ] [#35463](https://github.com/ethereum/go-ethereum/pull/35463) eth/protocols/snap: advance catch-up pivot after batch commit `qrl/protocols`
+- [ ] [#35471](https://github.com/ethereum/go-ethereum/pull/35471) core/rawdb: verify canonical hash before reading ancient BAL `core/rawdb`
+- [ ] [#35486](https://github.com/ethereum/go-ethereum/pull/35486) core, params: rename RegularPerAuthBaseCost to ExecutionPerAuthBaseCost `core`, `params` **consensus**
+- [ ] [#35469](https://github.com/ethereum/go-ethereum/pull/35469) graphql: add slotNumber and BALHash to block schema `graphql`
+- [ ] [#35493](https://github.com/ethereum/go-ethereum/pull/35493) eth/downloader: don't log stale access list reservations as errors `qrl/downloader`
+- [ ] [#35497](https://github.com/ethereum/go-ethereum/pull/35497) core/vm, params, tests: update gas price parameters `core/vm`, `params`, `tests` **consensus**
+- [ ] [#35490](https://github.com/ethereum/go-ethereum/pull/35490) core: revert block validation optimization `core`
+- [ ] [#35477](https://github.com/ethereum/go-ethereum/pull/35477) eth/protocols/snap: add tests and comments `qrl/protocols`
+- [x] [#35423](https://github.com/ethereum/go-ethereum/pull/35423) core/rawdb: retain BAL in bad blocks `cmd/gqrl`, `core`, `core/rawdb`, `internal/web3ext` — in go-qrl
+- [ ] [#35501](https://github.com/ethereum/go-ethereum/pull/35501) eth/catalyst: pass targetGasLimit through in testing_buildBlockV1 `qrl/catalyst`
+- [~] [#35519](https://github.com/ethereum/go-ethereum/pull/35519) eth/catalyst: make `headBlock` reorging to `finalized` possible `qrl/catalyst` — port open
+- [~] [#35515](https://github.com/ethereum/go-ethereum/pull/35515) eth/downloader: don't signal sync startup before fetchers register for cancellation `qrl/downloader` — port open
+- [ ] [#35473](https://github.com/ethereum/go-ethereum/pull/35473) core/vm: key the precompile cache on the input instead of its hash `core/vm` **consensus**
+- [ ] [#35520](https://github.com/ethereum/go-ethereum/pull/35520) cmd, core, eth, internal: deprecate state sizer `cmd/gqrl`, `cmd/utils`, `core`, `core/state` **consensus**
+- [ ] [#35433](https://github.com/ethereum/go-ethereum/pull/35433) eth/syncer: only synthesize finalized/safe markers with an explicit sync target `qrl/syncer`
+- [ ] [#35510](https://github.com/ethereum/go-ethereum/pull/35510) build, internal: add retry mechanism in package uploading `internal/build`
+- [ ] [#35498](https://github.com/ethereum/go-ethereum/pull/35498) core/state: unset the block-level accessList in Finalise `cmd/qrvm`, `core`, `core/state`, `core/txpool` **consensus**
+- [ ] [#35509](https://github.com/ethereum/go-ethereum/pull/35509) eth: don't read a blob pool that is still initialising `qrl`
+- [ ] [#35524](https://github.com/ethereum/go-ethereum/pull/35524) eth/fetcher: validate announced blob tx size against announcer's protocol version `qrl`, `qrl/fetcher`, `tests/fuzzers`
+- [ ] [#35526](https://github.com/ethereum/go-ethereum/pull/35526) common/lru, core/vm: count key bytes against the precompile cache budget `common/lru`, `core/vm` **consensus**
+- [ ] [#35544](https://github.com/ethereum/go-ethereum/pull/35544) eth: return error instead of panicking on debug_executionWitness `qrl`
+- [-] [#35528](https://github.com/ethereum/go-ethereum/pull/35528) crypto/kzg4844: add BlobsFromDataCells for zero-KZG blob reconstruction `crypto/kzg4844` — n/a
+- [ ] [#35514](https://github.com/ethereum/go-ethereum/pull/35514) core, eth/catalyst, beacon/engine: update for glam8 `beacon/engine`, `cmd/qrvm`, `core`, `internal/qrlapi` **consensus**
+- [-] [#35529](https://github.com/ethereum/go-ethereum/pull/35529) crypto/kzg4844: add RecoverCells with systematic fast path `crypto/kzg4844` — n/a
+- [x] [#35542](https://github.com/ethereum/go-ethereum/pull/35542) p2p/discover: try to fix TestUDPv5_lookupE2E by using SetFallbackUDP `p2p/discover` — in go-qrl
+- [-] [#35543](https://github.com/ethereum/go-ethereum/pull/35543) core/txpool/blobpool: speed up serving pre eth/72 peers `core/txpool` — n/a
+- [-] [#35568](https://github.com/ethereum/go-ethereum/pull/35568) go.mod: update cockroachdb/swiss to fix build on Go 1.27 `cmd/keeper` — n/a
+- [ ] [#35560](https://github.com/ethereum/go-ethereum/pull/35560) cmd/evm/testdata/evmrun: fix flaky benchmark duration regex `cmd/qrvm`
+- [ ] [#35533](https://github.com/ethereum/go-ethereum/pull/35533) eth/protocols/snap: parallelize the state response processing `qrl/protocols`
+- [ ] [#35564](https://github.com/ethereum/go-ethereum/pull/35564) core/txpool/locals: check close error before replacing journal `core/txpool`
+- [-] [#35552](https://github.com/ethereum/go-ethereum/pull/35552) core/txpool/blobpool: do not warn when a blob tx is swapped out by its signer `core/txpool` — n/a
+- [ ] [#35553](https://github.com/ethereum/go-ethereum/pull/35553) internal/ethapi: skip unconfigured forks when computing next fork in eth_config `internal/qrlapi`
+- [ ] [#35518](https://github.com/ethereum/go-ethereum/pull/35518) rpc, eth/catalyst: optimize json decode `qrl/catalyst`, `rpc`
+- [ ] [#35551](https://github.com/ethereum/go-ethereum/pull/35551) core/rawdb: fix head truncation below a diverged tail group `core/rawdb`
+- [ ] [#35070](https://github.com/ethereum/go-ethereum/pull/35070) eth/filters: reject GetLogs range with begin > 0 and end == 0 `qrl/filters`
+- [ ] [#34770](https://github.com/ethereum/go-ethereum/pull/34770) cmd/devp2p: add more hive discv5 coverage `cmd/devp2p`
+- [ ] [#33719](https://github.com/ethereum/go-ethereum/pull/33719) common/lru: add metered lru cache variant `metrics`
+- [ ] [#35576](https://github.com/ethereum/go-ethereum/pull/35576) rpc: reject null for required arguments `rpc`
+- [ ] [#35578](https://github.com/ethereum/go-ethereum/pull/35578) common/lru, core/vm: count entry overhead in the precompile cache budget `common/lru`, `core/vm` **consensus**
+- [ ] [#35572](https://github.com/ethereum/go-ethereum/pull/35572) core, eth: improve the blob fetcher `core/txpool`, `qrl/fetcher`
+- [ ] [#35537](https://github.com/ethereum/go-ethereum/pull/35537) eth/protocols/eth: fix deadlock when re-requesting partial receipts `qrl/protocols`
+- [ ] [#35512](https://github.com/ethereum/go-ethereum/pull/35512) core: honor ExecuteConfig.EnableTracer for the EVM-level tracing hooks `core` **consensus**
+- [-] [#35573](https://github.com/ethereum/go-ethereum/pull/35573) .gitea, cmd: deprecate golang 1.24 `cmd/keeper` — n/a
+- [-] [#35429](https://github.com/ethereum/go-ethereum/pull/35429) core/txpool/blobpool: lock lookup when logging corrupt tx blobs `core/txpool` — n/a
+- [ ] [#35580](https://github.com/ethereum/go-ethereum/pull/35580) beacon/engine, eth/catalyst: fix hive failure `beacon/engine`, `qrl/catalyst`
+- [ ] [#35575](https://github.com/ethereum/go-ethereum/pull/35575) core: enforce block gas limit in parallel block execution `core` **consensus** **security?**
+- [ ] [#35581](https://github.com/ethereum/go-ethereum/pull/35581) core/vm, cmd/geth, tests: remove EIP-7610 implementation `cmd/gqrl`, `core`, `core/vm`, `tests` **consensus**
+- [ ] [#35593](https://github.com/ethereum/go-ethereum/pull/35593) eth/protocols/eth, eth/downloader: reject empty partial receipt responses `qrl/downloader`, `qrl/protocols`
+- [-] [#35367](https://github.com/ethereum/go-ethereum/pull/35367) core/txpool: add blocked transaction size cap `core/txpool` — n/a
+- [ ] [#35591](https://github.com/ethereum/go-ethereum/pull/35591) beacon, cmd, core, params: remove the holesky testnet `beacon/params`, `cmd/blsync`, `cmd/devp2p`, `cmd/gqrl` **consensus**
+- [ ] [#35574](https://github.com/ethereum/go-ethereum/pull/35574) tests: compare baseFeePerGas with nil-safe Cmp `tests`
+- [ ] [#35583](https://github.com/ethereum/go-ethereum/pull/35583) eth/tracers: make debug_traceCall block parameter optional `qrl/tracers`
+- [ ] [#35592](https://github.com/ethereum/go-ethereum/pull/35592) eth/gasestimator: return used gas for plain transfer estimates `internal/qrlapi`, `qrl/gasestimator`
+- [ ] [#35554](https://github.com/ethereum/go-ethereum/pull/35554) eth: return iterator errors from debug_storageRangeAt `qrl`
+- [ ] [#35389](https://github.com/ethereum/go-ethereum/pull/35389) cmd/devp2p/internal/ethtest: add eth/71 (EIP-8159) tests `cmd/devp2p`
+- [ ] [#35589](https://github.com/ethereum/go-ethereum/pull/35589) eth/protocols/eth: avoid announcing sparse blob txs to legacy peers `qrl/protocols`
+- [ ] [#35588](https://github.com/ethereum/go-ethereum/pull/35588) core: add fork validation in state transition `core` **consensus**
+- [ ] [#35620](https://github.com/ethereum/go-ethereum/pull/35620) eth/fetcher: correct the comment on announced-size peer drops `qrl/fetcher`
+- [ ] [#35605](https://github.com/ethereum/go-ethereum/pull/35605) ethclient: return NotFound when block tx count is nil `qrlclient`
+- [ ] [#35616](https://github.com/ethereum/go-ethereum/pull/35616) triedb/pathdb: use pathdb prefix for storage clean metric `triedb/pathdb` **consensus**
+- [ ] [#35587](https://github.com/ethereum/go-ethereum/pull/35587) rpc: unescape JSON object keys in fillMessage `rpc`
+- [ ] [#35601](https://github.com/ethereum/go-ethereum/pull/35601) build, tests: update test fixture `tests`
+- [ ] [#35629](https://github.com/ethereum/go-ethereum/pull/35629) eth/tracers: fix test flaking on 0xEF block hashes `qrl/tracers`
+- [-] [#35624](https://github.com/ethereum/go-ethereum/pull/35624) docs: update mainnet storage requirements — build/CI/docs/release
+- [ ] [#35603](https://github.com/ethereum/go-ethereum/pull/35603) core/rawdb: return iterator errors from safe range deletion `core/rawdb`
+- [ ] [#35368](https://github.com/ethereum/go-ethereum/pull/35368) cmd/devp2p/internal/ethtest: add osaka testdata and eth/72 tests `cmd/devp2p`
+- [ ] [#35360](https://github.com/ethereum/go-ethereum/pull/35360) eth/tracers/logger: respect log limit in OnEnter and OnExit `qrl/tracers` **security?**
+- [ ] [#35299](https://github.com/ethereum/go-ethereum/pull/35299) eth/protocols/snap: set abort when storage range hits limit hash `qrl/protocols` **security?**
+- [ ] [#35645](https://github.com/ethereum/go-ethereum/pull/35645) core/rawdb: close freezer if era database fails to open `core/rawdb`
+- [ ] [#35633](https://github.com/ethereum/go-ethereum/pull/35633) core/vm: repay the outstanding debt first after absorbing child frame `core/vm` **consensus**
+- [ ] [#35647](https://github.com/ethereum/go-ethereum/pull/35647) cmd/devp2p: skip eth72 test `cmd/devp2p`
+- [ ] [#35664](https://github.com/ethereum/go-ethereum/pull/35664) beacon, eth: fix hive failure `beacon/engine`, `qrl/catalyst`
+- [ ] [#35619](https://github.com/ethereum/go-ethereum/pull/35619) core/filtermaps: fix panic when a reorg shortens the chain onto the rendered block `core/filtermaps` **security?**
+- [ ] [#35648](https://github.com/ethereum/go-ethereum/pull/35648) cmd/devp2p/internal/ethtest: fix concurrent reads in readAnyFrom `cmd/devp2p`
+- [ ] [#35595](https://github.com/ethereum/go-ethereum/pull/35595) core/state, core/types: improve post-execution commit `core`, `core/state`, `core/types` **consensus**
+- [-] [#35656](https://github.com/ethereum/go-ethereum/pull/35656) build: upgrade -dlgo version to Go 1.27.1 — build/CI/docs/release
+- [ ] [#35644](https://github.com/ethereum/go-ethereum/pull/35644) p2p/pipes: close listener when TCP dial fails `p2p/pipes`
+- [ ] [#35332](https://github.com/ethereum/go-ethereum/pull/35332) accounts/abi/abigen: use original names for custom errors `accounts/abi`
+- [ ] [#35254](https://github.com/ethereum/go-ethereum/pull/35254) cmd/devp2p: add combined discovery listener `cmd/devp2p`, `p2p`, `p2p/discover`
+- [ ] [#35636](https://github.com/ethereum/go-ethereum/pull/35636) cmd/evm: test missing London base fee config `cmd/qrvm`
+- [ ] [#35646](https://github.com/ethereum/go-ethereum/pull/35646) core: fix gas tracer and gas measurement `core`, `core/tracing`, `core/vm`, `qrl/tracers` **consensus**
+- [ ] [#35681](https://github.com/ethereum/go-ethereum/pull/35681) core: count entry overhead in the jumpdest cache budget `core`
+- [ ] [#35627](https://github.com/ethereum/go-ethereum/pull/35627) internal/ethapi: return null for pending and unresolvable tags in eth_getHeaderByNumber `internal/qrlapi`
+- [ ] [#35634](https://github.com/ethereum/go-ethereum/pull/35634) rpc: fix flaky test by waiting on initialization `rpc`
+- [ ] [#35610](https://github.com/ethereum/go-ethereum/pull/35610) ethclient: verify withdrawal list against header root `qrlclient`
+- [ ] [#35678](https://github.com/ethereum/go-ethereum/pull/35678) core, eth: add metrics for chain segment downloading `core`, `qrl/downloader` **consensus**
+- [-] [#35683](https://github.com/ethereum/go-ethereum/pull/35683) docs: remove obsolete light node claim from README — build/CI/docs/release
+- [ ] [#35688](https://github.com/ethereum/go-ethereum/pull/35688) eth: return iterator errors from debug_getModifiedAccounts `qrl`
+- [ ] [#35689](https://github.com/ethereum/go-ethereum/pull/35689) eth: add progress metrics `qrl/downloader`, `qrl/protocols`
+- [-] [#35694](https://github.com/ethereum/go-ethereum/pull/35694) docs: bump README minimum Go version to 1.25 — build/CI/docs/release
+- [ ] [#35701](https://github.com/ethereum/go-ethereum/pull/35701) accounts/abi: skip unexpected logs in event loop `accounts/abi`
+- [ ] [#35695](https://github.com/ethereum/go-ethereum/pull/35695) internal/ethapi: reject blob and setcode call args without "to" `internal/qrlapi`
+- [-] [#35686](https://github.com/ethereum/go-ethereum/pull/35686) crypto/bn256/cloudflare: sync upstream `crypto/bn256` — n/a
+- [ ] [#35672](https://github.com/ethereum/go-ethereum/pull/35672) internal/ethapi: treat post-merge difficulty override as no-op `internal/qrlapi`
+- [ ] [#35642](https://github.com/ethereum/go-ethereum/pull/35642) metrics: initialize runtime histogram max on first bucket `metrics`
+- [-] [#35557](https://github.com/ethereum/go-ethereum/pull/35557) build, .gitea: build rpm packages — build/CI/docs/release
+- [ ] [#35687](https://github.com/ethereum/go-ethereum/pull/35687) cmd/devp2p: restore osaka fork environment `cmd/devp2p`
+- [ ] [#35637](https://github.com/ethereum/go-ethereum/pull/35637) cmd/devp2p: exercise BAL tests with Amsterdam chain `cmd/devp2p`
+- [ ] [#35680](https://github.com/ethereum/go-ethereum/pull/35680) eth/downloader: rework the scheduling of body and receipt retrievals `p2p/msgrate`, `qrl/downloader`, `qrl/protocols`
+- [ ] [#35722](https://github.com/ethereum/go-ethereum/pull/35722) eth/protocols/snap, cmd/devp2p: accept account range without proof at zero origin `cmd/devp2p`, `qrl/protocols`
+- [ ] [#35719](https://github.com/ethereum/go-ethereum/pull/35719) eth/catalyst: fix fork gate on ForkchoiceUpdatedWithWitnessV3/V4 `qrl/catalyst`
+- [ ] [#35698](https://github.com/ethereum/go-ethereum/pull/35698) internal/ethapi: use Amsterdam per-authorization gas in eth_createAccessList guard `internal/qrlapi`
+- [ ] [#35705](https://github.com/ethereum/go-ethereum/pull/35705) eth/protocols/snap: port optimizations into snap v2 `qrl/protocols`
+- [ ] [#35693](https://github.com/ethereum/go-ethereum/pull/35693) core, eth, miner, cmd/evm: ensure the parallel state processor records otel spans `cmd/qrvm`, `core`, `miner`, `qrl` **consensus**
+- [ ] [#35734](https://github.com/ethereum/go-ethereum/pull/35734) core, params: schedule amsterdam fork on sepolia `core/forkid`, `params` **consensus**
+- [ ] [#35759](https://github.com/ethereum/go-ethereum/pull/35759) core/state: fix EIP number in selfdestruct comment `core/state` **consensus**
+- [-] [#35754](https://github.com/ethereum/go-ethereum/pull/35754) go.mod: update otel to 1.46.0 `cmd/keeper` — n/a
+- [ ] [#35756](https://github.com/ethereum/go-ethereum/pull/35756) ethdb/memorydb: don't treat batch delete of the empty key as a range delete `qrldb/dbtest`, `qrldb/memorydb`
+- [ ] [#35738](https://github.com/ethereum/go-ethereum/pull/35738) core, core/types: hash the receipts alongside execution `core`, `core/types` **consensus**
+- [ ] [#35766](https://github.com/ethereum/go-ethereum/pull/35766) core/txpool/blobpool: bound what the blob buffer holds `core/txpool`, `qrl/fetcher`
+- [ ] [#35753](https://github.com/ethereum/go-ethereum/pull/35753) cmd/geth, core, eth: add flag to disable precompile cache `cmd/gqrl`, `cmd/utils`, `core`, `qrl` **consensus**
+- [-] [#35770](https://github.com/ethereum/go-ethereum/pull/35770) version: release 1.17.6 `version` — build/CI/docs/release
+
+## v1.17.7 (2026-09-30): 21 commits, 18 to review
+
+- [ ] [#35771](https://github.com/ethereum/go-ethereum/pull/35771) version: start v1.17.7 cycle `version`
+- [ ] [#35723](https://github.com/ethereum/go-ethereum/pull/35723) eth/downloader: integrate block range announcement into downloader `qrl/downloader`
+- [-] [#35782](https://github.com/ethereum/go-ethereum/pull/35782) build: fix ppa builder — build/CI/docs/release
+- [ ] [#35749](https://github.com/ethereum/go-ethereum/pull/35749) eth/protocols/snap: implement bal catchup for trie `qrl/downloader`, `qrl/protocols`
+- [ ] [#35772](https://github.com/ethereum/go-ethereum/pull/35772) core: encode the BAL with a dedicated pipeline `core` **consensus**
+- [ ] [#35805](https://github.com/ethereum/go-ethereum/pull/35805) cmd/devp2p: fix blob transaction availability test `cmd/devp2p`
+- [ ] [#35780](https://github.com/ethereum/go-ethereum/pull/35780) eth/downloader: prioritize head access lists over the memory allowance `qrl/downloader`
+- [ ] [#35792](https://github.com/ethereum/go-ethereum/pull/35792) core, eth, cmd/geth: add more recent and custom history pruning cutoffs `cmd/gqrl`, `cmd/utils`, `cmd/workload`, `core` **consensus**
+- [ ] [#35789](https://github.com/ethereum/go-ethereum/pull/35789) triedb/pathdb: release clean caches when disabling `triedb/pathdb` **consensus**
+- [ ] [#35773](https://github.com/ethereum/go-ethereum/pull/35773) core, internal, miner: exclude the txs if the gas is insufficient `core`, `internal/qrlapi`, `miner`
+- [ ] [#35821](https://github.com/ethereum/go-ethereum/pull/35821) core: wait until all prefetchers are properly closed `core` **consensus**
+- [ ] [#35823](https://github.com/ethereum/go-ethereum/pull/35823) core/filtermaps: fix intermittent hang in TestIndexerRandomRange `core/filtermaps`
+- [-] [#35807](https://github.com/ethereum/go-ethereum/pull/35807) .github: group dependabot security updates — build/CI/docs/release
+- [ ] [#35837](https://github.com/ethereum/go-ethereum/pull/35837) core: allow restarting a snap sync before the history cutoff `core` **consensus**
+- [ ] [#35582](https://github.com/ethereum/go-ethereum/pull/35582) core/txpool: restore empty state fallback during snap sync `core`, `core/txpool`, `internal/qrlapi`, `miner`
+- [ ] [#35835](https://github.com/ethereum/go-ethereum/pull/35835) tests: update test fixture to v21 `cmd/qrvm`, `consensus`, `consensus/beacon`, `consensus/clique` **consensus**
+- [ ] [#35682](https://github.com/ethereum/go-ethereum/pull/35682) params: replace EF bootnodes with NodeOps fleet `params`
+- [ ] [#35839](https://github.com/ethereum/go-ethereum/pull/35839) triedb/pathdb: fix flaky TestHistoricalStateReader `triedb/pathdb` **consensus**
+- [ ] [#35818](https://github.com/ethereum/go-ethereum/pull/35818) cmd/devp2p: make blobCount in makeBlobTxs per transaction `cmd/devp2p`
+- [ ] [#35844](https://github.com/ethereum/go-ethereum/pull/35844) core: handle the sync restarting after unclean shutdown `core` **consensus**
+- [-] [#35847](https://github.com/ethereum/go-ethereum/pull/35847) version: release 1.17.7 `version` — build/CI/docs/release
+
+## v1.17.8 (2026-10-09): 32 commits, 25 to review
+
+- [ ] [#35848](https://github.com/ethereum/go-ethereum/pull/35848) version: start v1.17.8 cycle `version`
+- [ ] [#35826](https://github.com/ethereum/go-ethereum/pull/35826) cmd/devp2p/internal/ethtest: advertise eth/71 `cmd/devp2p`
+- [ ] [#35857](https://github.com/ethereum/go-ethereum/pull/35857) eth/protocols/eth: limit getPooledTransactions lookup `qrl/protocols` **security?**
+- [ ] [#35859](https://github.com/ethereum/go-ethereum/pull/35859) eth/protocols/eth: don't skip invalid receipts `qrl/protocols`
+- [-] [#35836](https://github.com/ethereum/go-ethereum/pull/35836) core/txpool/blobpool: promote gapped transactions on reset `core/txpool` — n/a
+- [ ] [#35856](https://github.com/ethereum/go-ethereum/pull/35856) eth/protocols/snap: charge per request `qrl/protocols`
+- [ ] [#35869](https://github.com/ethereum/go-ethereum/pull/35869) cmd/devp2p: respect negotiated eth version in transaction tests `cmd/devp2p`
+- [ ] [#35876](https://github.com/ethereum/go-ethereum/pull/35876) beacon/params: fix hoodi beacon genesis time `beacon/params`
+- [ ] [#35861](https://github.com/ethereum/go-ethereum/pull/35861) p2p/discover: require bonded peer for address prediction `p2p/discover`
+- [-] [#35854](https://github.com/ethereum/go-ethereum/pull/35854) build: publish PPA for Ubuntu 26.04 "Resolute Raccoon" — build/CI/docs/release
+- [ ] [#35880](https://github.com/ethereum/go-ethereum/pull/35880) p2p: remove stale addresses after DNS resolution `p2p`
+- [ ] [#35878](https://github.com/ethereum/go-ethereum/pull/35878) internal/ethapi: bound eth_capabilities receipts by the tx index tail `internal/qrlapi`
+- [ ] [#35865](https://github.com/ethereum/go-ethereum/pull/35865) core: cache codeHash in BAL lookup `core/state`, `core/types` **consensus**
+- [-] [#35863](https://github.com/ethereum/go-ethereum/pull/35863) go.mod: update github.com/pion/stun/v3 — build/CI/docs/release
+- [-] [#35711](https://github.com/ethereum/go-ethereum/pull/35711) docs: fix README evm --code example — build/CI/docs/release
+- [ ] [#35288](https://github.com/ethereum/go-ethereum/pull/35288) core: delete access list when rewinding block chain `core` **consensus**
+- [ ] [#35585](https://github.com/ethereum/go-ethereum/pull/35585) params: add chainspecs support `params`, `params/chainspecs` **consensus**
+- [-] [#35872](https://github.com/ethereum/go-ethereum/pull/35872) beacon/light/request: send EvCanRequestAgain after refusing requests `beacon/light` — n/a
+- [ ] [#35845](https://github.com/ethereum/go-ethereum/pull/35845) core, eth, internal: skip the execution gas cap on eth_call `core`, `internal/qrlapi`, `qrl/tracers` **consensus**
+- [ ] [#35881](https://github.com/ethereum/go-ethereum/pull/35881) core: better caching for jumpdest analysis `core`, `core/vm` **consensus**
+- [ ] [#35617](https://github.com/ethereum/go-ethereum/pull/35617) internal/ethapi: avoid duplicate transfer logs in eth_simulateV1 post-Amsterdam `internal/qrlapi`
+- [ ] [#35397](https://github.com/ethereum/go-ethereum/pull/35397) internal/ethapi: don't fail eth_createAccessList on unaffordable fee defaults `internal/qrlapi`
+- [ ] [#35668](https://github.com/ethereum/go-ethereum/pull/35668) internal/ethapi, core: align eth_simulateV1 blocks with the Amsterdam spec `core`, `internal/qrlapi` **consensus**
+- [ ] [#35860](https://github.com/ethereum/go-ethereum/pull/35860) eth: fix cells response to use index major `cmd/devp2p`, `qrl`, `qrl/protocols`
+- [ ] [#35883](https://github.com/ethereum/go-ethereum/pull/35883) eth/protocols/eth: limit getCells lookup `qrl/protocols` **security?**
+- [ ] [#35862](https://github.com/ethereum/go-ethereum/pull/35862) eth/protocols/eth: verify block shape before hashing `qrl/protocols`
+- [ ] [#35896](https://github.com/ethereum/go-ethereum/pull/35896) core/tracing: handle creator nonce change without an open frame `core/tracing`
+- [ ] [#35888](https://github.com/ethereum/go-ethereum/pull/35888) accounts/abi/abigen: chain nonces when deploying library dependencies `accounts/abi`
+- [ ] [#35889](https://github.com/ethereum/go-ethereum/pull/35889) node: fix flaky jwt too new auth test `node`
+- [~] [#35804](https://github.com/ethereum/go-ethereum/pull/35804) eth/catalyst: don't treat a forward canonical update as a reorg `qrl/catalyst` — port open
+- [ ] [#35904](https://github.com/ethereum/go-ethereum/pull/35904) eth/protocols/eth: add size checks for receipts `qrl/protocols`
+- [-] [a579077007](https://github.com/ethereum/go-ethereum/commit/a579077007) version: go-ethereum v1.17.8 stable `version` — build/CI/docs/release
+
+## v1.17.9 (2026-10-22): 38 commits, 32 to review
+
+- [-] [9812211e82](https://github.com/ethereum/go-ethereum/commit/9812211e82) version: begin v1.17.9 release cycle `version` — build/CI/docs/release
+- [ ] [#35890](https://github.com/ethereum/go-ethereum/pull/35890) eth/protocols/snap: verify raw BAL before single decode `qrl/protocols`
+- [ ] [#35691](https://github.com/ethereum/go-ethereum/pull/35691) ethdb/pebble: adjust the config of pebble `qrldb/pebble`
+- [-] [#35927](https://github.com/ethereum/go-ethereum/pull/35927) build: update golang lint — build/CI/docs/release
+- [-] [#35924](https://github.com/ethereum/go-ethereum/pull/35924) build: update test fixture to v21.0.1 — build/CI/docs/release
+- [ ] [#35930](https://github.com/ethereum/go-ethereum/pull/35930) eth/protocols/snap: check pivot ancestry against the header chain `qrl/protocols`
+- [ ] [#35901](https://github.com/ethereum/go-ethereum/pull/35901) cmd/devp2p: explicitly corrupt the cells for `TestBlobTxWithInvalidCells` `cmd/devp2p`
+- [ ] [#35902](https://github.com/ethereum/go-ethereum/pull/35902) cmd/devp2p: make readAnyFrom to store unused packet `cmd/devp2p`
+- [ ] [#35939](https://github.com/ethereum/go-ethereum/pull/35939) core/rawdb: keep the freezer metadata at a fixed size `core/rawdb`
+- [ ] [#35936](https://github.com/ethereum/go-ethereum/pull/35936) triedb/pathdb: fix the reactivation after a state sync `triedb/pathdb` **consensus**
+- [ ] [#35842](https://github.com/ethereum/go-ethereum/pull/35842) internal/ethapi: enforce the nonce limit in eth_simulateV1 without validation `internal/qrlapi` **security?**
+- [ ] [#35841](https://github.com/ethereum/go-ethereum/pull/35841) internal/ethapi: number eth_simulateV1 logs like receipts `internal/qrlapi`
+- [ ] [#35905](https://github.com/ethereum/go-ethereum/pull/35905) core, eth: disable bal recording in state view `core/state`, `core/tracing`, `core/vm`, `qrl/tracers` **consensus**
+- [ ] [#35385](https://github.com/ethereum/go-ethereum/pull/35385) beacon, cmd: add gloas fork supported `beacon/blsync`, `beacon/light`, `beacon/merkle`, `beacon/params`
+- [ ] [#35673](https://github.com/ethereum/go-ethereum/pull/35673) cmd/devp2p, p2p/discover: add metrics to discovery listeners `cmd/devp2p`, `cmd/gqrl`, `cmd/utils`, `p2p/discover`
+- [ ] [#35914](https://github.com/ethereum/go-ethereum/pull/35914) internal/ethapi: reject EIP-1559 fee fields in calls before London `internal/qrlapi`
+- [ ] [#35952](https://github.com/ethereum/go-ethereum/pull/35952) core: build the bad block report with a strings.Builder `core` **consensus**
+- [ ] [#35949](https://github.com/ethereum/go-ethereum/pull/35949) triedb/pathdb: write the histories in background `core/state`, `triedb/pathdb` **consensus**
+- [ ] [#35956](https://github.com/ethereum/go-ethereum/pull/35956) beacon/types: fix Gloas builder request encoding `beacon/types`
+- [ ] [#35953](https://github.com/ethereum/go-ethereum/pull/35953) internal/ethapi: reject unknown override keys and post-merge difficulty in eth_simulateV1 `internal/qrlapi`
+- [ ] [#35933](https://github.com/ethereum/go-ethereum/pull/35933) eth/filters: resolve earliest toBlock when creating log filters `qrl/filters`
+- [ ] [#35907](https://github.com/ethereum/go-ethereum/pull/35907) cmd/utils: decouple the transaction history from archive mode `cmd/utils`
+- [~] [#35935](https://github.com/ethereum/go-ethereum/pull/35935) build: upgrade -dlgo version to Go 1.27.2 — port open
+- [-] [#35957](https://github.com/ethereum/go-ethereum/pull/35957) beacon/light/request: emit soft timeout event under lock `beacon/light` — n/a
+- [ ] [#35961](https://github.com/ethereum/go-ethereum/pull/35961) eth/tracers/logger: omit storage on halted SLOAD/SSTORE steps `qrl/tracers`
+- [ ] [#35958](https://github.com/ethereum/go-ethereum/pull/35958) internal/ethapi: fix ChaindbProperty doc comment `internal/qrlapi`
+- [ ] [#35968](https://github.com/ethereum/go-ethereum/pull/35968) miner: align pending block timestamp with prepareWork `miner`
+- [ ] [#35974](https://github.com/ethereum/go-ethereum/pull/35974) core, params: schedule amsterdam fork on hoodi `core/forkid`, `params/chainspecs`
+- [ ] [#35978](https://github.com/ethereum/go-ethereum/pull/35978) triedb/pathdb: retry historical reads when disk layer is stale `triedb/pathdb` **consensus**
+- [ ] [#35875](https://github.com/ethereum/go-ethereum/pull/35875) core/filtermaps: start the log index at a history cutoff past the last checkpoint `core/filtermaps`, `core/rawdb`
+- [ ] [#35761](https://github.com/ethereum/go-ethereum/pull/35761) core/types: validate yParity when decoding authorizations from JSON `core/types` **consensus**
+- [ ] [#35928](https://github.com/ethereum/go-ethereum/pull/35928) core, internal/ethapi: reject maxFeePerBlobGas without blob hashes `core`, `internal/qrlapi` **consensus**
+- [ ] [#35982](https://github.com/ethereum/go-ethereum/pull/35982) eth/downloader: improve frozen pivot validation `qrl/downloader`
+- [ ] [#35988](https://github.com/ethereum/go-ethereum/pull/35988) core/types: fix effective tip comparison below the base fee `core/txpool`, `core/types` **consensus**
+- [ ] [#35975](https://github.com/ethereum/go-ethereum/pull/35975) params: allow BPO forks to activate after Amsterdam `params` **consensus**
+- [ ] [#35969](https://github.com/ethereum/go-ethereum/pull/35969) internal/ethapi: keep access list when gasPrice is set `internal/qrlapi`
+- [ ] [#35638](https://github.com/ethereum/go-ethereum/pull/35638) core/vm, cmd/geth: replace interpreter dispatch with a PGO-inlined switch `cmd/gqrl`, `core/vm`, `oss-fuzz.sh`, `tests/fuzzers` **consensus**
+- [-] [#35990](https://github.com/ethereum/go-ethereum/pull/35990) version: release go-ethereum v1.17.9 stable `version` — build/CI/docs/release
+
+## v1.17.10 (2026-10-23): 9 commits, 6 to review
+
+- [-] [#35991](https://github.com/ethereum/go-ethereum/pull/35991) version: start release cycle v1.17.10 `version` — build/CI/docs/release
+- [ ] [#35989](https://github.com/ethereum/go-ethereum/pull/35989) cmd, eth: auto-enable snapv2 with amsterdam activated `cmd/devp2p`, `cmd/utils`, `qrl`, `qrl/downloader`
+- [ ] [#35959](https://github.com/ethereum/go-ethereum/pull/35959) core/vm: fold DUP/SWAP into shared cases and fetch the next opcode per case `cmd/gqrl`, `core/vm` **consensus**
+- [~] [#35985](https://github.com/ethereum/go-ethereum/pull/35985) build: upgrade -dlgo version to Go 1.27.3 — port open
+- [ ] [#35998](https://github.com/ethereum/go-ethereum/pull/35998) cmd/utils: show automatic as the snap.v2 default in help `cmd/utils`
+- [ ] [#36001](https://github.com/ethereum/go-ethereum/pull/36001) core, params: revert schedule amsterdam fork on hoodi `core/forkid`, `params/chainspecs`
+- [ ] [#36003](https://github.com/ethereum/go-ethereum/pull/36003) core/types: improve transaction field validation `core/types` **consensus**
+- [ ] [#36004](https://github.com/ethereum/go-ethereum/pull/36004) cmd/evm/testdata: fix test `cmd/qrvm`
+- [-] [#36002](https://github.com/ethereum/go-ethereum/pull/36002) version: release 1.17.10 `version` — build/CI/docs/release
+
+## master (unreleased) (2026-11-23): 74 commits, 67 to review
+
+- [ ] [#36005](https://github.com/ethereum/go-ethereum/pull/36005) version: start v1.17.11 cycle `version`
+- [ ] [#35951](https://github.com/ethereum/go-ethereum/pull/35951) core/state, trie/trienode, triedb/pathdb: multi-level buffer with blooms `core/state`, `trie/trienode`, `triedb/pathdb` **consensus**
+- [ ] [#35973](https://github.com/ethereum/go-ethereum/pull/35973) triedb/pathdb: replace layer lookup with a bloom-based layer index `triedb/pathdb` **consensus**
+- [ ] [#35994](https://github.com/ethereum/go-ethereum/pull/35994) accounts/abi/bind/v2: keep access list when gasPrice is set `accounts/abi`
+- [ ] [#35983](https://github.com/ethereum/go-ethereum/pull/35983) core/filtermaps: release cancelled log searches and mitigate lock contention `core/filtermaps`
+- [ ] [#36009](https://github.com/ethereum/go-ethereum/pull/36009) crypto: cache keccak256 of short inputs `crypto`
+- [ ] [#36010](https://github.com/ethereum/go-ethereum/pull/36010) cmd/utils: show actual defaults for minfreedisk, fdlimit and memorylimit in help `cmd/utils`
+- [ ] [#36020](https://github.com/ethereum/go-ethereum/pull/36020) eth/protocols/eth: fix minimal gas after amsterdam `qrl/protocols`
+- [ ] [#36024](https://github.com/ethereum/go-ethereum/pull/36024) core/types, internal/ethapi: allow non-canonical authorization yParity when decoding `core/types`, `internal/qrlapi` **consensus**
+- [ ] [#35918](https://github.com/ethereum/go-ethereum/pull/35918) core, eth: fix block execution statistics `core`, `qrl`, `qrl/catalyst` **consensus**
+- [ ] [#36038](https://github.com/ethereum/go-ethereum/pull/36038) accounts/abi/abigen: fix flaky TestOverload `accounts/abi`
+- [ ] [#35965](https://github.com/ethereum/go-ethereum/pull/35965) internal/build: ask git for the commit, with fallback to reading .git `internal/build`
+- [ ] [#35858](https://github.com/ethereum/go-ethereum/pull/35858) eth/tracers/native: add Stop() to KeccakTracer `qrl/tracers`
+- [ ] [#36043](https://github.com/ethereum/go-ethereum/pull/36043) p2p/discover: compare the traffic meters after closing the nodes `p2p/discover`
+- [ ] [#36025](https://github.com/ethereum/go-ethereum/pull/36025) cmd/geth, cmd/utils, crypto/kzg4844: add --crypto.kzg.lazy `cmd/gqrl`, `cmd/utils`, `crypto/kzg4844`
+- [ ] [#36036](https://github.com/ethereum/go-ethereum/pull/36036) core, eth: apply the DAO fork in pre-execution and harden stateAtTransaction `core`, `core/state`, `internal/qrlapi`, `qrl` **consensus**
+- [ ] [#35950](https://github.com/ethereum/go-ethereum/pull/35950) p2p, eth: experimental support for browser tx submit with quic `cmd/gqrl`, `cmd/utils`, `core/txpool`, `node`
+- [ ] [#36047](https://github.com/ethereum/go-ethereum/pull/36047) eth, cmd/devp2p: revert index major cells response `cmd/devp2p`, `qrl`, `qrl/protocols`
+- [ ] [#35798](https://github.com/ethereum/go-ethereum/pull/35798) rpc: cancel running calls when a connection is closed `rpc`
+- [ ] [#36019](https://github.com/ethereum/go-ethereum/pull/36019) rpc: suppress timeout responses to notifications `rpc`
+- [ ] [#36011](https://github.com/ethereum/go-ethereum/pull/36011) rpc: release buffered notifications after activation `rpc`
+- [-] [#35849](https://github.com/ethereum/go-ethereum/pull/35849) cmd/keeper: add support for wasm zisk `cmd/keeper` — n/a
+- [ ] [#36059](https://github.com/ethereum/go-ethereum/pull/36059) p2p/quic: assign logger in NewCertRotator `p2p/quic`
+- [ ] [#36061](https://github.com/ethereum/go-ethereum/pull/36061) p2p: don't launch AllowBrowser protocols on node-to-node connections `p2p`
+- [ ] [#36064](https://github.com/ethereum/go-ethereum/pull/36064) internal/ethapi: remove error data from TxIndexingError `internal/qrlapi`
+- [ ] [#36069](https://github.com/ethereum/go-ethereum/pull/36069) tests/fuzzers/bls12381: fix a dormant harness issue `tests/fuzzers`
+- [ ] [#36042](https://github.com/ethereum/go-ethereum/pull/36042) triedb/pathdb: buffer the journal file writes `triedb/pathdb` **consensus**
+- [ ] [#36039](https://github.com/ethereum/go-ethereum/pull/36039) miner: set the block hash on receipts once the block is assembled `miner`
+- [ ] [#36079](https://github.com/ethereum/go-ethereum/pull/36079) ethclient/simulated: fix flaky deployment and rollback tests `qrlclient/simulated`
+- [ ] [#36053](https://github.com/ethereum/go-ethereum/pull/36053) eth: regenerate side chain state along the block's own ancestry `qrl`
+- [ ] [#36046](https://github.com/ethereum/go-ethereum/pull/36046) eth/downloader: fix deadlock between SyncStatusSubscription.Unsubscribe and eventLoop `qrl/downloader`
+- [ ] [#35955](https://github.com/ethereum/go-ethereum/pull/35955) core, trie/pbt, triedb: add EIP-8297 partitioned binary tree `cmd/gqrl`, `cmd/keeper`, `cmd/qrvm`, `cmd/utils` **consensus**
+- [-] [#35531](https://github.com/ethereum/go-ethereum/pull/35531) core/txpool/blobpool: extend fully-fetched blob transactions to the full cell set `core/txpool` — n/a
+- [ ] [#35960](https://github.com/ethereum/go-ethereum/pull/35960) cmd/evm: run the EIP-8297 binary tree in t8n `cmd/qrvm`
+- [-] [#36090](https://github.com/ethereum/go-ethereum/pull/36090) go.mod: bump github.com/quic-go/webtransport-go from 0.10.0 to 0.11.1 — build/CI/docs/release
+- [ ] [#36092](https://github.com/ethereum/go-ethereum/pull/36092) eth/protocols/webtx: use RawList for TxSubmit, limit tx count `qrl/protocols` **security?**
+- [ ] [#36078](https://github.com/ethereum/go-ethereum/pull/36078) build, cmd/keeper: speed up zkvm guest by mocking packages that add to startup time `cmd/keeper`, `core/overlay`, `internal/telemetry`
+- [-] [#36093](https://github.com/ethereum/go-ethereum/pull/36093) cmd/keeper: add missing klauspost/cpuid/v2 dependency `cmd/keeper` — n/a
+- [ ] [#36040](https://github.com/ethereum/go-ethereum/pull/36040) core, core/types: compute the state root alongside the block's other digests `core`, `core/types` **consensus**
+- [ ] [#36091](https://github.com/ethereum/go-ethereum/pull/36091) trie, core/state: remove the unified binary trie and eip4762 `cmd/gqrl`, `cmd/qrvm`, `cmd/utils`, `core` **consensus**
+- [ ] [#36089](https://github.com/ethereum/go-ethereum/pull/36089) core/vm: improve state cost inline refill `core/vm` **consensus**
+- [~] [#36102](https://github.com/ethereum/go-ethereum/pull/36102) build: upgrade -dlgo version to Go 1.27.4 — port open
+- [ ] [#36066](https://github.com/ethereum/go-ethereum/pull/36066) p2p: select browser protocols for QUIC connections before the handshake `p2p`
+- [ ] [#36108](https://github.com/ethereum/go-ethereum/pull/36108) core/vm: remove stale splice notes from the dynamic gas helpers `core/vm` **consensus**
+- [ ] [#35970](https://github.com/ethereum/go-ethereum/pull/35970) cmd/evm, eth/tracers: update tracers to consume 8037-style events `cmd/qrvm`, `core`, `core/tracing`, `core/vm` **consensus**
+- [ ] [#36029](https://github.com/ethereum/go-ethereum/pull/36029) beacon/engine, core, eth/catalyst: speed up newPayload block preparation `beacon/engine`, `core`, `core/types`, `qrl/catalyst` **consensus**
+- [ ] [#36123](https://github.com/ethereum/go-ethereum/pull/36123) core/vm/gen: test that the dispatch's handler calls are inlined `core/vm` **consensus**
+- [ ] [#36132](https://github.com/ethereum/go-ethereum/pull/36132) crypto: reject recovery ids above 3 in nocgo ecrecover `crypto`
+- [ ] [#36138](https://github.com/ethereum/go-ethereum/pull/36138) cmd/geth: accept the removed BinTrieGroupDepth config field `cmd/gqrl`
+- [ ] [#36146](https://github.com/ethereum/go-ethereum/pull/36146) internal/web3ext: move clearTxpool to the debug namespace `internal/web3ext`
+- [ ] [#36139](https://github.com/ethereum/go-ethereum/pull/36139) core/rawdb: take the read lock in chainFreezer.ReadAncients `core/rawdb`
+- [ ] [#35846](https://github.com/ethereum/go-ethereum/pull/35846) accounts/keystore: fix the race between key scan and delete `accounts/keystore`
+- [-] [#36148](https://github.com/ethereum/go-ethereum/pull/36148) .github/workflows: run the PR format check on reopened PRs — build/CI/docs/release
+- [ ] [#36129](https://github.com/ethereum/go-ethereum/pull/36129) rlp/rlpgen: consume empty value when decoding nil pointer `rlp/rlpgen`
+- [ ] [#36140](https://github.com/ethereum/go-ethereum/pull/36140) eth/fetcher: forget blob txs that have no announcer left `qrl/fetcher`
+- [ ] [#36105](https://github.com/ethereum/go-ethereum/pull/36105) eth/protocols/eth: validate all receipt blocks against gasUsed `qrl/downloader`, `qrl/protocols`
+- [-] [#35879](https://github.com/ethereum/go-ethereum/pull/35879) beacon/light/sync: drop a rejected committee update response from the queue `beacon/light` — n/a
+- [ ] [#36099](https://github.com/ethereum/go-ethereum/pull/36099) accounts/keystore: send wallet events in the order they are computed `accounts/keystore`
+- [ ] [#36155](https://github.com/ethereum/go-ethereum/pull/36155) core: move the intrinsic gas checks out of execute `core`, `core/txpool` **consensus**
+- [ ] [#35654](https://github.com/ethereum/go-ethereum/pull/35654) core/txpool/legacypool: preserve pending nonces during reorg `core/txpool`
+- [ ] [#36041](https://github.com/ethereum/go-ethereum/pull/36041) triedb/pathdb: delete stale journal in Recover `core/rawdb`, `triedb/pathdb` **consensus**
+- [ ] [#36111](https://github.com/ethereum/go-ethereum/pull/36111) cmd/evm, core, eth, tests: add enginetest and EEST runner flags `cmd/qrvm`, `core`, `qrl/catalyst`, `tests` **consensus**
+- [ ] [#36136](https://github.com/ethereum/go-ethereum/pull/36136) core/types: remove Bloom9 `core/types` **consensus**
+- [ ] [#36151](https://github.com/ethereum/go-ethereum/pull/36151) rpc: treat a null error in a response as no error `rpc`
+- [ ] [#36172](https://github.com/ethereum/go-ethereum/pull/36172) core/vm/gen, cmd/evm: write the interpreter PGO profile for evm too `cmd/qrvm`, `core/vm` **consensus**
+- [ ] [#36166](https://github.com/ethereum/go-ethereum/pull/36166) cmd, eth: merge the error message and zero cost for exceptional halt `cmd/qrvm`, `core/tracing`, `core/vm`, `qrl/tracers` **consensus**
+- [ ] [#35675](https://github.com/ethereum/go-ethereum/pull/35675) core/vm, params: make EIP-170 activation explicit `core/vm`, `params`, `params/chainspecs` **consensus**
+- [ ] [#36162](https://github.com/ethereum/go-ethereum/pull/36162) core, core/txpool: share the gas limit cap and set code tx checks `core`, `core/txpool`, `tests` **consensus** **security?**
+- [ ] [#35622](https://github.com/ethereum/go-ethereum/pull/35622) go.mod: remove a few dependencies `accounts/abi`, `accounts/keystore`, `cmd/gqrl`, `cmd/keeper` **consensus**
+- [ ] [#36152](https://github.com/ethereum/go-ethereum/pull/36152) core/types/bal: reduce verification overhead `core/types` **consensus**
+- [ ] [#36190](https://github.com/ethereum/go-ethereum/pull/36190) eth/catalyst: apply forkchoice state before checking payload attributes `qrl/catalyst`
+- [ ] [#36202](https://github.com/ethereum/go-ethereum/pull/36202) internal/jsre: fix panic printing objects without a constructor `internal/jsre` **security?**
+- [ ] [#36186](https://github.com/ethereum/go-ethereum/pull/36186) internal/ethapi: fix receipts for equal transaction hashes in eth_simulateV1 `internal/qrlapi`
+- [ ] [#36183](https://github.com/ethereum/go-ethereum/pull/36183) internal/ethapi: fix tx.from for equal transaction hashes in eth_simulateV1 `internal/qrlapi`
