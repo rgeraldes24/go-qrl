@@ -85,7 +85,7 @@ All small, independent and the highest value.
   - **miner:** no sealing after a db error (#35427).
   - **trie:** range-proof check (#33898).
   - **VM:** cold-access SafeAdd (#29023).
-  - **consensus:** nil base-fee guard (#33860).
+  - **consensus:** nil base-fee guard (#33860): not needed, go-qrl headers always carry a base fee.
   - **Payload bodies:** by-hash cap (rgeraldes24/go-qrl#98).
 
 ### Phase 2: data integrity, crash and race fixes

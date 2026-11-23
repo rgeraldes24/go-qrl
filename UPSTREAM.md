@@ -7,8 +7,8 @@ Generated from go-ethereum `e0feab521` (2026-11-23).
 | Status | Commits |
 |---|---|
 | `[x]` already in go-qrl (a merged go-qrl PR or commit references it) | 46 |
-| `[~]` port open in a go-qrl PR | 86 |
-| `[-]` not applicable: code go-qrl removed (PoW, clique, blobs/KZG, BLS and BN256 precompiles, light client, era) | 147 |
+| `[~]` port open in a go-qrl PR | 85 |
+| `[-]` not applicable: code go-qrl removed (PoW, clique, blobs/KZG, BLS and BN256 precompiles, light client, era) | 148 |
 | `[-]` build, CI, docs or release housekeeping only | 338 |
 | `[ ]` to review and port | 2406 |
 | **Total** | **3023** |
@@ -2307,7 +2307,7 @@ Flags on commits to port: **consensus** touches state transition, the VM, types,
 - [ ] [#33842](https://github.com/ethereum/go-ethereum/pull/33842) internal/download: show progress bar only if server gives length `internal/download`
 - [ ] [#33835](https://github.com/ethereum/go-ethereum/pull/33835) eth/protocols/eth, eth/protocols/snap: delayed p2p message decoding `cmd/devp2p`, `p2p/tracker`, `qrl`, `qrl/downloader`
 - [ ] [#33780](https://github.com/ethereum/go-ethereum/pull/33780) internal/telemetry: don't create internal spans without parents `internal/telemetry`
-- [~] [#33860](https://github.com/ethereum/go-ethereum/pull/33860) consensus/misc: hardening header verification `consensus/misc` **consensus** — cyyber/go-qrl#337
+- [-] [#33860](https://github.com/ethereum/go-ethereum/pull/33860) consensus/misc: hardening header verification `consensus/misc` **consensus** — n/a: go-qrl headers always carry a base fee (closed cyyber/go-qrl#337)
 - [ ] [#33521](https://github.com/ethereum/go-ethereum/pull/33521) eth/catalyst: add initial OpenTelemetry tracing for newPayload `cmd/keeper`, `core`, `qrl`, `qrl/catalyst` **consensus**
 - [ ] [9b78f45e33](https://github.com/ethereum/go-ethereum/commit/9b78f45e33) crypto/secp256k1: fix coordinate check `crypto`, `crypto/secp256k1`
 - [-] [0cf3d3ba4f](https://github.com/ethereum/go-ethereum/commit/0cf3d3ba4f) version: release go-ethereum v1.17.0 stable `version` — build/CI/docs/release
