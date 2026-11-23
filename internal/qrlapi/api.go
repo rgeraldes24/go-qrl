@@ -765,8 +765,12 @@ func (e *revertError) ErrorData() any {
 //
 // Note, this function doesn't make and changes in the state/blockchain and is
 // useful to execute and retrieve values.
-func (api *BlockChainAPI) Call(ctx context.Context, args TransactionArgs, blockNrOrHash rpc.BlockNumberOrHash, overrides *StateOverride, blockOverrides *BlockOverrides) (hexutil.Bytes, error) {
-	result, err := DoCall(ctx, api.b, args, blockNrOrHash, overrides, blockOverrides, api.b.RPCQRVMTimeout(), api.b.RPCGasCap())
+func (api *BlockChainAPI) Call(ctx context.Context, args TransactionArgs, blockNrOrHash *rpc.BlockNumberOrHash, overrides *StateOverride, blockOverrides *BlockOverrides) (hexutil.Bytes, error) {
+	if blockNrOrHash == nil {
+		latest := rpc.BlockNumberOrHashWithNumber(rpc.LatestBlockNumber)
+		blockNrOrHash = &latest
+	}
+	result, err := DoCall(ctx, api.b, args, *blockNrOrHash, overrides, blockOverrides, api.b.RPCQRVMTimeout(), api.b.RPCGasCap())
 	if err != nil {
 		return nil, err
 	}

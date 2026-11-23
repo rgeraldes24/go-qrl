@@ -754,7 +754,7 @@ func TestCall(t *testing.T) {
 		},
 	}
 	for i, tc := range testSuite {
-		result, err := api.Call(t.Context(), tc.call, rpc.BlockNumberOrHash{BlockNumber: &tc.blockNumber}, &tc.overrides, &tc.blockOverrides)
+		result, err := api.Call(t.Context(), tc.call, &rpc.BlockNumberOrHash{BlockNumber: &tc.blockNumber}, &tc.overrides, &tc.blockOverrides)
 		if tc.expectErr != nil {
 			if err == nil {
 				t.Errorf("test %d: want error %v, have nothing", i, tc.expectErr)
