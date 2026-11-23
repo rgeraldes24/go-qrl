@@ -1453,7 +1453,7 @@ Flags on commits to port: **consensus** touches state transition, the VM, types,
 - [ ] [#31535](https://github.com/ethereum/go-ethereum/pull/31535) params: add prague timestamp for mainnet `core/forkid`, `params` **consensus**
 - [ ] [#31340](https://github.com/ethereum/go-ethereum/pull/31340) core,params: add fork readiness indicator in logs `core`, `params`, `params/forks` **consensus**
 - [ ] [#31407](https://github.com/ethereum/go-ethereum/pull/31407) eth/catalyst: sanitize simulated beacon period to avoid overflowing time.Duration `qrl/catalyst`
-- [ ] [#31618](https://github.com/ethereum/go-ethereum/pull/31618) eth: add tx to locals only if it has a chance of acceptance `core/txpool`, `qrl`, `qrl/fetcher`, `qrlclient/simulated`
+- [ ] [#31618](https://github.com/ethereum/go-ethereum/pull/31618) eth: add tx to locals only if it has a chance of acceptance `core/txpool`, `qrl`, `qrl/fetcher`, `qrlclient/simulated` — also add #32726's TestSendTxEIP2681 to the new qrl/api_backend_test.go
 - [ ] [#31668](https://github.com/ethereum/go-ethereum/pull/31668) core/filtermaps: only use common ancestor snapshots `core/filtermaps`
 - [ ] [#31671](https://github.com/ethereum/go-ethereum/pull/31671) core/filtermaps: make ChainView thread safe `core/filtermaps`
 - [ ] [#31639](https://github.com/ethereum/go-ethereum/pull/31639) core: fail execution if system call fails to execute `cmd/qrvm`, `core`, `internal/qrlapi`, `miner` **consensus**
@@ -1969,7 +1969,7 @@ Flags on commits to port: **consensus** touches state transition, the VM, types,
 - [ ] [#32737](https://github.com/ethereum/go-ethereum/pull/32737) all: add bpo1 and bpo2 overrides `cmd/gqrl`, `cmd/utils`, `core`, `qrl` **consensus**
 - [-] [#32718](https://github.com/ethereum/go-ethereum/pull/32718) core/txpool/blobpool: convert and add one-by-one `core/txpool` — n/a
 - [-] [#32742](https://github.com/ethereum/go-ethereum/pull/32742) build: upgrade to execution-spec-tests v5.1.0 — build/CI/docs/release
-- [~] [#32726](https://github.com/ethereum/go-ethereum/pull/32726) core/txpool: add eip2681 check for incoming transactions `core/txpool`, `qrl` — cyyber/go-qrl#335
+- [~] [#32726](https://github.com/ethereum/go-ethereum/pull/32726) core/txpool: add eip2681 check for incoming transactions `core/txpool`, `qrl` — cyyber/go-qrl#335 (TestSendTxEIP2681 left out: add it with qrl/api_backend_test.go, from #31618 or cyyber/go-qrl#357)
 - [ ] [#32694](https://github.com/ethereum/go-ethereum/pull/32694) all: refactor to use builtin max/min `cmd/utils`, `metrics`
 - [ ] [#32735](https://github.com/ethereum/go-ethereum/pull/32735) params: schedule Osaka/BPO1/BPO2 for testnets `core/forkid`, `params`, `tests` **consensus**
 - [-] [b964b6574f](https://github.com/ethereum/go-ethereum/commit/b964b6574f) version: release go-ethereum v1.16.4 stable `version` — build/CI/docs/release
