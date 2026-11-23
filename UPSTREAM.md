@@ -103,7 +103,7 @@ Flags on commits to port: **consensus** touches state transition, the VM, types,
 - [-] [#28334](https://github.com/ethereum/go-ethereum/pull/28334) go.mod: update fastcache to latest — build/CI/docs/release
 - [ ] [#28324](https://github.com/ethereum/go-ethereum/pull/28324) build: move version-info into checksum file `internal/build`
 - [-] [#28332](https://github.com/ethereum/go-ethereum/pull/28332) go.mod: update AWS APIs to latest heads — build/CI/docs/release
-- [~] [#28311](https://github.com/ethereum/go-ethereum/pull/28311) trie: make rhs-proof align with last key in range proofs `cmd/devp2p`, `core/state`, `qrl/protocols`, `tests/fuzzers` **consensus** — cyyber/go-qrl#359
+- [~] [#28311](https://github.com/ethereum/go-ethereum/pull/28311) trie: make rhs-proof align with last key in range proofs `cmd/devp2p`, `core/state`, `qrl/protocols`, `tests/fuzzers` **consensus** — in rgeraldes24/go-qrl#91
 - [ ] [#28336](https://github.com/ethereum/go-ethereum/pull/28336) go.mod: pull in the latest cloudflare API libs `cmd/devp2p`
 - [ ] [#28335](https://github.com/ethereum/go-ethereum/pull/28335) cmd, core, ethdb: enable Pebble on 32 bits and OpenBSD too `cmd/utils`, `core/rawdb`, `qrldb/pebble`
 - [ ] [#28337](https://github.com/ethereum/go-ethereum/pull/28337) tests: update execution-spec-tests to 1.0.5 `cmd/qrvm`, `tests`
