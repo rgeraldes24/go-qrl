@@ -8,9 +8,9 @@ Generated from go-ethereum `e0feab521` (2026-11-23).
 |---|---|
 | `[x]` already in go-qrl (a merged go-qrl PR or commit references it) | 46 |
 | `[~]` port open in a go-qrl PR | 85 |
-| `[-]` not applicable: code go-qrl removed (PoW, clique, blobs/KZG, BLS and BN256 precompiles, light client, era) | 148 |
+| `[-]` not applicable: code go-qrl removed (PoW, clique, blobs/KZG, BLS and BN256 precompiles, light client, era) | 149 |
 | `[-]` build, CI, docs or release housekeeping only | 338 |
-| `[ ]` to review and port | 2406 |
+| `[ ]` to review and port | 2405 |
 | **Total** | **3023** |
 
 Flags on commits to port: **consensus** touches state transition, the VM, types, state, trie or chain config; **security?** has a word like crash, panic, DoS or limit in its title. The statuses are a first pass from file paths and references: check each before porting.
@@ -2677,7 +2677,7 @@ Flags on commits to port: **consensus** touches state transition, the VM, types,
 - [ ] [#35111](https://github.com/ethereum/go-ethereum/pull/35111) node: fix wrong status code in ws `node`
 - [ ] [#35008](https://github.com/ethereum/go-ethereum/pull/35008) all: fix all typos, as reported by crates-ci/typos `accounts/abi`, `cmd/devp2p`, `core`, `core/filtermaps` **consensus**
 - [ ] [#35132](https://github.com/ethereum/go-ethereum/pull/35132) rpc: add option to configure TextMapPropagator on client `rpc`
-- [ ] [#35140](https://github.com/ethereum/go-ethereum/pull/35140) beacon/engine: ensure nil ExecutionPayloadEnvelope.BlockValue doesn't crash `beacon/engine` **security?**
+- [-] [#35140](https://github.com/ethereum/go-ethereum/pull/35140) beacon/engine: ensure nil ExecutionPayloadEnvelope.BlockValue doesn't crash `beacon/engine` **security?** — n/a: go-qrl has no gen_epe.go encoder
 - [x] [#35074](https://github.com/ethereum/go-ethereum/pull/35074) log: share mutex in log handles with same writer and other fields `log` — in go-qrl
 - [ ] [#34626](https://github.com/ethereum/go-ethereum/pull/34626) core, eth/protocols/snap, eth/downloader: snap/2 sync logic `cmd/devp2p`, `cmd/gqrl`, `cmd/utils`, `core` **consensus**
 - [ ] [#35124](https://github.com/ethereum/go-ethereum/pull/35124) core/txpool/blobpool: add cache for GetBlobs request `core/txpool`, `miner`, `qrl`, `qrl/catalyst`
