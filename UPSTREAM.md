@@ -7,10 +7,10 @@ Generated from go-ethereum `e0feab521` (2026-11-23).
 | Status | Commits |
 |---|---|
 | `[x]` already in go-qrl (a merged go-qrl PR or commit references it) | 62 |
-| `[~]` port open in a go-qrl PR | 69 |
+| `[~]` port open in a go-qrl PR | 72 |
 | `[-]` not applicable: code go-qrl removed (PoW, clique, blobs/KZG, BLS and BN256 precompiles, light client, era) | 149 |
 | `[-]` build, CI, docs or release housekeeping only | 338 |
-| `[ ]` to review and port | 2405 |
+| `[ ]` to review and port | 2402 |
 | **Total** | **3023** |
 
 Flags on commits to port: **consensus** touches state transition, the VM, types, state, trie or chain config; **security?** has a word like crash, panic, DoS or limit in its title. The statuses are a first pass from file paths and references: check each before porting.
@@ -1096,7 +1096,7 @@ Flags on commits to port: **consensus** touches state transition, the VM, types,
 - [ ] [#30776](https://github.com/ethereum/go-ethereum/pull/30776) core, eth, internal, miner: remove unnecessary parameters `cmd/qrvm`, `core`, `internal/qrlapi`, `miner` **consensus**
 - [ ] [#30788](https://github.com/ethereum/go-ethereum/pull/30788) internal/ethapi: remove double map-clone `internal/qrlapi`
 - [ ] [#30779](https://github.com/ethereum/go-ethereum/pull/30779) all: typos in comments `core`, `core/vm`, `trie/utils` **consensus**
-- [ ] [#30771](https://github.com/ethereum/go-ethereum/pull/30771) trie: replace custom logic with bytes.HasPrefix `trie` **consensus**
+- [~] [#30771](https://github.com/ethereum/go-ethereum/pull/30771) trie: replace custom logic with bytes.HasPrefix `trie` **consensus** — cyyber/go-qrl#360
 - [ ] [#30752](https://github.com/ethereum/go-ethereum/pull/30752) core, triedb: remove destruct flag in state snapshot `core/state`, `triedb` **consensus**
 - [ ] [#30796](https://github.com/ethereum/go-ethereum/pull/30796) internal/flags: fix "flag redefined" bug for alias on custom flags `internal/flags`
 - [ ] [#30804](https://github.com/ethereum/go-ethereum/pull/30804) eth/tracers/logger: fix json-logger output missing `qrl/tracers`
@@ -1110,7 +1110,7 @@ Flags on commits to port: **consensus** touches state transition, the VM, types,
 - [ ] [#30780](https://github.com/ethereum/go-ethereum/pull/30780) cmd/evm: don't reuse state between iterations, show errors `cmd/qrvm`
 - [ ] [#30811](https://github.com/ethereum/go-ethereum/pull/30811) core: better document reason for dropping error on return `core`
 - [ ] [#30802](https://github.com/ethereum/go-ethereum/pull/30802) core/state/snapshot: handle legacy journal `core/state` **consensus**
-- [ ] [#30823](https://github.com/ethereum/go-ethereum/pull/30823) trie: combine validation loops in VerifyRangeProof `trie` **consensus**
+- [~] [#30823](https://github.com/ethereum/go-ethereum/pull/30823) trie: combine validation loops in VerifyRangeProof `trie` **consensus** — cyyber/go-qrl#361
 - [ ] [#30670](https://github.com/ethereum/go-ethereum/pull/30670) all: exclude empty outputs in requests commitment `beacon/engine`, `cmd/qrvm`, `core`, `core/types` **consensus**
 - [ ] [#30813](https://github.com/ethereum/go-ethereum/pull/30813) cmd/bootnode: remove bootnode utility `cmd/bootnode`
 - [ ] [#30829](https://github.com/ethereum/go-ethereum/pull/30829) core/types: add length check in CalcRequestsHash `core/types` **consensus**
@@ -1477,7 +1477,7 @@ Flags on commits to port: **consensus** touches state transition, the VM, types,
 
 - [-] [f750117ad1](https://github.com/ethereum/go-ethereum/commit/f750117ad1) version: begin v1.15.11 release cycle `version` — build/CI/docs/release
 - [ ] [#31715](https://github.com/ethereum/go-ethereum/pull/31715) core/txpool/legacypool: refactor truncatePending `core/txpool`
-- [ ] [#31667](https://github.com/ethereum/go-ethereum/pull/31667) trie: add edgecase for rangeproof correctness `trie` **consensus**
+- [~] [#31667](https://github.com/ethereum/go-ethereum/pull/31667) trie: add edgecase for rangeproof correctness `trie` **consensus** — cyyber/go-qrl#362
 - [ ] [#31733](https://github.com/ethereum/go-ethereum/pull/31733) core: apply overrides to mainnet chainconfig `core` **consensus**
 - [ ] [#31739](https://github.com/ethereum/go-ethereum/pull/31739) beacon/engine: omit empty witness in payload response `beacon/engine`, `qrl/catalyst`
 - [ ] [#31378](https://github.com/ethereum/go-ethereum/pull/31378) crypto/kzg4844: add ComputeCells functionality `cmd/utils`, `crypto/kzg4844`
