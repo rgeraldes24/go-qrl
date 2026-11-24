@@ -661,8 +661,6 @@ func TestTransactionFetcherCleanupEmpty(t *testing.T) {
 // Tests that non-returned transactions are either re-scheduled from a
 // different peer, or self if they are after the cutoff point.
 func TestTransactionFetcherMissingRescheduling(t *testing.T) {
-	// NOTE(rgeraldes24): depends on the deterministic random
-	t.Skip()
 	testTransactionFetcherParallel(t, txFetcherTest{
 		init: func() *TxFetcher {
 			return NewTxFetcher(
@@ -706,7 +704,7 @@ func TestTransactionFetcherMissingRescheduling(t *testing.T) {
 			},
 			// Deliver the middle transaction requested, the one before which
 			// should be dropped and the one after re-requested.
-			doTxEnqueue{peer: "A", txs: []*types.Transaction{testTxs[1]}, direct: true}, // This depends on the deterministic random
+			doTxEnqueue{peer: "A", txs: []*types.Transaction{testTxs[1]}, direct: true},
 			isScheduled{
 				tracking: map[string][]announce{
 					"A": {
@@ -724,8 +722,6 @@ func TestTransactionFetcherMissingRescheduling(t *testing.T) {
 // Tests that out of two transactions, if one is missing and the last is
 // delivered, the peer gets properly cleaned out from the internal state.
 func TestTransactionFetcherMissingCleanup(t *testing.T) {
-	// NOTE(rgeraldes24): depends on the deterministic random
-	t.Skip()
 	testTransactionFetcherParallel(t, txFetcherTest{
 		init: func() *TxFetcher {
 			return NewTxFetcher(
@@ -1077,7 +1073,7 @@ func TestTransactionFetcherRateLimiting(t *testing.T) {
 					"A": announces,
 				},
 				fetching: map[string][]common.Hash{
-					"A": hashes[1643 : 1643+maxTxRetrievals],
+					"A": hashes[:maxTxRetrievals],
 				},
 			},
 		},
@@ -1138,8 +1134,8 @@ func TestTransactionFetcherBandwidthLimiting(t *testing.T) {
 				},
 				fetching: map[string][]common.Hash{
 					"A": {{0x01}, {0x02}, {0x03}, {0x04}},
-					"B": {{0x06}},
-					"C": {{0x08}},
+					"B": {{0x05}},
+					"C": {{0x07}},
 				},
 			},
 		},
@@ -1216,8 +1212,8 @@ func TestTransactionFetcherDoSProtection(t *testing.T) {
 					"B": announceB[:maxTxAnnounces/2-1],
 				},
 				fetching: map[string][]common.Hash{
-					"A": hashesA[1643 : 1643+maxTxRetrievals],
-					"B": append(append([]common.Hash{}, hashesB[maxTxAnnounces/2-3:maxTxAnnounces/2-1]...), hashesB[:maxTxRetrievals-2]...),
+					"A": hashesA[:maxTxRetrievals],
+					"B": hashesB[:maxTxRetrievals],
 				},
 			},
 			// Ensure that adding even one more hash results in dropping the hash
@@ -1234,8 +1230,8 @@ func TestTransactionFetcherDoSProtection(t *testing.T) {
 					"B": announceB[:maxTxAnnounces/2-1],
 				},
 				fetching: map[string][]common.Hash{
-					"A": hashesA[1643 : 1643+maxTxRetrievals],
-					"B": append(append([]common.Hash{}, hashesB[maxTxAnnounces/2-3:maxTxAnnounces/2-1]...), hashesB[:maxTxRetrievals-2]...),
+					"A": hashesA[:maxTxRetrievals],
+					"B": hashesB[:maxTxRetrievals],
 				},
 			},
 		},
