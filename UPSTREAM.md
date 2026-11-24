@@ -2626,7 +2626,7 @@ Flags on commits to port: **consensus** touches state transition, the VM, types,
 - [ ] [#33880](https://github.com/ethereum/go-ethereum/pull/33880) cmd/utils: fix archive mode detection for TransactionHistory override `cmd/utils`
 - [ ] [#33886](https://github.com/ethereum/go-ethereum/pull/33886) internal/ethapi: add eth_capabilities RPC method `internal/qrlapi`, `internal/web3ext`, `qrl`
 - [ ] [#35023](https://github.com/ethereum/go-ethereum/pull/35023) eth: should return basefee for the next block as doc says `qrl`
-- [~] [#35034](https://github.com/ethereum/go-ethereum/pull/35034) graphql: limit request body size `graphql` **security?** — cyyber/go-qrl#326
+- [~] [#35034](https://github.com/ethereum/go-ethereum/commit/c782197d48f65985a84cb94d6660e23514adcfa5) graphql: limit request body size `graphql` **security?** — cyyber/go-qrl#326 (PR page removed upstream; links the commit)
 - [ ] [#32673](https://github.com/ethereum/go-ethereum/pull/32673) eth/catalyst: import new payload if at genesis, regardless of sync status `qrl/catalyst`
 - [ ] [#34980](https://github.com/ethereum/go-ethereum/pull/34980) p2p/nat: bump pion/stun to v3 to pull in fixed pion/dtls `p2p/nat`
 - [ ] [#35021](https://github.com/ethereum/go-ethereum/pull/35021) cmd/clef, cmd/geth: remove CLI flags that were deprecated for more than a year `cmd/clef`, `cmd/gqrl`, `cmd/utils`, `node`
