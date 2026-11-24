@@ -6,8 +6,8 @@ Generated from go-ethereum `e0feab521` (2026-11-23).
 
 | Status | Commits |
 |---|---|
-| `[x]` already in go-qrl (a merged go-qrl PR or commit references it) | 69 |
-| `[~]` port open in a go-qrl PR | 76 |
+| `[x]` already in go-qrl (a merged go-qrl PR or commit references it) | 70 |
+| `[~]` port open in a go-qrl PR | 75 |
 | `[-]` not applicable: code go-qrl removed (PoW, clique, blobs/KZG, BLS and BN256 precompiles, light client, era) | 149 |
 | `[-]` build, CI, docs or release housekeeping only | 338 |
 | `[ ]` to review and port | 2391 |
@@ -2743,7 +2743,7 @@ Flags on commits to port: **consensus** touches state transition, the VM, types,
 - [ ] [#35138](https://github.com/ethereum/go-ethereum/pull/35138) cmd/devp2p: fix test error message formats `cmd/devp2p`
 - [ ] [#35223](https://github.com/ethereum/go-ethereum/pull/35223) core, consensus/misc, params: implement EIP-7997 `consensus/misc`, `core`, `params` **consensus**
 - [ ] [#35167](https://github.com/ethereum/go-ethereum/pull/35167) accounts/external: forward blob fee cap to external signer `accounts/external`
-- [~] [#35022](https://github.com/ethereum/go-ethereum/pull/35022) node: match auth-schema case insensitively `node` — cyyber/go-qrl#355
+- [x] [#35022](https://github.com/ethereum/go-ethereum/pull/35022) node: match auth-schema case insensitively `node` — cyyber/go-qrl#355
 - [ ] [#35206](https://github.com/ethereum/go-ethereum/pull/35206) cmd/devp2p: close the iterator in discv4 LookupRandom `cmd/devp2p`
 - [ ] [#35281](https://github.com/ethereum/go-ethereum/pull/35281) core/types/bal: enhance the bal validation `core/types` **consensus**
 - [ ] [#35271](https://github.com/ethereum/go-ethereum/pull/35271) rpc: reject block parameter with neither number nor hash `rpc`
