@@ -1752,7 +1752,7 @@ Flags on commits to port: **consensus** touches state transition, the VM, types,
 - [ ] [#31902](https://github.com/ethereum/go-ethereum/pull/31902) trie: reduce the memory allocation in trie hashing `trie` **consensus**
 - [ ] [#32143](https://github.com/ethereum/go-ethereum/pull/32143) core/vm: add configurable jumpdest analysis cache `core/vm` **consensus**
 - [ ] [#32324](https://github.com/ethereum/go-ethereum/pull/32324) eth: fix typos and outdated comments `qrl/ethconfig`, `qrl/filters`
-- [ ] [#31877](https://github.com/ethereum/go-ethereum/pull/31877) eth/filters: fix error when blockHash is used with fromBlock/toBlock `qrl/filters`
+- [ ] [#31877](https://github.com/ethereum/go-ethereum/pull/31877) eth/filters: fix error when blockHash is used with fromBlock/toBlock `qrl/filters` — when ported, add #32327's errExceedLogQueryLimit case to TestInvalidGetLogsRequest (left out of cyyber/go-qrl#327)
 - [ ] [#31148](https://github.com/ethereum/go-ethereum/pull/31148) rlp/rlpgen: implement package renaming support `rlp/rlpgen`
 - [ ] [#32336](https://github.com/ethereum/go-ethereum/pull/32336) beacon/params, core/filtermaps: update checkpoints `beacon/params`, `core/filtermaps`
 - [-] [#32343](https://github.com/ethereum/go-ethereum/pull/32343) version: release v1.16.2 `version` — build/CI/docs/release
