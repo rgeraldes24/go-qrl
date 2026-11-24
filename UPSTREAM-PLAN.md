@@ -59,7 +59,7 @@ Not gaps, and not ported:
 
 All small, independent and the highest value.
 
-**Status (2026-11-24):** every item below has an `[UPSTREAM]` PR in cyyber/go-qrl (#325–#358); 16 are merged, #337 (#33860) was closed as not needed. Still to add: the range-proof path-prefix fix (#31667, after #30771 and #30823) and the tx fetcher hardening that precedes #32210 (#28261, #28304). The by-hash payload bodies cap stays in rgeraldes24/go-qrl#98.
+**Status (2026-11-24):** every item below has an `[UPSTREAM]` PR in cyyber/go-qrl (#325–#358); 16 are merged, #337 (#33860) was closed as not needed. The range-proof path-prefix fix is open as #360–#362 (#30771, #30823, #31667). The tx fetcher hardening that precedes #32210 (#28261, #28304 and the v1.13 follow-ups) turned out to be in go-qrl already; the later fetcher ports are open as #363–#366 (#30288, #30125, #31468, #31742), and #334 (#32210) is to be restacked on them. The by-hash payload bodies cap stays in rgeraldes24/go-qrl#98.
 
 - **p2p:**
   - **rlpx:** 2 KB handshake cap (#30029), after decision 3.
