@@ -1656,7 +1656,7 @@ Flags on commits to port: **consensus** touches state transition, the VM, types,
 - [-] [9eed26d1b0](https://github.com/ethereum/go-ethereum/commit/9eed26d1b0) .gitea: fix 386 upload — build/CI/docs/release
 - [-] [87d7c2aa12](https://github.com/ethereum/go-ethereum/commit/87d7c2aa12) .gitea: disable cron schedule — build/CI/docs/release
 - [ ] [#32104](https://github.com/ethereum/go-ethereum/pull/32104) triedb: reset state indexer after snap synced `triedb/pathdb` **consensus**
-- [~] [#31876](https://github.com/ethereum/go-ethereum/pull/31876) eth/filters: add address limit to filters `qrl/filters` **security?** — cyyber/go-qrl#327
+- [~] [#31876](https://github.com/ethereum/go-ethereum/pull/31876) eth/filters: add address limit to filters `qrl/filters` **security?** — superseded by #32327, in cyyber/go-qrl#327
 - [ ] [#31934](https://github.com/ethereum/go-ethereum/pull/31934) Fix log indexer noise after debug_setHead operations `core/filtermaps`
 - [ ] [#32123](https://github.com/ethereum/go-ethereum/pull/32123) core/filtermaps: clean up log format of unindexing message `core/filtermaps`
 - [ ] [#32125](https://github.com/ethereum/go-ethereum/pull/32125) eth/catalyst: fix the log message in newPayloadV4 `qrl/catalyst`
@@ -1929,7 +1929,7 @@ Flags on commits to port: **consensus** touches state transition, the VM, types,
 - [ ] [#32651](https://github.com/ethereum/go-ethereum/pull/32651) core/rawdb: report truncateErr in concurrent truncate failure `core/rawdb`
 - [ ] [#32592](https://github.com/ethereum/go-ethereum/pull/32592) build: update to execution-spec-tests v5.0.0 `core`, `params`, `tests` **consensus**
 - [ ] [#32636](https://github.com/ethereum/go-ethereum/pull/32636) eth/catalyst, beacon/engine: enable BPO and Osaka on stateless APIs `beacon/engine`, `qrl/catalyst`
-- [~] [#32327](https://github.com/ethereum/go-ethereum/pull/32327) eth/filters, cmd: add config of eth_getLogs address limit `cmd/gqrl`, `cmd/utils`, `qrl/ethconfig`, `qrl/filters` **security?** — port open
+- [~] [#32327](https://github.com/ethereum/go-ethereum/pull/32327) eth/filters, cmd: add config of eth_getLogs address limit `cmd/gqrl`, `cmd/utils`, `qrl/ethconfig`, `qrl/filters` **security?** — cyyber/go-qrl#327
 - [ ] [#32609](https://github.com/ethereum/go-ethereum/pull/32609) beacon/config: fix LoadForks with non-string values `beacon/params`, `cmd/utils`
 - [ ] [#32641](https://github.com/ethereum/go-ethereum/pull/32641) internal/ethapi: skip tx gas limit check for calls `core`, `internal/qrlapi`, `qrl/tracers` **consensus** **security?**
 - [-] [#32633](https://github.com/ethereum/go-ethereum/pull/32633) beacon/blsync: test validated finality `beacon/blsync` — n/a
