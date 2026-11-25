@@ -6,8 +6,8 @@ Generated from go-ethereum `e0feab521` (2026-11-23).
 
 | Status | Commits |
 |---|---|
-| `[x]` already in go-qrl (a merged go-qrl PR or commit references it) | 80 |
-| `[~]` port open in a go-qrl PR | 65 |
+| `[x]` already in go-qrl (a merged go-qrl PR or commit references it) | 93 |
+| `[~]` port open in a go-qrl PR | 52 |
 | `[-]` not applicable: code go-qrl removed (PoW, clique, blobs/KZG, BLS and BN256 precompiles, light client, era) | 149 |
 | `[-]` build, CI, docs or release housekeeping only | 338 |
 | `[ ]` to review and port | 2391 |
@@ -27,7 +27,7 @@ Flags on commits to port: **consensus** touches state transition, the VM, types,
 - [x] [#28159](https://github.com/ethereum/go-ethereum/pull/28159) cmd/utils: fix typo in comment `cmd/utils` — cyyber/go-qrl#316
 - [x] [#28160](https://github.com/ethereum/go-ethereum/pull/28160) cmd/clef: suppress fsnotify error if keydir not exists `accounts/keystore` — already in go-qrl
 - [x] [#28145](https://github.com/ethereum/go-ethereum/pull/28145) core/rawdb: no need to run truncateFile for readonly mode `core/rawdb` — cyyber/go-qrl#312
-- [~] [#28163](https://github.com/ethereum/go-ethereum/pull/28163) trie: remove internal nodes between shortNode and child in path mode `core/rawdb`, `trie` **consensus** — in rgeraldes24/go-qrl#91
+- [x] [#28163](https://github.com/ethereum/go-ethereum/pull/28163) trie: remove internal nodes between shortNode and child in path mode `core/rawdb`, `trie` **consensus** — cyyber/go-qrl#324
 - [x] [#28177](https://github.com/ethereum/go-ethereum/pull/28177) trie/triedb/pathdb: improve error log `trie/triedb` **consensus** — cyyber/go-qrl#318
 - [x] [#28178](https://github.com/ethereum/go-ethereum/pull/28178) core/state/snapshot: be very noisy if the generator hits a trie error `core/state` **consensus** — cyyber/go-qrl#313
 - [x] [#28179](https://github.com/ethereum/go-ethereum/pull/28179) cmd/geth: print progress logs when iterating large contracts too `cmd/gqrl` — cyyber/go-qrl#314
@@ -77,7 +77,7 @@ Flags on commits to port: **consensus** touches state transition, the VM, types,
 - [ ] [#28249](https://github.com/ethereum/go-ethereum/pull/28249) eth: when snap is complaining for missing eth, be verbose about the details `qrl`
 - [ ] [#28245](https://github.com/ethereum/go-ethereum/pull/28245) cmd/evm/internal/t8ntoo: tiny bugfix for difficulty field `cmd/qrvm`
 - [ ] [#28258](https://github.com/ethereum/go-ethereum/pull/28258) core/txpool/legacypool: fix typo `core/txpool`
-- [~] [#28233](https://github.com/ethereum/go-ethereum/pull/28233) trie: refactor stacktrie `trie` **consensus** — port open
+- [x] [#28233](https://github.com/ethereum/go-ethereum/pull/28233) trie: refactor stacktrie `trie` **consensus** — pushed to cyyber/main as e5d8573d32 (from rgeraldes24/go-qrl#91)
 - [ ] [#28255](https://github.com/ethereum/go-ethereum/pull/28255) core: fix typos `core/vm` **consensus**
 - [ ] [#28286](https://github.com/ethereum/go-ethereum/pull/28286) eth, params: fix typos `params`, `qrl/ethconfig` **consensus**
 - [ ] [#28287](https://github.com/ethereum/go-ethereum/pull/28287) all: move light.NodeSet to trienode.ProofSet `cmd/devp2p`, `les`, `light`, `qrl/protocols` **consensus**
@@ -85,7 +85,7 @@ Flags on commits to port: **consensus** touches state transition, the VM, types,
 - [x] [#28261](https://github.com/ethereum/go-ethereum/pull/28261) eth: enforce announcement metadatas and drop peers violating the protocol `qrl`, `qrl/fetcher`, `tests/fuzzers` — already in go-qrl
 - [ ] [#28254](https://github.com/ethereum/go-ethereum/pull/28254) git: ignore tests/spec-tests folder `.gitignore`
 - [ ] [#28280](https://github.com/ethereum/go-ethereum/pull/28280) accounts/abi/bind/backend: use requested header for gas prices and gas limits `accounts/abi`
-- [~] [#28291](https://github.com/ethereum/go-ethereum/pull/28291) trie: remove owner and binary marshaling from stacktrie `core/state`, `qrl/protocols`, `tests/fuzzers`, `trie` **consensus** — port open
+- [x] [#28291](https://github.com/ethereum/go-ethereum/pull/28291) trie: remove owner and binary marshaling from stacktrie `core/state`, `qrl/protocols`, `tests/fuzzers`, `trie` **consensus** — pushed to cyyber/main as 217468243a (from rgeraldes24/go-qrl#91)
 - [ ] [#28271](https://github.com/ethereum/go-ethereum/pull/28271) ethdb/pebble: add level file metrics `qrldb/pebble`
 - [x] [#28304](https://github.com/ethereum/go-ethereum/pull/28304) eth/fetcher: throttle tx fetches to 128KB responses `qrl/fetcher` — already in go-qrl
 - [ ] [13d1d425ac](https://github.com/ethereum/go-ethereum/commit/13d1d425ac) eth/fetcher: fix typo `qrl/fetcher`
@@ -103,7 +103,7 @@ Flags on commits to port: **consensus** touches state transition, the VM, types,
 - [-] [#28334](https://github.com/ethereum/go-ethereum/pull/28334) go.mod: update fastcache to latest — build/CI/docs/release
 - [ ] [#28324](https://github.com/ethereum/go-ethereum/pull/28324) build: move version-info into checksum file `internal/build`
 - [-] [#28332](https://github.com/ethereum/go-ethereum/pull/28332) go.mod: update AWS APIs to latest heads — build/CI/docs/release
-- [~] [#28311](https://github.com/ethereum/go-ethereum/pull/28311) trie: make rhs-proof align with last key in range proofs `cmd/devp2p`, `core/state`, `qrl/protocols`, `tests/fuzzers` **consensus** — in rgeraldes24/go-qrl#91
+- [x] [#28311](https://github.com/ethereum/go-ethereum/pull/28311) trie: make rhs-proof align with last key in range proofs `cmd/devp2p`, `core/state`, `qrl/protocols`, `tests/fuzzers` **consensus** — pushed to cyyber/main as 13f2a76b10 (from rgeraldes24/go-qrl#91)
 - [ ] [#28336](https://github.com/ethereum/go-ethereum/pull/28336) go.mod: pull in the latest cloudflare API libs `cmd/devp2p`
 - [ ] [#28335](https://github.com/ethereum/go-ethereum/pull/28335) cmd, core, ethdb: enable Pebble on 32 bits and OpenBSD too `cmd/utils`, `core/rawdb`, `qrldb/pebble`
 - [ ] [#28337](https://github.com/ethereum/go-ethereum/pull/28337) tests: update execution-spec-tests to 1.0.5 `cmd/qrvm`, `tests`
@@ -117,7 +117,7 @@ Flags on commits to port: **consensus** touches state transition, the VM, types,
 ## v1.14.0 (2024-04-24): 498 commits, 405 to review
 
 - [-] [aeb0abf80a](https://github.com/ethereum/go-ethereum/commit/aeb0abf80a) params: begin v1.13.5 release cycle `params` — build/CI/docs/release
-- [~] [#28350](https://github.com/ethereum/go-ethereum/pull/28350) core, trie, eth: refactor stacktrie constructor `core/state`, `qrl/protocols`, `tests/fuzzers`, `trie` **consensus** — port open
+- [x] [#28350](https://github.com/ethereum/go-ethereum/pull/28350) core, trie, eth: refactor stacktrie constructor `core/state`, `qrl/protocols`, `tests/fuzzers`, `trie` **consensus** — pushed to cyyber/main as 190605aee0 (from rgeraldes24/go-qrl#91)
 - [ ] [#28349](https://github.com/ethereum/go-ethereum/pull/28349) ethclient: ensure the close of canceled context `qrlclient`
 - [ ] [#28348](https://github.com/ethereum/go-ethereum/pull/28348) internal/ethapi, accounts/abi/bind: use `errors.Is` for error comparison `accounts/abi`, `internal/qrlapi`
 - [ ] [#28084](https://github.com/ethereum/go-ethereum/pull/28084) api/bind: add CallOpts.BlockHash to allow calling contracts at a specific block hash `accounts/abi`, `qrlclient`
@@ -136,10 +136,10 @@ Flags on commits to port: **consensus** touches state transition, the VM, types,
 - [ ] [#28295](https://github.com/ethereum/go-ethereum/pull/28295) core/blockchain: fix typos and grammar `core` **consensus**
 - [ ] [#28198](https://github.com/ethereum/go-ethereum/pull/28198) trie/triedb/pathdb, core/rawdb: enhance error message in freezer `core/rawdb`, `trie/triedb` **consensus**
 - [ ] [#28393](https://github.com/ethereum/go-ethereum/pull/28393) graphql: return error if block from>to `graphql`
-- [~] [#28327](https://github.com/ethereum/go-ethereum/pull/28327) core, eth, trie: filter out boundary nodes and remove dangling nodes in stacktrie `qrl/protocols`, `trie` **consensus** — port open
+- [x] [#28327](https://github.com/ethereum/go-ethereum/pull/28327) core, eth, trie: filter out boundary nodes and remove dangling nodes in stacktrie `qrl/protocols`, `trie` **consensus** — pushed to cyyber/main as fc15b304f0 (from rgeraldes24/go-qrl#91)
 - [ ] [#28400](https://github.com/ethereum/go-ethereum/pull/28400) txpool/legacypool: remove already known error in legacypool `core/txpool`
 - [ ] [#28397](https://github.com/ethereum/go-ethereum/pull/28397) cmd/evm: make t8ntool handle transaction decoding errors better `cmd/qrvm`
-- [~] [#28361](https://github.com/ethereum/go-ethereum/pull/28361) trie: use explicit errors in stacktrie (instead of panic) `core/state`, `trie` **consensus** **security?** — port open
+- [x] [#28361](https://github.com/ethereum/go-ethereum/pull/28361) trie: use explicit errors in stacktrie (instead of panic) `core/state`, `trie` **consensus** **security?** — pushed to cyyber/main as fce033b44f (from rgeraldes24/go-qrl#91)
 - [ ] [#28412](https://github.com/ethereum/go-ethereum/pull/28412) graphql: logs return error if from block > to `graphql`
 - [ ] [#28358](https://github.com/ethereum/go-ethereum/pull/28358) rpc: use correct stringer-method for serializing BlockNumberOrHash `rpc`
 - [ ] [#28373](https://github.com/ethereum/go-ethereum/pull/28373) cmd/geth: test for logging-output `cmd/gqrl`, `internal/debug`, `log`
@@ -235,7 +235,7 @@ Flags on commits to port: **consensus** touches state transition, the VM, types,
 - [ ] [#28650](https://github.com/ethereum/go-ethereum/pull/28650) cmd/evm: fix dump after state-test exec `cmd/qrvm`, `core/state` **consensus**
 - [ ] [#27766](https://github.com/ethereum/go-ethereum/pull/27766) beacon/light: add CommitteeChain `beacon/light`, `beacon/types`, `core/rawdb`
 - [ ] [#28657](https://github.com/ethereum/go-ethereum/pull/28657) cmd/utils, eth: disallow invalid snap sync / snapshot flag combos `cmd/utils`, `qrl`
-- [~] [#28595](https://github.com/ethereum/go-ethereum/pull/28595) trie: remove inconsistent trie nodes during sync in path mode `qrldb/dbtest`, `trie` **consensus** — port open
+- [x] [#28595](https://github.com/ethereum/go-ethereum/pull/28595) trie: remove inconsistent trie nodes during sync in path mode `qrldb/dbtest`, `trie` **consensus** — pushed to cyyber/main as 62f9128310 (from rgeraldes24/go-qrl#91)
 - [ ] [#28669](https://github.com/ethereum/go-ethereum/pull/28669) cmd/utils: fix HTTPHost, WSHost flag priority `cmd/utils`
 - [ ] [#28652](https://github.com/ethereum/go-ethereum/pull/28652) eth/protocols/eth: fix typos in comments `qrl/protocols`
 - [ ] [#28654](https://github.com/ethereum/go-ethereum/pull/28654) core/txpool : small cleanup refactors `cmd/gqrl`, `core/txpool`
@@ -1096,7 +1096,7 @@ Flags on commits to port: **consensus** touches state transition, the VM, types,
 - [ ] [#30776](https://github.com/ethereum/go-ethereum/pull/30776) core, eth, internal, miner: remove unnecessary parameters `cmd/qrvm`, `core`, `internal/qrlapi`, `miner` **consensus**
 - [ ] [#30788](https://github.com/ethereum/go-ethereum/pull/30788) internal/ethapi: remove double map-clone `internal/qrlapi`
 - [ ] [#30779](https://github.com/ethereum/go-ethereum/pull/30779) all: typos in comments `core`, `core/vm`, `trie/utils` **consensus**
-- [~] [#30771](https://github.com/ethereum/go-ethereum/pull/30771) trie: replace custom logic with bytes.HasPrefix `trie` **consensus** — cyyber/go-qrl#360
+- [x] [#30771](https://github.com/ethereum/go-ethereum/pull/30771) trie: replace custom logic with bytes.HasPrefix `trie` **consensus** — cyyber/go-qrl#360
 - [ ] [#30752](https://github.com/ethereum/go-ethereum/pull/30752) core, triedb: remove destruct flag in state snapshot `core/state`, `triedb` **consensus**
 - [ ] [#30796](https://github.com/ethereum/go-ethereum/pull/30796) internal/flags: fix "flag redefined" bug for alias on custom flags `internal/flags`
 - [ ] [#30804](https://github.com/ethereum/go-ethereum/pull/30804) eth/tracers/logger: fix json-logger output missing `qrl/tracers`
@@ -1110,7 +1110,7 @@ Flags on commits to port: **consensus** touches state transition, the VM, types,
 - [ ] [#30780](https://github.com/ethereum/go-ethereum/pull/30780) cmd/evm: don't reuse state between iterations, show errors `cmd/qrvm`
 - [ ] [#30811](https://github.com/ethereum/go-ethereum/pull/30811) core: better document reason for dropping error on return `core`
 - [ ] [#30802](https://github.com/ethereum/go-ethereum/pull/30802) core/state/snapshot: handle legacy journal `core/state` **consensus**
-- [~] [#30823](https://github.com/ethereum/go-ethereum/pull/30823) trie: combine validation loops in VerifyRangeProof `trie` **consensus** — cyyber/go-qrl#361
+- [x] [#30823](https://github.com/ethereum/go-ethereum/pull/30823) trie: combine validation loops in VerifyRangeProof `trie` **consensus** — cyyber/go-qrl#361
 - [ ] [#30670](https://github.com/ethereum/go-ethereum/pull/30670) all: exclude empty outputs in requests commitment `beacon/engine`, `cmd/qrvm`, `core`, `core/types` **consensus**
 - [ ] [#30813](https://github.com/ethereum/go-ethereum/pull/30813) cmd/bootnode: remove bootnode utility `cmd/bootnode`
 - [ ] [#30829](https://github.com/ethereum/go-ethereum/pull/30829) core/types: add length check in CalcRequestsHash `core/types` **consensus**
@@ -1656,7 +1656,7 @@ Flags on commits to port: **consensus** touches state transition, the VM, types,
 - [-] [9eed26d1b0](https://github.com/ethereum/go-ethereum/commit/9eed26d1b0) .gitea: fix 386 upload — build/CI/docs/release
 - [-] [87d7c2aa12](https://github.com/ethereum/go-ethereum/commit/87d7c2aa12) .gitea: disable cron schedule — build/CI/docs/release
 - [ ] [#32104](https://github.com/ethereum/go-ethereum/pull/32104) triedb: reset state indexer after snap synced `triedb/pathdb` **consensus**
-- [~] [#31876](https://github.com/ethereum/go-ethereum/pull/31876) eth/filters: add address limit to filters `qrl/filters` **security?** — superseded by #32327, in cyyber/go-qrl#327
+- [x] [#31876](https://github.com/ethereum/go-ethereum/pull/31876) eth/filters: add address limit to filters `qrl/filters` **security?** — superseded by #32327, merged in cyyber/go-qrl#327
 - [ ] [#31934](https://github.com/ethereum/go-ethereum/pull/31934) Fix log indexer noise after debug_setHead operations `core/filtermaps`
 - [ ] [#32123](https://github.com/ethereum/go-ethereum/pull/32123) core/filtermaps: clean up log format of unindexing message `core/filtermaps`
 - [ ] [#32125](https://github.com/ethereum/go-ethereum/pull/32125) eth/catalyst: fix the log message in newPayloadV4 `qrl/catalyst`
@@ -1929,7 +1929,7 @@ Flags on commits to port: **consensus** touches state transition, the VM, types,
 - [ ] [#32651](https://github.com/ethereum/go-ethereum/pull/32651) core/rawdb: report truncateErr in concurrent truncate failure `core/rawdb`
 - [ ] [#32592](https://github.com/ethereum/go-ethereum/pull/32592) build: update to execution-spec-tests v5.0.0 `core`, `params`, `tests` **consensus**
 - [ ] [#32636](https://github.com/ethereum/go-ethereum/pull/32636) eth/catalyst, beacon/engine: enable BPO and Osaka on stateless APIs `beacon/engine`, `qrl/catalyst`
-- [~] [#32327](https://github.com/ethereum/go-ethereum/pull/32327) eth/filters, cmd: add config of eth_getLogs address limit `cmd/gqrl`, `cmd/utils`, `qrl/ethconfig`, `qrl/filters` **security?** — cyyber/go-qrl#327
+- [x] [#32327](https://github.com/ethereum/go-ethereum/pull/32327) eth/filters, cmd: add config of eth_getLogs address limit `cmd/gqrl`, `cmd/utils`, `qrl/ethconfig`, `qrl/filters` **security?** — cyyber/go-qrl#327
 - [ ] [#32609](https://github.com/ethereum/go-ethereum/pull/32609) beacon/config: fix LoadForks with non-string values `beacon/params`, `cmd/utils`
 - [ ] [#32641](https://github.com/ethereum/go-ethereum/pull/32641) internal/ethapi: skip tx gas limit check for calls `core`, `internal/qrlapi`, `qrl/tracers` **consensus** **security?**
 - [-] [#32633](https://github.com/ethereum/go-ethereum/pull/32633) beacon/blsync: test validated finality `beacon/blsync` — n/a
@@ -2626,7 +2626,7 @@ Flags on commits to port: **consensus** touches state transition, the VM, types,
 - [ ] [#33880](https://github.com/ethereum/go-ethereum/pull/33880) cmd/utils: fix archive mode detection for TransactionHistory override `cmd/utils`
 - [ ] [#33886](https://github.com/ethereum/go-ethereum/pull/33886) internal/ethapi: add eth_capabilities RPC method `internal/qrlapi`, `internal/web3ext`, `qrl`
 - [ ] [#35023](https://github.com/ethereum/go-ethereum/pull/35023) eth: should return basefee for the next block as doc says `qrl`
-- [~] [#35034](https://github.com/ethereum/go-ethereum/commit/c782197d48f65985a84cb94d6660e23514adcfa5) graphql: limit request body size `graphql` **security?** — cyyber/go-qrl#326 (PR page removed upstream; links the commit)
+- [x] [#35034](https://github.com/ethereum/go-ethereum/commit/c782197d48f65985a84cb94d6660e23514adcfa5) graphql: limit request body size `graphql` **security?** — cyyber/go-qrl#326 (PR page removed upstream; links the commit)
 - [ ] [#32673](https://github.com/ethereum/go-ethereum/pull/32673) eth/catalyst: import new payload if at genesis, regardless of sync status `qrl/catalyst`
 - [ ] [#34980](https://github.com/ethereum/go-ethereum/pull/34980) p2p/nat: bump pion/stun to v3 to pull in fixed pion/dtls `p2p/nat`
 - [ ] [#35021](https://github.com/ethereum/go-ethereum/pull/35021) cmd/clef, cmd/geth: remove CLI flags that were deprecated for more than a year `cmd/clef`, `cmd/gqrl`, `cmd/utils`, `node`
