@@ -90,6 +90,8 @@ All small, independent and the highest value.
 
 ### Phase 2: data integrity, crash and race fixes
 
+**Status (2026-11-25):** first batch open as drafts cyyber/go-qrl#367–#380: #28387, #28542, #29238, #31030, #33005, #33147, #34735, #34743 with its fix #34878 (stacked), #35245, #35298, #35846, #36099, #36202. #29944 is not needed (go-qrl has no netip migration).
+
 - **pathdb:**
   - **History writes:** fail on a history write error (#31781); sync the freezer before the journal (#32557).
   - **Layers and recovery:** duplicate-root layers (#34642); `Recoverable` panic (#29107, #29135).
