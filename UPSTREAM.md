@@ -3139,6 +3139,6 @@ Flags on commits to port: **consensus** touches state transition, the VM, types,
 - [ ] [#35622](https://github.com/ethereum/go-ethereum/pull/35622) go.mod: remove a few dependencies `accounts/abi`, `accounts/keystore`, `cmd/gqrl`, `cmd/keeper` **consensus**
 - [ ] [#36152](https://github.com/ethereum/go-ethereum/pull/36152) core/types/bal: reduce verification overhead `core/types` **consensus**
 - [ ] [#36190](https://github.com/ethereum/go-ethereum/pull/36190) eth/catalyst: apply forkchoice state before checking payload attributes `qrl/catalyst`
-- [~] [#36202](https://github.com/ethereum/go-ethereum/pull/36202) internal/jsre: fix panic printing objects without a constructor `internal/jsre` **security?** — cyyber/go-qrl#380
+- [~] [#36202](https://github.com/ethereum/go-ethereum/commit/2a2cbe3b4ec21de8b00538f4ec51e1157d871175) internal/jsre: fix panic printing objects without a constructor `internal/jsre` **security?** — cyyber/go-qrl#380 (PR page removed upstream; links the commit)
 - [ ] [#36186](https://github.com/ethereum/go-ethereum/pull/36186) internal/ethapi: fix receipts for equal transaction hashes in eth_simulateV1 `internal/qrlapi`
 - [ ] [#36183](https://github.com/ethereum/go-ethereum/pull/36183) internal/ethapi: fix tx.from for equal transaction hashes in eth_simulateV1 `internal/qrlapi`
