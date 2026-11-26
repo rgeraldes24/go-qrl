@@ -94,6 +94,8 @@ All small, independent and the highest value.
 
 **Second batch (2026-11-26):** drafts cyyber/go-qrl#381–#391: #29107, #30001, #30011 and #30040 (both stacked on #367), #31928 with its follow-up #32369 (stacked), #33146, #33486, #35821, #35654, #36190. #34827 is ported for the native tracers but held until #352–#354 merge, since its StructLogger hunk touches their file. #29135 (in-memory freezer) is too big for this phase.
 
+**Third batch (2026-11-26):** drafts cyyber/go-qrl#392–#400: #31781, #32557, #33505, #33573, #34745 with its follow-up #34870 (stacked), #35405, #35515, #36046. #34728 was already in go-qrl. Blocked: #35258 and #35551 (later freezer rework), #34642 (pathdb lookup, #30971), #33540 (needs #384 merged and goleak). #29792 needs #28198 and #28483 first; that chain is being ported.
+
 - **pathdb:**
   - **History writes:** fail on a history write error (#31781); sync the freezer before the journal (#32557).
   - **Layers and recovery:** duplicate-root layers (#34642); `Recoverable` panic (#29107, #29135).
