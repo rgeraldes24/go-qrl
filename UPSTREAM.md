@@ -7,10 +7,10 @@ Generated from go-ethereum `e0feab521` (2026-11-23).
 | Status | Commits |
 |---|---|
 | `[x]` already in go-qrl (a merged go-qrl PR or commit references it) | 94 |
-| `[~]` port open in a go-qrl PR | 79 |
+| `[~]` port open in a go-qrl PR | 82 |
 | `[-]` not applicable: code go-qrl removed (PoW, clique, blobs/KZG, BLS and BN256 precompiles, light client, era), or not needed in go-qrl | 150 |
 | `[-]` build, CI, docs or release housekeeping only | 338 |
-| `[ ]` to review and port | 2362 |
+| `[ ]` to review and port | 2359 |
 | **Total** | **3023** |
 
 Flags on commits to port: **consensus** touches state transition, the VM, types, state, trie or chain config; **security?** has a word like crash, panic, DoS or limit in its title. The statuses are a first pass from file paths and references: check each before porting.
@@ -134,7 +134,7 @@ Flags on commits to port: **consensus** touches state transition, the VM, types,
 - [ ] [#28368](https://github.com/ethereum/go-ethereum/pull/28368) core/state/pruner: track number of skipped items during state pruning `core/state` **consensus**
 - [ ] [#28398](https://github.com/ethereum/go-ethereum/pull/28398) ethstats: fix bug in block reporting `qrlstats`
 - [ ] [#28295](https://github.com/ethereum/go-ethereum/pull/28295) core/blockchain: fix typos and grammar `core` **consensus**
-- [ ] [#28198](https://github.com/ethereum/go-ethereum/pull/28198) trie/triedb/pathdb, core/rawdb: enhance error message in freezer `core/rawdb`, `trie/triedb` **consensus**
+- [~] [#28198](https://github.com/ethereum/go-ethereum/pull/28198) trie/triedb/pathdb, core/rawdb: enhance error message in freezer `core/rawdb`, `trie/triedb` **consensus** — cyyber/go-qrl#401
 - [ ] [#28393](https://github.com/ethereum/go-ethereum/pull/28393) graphql: return error if block from>to `graphql`
 - [x] [#28327](https://github.com/ethereum/go-ethereum/pull/28327) core, eth, trie: filter out boundary nodes and remove dangling nodes in stacktrie `qrl/protocols`, `trie` **consensus** — pushed to cyyber/main as fc15b304f0 (from rgeraldes24/go-qrl#91)
 - [ ] [#28400](https://github.com/ethereum/go-ethereum/pull/28400) txpool/legacypool: remove already known error in legacypool `core/txpool`
@@ -164,7 +164,7 @@ Flags on commits to port: **consensus** touches state transition, the VM, types,
 - [ ] [#28501](https://github.com/ethereum/go-ethereum/pull/28501) cmd/geth: more testcases for logging `cmd/gqrl`
 - [ ] [#28491](https://github.com/ethereum/go-ethereum/pull/28491) ethdb/pebble: add `Errorf` function to panicLogger `qrldb/pebble`
 - [ ] [#28494](https://github.com/ethereum/go-ethereum/pull/28494) eth/filters: exit early if topics-filter has more than 4 topics `qrl/filters`
-- [ ] [#28483](https://github.com/ethereum/go-ethereum/pull/28483) core/rawdb: fsync the index file after each freezer write `core/rawdb`
+- [~] [#28483](https://github.com/ethereum/go-ethereum/pull/28483) core/rawdb: fsync the index file after each freezer write `core/rawdb` — cyyber/go-qrl#402, stacked on #401
 - [ ] [#28484](https://github.com/ethereum/go-ethereum/pull/28484) cmd/evm: allow state dump regardless if test passes in statetest `cmd/qrvm`
 - [ ] [#28482](https://github.com/ethereum/go-ethereum/pull/28482) ethclient: add empty/nonexist account testcase for eth_getProof RPC `qrlclient/gethclient`
 - [-] [#28505](https://github.com/ethereum/go-ethereum/pull/28505) build: upgrade -dlgo version to Go 1.21.4 — build/CI/docs/release
@@ -990,7 +990,7 @@ Flags on commits to port: **consensus** touches state transition, the VM, types,
 - [ ] [#30386](https://github.com/ethereum/go-ethereum/pull/30386) internal/ethapi: remove td field from block `cmd/utils`, `graphql`, `internal/jsre`, `internal/qrlapi`
 - [-] [f14f13bac7](https://github.com/ethereum/go-ethereum/commit/f14f13bac7) params: go-ethereum v1.14.11 stable `params` — build/CI/docs/release
 - [-] [096c4d266e](https://github.com/ethereum/go-ethereum/commit/096c4d266e) params: begin v1.14.12 release cycle `params` — build/CI/docs/release
-- [ ] [#29792](https://github.com/ethereum/go-ethereum/pull/29792) core/rawdb: freezer index repair `core/rawdb`, `triedb/pathdb` **consensus** — needs #28198 and #28483 (v1.13.5) first
+- [~] [#29792](https://github.com/ethereum/go-ethereum/pull/29792) core/rawdb: freezer index repair `core/rawdb`, `triedb/pathdb` **consensus** — cyyber/go-qrl#403, stacked on #402
 - [ ] [#30532](https://github.com/ethereum/go-ethereum/pull/30532) internal/web3ext: rm unused modules `internal/web3ext`
 - [ ] [#30418](https://github.com/ethereum/go-ethereum/pull/30418) core/vm, cmd/evm: implement eof validation `cmd/qrvm`, `core/asm`, `core/vm` **consensus**
 - [-] [#30485](https://github.com/ethereum/go-ethereum/pull/30485) beacon/light: optimize lock usage in `HeadTracker` `beacon/light` — n/a
