@@ -96,6 +96,8 @@ All small, independent and the highest value.
 
 **Third batch (2026-11-26):** drafts cyyber/go-qrl#392–#400: #31781, #32557, #33505, #33573, #34745 with its follow-up #34870 (stacked), #35405, #35515, #36046. #34728 was already in go-qrl. Blocked: #35258 and #35551 (later freezer rework), #34642 (pathdb lookup, #30971), #33540 (needs #384 merged and goleak). #29792 needed #28198 and #28483 first; the chain is open as #401 → #402 → #403.
 
+**Fourth batch (2026-11-27):** drafts cyyber/go-qrl#404–#411: #28560, #31065, #32222, #33428 → #33481 (stacked), and the forkchoice rewind chain #34767 → #35519 → #35804 (stacked; gqrl now rewinds to an older canonical head under 32 blocks, refuses deeper ones with -38006). #35190 is blocked on #31414. Follow-ups: #35335 and #35391 (configurable reorg limit) to match master.
+
 - **pathdb:**
   - **History writes:** fail on a history write error (#31781); sync the freezer before the journal (#32557).
   - **Layers and recovery:** duplicate-root layers (#34642); `Recoverable` panic (#29107, #29135).
